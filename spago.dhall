@@ -12,7 +12,18 @@ to generate this file without the comments in this block.
 -}
 { name = "my-project"
 , dependencies =
-  [ "aff", "console", "effect", "prelude", "run", "typelevel-prelude" ]
+  [ "aff"
+  , "aff-promise"
+  , "console"
+  , "effect"
+  , "heterogeneous"
+  , "json"
+  , "prelude"
+  , "profunctor-lenses"
+  , "record"
+  , "run"
+  , "typelevel-prelude"
+  ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs" ]
 }
