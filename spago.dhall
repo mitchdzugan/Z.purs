@@ -26,6 +26,7 @@ to generate this file without the comments in this block.
   , "json"
   , "maybe"
   , "prelude"
+  , "profunctor"
   , "profunctor-lenses"
   , "record"
   , "run"

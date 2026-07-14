@@ -5,11 +5,9 @@ import Prelude
 import Core (JsError)
 import Data.Either (Either(..), either)
 import Data.Lens as Lens
-import Data.Symbol as Symbol
 import Effect.Aff as Aff
-import Prim.Row as Row
-import Record as Record
-import Run (Run, lift, extract)
+import Run (Run, lift, extract, run)
+import Run as Run
 import Run.Except (EXCEPT, throw)
 import Run.Except as RunE
 import Run.Reader (READER)
@@ -45,6 +43,7 @@ tryAff a = do
 
 type A x = AFF x
 type R r x = READER r x
+type E :: forall k. Type -> Row (k -> Type) -> Row (k -> Type)
 type E e x = EXCEPT e x
 type W w x = WRITER w x
 type S s x = STATE s x
@@ -87,3 +86,6 @@ e_map
 e_map f m = do
   res <- RunE.runExcept m
   result $ either (\e1 -> Left $ f e1) (\r -> Right r) res
+
+runBaseAff :: Run (AFF + ()) ~> Aff.Aff
+runBaseAff = run $ Run.match { aff: \(AffCmd a) -> a }

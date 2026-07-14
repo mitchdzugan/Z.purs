@@ -8,3 +8,9 @@
 /.purs*
 /.psa*
 /.spago
+
+
+# Added by cargo
+
+/target
+/dist

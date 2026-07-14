@@ -75,6 +75,7 @@ module Z
   , module Record
   , module Run
   , module RunS
+  , module RunE
   , module X
   , promiseToAff
   , xMod
@@ -86,10 +87,10 @@ import Core (JsError) as Core
 import Data.Lens (Lens, Lens') as Lens
 import Data.Lens.Record (prop) as LensRecord
 import Data.Maybe (Maybe(..)) as Maybe
-import Effect.Aff (Aff) as Aff
+import Effect.Aff (Aff, launchAff, launchAff_) as Aff
 import JSON (JSON, null) as JSON
 import Type.Proxy (Proxy(..)) as Proxy
-import X (pass, tryAff, result, X, R, W, S, E, A, e_map, s_set) as X
+import X (pass, tryAff, result, X, R, W, S, E, A, e_map, s_set, runBaseAff) as X
 import Control.Promise (Promise) as Promise
 import Control.Promise (toAff)
 import Effect (Effect) as Effect
@@ -97,6 +98,7 @@ import Effect.Class (liftEffect) as EffectClass
 import Record (merge, get, set, modify) as Record
 import Run (Run, extract) as Run
 import Run.State (execState) as RunS
+import Run.Except (runExcept) as RunE
 
 promiseToAff :: forall a. Promise.Promise a -> Aff.Aff a
 promiseToAff = toAff

@@ -15,5 +15,8 @@
   "dependencies": {
     "graphql": "^16.14.2",
     "graphql-request": "^7.4.0"
+  },
+  "devDependencies": {
+    "tsdown": "^0.21.10"
   }
 }
