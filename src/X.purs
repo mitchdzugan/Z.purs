@@ -11,6 +11,7 @@ import Prim.Row as Row
 import Record as Record
 import Run (Run, lift, extract)
 import Run.Except (EXCEPT, throw)
+import Run.Except as RunE
 import Run.Reader (READER)
 import Run.Reader as RunR
 import Run.State (STATE, execState)
@@ -37,10 +38,10 @@ result res =
     Left e -> throw e
 
 tryAff
-  :: forall f e x. (JsError -> e) -> (Aff.Aff f) -> Run (AFF + EXCEPT e + x) f
-tryAff h a = do
+  :: forall f x. (Aff.Aff f) -> Run (AFF + EXCEPT JsError + x) f
+tryAff a = do
   res <- aff $ Aff.attempt a
-  result $ either (\e -> Left $ h e) Right res
+  result res
 
 type A x = AFF x
 type R r x = READER r x
@@ -77,3 +78,12 @@ s_set l a = do
 
 pass :: forall a. Applicative a => a Unit
 pass = pure unit
+
+e_map
+  :: forall x e1 e2 a
+   . (e1 -> e2)
+  -> Run (EXCEPT e1 + EXCEPT e2 + x) a
+  -> Run (EXCEPT e2 + x) a
+e_map f m = do
+  res <- RunE.runExcept m
+  result $ either (\e1 -> Left $ f e1) (\r -> Right r) res

@@ -1,4 +1,12 @@
-module Gql.Core where
+module Gql.Core
+  ( Error(..)
+  , NetworkControl(..)
+  , OpenOpts
+  , Opts
+  , _cachePath
+  , _networkControl
+  , baseOpts
+  ) where
 
 import Z as Z
 

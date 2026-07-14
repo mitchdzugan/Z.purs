@@ -3,22 +3,31 @@ module Gql.Node
   , _authToken
   , _url
   , mkClient
-  , operateUnknown
+  , mkClient_
   , module Gql
+  , operateUnknown
   ) where
 
 import Prelude
+
+import Debug as Debug
 import Gql.Core (Error(..), OpenOpts, Opts, baseOpts) as Gql
-import X as X
 import Z as Z
 
-foreign import jsRequestGql
+foreign import js_requestGql
   :: String -> Z.JSON -> String -> Z.JSON -> Z.Effect (Z.Promise Z.JSON)
 
-requestGqlAff :: String -> Z.JSON -> String -> Z.JSON -> Z.Aff Z.JSON
-requestGqlAff apiUrl authToken query vars = do
-  promise <- Z.liftEffect $ jsRequestGql apiUrl authToken query vars
-  Z.promiseToAff promise
+requestGql
+  :: forall x
+   . String
+  -> Z.JSON
+  -> String
+  -> Z.JSON
+  -> Z.Xea x Gql.Error Z.JSON
+requestGql apiUrl authToken query vars = do
+  Z.e_map Gql.NetworkError
+    $ Z.effectPromiseX
+    $ js_requestGql apiUrl authToken query vars
 
 type Client = Gql.OpenOpts (url :: String, authToken :: Z.Maybe String)
 
@@ -29,21 +38,23 @@ _authToken = Z.prop (Z.Proxy :: Z.Proxy "authToken")
 _url :: forall r. Z.Lens' { url :: String | r } String
 _url = Z.prop (Z.Proxy :: Z.Proxy "url")
 
-mkClient :: String -> X.UpdateX Client -> Client
-mkClient url clientX = X.updateX
-  (Z.merge { url: url, authToken: Z.Nothing } Gql.baseOpts)
-  clientX
+mkClient :: String -> Z.ModX Client -> Client
+mkClient url clientMod = Z.xMod baseClient clientMod
+  where
+  baseClient = Z.merge { url: url, authToken: Z.Nothing } Gql.baseOpts
+
+mkClient_ :: String -> Client
+mkClient_ url = mkClient url Z.pass
 
 operateUnknown
   :: forall x
    . Client
   -> String
   -> Z.JSON
-  -> X.UpdateX Gql.Opts
-  -> X.X (X.E Gql.Error (X.A x)) Z.JSON
-operateUnknown client query vars optsX = do
-  let
-    opts = X.updateX
-      { cachePath: client.cachePath, networkControl: client.networkControl }
-      optsX
-  X.tryAff Gql.NetworkError $ requestGqlAff client.url Z.null query vars
+  -> Z.ModX Gql.Opts
+  -> Z.Xea x Gql.Error Z.JSON
+operateUnknown c query vars optsMod = do
+  let baseOpts = { cachePath: c.cachePath, networkControl: c.networkControl }
+  let opts = Z.xMod baseOpts optsMod
+  Debug.traceM opts
+  requestGql c.url Z.null query vars
