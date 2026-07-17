@@ -1,0 +1,53 @@
+module H2h.GGQueries.PhaseGroupData
+  ( q
+  ) where
+
+q :: String
+q =
+  """query GetSetsData($phaseGroupId: ID!, $page: Int!) {
+  phaseGroup(id: $phaseGroupId) {
+    id
+    bracketType
+    sets(page: $page, perPage: 32) {
+      pageInfo {
+        total
+      }
+      nodes {
+        id
+        fullRoundText
+        round
+        lPlacement
+        wPlacement
+        totalGames
+        games {
+          winnerId
+          orderNum
+          entrant1Score
+          entrant2Score
+          selections {
+            id
+            character {
+              id
+              name
+            }
+            entrant {
+              id
+            }
+            orderNum
+            selectionValue
+          }
+        }
+        displayScore
+        identifier
+        winnerId
+        slots(includeByes: false) {
+          entrant {
+            id
+          }
+        }
+        state
+      }
+    }
+  }
+}
+"""

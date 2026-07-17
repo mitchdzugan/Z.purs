@@ -1,5 +1,6 @@
 module Core
   ( JsError
+  , StringOrNum
   , c_propOptionalDefault
   , c_propOptionalWithDefault
   , c_stringOrNum

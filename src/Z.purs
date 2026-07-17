@@ -60,10 +60,21 @@ module Z
   , Xwe_
   , Xws
   , Xws_
+  , c_int
+  , c_json
+  , c_null
+  , c_number
+  , c_object
+  , c_prismatic
+  , c_record
+  , c_string
   , effectPromiseToAff
   , effectPromiseX
   , module Aff
+  , module Arg
+  , module CA
   , module Core
+  , module DC
   , module Effect
   , module EffectClass
   , module JSON
@@ -74,8 +85,8 @@ module Z
   , module Proxy
   , module Record
   , module Run
-  , module RunS
   , module RunE
+  , module RunS
   , module X
   , promiseToAff
   , xMod
@@ -83,22 +94,56 @@ module Z
   ) where
 
 import Prelude
-import Core (JsError) as Core
+
+import Control.Promise (Promise) as Promise
+import Control.Promise (toAff)
+import Core (JsError, StringOrNum, c_stringOrNum, c_propOptionalDefault, c_propOptionalWithDefault) as Core
+import Data.Argonaut.Core (Json, caseJsonString, caseJsonNumber, fromString) as Arg
+import Data.Codec (Codec, Codec') as DC
+import Data.Codec.Argonaut (JsonCodec) as CA
+import Data.Codec.Argonaut as CCA
+import Data.Codec.Argonaut.Record as CCAR
 import Data.Lens (Lens, Lens') as Lens
 import Data.Lens.Record (prop) as LensRecord
 import Data.Maybe (Maybe(..)) as Maybe
-import Effect.Aff (Aff, launchAff, launchAff_) as Aff
-import JSON (JSON, null) as JSON
-import Type.Proxy (Proxy(..)) as Proxy
-import X (pass, tryAff, result, X, R, W, S, E, A, e_map, s_set, runBaseAff) as X
-import Control.Promise (Promise) as Promise
-import Control.Promise (toAff)
 import Effect (Effect) as Effect
+import Effect.Aff (Aff, launchAff, launchAff_) as Aff
 import Effect.Class (liftEffect) as EffectClass
+import JSON (JSON, null) as JSON
 import Record (merge, get, set, modify) as Record
 import Run (Run, extract) as Run
-import Run.State (execState) as RunS
 import Run.Except (runExcept) as RunE
+import Run.State (execState) as RunS
+import Type.Proxy (Proxy(..)) as Proxy
+import X (pass, tryAff, result, X, R, W, S, E, A, e_map, s_set, runBaseAff) as X
+
+c_object = CCA.object
+
+c_record = CCAR.record
+
+c_json ∷ CCA.JsonCodec Arg.Json
+c_json = CCA.json
+
+c_prismatic
+  ∷ ∀ (a ∷ Type) (b ∷ Type)
+  . String
+  → (a → Maybe.Maybe b)
+  → (b → a)
+  → CCA.JsonCodec a
+  → CCA.JsonCodec b
+c_prismatic = CCA.prismaticCodec
+
+c_string ∷ CCA.JsonCodec String
+c_string = CCA.string
+
+c_number ∷ CCA.JsonCodec Number
+c_number = CCA.number
+
+c_null ∷ CCA.JsonCodec Unit
+c_null = CCA.null
+
+c_int ∷ CCA.JsonCodec Int
+c_int = CCA.int
 
 promiseToAff :: forall a. Promise.Promise a -> Aff.Aff a
 promiseToAff = toAff

@@ -1,0 +1,77 @@
+module H2h.GGQueries.TourneyDataSmall
+  ( q
+  ) where
+
+q :: String
+q =
+  """query GetTournamentData($slug: String!, $pageE: Int!, $pageS: Int!) {
+  event(slug: $slug) {
+    id
+    numEntrants
+    name
+    slug
+    state
+    standings(query: { page: $pageS, perPage: 8 }) {
+      pageInfo {
+        total
+      }
+      nodes {
+        id
+        placement
+        isFinal
+        entrant {
+          id
+        }
+      }
+    }
+    entrants(query: { page: $pageE, perPage: 8 }) {
+      pageInfo {
+        total
+      }
+      nodes {
+        id
+        initialSeedNum
+        participants {
+          gamerTag
+          prefix
+          player {
+            id
+            gamerTag
+            prefix
+            user {
+              genderPronoun
+              name
+              authorizations {
+                type
+                externalUsername
+              }
+              images {
+                url
+                type
+              }
+            }
+          }
+        }
+      }
+    }
+    tournament {
+      id
+      name
+      endAt
+      images {
+        url
+        type
+      }
+    }
+    phaseGroups {
+      id
+      phase {
+        id
+        name
+        phaseOrder
+      }
+      displayIdentifier
+    }
+  }
+}
+"""
