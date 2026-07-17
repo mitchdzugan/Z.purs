@@ -1,11 +1,36 @@
-module X where
+module X
+  ( A
+  , AFF
+  , AffF
+  , E
+  , EFF
+  , EffF
+  , R
+  , S
+  , UpdateX
+  , W
+  , X
+  , e_map
+  , logInfo
+  , pass
+  , r_view
+  , result
+  , runBaseAff
+  , s_over
+  , s_set
+  , s_view
+  , tryAff
+  , updateX
+  ) where
 
 import Prelude
 
-import Core (JsError)
+import Core (JsError(..))
 import Data.Either (Either(..), either)
 import Data.Lens as Lens
+import Effect (Effect)
 import Effect.Aff as Aff
+import Effect.Unsafe as Unsafe
 import Run (Run, lift, extract, run)
 import Run as Run
 import Run.Except (EXCEPT, throw)
@@ -18,6 +43,8 @@ import Run.Writer (WRITER)
 import Type.Proxy (Proxy(..))
 import Type.Row (type (+))
 
+foreign import js_consoleFn :: forall a. String -> Array a -> Effect Unit
+
 data AffF a = AffCmd (Aff.Aff a)
 
 derive instance functorAffF :: Functor AffF
@@ -29,6 +56,34 @@ _aff = Proxy :: Proxy "aff"
 aff :: forall f r. (Aff.Aff f) -> Run (AFF + r) f
 aff f = lift _aff (AffCmd f)
 
+------------------------------
+
+data EffF a = EffCmd (Effect a)
+
+derive instance functorEffF :: Functor EffF
+
+type EFF x = (eff :: EffF | x)
+
+_eff = Proxy :: Proxy "eff"
+
+eff :: forall f r. (Effect f) -> Run (EFF + r) f
+eff f = lift _eff (EffCmd f)
+
+handleEff :: forall r. EffF ~> Run r
+handleEff = case _ of
+  EffCmd e -> pure $ Unsafe.unsafePerformEffect e
+
+runEff :: forall r. Run (EFF + r) ~> Run r
+runEff = Run.interpret (Run.on _eff handleEff Run.send)
+
+logInfo
+  :: forall l r x
+   . l
+  -> Run (EFF + x) Unit
+logInfo v = eff $ js_consoleFn "log" [ v ]
+
+------------------------------
+
 result :: forall e r x. Either e r -> Run (EXCEPT e + x) r
 result res =
   case res of
@@ -39,18 +94,20 @@ tryAff
   :: forall f x. (Aff.Aff f) -> Run (AFF + EXCEPT JsError + x) f
 tryAff a = do
   res <- aff $ Aff.attempt a
-  result res
+  e_map JsError $ result res
 
 type A x = AFF x
 type R r x = READER r x
+
 type E :: forall k. Type -> Row (k -> Type) -> Row (k -> Type)
 type E e x = EXCEPT e x
+
 type W w x = WRITER w x
 type S s x = STATE s x
 
-type X x r = Run x r
+type X x r = Run (EFF + x) r
 
-type UpdateX s = X (S s + ()) Unit
+type UpdateX s = Run (S s + ()) Unit
 
 updateX :: forall a. a -> UpdateX a -> a
 updateX init m = extract $ execState init m
@@ -87,5 +144,5 @@ e_map f m = do
   res <- RunE.runExcept m
   result $ either (\e1 -> Left $ f e1) (\r -> Right r) res
 
-runBaseAff :: Run (AFF + ()) ~> Aff.Aff
-runBaseAff = run $ Run.match { aff: \(AffCmd a) -> a }
+runBaseAff :: forall a. X (AFF + ()) a -> Aff.Aff a
+runBaseAff x = run (Run.match { aff: \(AffCmd a) -> a }) (runEff x)

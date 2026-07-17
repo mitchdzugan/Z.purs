@@ -14,7 +14,9 @@ to generate this file without the comments in this block.
 , dependencies =
   [ "aff"
   , "aff-promise"
+  , "argonaut-codecs"
   , "argonaut-core"
+  , "argonaut-generic"
   , "codec"
   , "codec-argonaut"
   , "console"
@@ -25,12 +27,14 @@ to generate this file without the comments in this block.
   , "exceptions"
   , "json"
   , "maybe"
+  , "optparse"
   , "prelude"
   , "profunctor"
   , "profunctor-lenses"
   , "record"
   , "run"
   , "typelevel-prelude"
+  , "variant"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs" ]

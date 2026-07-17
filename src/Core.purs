@@ -1,113 +1,37 @@
 module Core
-  ( JsError
-  , StringOrNum
-  , c_propOptionalDefault
-  , c_propOptionalWithDefault
-  , c_stringOrNum
-  , stringOrNumN
-  , stringOrNumS
+  ( JsError(..)
+  , jsErrorMessage
+  , jsErrorName
+  , jsErrorStack
   ) where
 
 import Prelude
-import Data.Maybe (Maybe(..))
-import Data.Codec as DC
-import Data.Argonaut.Core as Arg
-import Data.Codec.Argonaut as CA
-import Data.Default (class DefaultValue, defaultValue)
-import Data.Functor as Func
-import Data.Profunctor as Prof
-import Record as Record
+
+import Data.Argonaut.Decode (class DecodeJson, decodeJson)
+import Data.Argonaut.Encode (class EncodeJson, encodeJson)
+import Data.Maybe (Maybe)
 import Effect.Exception as Exc
-import Type.Proxy (Proxy)
-import Data.Symbol (class IsSymbol)
-import Prim.Row (class Cons)
 
-type JsError = Exc.Error
+newtype JsError = JsError Exc.Error
 
-type StringOrNum = { s :: String, mn :: Maybe Number }
+type PureJsError =
+  { "_" :: String, name :: String, message :: String }
 
-stringOrNumS :: String -> StringOrNum
-stringOrNumS s = { s: s, mn: Nothing }
+fromPureJsError :: PureJsError -> JsError
+fromPureJsError e = JsError $ Exc.errorWithName e.message e.name
 
-stringOrNumN :: Number -> StringOrNum
-stringOrNumN n = { s: show n, mn: Just n }
+instance decodeJsError :: DecodeJson JsError where
+  decodeJson j = map fromPureJsError $ decodeJson j
 
-readStringOrNum :: Arg.Json -> Maybe StringOrNum
-readStringOrNum j = Arg.caseJsonString
-  (Arg.caseJsonNumber Nothing (Just <<< stringOrNumN) j)
-  (Just <<< stringOrNumS)
-  j
+instance encodeJsError :: EncodeJson JsError where
+  encodeJson (JsError e) = encodeJson
+    { "_": "JsError", name: Exc.name e, message: Exc.message e }
 
-jsonStringOrNum :: StringOrNum -> Arg.Json
-jsonStringOrNum { mn: Just n } = Arg.fromNumber n
-jsonStringOrNum { s } = Arg.fromString s
+jsErrorName :: JsError -> String
+jsErrorName (JsError e) = Exc.name e
 
-c_stringOrNum :: CA.JsonCodec StringOrNum
-c_stringOrNum = CA.prismaticCodec "String/or/Num" readStringOrNum
-  jsonStringOrNum
-  CA.json
+jsErrorMessage :: JsError -> String
+jsErrorMessage (JsError e) = Exc.message e
 
-propOptionalDefault_to_prop
-  :: forall r' r rm l a
-   . DefaultValue a
-  => IsSymbol l
-  => Cons l a r' r
-  => Cons l (Maybe a) r' rm
-  => Proxy l
-  -> Record rm
-  -> Record r
-propOptionalDefault_to_prop p = Record.modify p getv
-  where
-  getv (Just v) = v
-  getv _ = defaultValue
-
-prop_to_propOptional
-  :: forall r' r rm l a
-   . IsSymbol l
-  => Cons l a r' r
-  => Cons l (Maybe a) r' rm
-  => Proxy l
-  -> Record r
-  -> Record rm
-prop_to_propOptional p = Record.modify p Just
-
-c_propOptionalDefault
-  :: forall r' r rm l a cerr cin
-   . DefaultValue a
-  => IsSymbol l
-  => Cons l a r' r
-  => Cons l (Maybe a) r' rm
-  => Func.Functor cerr
-  => Proxy l
-  -> DC.Codec' cerr cin (Record rm)
-  -> DC.Codec' cerr cin (Record r)
-c_propOptionalDefault p = Prof.dimap (prop_to_propOptional p)
-  (propOptionalDefault_to_prop p)
-
-propOptionalWithDefault_to_prop
-  :: forall r' r rm l a
-   . IsSymbol l
-  => Cons l a r' r
-  => Cons l (Maybe a) r' rm
-  => Proxy l
-  -> a
-  -> Record rm
-  -> Record r
-propOptionalWithDefault_to_prop p d = Record.modify p getv
-  where
-  getv (Just v) = v
-  getv _ = d
-
-c_propOptionalWithDefault
-  :: forall r' r rm l a cerr cin
-   . IsSymbol l
-  => Cons l a r' r
-  => Cons l (Maybe a) r' rm
-  => Func.Functor cerr
-  => Proxy l
-  -> a
-  -> DC.Codec' cerr cin (Record rm)
-  -> DC.Codec' cerr cin (Record r)
-c_propOptionalWithDefault p d = Prof.dimap (prop_to_propOptional p)
-  (propOptionalWithDefault_to_prop p d)
-
+jsErrorStack :: JsError -> Maybe String
+jsErrorStack (JsError e) = Exc.stack e

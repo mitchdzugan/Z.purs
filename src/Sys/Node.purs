@@ -1,5 +1,6 @@
 module Sys.Node
-  ( mkdir
+  ( lookupEnv
+  , mkdir
   , mkdirp
   , readTextFile
   , writeTextFile
@@ -25,3 +26,12 @@ mkdirp = Z.effectPromiseX <<< js_mkdirp
 
 writeTextFile :: forall x. String -> String -> Z.Xea x Z.JsError Unit
 writeTextFile p = Z.effectPromiseX <<< js_writeTextFile p
+
+foreign import js_lookupEnv
+  :: (String -> Z.Maybe String)
+  -> Z.Maybe String
+  -> String
+  -> Z.Effect (Z.Maybe String)
+
+lookupEnv :: String -> Z.Effect (Z.Maybe String)
+lookupEnv = js_lookupEnv Z.Just Z.Nothing
