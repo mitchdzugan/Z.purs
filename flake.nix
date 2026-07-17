@@ -16,11 +16,11 @@
           default = pkgs.mkShell {
             name = "purescript-custom-shell";
             buildInputs = [
-              easy-ps.purs-0_15_16
+              easy-ps.purs-0_15_15
               easy-ps.spago
               easy-ps.purescript-language-server
               easy-ps.purs-tidy
-              pkgs.nodejs-26
+              pkgs.nodejs_26
               pkgs.esbuild
             ];
             shellHook = ''
