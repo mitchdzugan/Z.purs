@@ -73,6 +73,7 @@ module Z.Z.Util
   , xRead
   , xReading
   , xResult
+  , xTell
   , xTry
   , xUnwrap
   ) where
@@ -93,6 +94,7 @@ import Data.Either as Either
 import Data.Generic.Rep (class Generic) as Generic
 import Data.Lens as Lens
 import Data.Maybe as Maybe
+import Data.Monoid as Monoid
 import Data.Tuple as Tup
 import Effect (Effect) as Effect
 import Effect.Aff as Aff
@@ -366,3 +368,6 @@ xResult m = do
 xUnwrap :: forall x e a. e -> Maybe.Maybe a -> x # E e @> a
 xUnwrap _ (Maybe.Just a) = pure a
 xUnwrap e _ = xFail e
+
+xTell :: forall x w. Monoid.Monoid w => w -> x # W w @> Unit
+xTell w = RunW.tell w

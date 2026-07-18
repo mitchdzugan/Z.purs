@@ -1,13 +1,13 @@
-module Z.Node.H2h.GGQueries.Queries
+module Z.Node.H2h.Builder.Startgg.Queries
   ( phaseGroupData
   , tourneyData
   , tourneyDataSmall
   ) where
 
 import Z.Node.Gql.Index as Gql
-import Z.Node.H2h.GGQueries.PhaseGroupData as PGDQ
-import Z.Node.H2h.GGQueries.TourneyData as TDQ
-import Z.Node.H2h.GGQueries.TourneyDataSmall as TDSQ
+import Z.Node.H2h.Builder.Startgg.Queries.PhaseGroupData as PGDQ
+import Z.Node.H2h.Builder.Startgg.Queries.TourneyData as TDQ
+import Z.Node.H2h.Builder.Startgg.Queries.TourneyDataSmall as TDSQ
 import Z.Z as Z
 
 tourneyData :: Gql.Operation TourneyDataVars TourneyDataRes

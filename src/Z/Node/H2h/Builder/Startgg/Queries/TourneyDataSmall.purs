@@ -1,4 +1,4 @@
-module Z.Node.H2h.GGQueries.TourneyDataSmall
+module Z.Node.H2h.Builder.Startgg.Queries.TourneyDataSmall
   ( q
   ) where
 

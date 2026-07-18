@@ -4,6 +4,8 @@ module Z.H2h.Index
   , Event
   , EventSource
   , Warning(..)
+  , challongeSource
+  , startggSource
   ) where
 
 import Z.Gql.Index as Gql
@@ -34,7 +36,7 @@ instance decodeJsonError :: Z.DecodeJson Error where
 instance encodeJsonError :: Z.EncodeJson Error where
   encodeJson x = Z.genericEncodeJson x
 
-data BracketingSite = StartGG | Challonge
+data BracketingSite = Startgg | Challonge
 
 derive instance genericBracketingSite :: Z.Generic BracketingSite _
 
@@ -57,3 +59,9 @@ type EventSource =
   { site :: BracketingSite
   , slug :: String
   }
+
+startggSource :: String -> EventSource
+startggSource slug = { slug, site: Startgg }
+
+challongeSource :: String -> EventSource
+challongeSource slug = { slug, site: Challonge }
