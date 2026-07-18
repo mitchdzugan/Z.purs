@@ -17,16 +17,11 @@
             name = "purescript-custom-shell";
             buildInputs = [
               easy-ps.purs-0_15_15
-              easy-ps.spago
               easy-ps.purescript-language-server
               easy-ps.purs-tidy
               pkgs.nodejs_26
               pkgs.esbuild
             ];
-            shellHook = ''
-              source <(spago --bash-completion-script `which spago`)
-              source <(node --completion-bash)
-              '';
           };
        };
      }

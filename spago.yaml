@@ -1,0 +1,36 @@
+package:
+  name: z
+  dependencies:
+    - aff
+    - aff-promise
+    - argonaut-codecs
+    - argonaut-core
+    - argonaut-generic
+    - codec
+    - codec-argonaut
+    - console
+    - debug
+    - default-values
+    - effect
+    - either
+    - exceptions
+    - json
+    - maybe
+    - node-process
+    - optparse
+    - prelude
+    - profunctor
+    - profunctor-lenses
+    - record
+    - run
+    - spec
+    - spec-discovery
+    - typelevel-prelude
+    - variant
+  test:
+    main: Test.Main
+    dependencies: []
+workspace:
+  packageSet:
+    registry: 77.13.1
+  extraPackages: {}

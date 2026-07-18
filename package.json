@@ -17,6 +17,11 @@
     "graphql-request": "^7.4.0"
   },
   "devDependencies": {
+    "spago": "^1.0.4",
     "tsdown": "^0.21.10"
+  },
+  "allowScripts": {
+    "cpu-features@0.0.10": true,
+    "ssh2@1.17.0": true
   }
 }
