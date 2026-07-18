@@ -1,11 +1,11 @@
-module Node.H2h.Index
+module Z.Node.H2h.Index
   ( mkClient
   , mkClient'
   , module H2h
   ) where
 
-import H2h.Index (BracketingSite(..), Error, Event, EventSource) as H2h
-import Node.Gql.Index as Gql
+import Z.H2h.Index (BracketingSite(..), Error, Event, EventSource) as H2h
+import Z.Node.Gql.Index as Gql
 import Z.Z as Z
 
 mkClient :: Z.ModX Gql.Client -> Gql.Client

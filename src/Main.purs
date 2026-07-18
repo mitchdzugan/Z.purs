@@ -3,7 +3,7 @@ module Main where
 import Prelude
 import Debug as Debug
 import Z.Z as Z
-import Node.Sys.Index as Sys
+import Z.Node.Sys.Index as Sys
 
 main :: Z.Effect Unit
 main = Z.launchAff_ $ Z.runBaseAff do

@@ -1,11 +1,11 @@
-module H2h.Index
+module Z.H2h.Index
   ( BracketingSite(..)
   , Error(..)
   , Event
   , EventSource
   ) where
 
-import Gql.Index as Gql
+import Z.Gql.Index as Gql
 import Z.Z as Z
 
 data Error

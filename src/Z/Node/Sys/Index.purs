@@ -1,4 +1,4 @@
-module Node.Sys.Index
+module Z.Node.Sys.Index
   ( lookupEnv
   , mkdir
   , mkdirp

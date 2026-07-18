@@ -1,4 +1,4 @@
-module Node.H2h.GGQueries.PhaseGroupData
+module Z.Node.H2h.GGQueries.PhaseGroupData
   ( q
   ) where
 

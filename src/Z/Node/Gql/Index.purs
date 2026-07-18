@@ -1,4 +1,4 @@
-module Node.Gql.Index
+module Z.Node.Gql.Index
   ( Client
   , Operation
   , _authToken
@@ -14,7 +14,7 @@ module Node.Gql.Index
   ) where
 
 import Prelude
-import Gql.Index (Error(..), OpenOpts, Opts, baseOpts) as Gql
+import Z.Gql.Index (Error(..), OpenOpts, Opts, baseOpts) as Gql
 import Z.Z as Z
 
 foreign import js_requestGql
