@@ -6,7 +6,7 @@ import Node.H2h.Index as H2h
 import Node.Gql.Index as Gql
 import Node.H2h.GGQueries.Queries as Q
 import Node.Sys.Index as Sys
-import Z.Index as Z
+import Z.Z as Z
 
 main :: Z.Effect Unit
 main = do

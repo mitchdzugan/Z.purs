@@ -8,7 +8,7 @@ module Node.Sys.Index
 
 import Prelude
 
-import Z.Index as Z
+import Z.Z as Z
 
 foreign import js_readTextFile :: String -> Z.Effect (Z.Promise String)
 foreign import js_mkdir :: String -> Z.Effect (Z.Promise Unit)

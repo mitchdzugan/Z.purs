@@ -8,7 +8,7 @@ module Gql.Index
   , baseOpts
   ) where
 
-import Z.Index as Z
+import Z.Z as Z
 
 data NetworkControl
   = CacheOnly

@@ -1,4 +1,4 @@
-module Z.Index
+module Z.Z
   ( A
   , E
   , EA
@@ -98,9 +98,9 @@ import Run (Run, extract) as Run
 import Run.Except (runExcept) as RunE
 import Run.State (execState) as RunS
 import Type.Proxy (Proxy(..)) as Proxy
-import Z.Core (JsError(..), jsErrorMessage, jsErrorName, jsErrorStack) as Core
-import Z.X (pass, tryAff, result, RunX, R, W, S, E, A, e_map, s_set, runBaseAff, logInfo) as X
-import Z.X (pass, tryAff, result, e_map, s_set, runBaseAff, logInfo) as XX
+import Z.Z.Core (JsError(..), jsErrorMessage, jsErrorName, jsErrorStack) as Core
+import Z.Z.X (pass, tryAff, result, RunX, R, W, S, E, A, e_map, s_set, runBaseAff, logInfo) as X
+import Z.Z.X (pass, tryAff, result, e_map, s_set, runBaseAff, logInfo) as XX
 
 id :: forall a. a -> a
 id a = a

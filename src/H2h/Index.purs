@@ -6,7 +6,7 @@ module H2h.Index
   ) where
 
 import Gql.Index as Gql
-import Z.Index as Z
+import Z.Z as Z
 
 data Error
   = Fetch Gql.Error

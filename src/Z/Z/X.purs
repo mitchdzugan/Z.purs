@@ -1,4 +1,4 @@
-module Z.X
+module Z.Z.X
   ( A
   , AFF
   , AffF
@@ -41,7 +41,7 @@ import Run.State as RunS
 import Run.Writer (WRITER)
 import Type.Proxy (Proxy(..))
 import Type.Row (type (+))
-import Z.Core (JsError(..))
+import Z.Z.Core (JsError(..))
 
 foreign import js_consoleFn :: forall a. String -> Array a -> Effect Unit
 
