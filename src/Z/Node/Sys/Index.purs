@@ -15,16 +15,16 @@ foreign import js_mkdir :: String -> Z.Effect (Z.Promise Unit)
 foreign import js_mkdirp :: String -> Z.Effect (Z.Promise Unit)
 foreign import js_writeTextFile :: String -> String -> Z.Effect (Z.Promise Unit)
 
-readTextFile :: forall x. String -> Z.X (Z.EA Z.JsError x) String
+readTextFile :: forall x. String -> Z.X x (Z.EA Z.JsError) String
 readTextFile = Z.effectPromiseX <<< js_readTextFile
 
-mkdir :: forall x. String -> Z.X' (Z.EA Z.JsError x)
+mkdir :: forall x. String -> Z.X_ x (Z.EA Z.JsError)
 mkdir = Z.effectPromiseX <<< js_mkdir
 
-mkdirp :: forall x. String -> Z.X' (Z.EA Z.JsError x)
+mkdirp :: forall x. String -> Z.X_ x (Z.EA Z.JsError)
 mkdirp = Z.effectPromiseX <<< js_mkdirp
 
-writeTextFile :: forall x. String -> String -> Z.X' (Z.EA Z.JsError x)
+writeTextFile :: forall x. String -> String -> Z.X_ x (Z.EA Z.JsError)
 writeTextFile p = Z.effectPromiseX <<< js_writeTextFile p
 
 foreign import js_lookupEnv

@@ -1,6 +1,5 @@
 module Z.Node.H2h.Index
   ( mkClient
-  , mkClient'
   , module H2h
   ) where
 
@@ -10,6 +9,3 @@ import Z.Z as Z
 
 mkClient :: Z.ModX Gql.Client -> Gql.Client
 mkClient = Gql.mkClient "https://api.start.gg/gql/alpha"
-
-mkClient' :: Gql.Client
-mkClient' = mkClient Z.pass

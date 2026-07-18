@@ -5,12 +5,9 @@ module Z.Node.Gql.Index
   , _url
   , defOperation
   , mkClient
-  , mkClient'
   , module Gql
   , operate
-  , operate'
   , operateUnknown
-  , operateUnknown'
   ) where
 
 import Prelude
@@ -26,7 +23,7 @@ requestGql
   -> Z.Json
   -> String
   -> Z.Json
-  -> Z.X (Z.EA Gql.Error x) Z.Json
+  -> Z.X x (Z.EA Gql.Error) Z.Json
 requestGql apiUrl authToken query vars = do
   Z.e_map Gql.NetworkError
     $ Z.effectPromiseX
@@ -46,9 +43,6 @@ mkClient url clientMod = Z.xMod baseClient clientMod
   where
   baseClient = Z.merge { url: url, authToken: Z.Nothing } Gql.baseOpts
 
-mkClient' :: String -> Client
-mkClient' = Z.arg2' Z.pass mkClient
-
 fullOpts
   :: Client
   -> Z.ModX Gql.Opts
@@ -63,21 +57,13 @@ operateUnknown
   -> String
   -> Z.Json
   -> Z.ModX Gql.Opts
-  -> Z.X (Z.EA Gql.Error x) Z.Json
+  -> Z.X x (Z.EA Gql.Error) Z.Json
 operateUnknown client opString vars optsMod = do
   let opts = fullOpts client optsMod
   let authToken = Z.encodeJson client.authToken
   Z.logInfo opts
   Z.logInfo { vars }
   requestGql client.url authToken opString vars
-
-operateUnknown'
-  :: forall x
-   . Client
-  -> String
-  -> Z.Json
-  -> Z.X (Z.EA Gql.Error x) Z.Json
-operateUnknown' = Z.arg4' Z.pass operateUnknown
 
 data Operation vars res = Operation String (Z.JsonEncodeFn vars)
   (Z.JsonDecodeFn res)
@@ -98,15 +84,7 @@ operate
   -> Operation vars res
   -> vars
   -> Z.ModX Gql.Opts
-  -> Z.X (Z.EA Gql.Error x) res
+  -> Z.X x (Z.EA Gql.Error) res
 operate c (Operation opString enc dec) vars optsMod = do
   j <- operateUnknown c opString (enc vars) optsMod
   Z.e_map Gql.ResponseTypeError $ Z.result $ dec j
-
-operate'
-  :: forall vars res x
-   . Client
-  -> Operation vars res
-  -> vars
-  -> Z.X (Z.EA Gql.Error x) res
-operate' = Z.arg4' Z.pass operate

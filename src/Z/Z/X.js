@@ -1,1 +1,2 @@
-export const js_consoleFn = (prop) => (args) => () => console[prop](...args);
+export const js_consoleFn = (prop) => (preface) => (args) => () =>
+  console[prop](preface, args);

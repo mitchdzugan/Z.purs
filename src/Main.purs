@@ -1,11 +1,12 @@
 module Main where
 
 import Prelude
-import Debug as Debug
-import Z.Z as Z
+
 import Z.Node.Sys.Index as Sys
+import Z.Z as Z
 
 main :: Z.Effect Unit
 main = Z.launchAff_ $ Z.runBaseAff do
+  Z.logInfo "hi"
   txtRes <- Z.runExcept $ Sys.readTextFile "/home/dz/Repo/PS-WS/index.js"
-  Debug.traceM { txtRes }
+  Z.logInfo { txtRes }

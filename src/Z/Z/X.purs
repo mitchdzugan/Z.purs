@@ -43,7 +43,8 @@ import Type.Proxy (Proxy(..))
 import Type.Row (type (+))
 import Z.Z.Core (JsError(..))
 
-foreign import js_consoleFn :: forall a. String -> Array a -> Effect Unit
+foreign import js_consoleFn
+  :: forall a. String -> String -> Array a -> Effect Unit
 
 data AffF a = AffCmd (Aff.Aff a)
 
@@ -77,7 +78,7 @@ runEff :: forall r. Run (EFF + r) ~> Run r
 runEff = Run.interpret (Run.on _eff handleEff Run.send)
 
 logInfo :: forall l x. l -> Run (EFF + x) Unit
-logInfo v = eff $ js_consoleFn "log" [ v ]
+logInfo v = eff $ js_consoleFn "log" "[X]::info" [ v ]
 
 ------------------------------
 
