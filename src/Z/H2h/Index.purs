@@ -3,10 +3,21 @@ module Z.H2h.Index
   , Error(..)
   , Event
   , EventSource
+  , Warning(..)
   ) where
 
 import Z.Gql.Index as Gql
 import Z.Z as Z
+
+data Warning = WARNING
+
+derive instance genericWarning :: Z.Generic Warning _
+
+instance decodeJsonWarning :: Z.DecodeJson Warning where
+  decodeJson x = Z.genericDecodeJson x
+
+instance encodeJsonWarning :: Z.EncodeJson Warning where
+  encodeJson x = Z.genericEncodeJson x
 
 data Error
   = Fetch Gql.Error

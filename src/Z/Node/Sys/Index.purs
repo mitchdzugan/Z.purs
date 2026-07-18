@@ -24,16 +24,16 @@ foreign import js_mkdirp
 foreign import js_writeTextFile
   :: String -> String -> Z.Effect Z.$ Z.Promise Unit
 
-readTextFile :: forall x. String -> Z.EA Z.JsError x Z.@> String
+readTextFile :: forall x. String -> x Z.# Z.EA Z.JsError Z.@> String
 readTextFile = Z.effectPromiseX <<< js_readTextFile
 
-mkdir :: forall x. String -> Z.EA Z.JsError x Z.@> Unit
+mkdir :: forall x. String -> x Z.# Z.EA Z.JsError Z.@> Unit
 mkdir = Z.effectPromiseX <<< js_mkdir
 
-mkdirp :: forall x. String -> Z.EA Z.JsError x Z.@> Unit
+mkdirp :: forall x. String -> x Z.# Z.EA Z.JsError Z.@> Unit
 mkdirp = Z.effectPromiseX <<< js_mkdirp
 
-writeTextFile :: forall x. String -> String -> Z.EA Z.JsError x Z.@> Unit
+writeTextFile :: forall x. String -> String -> x Z.# Z.EA Z.JsError Z.@> Unit
 writeTextFile p = Z.effectPromiseX <<< js_writeTextFile p
 
 foreign import js_lookupEnv
@@ -45,7 +45,7 @@ foreign import js_lookupEnv
 lookupEnv :: String -> Z.Effect Z.$ Z.Maybe String
 lookupEnv = js_lookupEnv Z.Just Z.Nothing
 
-xLookupEnv :: forall x. String -> Z.A x Z.@> Z.Maybe String
+xLookupEnv :: forall x. String -> x Z.# Z.A Z.@> Z.Maybe String
 xLookupEnv k = lookupEnv k # Z.tryEff # Z.xTry <#> getRes
   where
   getRes (Z.Right (Z.Just v)) = Z.Just v
@@ -63,7 +63,7 @@ execAndExit a = Z.runAff_ onDone a
     js_exit 1
   onDone _ = pure unit
 
-xExecAndExit :: forall e a. a Z.<@ Z.EA e () -> Z.Effect Unit
+xExecAndExit :: forall e a. a Z.<@ Z.EA e Z.$ () -> Z.Effect Unit
 xExecAndExit = Z.xExecAff >>> execAndExit
 
 foreign import js_exit :: Int -> Z.Effect Unit

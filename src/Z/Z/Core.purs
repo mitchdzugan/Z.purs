@@ -1,5 +1,6 @@
 module Z.Z.Core
   ( JsError(..)
+  , jsError
   , jsErrorMessage
   , jsErrorName
   , jsErrorStack
@@ -35,3 +36,6 @@ jsErrorMessage (JsError e) = Exc.message e
 
 jsErrorStack :: JsError -> Maybe String
 jsErrorStack (JsError e) = Exc.stack e
+
+jsError :: String -> String -> JsError
+jsError name message = fromPureJsError $ { name, message, "_": "" }

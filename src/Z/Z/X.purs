@@ -113,7 +113,7 @@ type E e x = EXCEPT e x
 type W w x = WRITER w x
 type S s x = STATE s x
 
-type RunX x r = Run (EFF + x) r
+type RunX x r = Run (EFF + READER {} + x) r
 
 type UpdateX s = Run (S s + ()) Unit
 

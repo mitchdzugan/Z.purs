@@ -10,11 +10,11 @@ import Z.Z as Z
 
 main :: Z.Effect Unit
 main = Sys.xExecAndExit do
-  Z.logInfo "hi"
   txtRes <- Sys.readTextFile "/home/dz/Repo/PS-WS/index.js"
   Z.logInfo { txtRes }
-  authToken <- Sys.xLookupEnv "CLM_STATS_GG_AUTH"
-  let client = H2h.mkClient $ Z.s_set Gql._authToken authToken
+  authToken <- Sys.xLookupEnv "CLM_STATS_GG_AUTH" >>= Z.xUnwrap
+    (Z.jsError "Nothing#unwrap" "")
+  let client = H2h.mkClient $ Z.s_set Gql._authToken $ Z.Just authToken
   Z.logInfo "Starting aff"
   res <- Z.xTry $ Z.auto $ Gql.operate client Q.tourneyData
     { pageE: 1

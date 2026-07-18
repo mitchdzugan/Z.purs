@@ -2,15 +2,21 @@ module Z.Z.Util
   ( A
   , E
   , EA
+  , ID
   , JsonDecodeError(..)
   , JsonDecodeFn
   , JsonEncodeFn
   , ModX
   , R
+  , RA
   , RW
+  , RWE
+  , RWEA
   , RWS
   , RWSE
   , RWSEA
+  , Result
+  , RunX
   , S
   , SE
   , SEA
@@ -18,12 +24,16 @@ module Z.Z.Util
   , Type_Ap
   , Type_Ap_R
   , W
+  , WE
+  , WEA
   , WS
   , WSE
   , WSEA
   , X
   , X_op
+  , X_op'
   , X_op_R
+  , X_op_R'
   , arg2'
   , arg3'
   , arg4'
@@ -46,10 +56,13 @@ module Z.Z.Util
   , promiseToAff
   , stringOrNumString
   , type (#)
+  , type (#@>)
   , type ($)
+  , type (<@$)
   , type (<@)
   , type (@>)
   , xAff
+  , xAsk
   , xEff
   , xEval
   , xEvalAff
@@ -57,7 +70,11 @@ module Z.Z.Util
   , xExecAff
   , xMod
   , xOk
+  , xRead
+  , xReading
+  , xResult
   , xTry
+  , xUnwrap
   ) where
 
 import Prelude
@@ -74,14 +91,18 @@ import Data.Argonaut.Encode (class EncodeJson, encodeJson) as Enc
 import Data.Argonaut.Encode.Generic (genericEncodeJson) as EncodeGeneric
 import Data.Either as Either
 import Data.Generic.Rep (class Generic) as Generic
+import Data.Lens as Lens
 import Data.Maybe as Maybe
+import Data.Tuple as Tup
 import Effect (Effect) as Effect
 import Effect.Aff as Aff
 import Effect.Class (liftEffect) as EffectClass
 import Effect.Unsafe (unsafePerformEffect)
 import Run as Run
 import Run.Except as RunE
+import Run.Reader as RunR
 import Run.State as RunS
+import Run.Writer as RunW
 import Type.Proxy as Proxy
 import Z.Z.Core as Core
 import Z.Z.X as X
@@ -114,17 +135,29 @@ else instance defaultApplicable ::
 auto :: forall d r. Defaultable d => (d -> r) -> r
 auto f = f default
 
-xEval :: forall a. a <@ () -> a
-xEval = unsafePerformEffect <<< Run.runBaseEffect <<< Run.expand <<< X.runEff
+xBase :: forall a x. a <@$ x -> Run.Run x a
+xBase = xReading {} <<< X.runEff
 
-xExec :: forall e a. a <@ E e () -> Either.Either e a
+xEval :: forall a. a <@$ () -> a
+xEval r = unsafePerformEffect $ Run.runBaseEffect $ Run.expand $ xBase r
+
+xExec :: forall e a. a <@ E e $ () -> Either.Either e a
 xExec = xEval <<< xTry
 
-xEvalAff :: forall a. a <@ A () -> Aff.Aff a
-xEvalAff x = Run.run (Run.match { aff: \(X.AffCmd a) -> a }) (X.runEff x)
+xEvalAff :: forall a. a <@ A $ () -> Aff.Aff a
+xEvalAff x = Run.match { aff: \(X.AffCmd a) -> a } # Run.run $ xBase x
 
-xExecAff :: forall e a. a <@ EA e () -> Aff.Aff $ Either.Either e a
+xExecAff :: forall e a. a <@ EA e $ () -> Aff.Aff $ Either.Either e a
 xExecAff = xEvalAff <<< xTry
+
+xReading :: forall x r a. r -> Run.Run (RunR.READER r x) a -> Run.Run x a
+xReading = RunR.runReader
+
+xAsk :: forall x r. Run.Run (RunR.READER r x) r
+xAsk = RunR.ask
+
+xRead :: forall x r a. Lens.Lens' r a -> Run.Run (RunR.READER r x) a
+xRead l = RunR.ask <#> Lens.view l
 
 newtype JsonDecodeError = JsonDecodeError JDE.JsonDecodeError
 
@@ -222,48 +255,67 @@ effectPromiseToAff e = EffectClass.liftEffect e >>= promiseToAff
 effectPromiseX
   :: forall a x
    . Effect.Effect $ Promise.Promise a
-  -> a <@ EA Core.JsError x
+  -> a <@ EA Core.JsError $ x
 effectPromiseX = effectPromiseToAff >>> xAff >=> xOk
 
-xTry :: forall x e a. a <@ E e x -> Either.Either e a <@ x
+type ID a = a
+
+xTry :: forall x e a. x # E e @> a -> x # ID @> Either.Either e a
 xTry = RunE.runExcept
 
-xOk :: forall x e a. Either.Either e a -> a <@ E e x
-xOk (Either.Left e) = RunE.throw e
+xFail :: forall x e a. e -> (a <@ ((E e)) $ x)
+xFail e = RunE.throw e
+
+xOk :: forall x e a. Either.Either e a -> (a <@ ((E e)) $ x)
+xOk (Either.Left e) = xFail e
 xOk (Either.Right a) = pure a
 
 xAff
-  :: forall f x. Aff.Aff f -> Either.Either Core.JsError f <@ A x
+  :: forall f x. Aff.Aff f -> Either.Either Core.JsError f <@ A $ x
 xAff a = Aff.attempt a # X.aff <#> mapL Core.JsError
 
 xEff
-  :: forall f x. Effect.Effect f -> Either.Either Core.JsError f <@ A x
+  :: forall f x. Effect.Effect f -> Either.Either Core.JsError f <@ A $ x
 xEff a = EffectClass.liftEffect a # xAff
 
-type X_op r m = X.RunX m r
-type X_op_R m r = X.RunX m r
+type RunX m r x = Run.Run (m (X.EFF (X.R {} x))) r
 
-infixr 0 type X_op as <@
-infixr 0 type X_op_R as @>
+type X_op r m x = RunX m r x
+type X_op_R m r x = RunX m r x
+type X_op' x r = RunX ID r x
+type X_op_R' r x = RunX ID r x
 
-type X :: forall k. k -> (k -> Row (Type -> Type)) -> Type -> Type
-type X x m r = X_op r (m x)
+infixr 1 type X_op as <@
+infixr 1 type X_op_R as @>
 
+infixr 1 type X_op' as #@>
+infixr 1 type X_op_R' as <@$
+
+type X x m r = X_op r m x
+
+type Type_Ap :: forall k1 k2. (k1 -> k2) -> k1 -> k2
 type Type_Ap f x = f x
+
+type Type_Ap_R :: forall k1 k2. k1 -> (k1 -> k2) -> k2
 type Type_Ap_R x f = f x
 
 infixr 0 type Type_Ap as $
 infixr 0 type Type_Ap_R as #
 
 type R r x = X.R r x
+type RA r x = X.R r (X.A x)
 type RW r w x = X.R r (X.W w x)
 type RWS r w s x = X.R r (X.W w (X.S s x))
+type RWE r w e x = X.R r (X.W w (X.E e x))
 type RWSE r w s e x = X.R r (X.W w (X.S s (X.E e x)))
 type RWSEA r w s e x = X.R r (X.W w (X.S s (X.E e (X.A x))))
+type RWEA r w e x = X.R r (X.W w (X.E e (X.A x)))
 type W w x = X.W w x
 type WS w s x = X.W w (X.S s x)
 type WSE w s e x = X.W w (X.S s (X.E e x))
+type WE w e x = X.W w (X.E e x)
 type WSEA w s e x = X.W w (X.S s (X.E e (X.A x)))
+type WEA w e x = X.W w (X.E e (X.A x))
 type S s x = X.S s x
 type SE s e x = X.S s (X.E e x)
 type SEA s e x = X.S s (X.E e (X.A x))
@@ -303,3 +355,14 @@ arg4'
   -> (a1 -> a2 -> a3 -> a4 -> r)
   -> (a1 -> a2 -> a3 -> r)
 arg4' a4 f a1 a2 a3 = f a1 a2 a3 a4
+
+type Result w e a = { w :: (Array w), v :: (Either.Either e a) }
+
+xResult :: forall x w e a. x # WE (Array w) e @> a -> x #@> Result w e a
+xResult m = do
+  w <- RunW.runWriter $ RunE.runExcept m
+  pure $ { w: (Tup.fst w), v: (Tup.snd w) }
+
+xUnwrap :: forall x e a. e -> Maybe.Maybe a -> x # E e @> a
+xUnwrap _ (Maybe.Just a) = pure a
+xUnwrap e _ = xFail e
