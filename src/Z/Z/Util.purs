@@ -15,12 +15,15 @@ module Z.Z.Util
   , SE
   , SEA
   , StringOrNum
+  , Type_Ap
+  , Type_Ap_R
   , W
   , WS
   , WSE
   , WSEA
   , X
-  , X_
+  , X_op
+  , X_op_R
   , arg2'
   , arg3'
   , arg4'
@@ -42,15 +45,27 @@ module Z.Z.Util
   , mapL
   , promiseToAff
   , stringOrNumString
+  , type (#)
+  , type ($)
+  , type (<@)
+  , type (@>)
+  , xAff
+  , xEff
+  , xEval
+  , xEvalAff
+  , xExec
+  , xExecAff
   , xMod
+  , xOk
+  , xTry
   ) where
 
 import Prelude
 
 import Control.Promise (Promise) as Promise
 import Control.Promise (toAff)
-import Data.Argonaut.Core as Arg
 import Data.Argonaut.Core (stringify) as AArg
+import Data.Argonaut.Core as Arg
 import Data.Argonaut.Decode (JsonDecodeError(..)) as JDE
 import Data.Argonaut.Decode (class DecodeJson, fromJsonString) as Dec
 import Data.Argonaut.Decode as ADec
@@ -63,7 +78,9 @@ import Data.Maybe as Maybe
 import Effect (Effect) as Effect
 import Effect.Aff as Aff
 import Effect.Class (liftEffect) as EffectClass
-import Run (Run, extract) as Run
+import Effect.Unsafe (unsafePerformEffect)
+import Run as Run
+import Run.Except as RunE
 import Run.State as RunS
 import Type.Proxy as Proxy
 import Z.Z.Core as Core
@@ -96,6 +113,18 @@ else instance defaultApplicable ::
 
 auto :: forall d r. Defaultable d => (d -> r) -> r
 auto f = f default
+
+xEval :: forall a. a <@ () -> a
+xEval = unsafePerformEffect <<< Run.runBaseEffect <<< Run.expand <<< X.runEff
+
+xExec :: forall e a. a <@ E e () -> Either.Either e a
+xExec = xEval <<< xTry
+
+xEvalAff :: forall a. a <@ A () -> Aff.Aff a
+xEvalAff x = Run.run (Run.match { aff: \(X.AffCmd a) -> a }) (X.runEff x)
+
+xExecAff :: forall e a. a <@ EA e () -> Aff.Aff $ Either.Either e a
+xExecAff = xEvalAff <<< xTry
 
 newtype JsonDecodeError = JsonDecodeError JDE.JsonDecodeError
 
@@ -192,15 +221,39 @@ effectPromiseToAff e = EffectClass.liftEffect e >>= promiseToAff
 
 effectPromiseX
   :: forall a x
-   . Effect.Effect (Promise.Promise a)
-  -> X x (EA Core.JsError) a
-effectPromiseX = X.tryAff <<< effectPromiseToAff
+   . Effect.Effect $ Promise.Promise a
+  -> a <@ EA Core.JsError x
+effectPromiseX = effectPromiseToAff >>> xAff >=> xOk
+
+xTry :: forall x e a. a <@ E e x -> Either.Either e a <@ x
+xTry = RunE.runExcept
+
+xOk :: forall x e a. Either.Either e a -> a <@ E e x
+xOk (Either.Left e) = RunE.throw e
+xOk (Either.Right a) = pure a
+
+xAff
+  :: forall f x. Aff.Aff f -> Either.Either Core.JsError f <@ A x
+xAff a = Aff.attempt a # X.aff <#> mapL Core.JsError
+
+xEff
+  :: forall f x. Effect.Effect f -> Either.Either Core.JsError f <@ A x
+xEff a = EffectClass.liftEffect a # xAff
+
+type X_op r m = X.RunX m r
+type X_op_R m r = X.RunX m r
+
+infixr 0 type X_op as <@
+infixr 0 type X_op_R as @>
 
 type X :: forall k. k -> (k -> Row (Type -> Type)) -> Type -> Type
-type X x m r = X.RunX (m x) r
+type X x m r = X_op r (m x)
 
-type X_ :: forall k. k -> (k -> Row (Type -> Type)) -> Type
-type X_ x m = X x m Unit
+type Type_Ap f x = f x
+type Type_Ap_R x f = f x
+
+infixr 0 type Type_Ap as $
+infixr 0 type Type_Ap_R as #
 
 type R r x = X.R r x
 type RW r w x = X.R r (X.W w x)

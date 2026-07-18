@@ -9,9 +9,6 @@
 /.purs*
 /.psa*
 /.spago
-
-
-# Added by cargo
-
+/.spec-results
 /target
 /dist

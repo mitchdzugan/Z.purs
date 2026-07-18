@@ -23,7 +23,7 @@ requestGql
   -> Z.Json
   -> String
   -> Z.Json
-  -> Z.X x (Z.EA Gql.Error) Z.Json
+  -> Z.EA Gql.Error x Z.@> Z.Json
 requestGql apiUrl authToken query vars = do
   Z.e_map Gql.NetworkError
     $ Z.effectPromiseX
@@ -57,7 +57,7 @@ operateUnknown
   -> String
   -> Z.Json
   -> Z.ModX Gql.Opts
-  -> Z.X x (Z.EA Gql.Error) Z.Json
+  -> Z.EA Gql.Error x Z.@> Z.Json
 operateUnknown client opString vars optsMod = do
   let opts = fullOpts client optsMod
   let authToken = Z.encodeJson client.authToken
@@ -84,7 +84,7 @@ operate
   -> Operation vars res
   -> vars
   -> Z.ModX Gql.Opts
-  -> Z.X x (Z.EA Gql.Error) res
+  -> Z.EA Gql.Error x Z.@> res
 operate c (Operation opString enc dec) vars optsMod = do
   j <- operateUnknown c opString (enc vars) optsMod
   Z.e_map Gql.ResponseTypeError $ Z.result $ dec j

@@ -19,7 +19,6 @@ module Z.Z
   , module Proxy
   , module Record
   , module Run
-  , module RunE
   , module RunS
   , module Symbol
   , module XX
@@ -41,13 +40,12 @@ import Data.Lens.Record (prop) as LensRecord
 import Data.Maybe (Maybe(..)) as Maybe
 import Data.Symbol (class IsSymbol, reifySymbol, reflectSymbol) as Symbol
 import Effect (Effect) as Effect
-import Effect.Aff (Aff, launchAff, launchAff_) as Aff
+import Effect.Aff (Aff, launchAff, launchAff_, runAff, runAff_) as Aff
 import Effect.Class (liftEffect) as EffectClass
 import Record (merge, get, set, modify) as Record
 import Run (Run, extract) as Run
-import Run.Except (runExcept) as RunE
 import Run.State (execState) as RunS
 import Type.Proxy (Proxy(..)) as Proxy
 import Z.Z.Core (JsError(..), jsErrorMessage, jsErrorName, jsErrorStack) as Core
-import Z.Z.X (pass, tryAff, result, e_map, s_set, runBaseAff, logInfo) as XX
+import Z.Z.X (pass, tryAff, tryEff, result, e_map, s_set, logInfo) as XX
 import Z.Z.Util as ZUtil

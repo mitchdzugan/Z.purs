@@ -1,25 +1,28 @@
 module Z.Z.X
   ( A
   , AFF
-  , AffF
+  , AffF(..)
   , E
   , EFF
   , EffF
   , R
+  , RunX
   , S
   , UpdateX
   , W
-  , RunX
+  , aff
   , e_map
+  , eff
   , logInfo
   , pass
   , r_view
   , result
-  , runBaseAff
+  , runEff
   , s_over
   , s_set
   , s_view
   , tryAff
+  , tryEff
   , updateX
   ) where
 
@@ -29,6 +32,7 @@ import Data.Either (Either(..), either)
 import Data.Lens as Lens
 import Effect (Effect)
 import Effect.Aff as Aff
+import Effect.Class (liftEffect)
 import Effect.Unsafe as Unsafe
 import Run (Run, lift, extract, run)
 import Run as Run
@@ -94,6 +98,12 @@ tryAff a = do
   res <- aff $ Aff.attempt a
   e_map JsError $ result res
 
+tryEff
+  :: forall f x. (Effect f) -> Run (AFF + EXCEPT JsError + x) f
+tryEff a = do
+  res <- aff $ Aff.attempt $ liftEffect a
+  e_map JsError $ result res
+
 type A x = AFF x
 type R r x = READER r x
 
@@ -141,6 +151,3 @@ e_map
 e_map f m = do
   res <- RunE.runExcept m
   result $ either (\e1 -> Left $ f e1) (\r -> Right r) res
-
-runBaseAff :: forall a. RunX (AFF + ()) a -> Aff.Aff a
-runBaseAff x = run (Run.match { aff: \(AffCmd a) -> a }) (runEff x)

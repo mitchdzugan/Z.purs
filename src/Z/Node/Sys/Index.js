@@ -9,3 +9,6 @@ export const js_lookupEnv = (mkJust) => (nothing) => (k) => () => {
   const v = process.env[k];
   return typeof v === "string" ? mkJust(v) : nothing;
 };
+
+export const js_exit = (code) => () => process.exit(code);
+export const js_errorLog = (a) => () => console.error(a);
