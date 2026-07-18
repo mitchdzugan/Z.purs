@@ -26,10 +26,13 @@ module Z
   , arg4'
   , asOrNum
   , asStringOr
+  , auto
+  , class Defaultable
   , decode
   , decode'
   , decodeJson
   , decodeJson'
+  , default
   , discard
   , effectPromiseToAff
   , effectPromiseX
@@ -81,6 +84,7 @@ import Data.Argonaut.Encode (class EncodeJson, encodeJson) as Enc
 import Data.Argonaut.Encode.Generic (genericEncodeJson) as EncodeGeneric
 import Data.Codec (Codec, Codec') as DC
 import Data.Codec.Argonaut (JsonCodec) as CA
+import Data.Default as Default
 import Data.Either (Either(..), either) as Either
 import Data.Generic.Rep (class Generic) as Generic
 import Data.Lens (Lens, Lens') as Lens
@@ -106,6 +110,25 @@ mapL f = Either.either (\x -> Either.Left $ f x) Either.Right
 
 discard :: forall m i. Monad m => m i -> m Unit
 discard = map $ const unit
+
+class Defaultable a where
+  default :: a
+
+instance defaultUnit :: Defaultable Unit where
+  default = unit
+
+instance defaultJust :: Defaultable (Maybe.Maybe a) where
+  default = Maybe.Nothing
+
+else instance defaultApplicable ::
+  ( Defaultable v
+  , Applicative a
+  ) =>
+  Defaultable (a v) where
+  default = pure default
+
+auto :: forall d r. Defaultable d => (d -> r) -> r
+auto f = f default
 
 newtype JsonDecodeError = JsonDecodeError JDE.JsonDecodeError
 
