@@ -14,7 +14,6 @@ module Gql.Node
   ) where
 
 import Prelude
-
 import Gql.Core (Error(..), OpenOpts, Opts, baseOpts) as Gql
 import Z as Z
 
@@ -27,7 +26,7 @@ requestGql
   -> Z.Json
   -> String
   -> Z.Json
-  -> Z.Xea x Gql.Error Z.Json
+  -> Z.X (Z.EA Gql.Error x) Z.Json
 requestGql apiUrl authToken query vars = do
   Z.e_map Gql.NetworkError
     $ Z.effectPromiseX
@@ -48,7 +47,7 @@ mkClient url clientMod = Z.xMod baseClient clientMod
   baseClient = Z.merge { url: url, authToken: Z.Nothing } Gql.baseOpts
 
 mkClient' :: String -> Client
-mkClient' url = mkClient url Z.pass
+mkClient' = Z.arg2' Z.pass mkClient
 
 fullOpts
   :: Client
@@ -64,24 +63,24 @@ operateUnknown
   -> String
   -> Z.Json
   -> Z.ModX Gql.Opts
-  -> Z.Xea x Gql.Error Z.Json
-operateUnknown c query vars optsMod = do
-  let opts = fullOpts c optsMod
-  let authToken = Z.encodeJson c.authToken
+  -> Z.X (Z.EA Gql.Error x) Z.Json
+operateUnknown client opString vars optsMod = do
+  let opts = fullOpts client optsMod
+  let authToken = Z.encodeJson client.authToken
   Z.logInfo opts
   Z.logInfo { vars }
-  requestGql c.url authToken query vars
+  requestGql client.url authToken opString vars
 
 operateUnknown'
   :: forall x
    . Client
   -> String
   -> Z.Json
-  -> Z.Xea x Gql.Error Z.Json
+  -> Z.X (Z.EA Gql.Error x) Z.Json
 operateUnknown' = Z.arg4' Z.pass operateUnknown
 
-data Operation vars res = Operation String (vars -> Z.Json)
-  (Z.Json -> Z.Either Z.JsonDecodeError res)
+data Operation vars res = Operation String (Z.JsonEncodeFn vars)
+  (Z.JsonDecodeFn res)
 
 defOperation
   :: forall vars res
@@ -91,7 +90,7 @@ defOperation
   -> Z.Proxy vars
   -> Z.Proxy res
   -> Operation vars res
-defOperation q _ _ = Operation q Z.encodeJson Z.decodeJson
+defOperation opString _ _ = Operation opString Z.encodeJson Z.decodeJson
 
 operate
   :: forall vars res x
@@ -99,15 +98,15 @@ operate
   -> Operation vars res
   -> vars
   -> Z.ModX Gql.Opts
-  -> Z.Xea x Gql.Error res
-operate c (Operation query enc dec) vars optsMod = do
-  j <- operateUnknown c query (enc vars) optsMod
-  Z.e_map (\_ -> Gql.ResponseTypeError "") $ Z.result $ dec j
+  -> Z.X (Z.EA Gql.Error x) res
+operate c (Operation opString enc dec) vars optsMod = do
+  j <- operateUnknown c opString (enc vars) optsMod
+  Z.e_map Gql.ResponseTypeError $ Z.result $ dec j
 
 operate'
   :: forall vars res x
    . Client
   -> Operation vars res
   -> vars
-  -> Z.Xea x Gql.Error res
+  -> Z.X (Z.EA Gql.Error x) res
 operate' = Z.arg4' Z.pass operate

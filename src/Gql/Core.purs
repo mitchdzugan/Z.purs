@@ -39,12 +39,12 @@ data Error
   | CachePrep Z.JsError
   | CacheWriter Z.JsError
   | CacheOnlyEmpty Z.JsError
-  | ResponseTypeError String -- Z.JsonDecodeError
+  | ResponseTypeError Z.JsonDecodeError
 
 derive instance genericError :: Z.Generic Error _
 
 instance decodeJsonError :: Z.DecodeJson Error where
-  decodeJson = Z.genericDecodeJson
+  decodeJson x = Z.genericDecodeJson x
 
 instance encodeJsonError :: Z.EncodeJson Error where
-  encodeJson = Z.genericEncodeJson
+  encodeJson x = Z.genericEncodeJson x

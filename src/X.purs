@@ -9,7 +9,7 @@ module X
   , S
   , UpdateX
   , W
-  , X
+  , RunX
   , e_map
   , logInfo
   , pass
@@ -76,10 +76,7 @@ handleEff = case _ of
 runEff :: forall r. Run (EFF + r) ~> Run r
 runEff = Run.interpret (Run.on _eff handleEff Run.send)
 
-logInfo
-  :: forall l r x
-   . l
-  -> Run (EFF + x) Unit
+logInfo :: forall l x. l -> Run (EFF + x) Unit
 logInfo v = eff $ js_consoleFn "log" [ v ]
 
 ------------------------------
@@ -105,7 +102,7 @@ type E e x = EXCEPT e x
 type W w x = WRITER w x
 type S s x = STATE s x
 
-type X x r = Run (EFF + x) r
+type RunX x r = Run (EFF + x) r
 
 type UpdateX s = Run (S s + ()) Unit
 
@@ -144,5 +141,5 @@ e_map f m = do
   res <- RunE.runExcept m
   result $ either (\e1 -> Left $ f e1) (\r -> Right r) res
 
-runBaseAff :: forall a. X (AFF + ()) a -> Aff.Aff a
+runBaseAff :: forall a. RunX (AFF + ()) a -> Aff.Aff a
 runBaseAff x = run (Run.match { aff: \(AffCmd a) -> a }) (runEff x)

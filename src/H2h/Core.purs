@@ -1,6 +1,6 @@
 module H2h.Core
   ( BracketingSite(..)
-  , Error
+  , Error(..)
   , Event
   , EventSource
   ) where
@@ -9,6 +9,7 @@ import Prelude
 
 import Gql.Core as Gql
 import Z as Z
+import Z (class Generic)
 
 data Error
   = Fetch Gql.Error
@@ -17,7 +18,23 @@ data Error
   | EventBuild Z.JsError
   | ParseCached Z.JsError
 
+derive instance genericError :: Z.Generic Error _
+
+instance decodeJsonError :: Z.DecodeJson Error where
+  decodeJson x = Z.genericDecodeJson x
+
+instance encodeJsonError :: Z.EncodeJson Error where
+  encodeJson x = Z.genericEncodeJson x
+
 data BracketingSite = StartGG | Challonge
+
+derive instance genericBracketingSite :: Z.Generic BracketingSite _
+
+instance decodeJsonBracketingSite :: Z.DecodeJson BracketingSite where
+  decodeJson x = Z.genericDecodeJson x
+
+instance encodeJsonBracketingSite :: Z.EncodeJson BracketingSite where
+  encodeJson x = Z.genericEncodeJson x
 
 type Event =
   { id :: Z.StringOrNum
