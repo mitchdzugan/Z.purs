@@ -2,10 +2,10 @@ module Test.Main where
 
 import Prelude
 
-import H2h.Node as H2h
-import Gql.Node as Gql
-import H2h.GGQueries.Queries as Q
-import Sys.Node as Sys
+import Node.H2h.Index as H2h
+import Node.Gql.Index as Gql
+import Node.H2h.GGQueries.Queries as Q
+import Node.Sys.Index as Sys
 import Z as Z
 
 main :: Z.Effect Unit

@@ -1,4 +1,4 @@
-module H2h.Core
+module H2h.Index
   ( BracketingSite(..)
   , Error(..)
   , Event
@@ -7,9 +7,8 @@ module H2h.Core
 
 import Prelude
 
-import Gql.Core as Gql
+import Gql.Index as Gql
 import Z as Z
-import Z (class Generic)
 
 data Error
   = Fetch Gql.Error

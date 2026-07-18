@@ -1,4 +1,4 @@
-module H2h.GGQueries.TourneyData
+module Node.H2h.GGQueries.TourneyDataSmall
   ( q
   ) where
 
@@ -11,7 +11,7 @@ q =
     name
     slug
     state
-    standings(query: { page: $pageS, perPage: 32 }) {
+    standings(query: { page: $pageS, perPage: 8 }) {
       pageInfo {
         total
       }
@@ -24,7 +24,7 @@ q =
         }
       }
     }
-    entrants(query: { page: $pageE, perPage: 32 }) {
+    entrants(query: { page: $pageE, perPage: 8 }) {
       pageInfo {
         total
       }
@@ -71,17 +71,6 @@ q =
         phaseOrder
       }
       displayIdentifier
-      seeds(query: { page: 0, perPage: 512 }) {
-        pageInfo {
-          total
-        }
-        nodes {
-          groupSeedNum
-          entrant {
-            id
-          }
-        }
-      }
     }
   }
 }

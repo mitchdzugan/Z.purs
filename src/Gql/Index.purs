@@ -1,4 +1,4 @@
-module Gql.Core
+module Gql.Index
   ( Error(..)
   , NetworkControl(..)
   , OpenOpts

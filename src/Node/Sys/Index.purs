@@ -1,4 +1,4 @@
-module Sys.Node
+module Node.Sys.Index
   ( lookupEnv
   , mkdir
   , mkdirp
