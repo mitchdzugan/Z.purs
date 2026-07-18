@@ -2,7 +2,7 @@ module Main where
 
 import Prelude
 import Debug as Debug
-import Z as Z
+import Z.Index as Z
 import Node.Sys.Index as Sys
 
 main :: Z.Effect Unit

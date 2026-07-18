@@ -1,4 +1,4 @@
-module X
+module Z.X
   ( A
   , AFF
   , AffF
@@ -25,7 +25,6 @@ module X
 
 import Prelude
 
-import Core (JsError(..))
 import Data.Either (Either(..), either)
 import Data.Lens as Lens
 import Effect (Effect)
@@ -42,6 +41,7 @@ import Run.State as RunS
 import Run.Writer (WRITER)
 import Type.Proxy (Proxy(..))
 import Type.Row (type (+))
+import Z.Core (JsError(..))
 
 foreign import js_consoleFn :: forall a. String -> Array a -> Effect Unit
 

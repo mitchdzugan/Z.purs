@@ -8,7 +8,7 @@ import Node.Gql.Index as Gql
 import Node.H2h.GGQueries.PhaseGroupData as PGDQ
 import Node.H2h.GGQueries.TourneyData as TDQ
 import Node.H2h.GGQueries.TourneyDataSmall as TDSQ
-import Z as Z
+import Z.Index as Z
 
 tourneyData :: Gql.Operation TourneyDataVars TourneyDataRes
 tourneyData = Gql.defOperation TDQ.q Z.Proxy Z.Proxy

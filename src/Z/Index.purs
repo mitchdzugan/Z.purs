@@ -1,4 +1,4 @@
-module Z
+module Z.Index
   ( A
   , E
   , EA
@@ -73,7 +73,6 @@ import Prelude
 
 import Control.Promise (Promise) as Promise
 import Control.Promise (toAff)
-import Core (JsError(..), jsErrorMessage, jsErrorName, jsErrorStack) as Core
 import Data.Argonaut.Core (Json, caseJsonString, caseJsonNumber, fromString, jsonNull) as Arg
 import Data.Argonaut.Core (stringify) as AArg
 import Data.Argonaut.Decode (JsonDecodeError(..)) as JDE
@@ -99,8 +98,9 @@ import Run (Run, extract) as Run
 import Run.Except (runExcept) as RunE
 import Run.State (execState) as RunS
 import Type.Proxy (Proxy(..)) as Proxy
-import X (pass, tryAff, result, RunX, R, W, S, E, A, e_map, s_set, runBaseAff, logInfo) as X
-import X (pass, tryAff, result, e_map, s_set, runBaseAff, logInfo) as XX
+import Z.Core (JsError(..), jsErrorMessage, jsErrorName, jsErrorStack) as Core
+import Z.X (pass, tryAff, result, RunX, R, W, S, E, A, e_map, s_set, runBaseAff, logInfo) as X
+import Z.X (pass, tryAff, result, e_map, s_set, runBaseAff, logInfo) as XX
 
 id :: forall a. a -> a
 id a = a

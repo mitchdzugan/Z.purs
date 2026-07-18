@@ -5,10 +5,8 @@ module H2h.Index
   , EventSource
   ) where
 
-import Prelude
-
 import Gql.Index as Gql
-import Z as Z
+import Z.Index as Z
 
 data Error
   = Fetch Gql.Error

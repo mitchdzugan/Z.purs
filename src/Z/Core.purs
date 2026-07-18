@@ -1,4 +1,4 @@
-module Core
+module Z.Core
   ( JsError(..)
   , jsErrorMessage
   , jsErrorName

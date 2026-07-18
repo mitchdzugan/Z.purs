@@ -15,7 +15,7 @@ module Node.Gql.Index
 
 import Prelude
 import Gql.Index (Error(..), OpenOpts, Opts, baseOpts) as Gql
-import Z as Z
+import Z.Index as Z
 
 foreign import js_requestGql
   :: String -> Z.Json -> String -> Z.Json -> Z.Effect (Z.Promise Z.Json)

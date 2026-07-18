@@ -6,7 +6,7 @@ module Node.H2h.Index
 
 import H2h.Index (BracketingSite(..), Error, Event, EventSource) as H2h
 import Node.Gql.Index as Gql
-import Z as Z
+import Z.Index as Z
 
 mkClient :: Z.ModX Gql.Client -> Gql.Client
 mkClient = Gql.mkClient "https://api.start.gg/gql/alpha"
