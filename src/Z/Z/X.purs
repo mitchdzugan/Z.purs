@@ -11,7 +11,6 @@ module Z.Z.X
   , UpdateX
   , W
   , aff
-  , e_map
   , eff
   , logInfo
   , pass
@@ -19,11 +18,12 @@ module Z.Z.X
   , result
   , runEff
   , s_over
-  , s_set
   , s_view
   , tryAff
   , tryEff
   , updateX
+  , xMapE
+  , xSet
   ) where
 
 import Prelude
@@ -82,7 +82,7 @@ runEff :: forall r. Run (EFF + r) ~> Run r
 runEff = Run.interpret (Run.on _eff handleEff Run.send)
 
 logInfo :: forall l x. l -> Run (EFF + x) Unit
-logInfo v = eff $ js_consoleFn "log" "[X]::info" [ v ]
+logInfo v = eff $ js_consoleFn "log" "χ::info" [ v ]
 
 ------------------------------
 
@@ -96,13 +96,13 @@ tryAff
   :: forall f x. (Aff.Aff f) -> Run (AFF + EXCEPT JsError + x) f
 tryAff a = do
   res <- aff $ Aff.attempt a
-  e_map JsError $ result res
+  xMapE JsError $ result res
 
 tryEff
   :: forall f x. (Effect f) -> Run (AFF + EXCEPT JsError + x) f
 tryEff a = do
   res <- aff $ Aff.attempt $ liftEffect a
-  e_map JsError $ result res
+  xMapE JsError $ result res
 
 type A x = AFF x
 type R r x = READER r x
@@ -113,7 +113,7 @@ type E e x = EXCEPT e x
 type W w x = WRITER w x
 type S s x = STATE s x
 
-type RunX x r = Run (EFF + READER {} + x) r
+type RunX x r = Run (EFF + x) r
 
 type UpdateX s = Run (S s + ()) Unit
 
@@ -135,19 +135,19 @@ s_over l f = do
   o <- RunS.get
   RunS.put $ Lens.over l f o
 
-s_set :: forall x s a. Lens.Lens' s a -> a -> Run (STATE s + x) Unit
-s_set l a = do
+xSet :: forall x s a. Lens.Lens' s a -> a -> Run (STATE s + x) Unit
+xSet l a = do
   o <- RunS.get
   RunS.put $ Lens.set l a o
 
 pass :: forall a. Applicative a => a Unit
 pass = pure unit
 
-e_map
+xMapE
   :: forall x e1 e2 a
    . (e1 -> e2)
   -> Run (EXCEPT e1 + EXCEPT e2 + x) a
   -> Run (EXCEPT e2 + x) a
-e_map f m = do
+xMapE f m = do
   res <- RunE.runExcept m
   result $ either (\e1 -> Left $ f e1) (\r -> Right r) res

@@ -37,6 +37,10 @@ module Z.Z.Util
   , arg2'
   , arg3'
   , arg4'
+  , arrReverse
+  , arrSort
+  , arrSortBy
+  , arrSortWith
   , asOrNum
   , asStringOr
   , auto
@@ -52,8 +56,15 @@ module Z.Z.Util
   , encode
   , id
   , jsonDecode
+  , jsonKeys
+  , jsonLookup
+  , jsonPairs
+  , jsonSortedPairs
+  , jsonStr
+  , jsonVals
   , mapL
   , promiseToAff
+  , simpleHash
   , stringOrNumString
   , type (#)
   , type (#@>)
@@ -90,16 +101,20 @@ import Data.Argonaut.Decode as ADec
 import Data.Argonaut.Decode.Generic (genericDecodeJson) as DecodeGeneric
 import Data.Argonaut.Encode (class EncodeJson, encodeJson) as Enc
 import Data.Argonaut.Encode.Generic (genericEncodeJson) as EncodeGeneric
+import Data.Array as Array
 import Data.Either as Either
 import Data.Generic.Rep (class Generic) as Generic
 import Data.Lens as Lens
 import Data.Maybe as Maybe
 import Data.Monoid as Monoid
+import Data.Ord as Ord
+import Data.Ordering as Ordering
 import Data.Tuple as Tup
 import Effect (Effect) as Effect
 import Effect.Aff as Aff
 import Effect.Class (liftEffect) as EffectClass
 import Effect.Unsafe (unsafePerformEffect)
+import Foreign.Object as FO
 import Run as Run
 import Run.Except as RunE
 import Run.Reader as RunR
@@ -108,6 +123,33 @@ import Run.Writer as RunW
 import Type.Proxy as Proxy
 import Z.Z.Core as Core
 import Z.Z.X as X
+
+arrSort :: forall a. Ord.Ord a => Array a -> Array a
+arrSort = Array.sort
+
+arrSortBy :: forall a. (a -> a -> Ordering.Ordering) -> Array a -> Array a
+arrSortBy = Array.sortBy
+
+arrSortWith :: forall a b. Ord.Ord b => (a -> b) -> Array a -> Array a
+arrSortWith = Array.sortWith
+
+arrReverse :: forall a. Array a -> Array a
+arrReverse = Array.reverse
+
+jsonKeys :: Arg.Json -> Array String
+jsonKeys = Arg.caseJsonObject [] FO.keys
+
+jsonVals :: Arg.Json -> Array Arg.Json
+jsonVals = Arg.caseJsonObject [] FO.values
+
+jsonPairs :: Arg.Json -> Array (Tup.Tuple String Arg.Json)
+jsonPairs = Arg.caseJsonObject [] FO.toUnfoldable
+
+jsonSortedPairs :: Arg.Json -> Array (Tup.Tuple String Arg.Json)
+jsonSortedPairs = Arg.caseJsonObject [] FO.toAscUnfoldable
+
+jsonLookup :: String -> Arg.Json -> Maybe.Maybe Arg.Json
+jsonLookup k = Arg.caseJsonObject Maybe.Nothing (FO.lookup k)
 
 id :: forall a. a -> a
 id a = a
@@ -138,7 +180,7 @@ auto :: forall d r. Defaultable d => (d -> r) -> r
 auto f = f default
 
 xBase :: forall a x. a <@$ x -> Run.Run x a
-xBase = xReading {} <<< X.runEff
+xBase = X.runEff
 
 xEval :: forall a. a <@$ () -> a
 xEval r = unsafePerformEffect $ Run.runBaseEffect $ Run.expand $ xBase r
@@ -160,6 +202,16 @@ xAsk = RunR.ask
 
 xRead :: forall x r a. Lens.Lens' r a -> Run.Run (RunR.READER r x) a
 xRead l = RunR.ask <#> Lens.view l
+
+foreign import js_jsonStr :: Arg.Json -> String
+
+jsonStr :: Arg.Json -> String
+jsonStr = js_jsonStr
+
+foreign import js_simpleHash :: String -> Int
+
+simpleHash :: String -> Int
+simpleHash = js_simpleHash
 
 newtype JsonDecodeError = JsonDecodeError JDE.JsonDecodeError
 
@@ -260,15 +312,17 @@ effectPromiseX
   -> a <@ EA Core.JsError $ x
 effectPromiseX = effectPromiseToAff >>> xAff >=> xOk
 
+type ID :: forall k. k -> k
 type ID a = a
 
-xTry :: forall x e a. x # E e @> a -> x # ID @> Either.Either e a
+xTry
+  :: forall x e a. Run.Run (RunE.EXCEPT e x) a -> Run.Run x (Either.Either e a)
 xTry = RunE.runExcept
 
-xFail :: forall x e a. e -> (a <@ ((E e)) $ x)
+xFail :: forall x e a. e -> Run.Run (RunE.EXCEPT e x) a
 xFail e = RunE.throw e
 
-xOk :: forall x e a. Either.Either e a -> (a <@ ((E e)) $ x)
+xOk :: forall x e a. Either.Either e a -> Run.Run (RunE.EXCEPT e x) a
 xOk (Either.Left e) = xFail e
 xOk (Either.Right a) = pure a
 
@@ -280,7 +334,7 @@ xEff
   :: forall f x. Effect.Effect f -> Either.Either Core.JsError f <@ A $ x
 xEff a = EffectClass.liftEffect a # xAff
 
-type RunX m r x = Run.Run (m (X.EFF (X.R {} x))) r
+type RunX m r x = Run.Run (m (X.EFF x)) r
 
 type X_op r m x = RunX m r x
 type X_op_R m r x = RunX m r x

@@ -12,7 +12,9 @@ module Z.Node.Gql.Index
   ) where
 
 import Prelude
-import Z.Gql.Index (Error(..), OpenOpts, Opts, baseOpts) as Gql
+
+import Z.Gql.Index (Error(..), NetworkControl(..), OpenOpts, Opts, baseOpts, _cachePath, _networkControl) as Gql
+import Z.Node.Sys.Index as Sys
 import Z.Z as Z
 
 foreign import js_requestGql
@@ -26,7 +28,7 @@ requestGql
   -> Z.Json
   -> x Z.# Z.EA Gql.Error Z.@> Z.Json
 requestGql apiUrl authToken query vars = do
-  Z.e_map Gql.NetworkError
+  Z.xMapE Gql.NetworkError
     $ Z.effectPromiseX
     $ js_requestGql apiUrl authToken query vars
 
@@ -60,11 +62,37 @@ operateUnknown
   -> Z.ModX Gql.Opts
   -> x Z.# Z.EA Gql.Error Z.@> Z.Json
 operateUnknown client opString vars optsMod = do
-  let opts = fullOpts client optsMod
-  let authToken = Z.encodeJson client.authToken
+  Z.logInfo { opKey }
+  cached <- getCached
+  Z.logInfo { cached }
   Z.logInfo opts
-  Z.logInfo { vars }
   requestGql client.url authToken opString vars
+  where
+  opts = fullOpts client optsMod
+  authToken = Z.encodeJson client.authToken
+  sortedPairs = Z.arrSort $ Z.jsonSortedPairs vars
+  -- reverse in specific case to match my old startgg cache
+  strVals = map Z.jsonStr $ map Z.snd $ case map Z.fst sortedPairs of
+    [ "page", "phaseGroupId" ] -> Z.arrReverse sortedPairs
+    _ -> sortedPairs
+  opKeyStr = Z.joinWith "|" [ opString, Z.joinWith "|" strVals ]
+  opKey = show $ Z.simpleHash opKeyStr
+  cacheFilename cachePath collisionCount =
+    let
+      filenameParts =
+        if collisionCount == 0 then [ opKey, "json" ]
+        else [ opKey, show collisionCount, "json" ]
+    in
+      Sys.join cachePath $ Z.joinWith "." filenameParts
+
+  getCachedRec cachePath collisionCount = do
+    let filename = cacheFilename cachePath collisionCount
+    Z.logInfo { filename }
+    pure $ Z.Tuple collisionCount Z.Nothing
+  getCachedArgs _ Gql.ForceFetch = pure $ Z.Tuple 0 Z.Nothing
+  getCachedArgs Z.Nothing _ = pure $ Z.Tuple 0 Z.Nothing
+  getCachedArgs (Z.Just p) _ = getCachedRec p 0
+  getCached = getCachedArgs opts.cachePath opts.networkControl
 
 data Operation vars res = Operation String (Z.JsonEncodeFn vars)
   (Z.JsonDecodeFn res)
@@ -88,4 +116,4 @@ operate
   -> x Z.# Z.EA Gql.Error Z.@> res
 operate c (Operation opString enc dec) vars optsMod = do
   j <- operateUnknown c opString (enc vars) optsMod
-  Z.e_map Gql.ResponseTypeError $ Z.result $ dec j
+  Z.xMapE Gql.ResponseTypeError $ Z.result $ dec j

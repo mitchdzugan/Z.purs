@@ -11,7 +11,7 @@ import Z.Node.Gql.Index as Gql
 import Z.Z as Z
 
 type BuildX x = Z.RWEA
-  { client :: Gql.Client, slug :: String, opts :: Gql.Opts }
+  { client :: Gql.Client, slug :: String, modOpts :: Z.ModX Gql.Opts }
   (Array H2h.Warning)
   H2h.Error
   x
@@ -28,4 +28,4 @@ adaptBuilder
   -> GetDataFn x
 adaptBuilder b source client modOpts = Z.xResult $ Z.xReading env b
   where
-  env = { slug: source.slug, client, opts: Gql.fullOpts client modOpts }
+  env = { slug: source.slug, client, modOpts }

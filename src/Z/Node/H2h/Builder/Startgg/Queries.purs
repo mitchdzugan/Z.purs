@@ -2,6 +2,11 @@ module Z.Node.H2h.Builder.Startgg.Queries
   ( phaseGroupData
   , tourneyData
   , tourneyDataSmall
+  , TourneyDataRes
+  , TourneyDataVars
+  , ImagesStub
+  , IdStub
+  , PageNodesRes
   ) where
 
 import Z.Node.Gql.Index as Gql

@@ -1,7 +1,13 @@
 module Z.Node.Sys.Index
-  ( lookupEnv
+  ( Path
+  , basename
+  , class Pathlike
+  , dirname
+  , join
+  , lookupEnv
   , mkdir
   , mkdirp
+  , pathStr
   , readTextFile
   , writeTextFile
   , xExecAndExit
@@ -24,17 +30,29 @@ foreign import js_mkdirp
 foreign import js_writeTextFile
   :: String -> String -> Z.Effect Z.$ Z.Promise Unit
 
-readTextFile :: forall x. String -> x Z.# Z.EA Z.JsError Z.@> String
-readTextFile = Z.effectPromiseX <<< js_readTextFile
+newtype Path = Path String
 
-mkdir :: forall x. String -> x Z.# Z.EA Z.JsError Z.@> Unit
-mkdir = Z.effectPromiseX <<< js_mkdir
+class Pathlike a where
+  pathStr :: a -> String
 
-mkdirp :: forall x. String -> x Z.# Z.EA Z.JsError Z.@> Unit
-mkdirp = Z.effectPromiseX <<< js_mkdirp
+instance pathlikePath :: Pathlike Path where
+  pathStr (Path p) = p
 
-writeTextFile :: forall x. String -> String -> x Z.# Z.EA Z.JsError Z.@> Unit
-writeTextFile p = Z.effectPromiseX <<< js_writeTextFile p
+instance pathlikeString :: Pathlike String where
+  pathStr s = s
+
+readTextFile :: forall x p. Pathlike p => p -> x Z.# Z.EA Z.JsError Z.@> String
+readTextFile = Z.effectPromiseX <<< js_readTextFile <<< pathStr
+
+mkdir :: forall x p. Pathlike p => p -> x Z.# Z.EA Z.JsError Z.@> Unit
+mkdir = Z.effectPromiseX <<< js_mkdir <<< pathStr
+
+mkdirp :: forall x p. Pathlike p => p -> x Z.# Z.EA Z.JsError Z.@> Unit
+mkdirp = Z.effectPromiseX <<< js_mkdirp <<< pathStr
+
+writeTextFile
+  :: forall x p. Pathlike p => p -> String -> x Z.# Z.EA Z.JsError Z.@> Unit
+writeTextFile p = Z.effectPromiseX <<< js_writeTextFile (pathStr p)
 
 foreign import js_lookupEnv
   :: (String -> Z.Maybe String)
@@ -68,3 +86,18 @@ xExecAndExit = Z.xExecAff >>> execAndExit
 
 foreign import js_exit :: Int -> Z.Effect Unit
 foreign import js_errorLog :: forall a. a -> Z.Effect Unit
+
+foreign import js_pathDirname :: String -> String
+
+foreign import js_pathBasename :: String -> String
+
+foreign import js_pathJoin :: String -> String -> String
+
+dirname :: forall p. Pathlike p => p -> Path
+dirname p = Path $ js_pathDirname $ pathStr p
+
+basename :: forall p. Pathlike p => p -> Path
+basename p = Path $ js_pathBasename $ pathStr p
+
+join :: forall p1 p2. Pathlike p1 => Pathlike p2 => p1 -> p2 -> Path
+join p1 p2 = Path $ js_pathJoin (pathStr p1) (pathStr p2)

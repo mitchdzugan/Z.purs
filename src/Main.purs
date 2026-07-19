@@ -13,7 +13,12 @@ main = Sys.xExecAndExit do
   Z.logInfo { txtRes }
   authToken <- Sys.xLookupEnv "CLM_STATS_GG_AUTH" >>= Z.xUnwrap
     (Z.jsError "Nothing#unwrap" "")
-  let client = H2h.mkClient $ Z.s_set Gql._authToken $ Z.Just authToken
+  let
+    client = H2h.mkClient do
+      Z.xSet Gql._authToken $ Z.Just authToken
+      Z.xSet Gql._cachePath $ Z.Just "/home/dz/.cache-path"
+    slug = "tournament/bracket-at-the-emporium-3/event/melee-singles"
+    source = H2h.startggSource slug
   {-
   Z.logInfo "Starting aff"
   res <- Z.xTry $ Z.auto $ Gql.operate client Q.tourneyData
@@ -23,10 +28,5 @@ main = Sys.xExecAndExit do
     }
   Z.logInfo { res, b: { xD: "asdf" } }
   -}
-  eventData <- H2h.getEventData
-    ( H2h.startggSource
-        "tournament/bracket-at-the-emporium-3/event/melee-singles"
-    )
-    client
-    Z.pass
+  eventData <- H2h.getEventData source client Z.default
   Z.logInfo eventData
