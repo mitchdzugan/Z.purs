@@ -2,8 +2,8 @@ module Z.Node.H2h.Builder.Startgg where
 
 import Prelude
 
-import Z.H2h.Index as H2h
-import Z.Node.Gql.Index as Gql
+import Z.H2h as H2h
+import Z.Node.Gql as Gql
 import Z.Node.H2h.Builder.Startgg.Queries as Q
 import Z.Node.H2h.Util as U
 import Z.Z as Z

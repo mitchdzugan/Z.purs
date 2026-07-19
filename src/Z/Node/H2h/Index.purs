@@ -1,11 +1,10 @@
 module Z.Node.H2h.Index
   ( getEventData
   , mkClient
-  , module H2h
   ) where
 
-import Z.H2h.Index (BracketingSite(..), Error, Event, EventSource, startggSource, challongeSource) as H2h
-import Z.Node.Gql.Index as Gql
+import Z.H2h as H2h
+import Z.Node.Gql as Gql
 import Z.Node.H2h.Builder.Challonge as Challonge
 import Z.Node.H2h.Builder.Startgg as Startgg
 import Z.Node.H2h.Util as U

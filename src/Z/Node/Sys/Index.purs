@@ -1,7 +1,9 @@
 module Z.Node.Sys.Index
-  ( Path
+  ( FSDataError(..)
+  , Path
   , basename
   , class Pathlike
+  , decodeTextFile
   , dirname
   , join
   , lookupEnv
@@ -43,6 +45,26 @@ instance pathlikeString :: Pathlike String where
 
 readTextFile :: forall x p. Pathlike p => p -> x Z.# Z.EA Z.JsError Z.@> String
 readTextFile = Z.effectPromiseX <<< js_readTextFile <<< pathStr
+
+data FSDataError = ReadError Z.JsError | DecodeError Z.JsonDecodeError
+
+derive instance genericFSDataError :: Z.Generic FSDataError _
+
+instance decodeJsonFSDataError :: Z.DecodeJson FSDataError where
+  decodeJson x = Z.genericDecodeJson x
+
+instance encodeJsonFSDataError :: Z.EncodeJson FSDataError where
+  encodeJson x = Z.genericEncodeJson x
+
+decodeTextFile
+  :: forall x p d
+   . Pathlike p
+  => Z.DecodeJson d
+  => p
+  -> x Z.# Z.EA FSDataError Z.@> d
+decodeTextFile p = do
+  contents <- Z.xMapE ReadError $ readTextFile p
+  Z.xOk $ Z.mapL DecodeError $ Z.decode contents
 
 mkdir :: forall x p. Pathlike p => p -> x Z.# Z.EA Z.JsError Z.@> Unit
 mkdir = Z.effectPromiseX <<< js_mkdir <<< pathStr

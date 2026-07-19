@@ -22,18 +22,23 @@ module Z.Z.X
   , tryAff
   , tryEff
   , updateX
+  , xLiftE
   , xMapE
+  , xOk
   , xSet
+  , xWithReturn
   ) where
 
 import Prelude
 
 import Data.Either (Either(..), either)
 import Data.Lens as Lens
+import Data.Symbol (class IsSymbol)
 import Effect (Effect)
 import Effect.Aff as Aff
 import Effect.Class (liftEffect)
 import Effect.Unsafe as Unsafe
+import Prim.Row as Row
 import Run (Run, lift, extract, run)
 import Run as Run
 import Run.Except (EXCEPT, throw)
@@ -151,3 +156,27 @@ xMapE
 xMapE f m = do
   res <- RunE.runExcept m
   result $ either (\e1 -> Left $ f e1) (\r -> Right r) res
+
+xOk :: forall x e a. Either e a -> Run (EXCEPT e x) a
+xOk (Left e) = RunE.throw e
+xOk (Right a) = pure a
+
+type XWithReturnFn x e a =
+  (forall xi. a -> Run (EXCEPT (Either e a) + xi) Unit)
+  -> (Run (EXCEPT (Either e a) + EXCEPT e + x) a)
+
+type XWithReturn x e a = XWithReturnFn x e a -> (Run (EXCEPT e + x) a)
+
+xWithReturn
+  :: forall x e a. XWithReturn x e a
+xWithReturn f = RunE.runExcept m >>= (\x -> handleRes x)
+  where
+  m = f (RunE.throw <<< Right)
+  handleRes (Left earlyRet) = xOk earlyRet
+  handleRes (Right ret) = pure ret
+
+xLiftE
+  :: forall x e a r
+   . Run (EXCEPT e + EXCEPT (Either e a) + x) r
+  -> Run (EXCEPT (Either e a) + x) r
+xLiftE = xMapE Left

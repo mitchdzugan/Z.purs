@@ -6,15 +6,14 @@ module Z.Node.Gql.Index
   , defOperation
   , fullOpts
   , mkClient
-  , module Gql
   , operate
   , operateUnknown
   ) where
 
 import Prelude
 
-import Z.Gql.Index (Error(..), NetworkControl(..), OpenOpts, Opts, baseOpts, _cachePath, _networkControl) as Gql
-import Z.Node.Sys.Index as Sys
+import Z.Gql as Gql
+import Z.Node.Sys as Sys
 import Z.Z as Z
 
 foreign import js_requestGql
@@ -60,15 +59,18 @@ operateUnknown
   -> String
   -> Z.Json
   -> Z.ModX Gql.Opts
-  -> x Z.# Z.EA Gql.Error Z.@> Z.Json
-operateUnknown client opString vars optsMod = do
-  Z.logInfo { opKey }
-  cached <- getCached
-  Z.logInfo { cached }
-  Z.logInfo opts
-  requestGql client.url authToken opString vars
+  -> Z.X x (Z.EA Gql.Error) Z.Json
+operateUnknown client opString vars optsMod = Z.xWithReturn operateUnknownImpl
   where
+  operateUnknownImpl xReturn = do
+    Z.logInfo { opKey }
+    cached <- getCached
+    xReturn <$> Z.snd cached # Z.unwrap
+    when isCacheOnly $ Z.xLiftE $ Z.xFail Gql.CacheOnlyEmpty
+    Z.logInfo "Making GQL Call"
+    Z.xLiftE $ requestGql client.url authToken opString vars
   opts = fullOpts client optsMod
+  isCacheOnly = opts.networkControl == Gql.CacheOnly
   authToken = Z.encodeJson client.authToken
   sortedPairs = Z.arrSort $ Z.jsonSortedPairs vars
   -- reverse in specific case to match my old startgg cache
@@ -77,18 +79,25 @@ operateUnknown client opString vars optsMod = do
     _ -> sortedPairs
   opKeyStr = Z.joinWith "|" [ opString, Z.joinWith "|" strVals ]
   opKey = show $ Z.simpleHash opKeyStr
-  cacheFilename cachePath collisionCount =
-    let
-      filenameParts =
-        if collisionCount == 0 then [ opKey, "json" ]
-        else [ opKey, show collisionCount, "json" ]
-    in
-      Sys.join cachePath $ Z.joinWith "." filenameParts
-
+  filenameParts 0 = [ opKey, "json" ]
+  filenameParts collisionCount = [ opKey, show collisionCount, "json" ]
+  cacheFilename cachePath =
+    Sys.join cachePath <<< Z.joinWith "." <<< filenameParts
   getCachedRec cachePath collisionCount = do
     let filename = cacheFilename cachePath collisionCount
     Z.logInfo { filename }
-    pure $ Z.Tuple collisionCount Z.Nothing
+    parsed :: Z.Maybe (Array Z.Json) <- Z.xHush do
+      Sys.decodeTextFile filename
+    handleParsed parsed
+    where
+    checkIsSelf parseData = Z.fromMaybe false do
+      cachedOpKeyStr <- (Z.nth parseData 1)
+      pure $ Z.caseJsonString false (eq opKeyStr) cachedOpKeyStr
+    handleParsed Z.Nothing = pure $ Z.Tuple collisionCount Z.Nothing
+    handleParsed (Z.Just parseData) = do
+      let isSelf = checkIsSelf parseData
+      if isSelf then pure $ Z.Tuple collisionCount $ Z.nth parseData 0
+      else getCachedRec cachePath $ collisionCount + 1
   getCachedArgs _ Gql.ForceFetch = pure $ Z.Tuple 0 Z.Nothing
   getCachedArgs Z.Nothing _ = pure $ Z.Tuple 0 Z.Nothing
   getCachedArgs (Z.Just p) _ = getCachedRec p 0

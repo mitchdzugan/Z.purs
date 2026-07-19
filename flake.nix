@@ -16,8 +16,12 @@
             buildInputs = [
               pkgs.purescript
               pkgs.nodejs_26
+              pkgs.entr
               pkgs.esbuild
             ];
+            shellHook = ''
+              export NODE_OPTIONS="--enable-source-maps"
+            '';
           };
        };
      }

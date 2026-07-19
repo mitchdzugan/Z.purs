@@ -7,7 +7,7 @@ module Z.Node.H2h.Util
 import Prelude
 
 import Z.H2h.Index as H2h
-import Z.Node.Gql.Index as Gql
+import Z.Node.Gql as Gql
 import Z.Z as Z
 
 type BuildX x = Z.RWEA

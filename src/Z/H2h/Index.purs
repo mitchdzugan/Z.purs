@@ -8,7 +8,7 @@ module Z.H2h.Index
   , startggSource
   ) where
 
-import Z.Gql.Index as Gql
+import Z.Gql as Gql
 import Z.Z as Z
 
 data Warning = WARNING

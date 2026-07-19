@@ -9,7 +9,7 @@ module Z.Node.H2h.Builder.Startgg.Queries
   , PageNodesRes
   ) where
 
-import Z.Node.Gql.Index as Gql
+import Z.Node.Gql as Gql
 import Z.Node.H2h.Builder.Startgg.Queries.PhaseGroupData as PGDQ
 import Z.Node.H2h.Builder.Startgg.Queries.TourneyData as TDQ
 import Z.Node.H2h.Builder.Startgg.Queries.TourneyDataSmall as TDSQ

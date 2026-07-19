@@ -8,12 +8,15 @@ module Z.Gql.Index
   , baseOpts
   ) where
 
+import Prelude
 import Z.Z as Z
 
 data NetworkControl
   = CacheOnly
   | UseCache
   | ForceFetch
+
+derive instance eqNetworkControl :: Eq NetworkControl
 
 type OpenOpts r =
   { networkControl :: NetworkControl
@@ -38,7 +41,7 @@ data Error
   = NetworkError Z.JsError
   | CachePrep Z.JsError
   | CacheWriter Z.JsError
-  | CacheOnlyEmpty Z.JsError
+  | CacheOnlyEmpty
   | ResponseTypeError Z.JsonDecodeError
 
 derive instance genericError :: Z.Generic Error _

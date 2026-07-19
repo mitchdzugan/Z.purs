@@ -39,7 +39,7 @@ import Data.Either (Either(..), either) as Either
 import Data.Generic.Rep (class Generic) as Generic
 import Data.Lens (Lens, Lens') as Lens
 import Data.Lens.Record (prop) as LensRecord
-import Data.Maybe (Maybe(..)) as Maybe
+import Data.Maybe (Maybe(..), fromMaybe, fromMaybe') as Maybe
 import Data.String.Common (joinWith) as StrCommon
 import Data.Symbol (class IsSymbol, reifySymbol, reflectSymbol) as Symbol
 import Data.Tuple (Tuple(..), fst, snd) as Tup
@@ -51,5 +51,5 @@ import Run (Run, extract) as Run
 import Run.State (execState) as RunS
 import Type.Proxy (Proxy(..)) as Proxy
 import Z.Z.Core (JsError(..), jsErrorMessage, jsErrorName, jsErrorStack, jsError) as Core
-import Z.Z.X (pass, tryAff, tryEff, result, xMapE, xSet, logInfo) as XX
+import Z.Z.X (pass, tryAff, tryEff, result, xMapE, xWithReturn, xLiftE, xSet, logInfo) as XX
 import Z.Z.Util as ZUtil

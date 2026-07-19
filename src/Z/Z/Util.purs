@@ -63,6 +63,7 @@ module Z.Z.Util
   , jsonStr
   , jsonVals
   , mapL
+  , nth
   , promiseToAff
   , simpleHash
   , stringOrNumString
@@ -72,6 +73,7 @@ module Z.Z.Util
   , type (<@$)
   , type (<@)
   , type (@>)
+  , unwrap
   , xAff
   , xAsk
   , xEff
@@ -79,6 +81,8 @@ module Z.Z.Util
   , xEvalAff
   , xExec
   , xExecAff
+  , xFail
+  , xHush
   , xMod
   , xOk
   , xRead
@@ -123,6 +127,9 @@ import Run.Writer as RunW
 import Type.Proxy as Proxy
 import Z.Z.Core as Core
 import Z.Z.X as X
+
+nth :: forall a. Array a -> Int -> Maybe.Maybe a
+nth = Array.index
 
 arrSort :: forall a. Ord.Ord a => Array a -> Array a
 arrSort = Array.sort
@@ -178,6 +185,9 @@ else instance defaultApplicable ::
 
 auto :: forall d r. Defaultable d => (d -> r) -> r
 auto f = f default
+
+unwrap :: forall d. Defaultable d => Maybe.Maybe d -> d
+unwrap m = Maybe.fromMaybe default m
 
 xBase :: forall a x. a <@$ x -> Run.Run x a
 xBase = X.runEff
@@ -318,6 +328,10 @@ type ID a = a
 xTry
   :: forall x e a. Run.Run (RunE.EXCEPT e x) a -> Run.Run x (Either.Either e a)
 xTry = RunE.runExcept
+
+xHush
+  :: forall x e a. Run.Run (RunE.EXCEPT e x) a -> Run.Run x (Maybe.Maybe a)
+xHush m = xTry m <#> Either.hush
 
 xFail :: forall x e a. e -> Run.Run (RunE.EXCEPT e x) a
 xFail e = RunE.throw e
