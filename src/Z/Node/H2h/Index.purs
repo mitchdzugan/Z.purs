@@ -10,7 +10,7 @@ import Z.Node.H2h.Builder.Startgg as Startgg
 import Z.Node.H2h.Util as U
 import Z.Z as Z
 
-mkClient :: Z.ModX Gql.Client -> Gql.Client
+mkClient :: Z.Edit Gql.Client -> Gql.Client
 mkClient = Gql.mkClient "https://api.start.gg/gql/alpha"
 
 getEventData :: forall x. U.GetDataFn x

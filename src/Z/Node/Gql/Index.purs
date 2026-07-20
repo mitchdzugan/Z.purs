@@ -25,16 +25,16 @@ _authToken = Z.prop (Z.Proxy :: Z.Proxy "authToken")
 _url :: forall r. Z.Lens' { url :: String | r } String
 _url = Z.prop (Z.Proxy :: Z.Proxy "url")
 
-mkClient :: String -> Z.ModX Client -> Client
-mkClient url clientMod = Z.xMod baseClient clientMod
+mkClient :: String -> Z.Edit Client -> Client
+mkClient url clientMod = Z.edit baseClient clientMod
   where
   baseClient = Z.merge { url: url, authToken: Z.Nothing } Gql.baseOpts
 
 fullOpts
   :: Client
-  -> Z.ModX Gql.Opts
+  -> Z.Edit Gql.Opts
   -> Gql.Opts
-fullOpts c optsMod = Z.xMod baseOpts optsMod
+fullOpts c optsMod = Z.edit baseOpts optsMod
   where
   baseOpts = { cachePath: c.cachePath, networkControl: c.networkControl }
 
@@ -47,7 +47,7 @@ requestGql
   -> Z.Json
   -> String
   -> Z.Json
-  -> Z.X x (Z.EA Gql.Error) Z.Json
+  -> Z.X (Z.EA Gql.Error x) Z.Json
 requestGql apiUrl authToken query vars = do
   Z.xMapE Gql.NetworkError
     $ Z.effectPromiseX
@@ -58,22 +58,22 @@ operateUnknown
    . Client
   -> String
   -> Z.Json
-  -> Z.ModX Gql.Opts
-  -> Z.X x (Z.EA Gql.Error) Z.Json
-operateUnknown client opString vars optsMod = Z.xWithReturn operateUnknownImpl
+  -> Z.Edit Gql.Opts
+  -> Z.X (Z.EA Gql.Error x) Z.Json
+operateUnknown client opString vars optsMod = Z.xWithRet operateUnknownImpl
   where
-  operateUnknownImpl xReturn = do
-    Z.logInfo { opKey, isCacheOnly, nc: opts.networkControl }
+  operateUnknownImpl = do
+    Z.xInfo { opKey, isCacheOnly, nc: opts.networkControl }
     (Z.Tuple collisionCount cached) <- getCached
-    Z.logInfo { collisionCount }
-    xReturn <$> cached # Z.unwrap
-    when isCacheOnly $ Z.xLiftE $ Z.xFail Gql.CacheOnlyEmpty
-    Z.logInfo "Making GQL Call"
+    Z.xInfo { collisionCount }
+    Z.xReturn <$> cached # Z.unwrap
+    when isCacheOnly $ Z.xRetLift $ Z.xFail Gql.CacheOnlyEmpty
+    Z.xInfo "Making GQL Call"
     Z.xTimeout 6000
-    res <- Z.xLiftE $ requestGql client.url authToken opString vars
+    res <- Z.xRetLift $ requestGql client.url authToken opString vars
     let toCache = [ res, Z.fromString opKeyStr ]
-    Z.logInfo toCache
-    Z.xLiftE $ writeToCache opts.cachePath collisionCount toCache
+    Z.xInfo toCache
+    Z.xRetLift $ writeToCache opts.cachePath collisionCount toCache
     pure res
   opts = fullOpts client optsMod
   isCacheOnly = opts.networkControl == Gql.CacheOnly
@@ -91,7 +91,7 @@ operateUnknown client opString vars optsMod = Z.xWithReturn operateUnknownImpl
     Sys.join cachePath <<< Z.joinWith "." <<< filenameParts
   getCachedRec cachePath collisionCount = do
     let filename = cacheFilename cachePath collisionCount
-    Z.logInfo { filename }
+    Z.xInfo { filename }
     parsed :: Z.Maybe (Array Z.Json) <- Z.xHush do
       Sys.decodeTextFile filename
     handleParsed parsed
@@ -131,8 +131,8 @@ operate
    . Client
   -> Operation vars res
   -> vars
-  -> Z.ModX Gql.Opts
-  -> x Z.# Z.EA Gql.Error Z.@> res
+  -> Z.Edit Gql.Opts
+  -> Z.X (Z.EA Gql.Error x) res
 operate c (Operation opString enc dec) vars optsMod = do
   j <- operateUnknown c opString (enc vars) optsMod
-  Z.xMapE Gql.ResponseTypeError $ Z.result $ dec j
+  Z.xMapE Gql.ResponseTypeError $ Z.xOk $ dec j

@@ -44,7 +44,7 @@ instance pathlikePath :: Pathlike Path where
 instance pathlikeString :: Pathlike String where
   pathStr s = s
 
-readTextFile :: forall x p. Pathlike p => p -> x Z.# Z.EA Z.JsError Z.@> String
+readTextFile :: forall x p. Pathlike p => p -> Z.X (Z.EA Z.JsError x) String
 readTextFile = Z.effectPromiseX <<< js_readTextFile <<< pathStr
 
 data FSDataError = ReadError Z.JsError | DecodeError Z.JsonDecodeError
@@ -62,19 +62,19 @@ decodeTextFile
    . Pathlike p
   => Z.DecodeJson d
   => p
-  -> x Z.# Z.EA FSDataError Z.@> d
+  -> Z.X (Z.EA FSDataError x) d
 decodeTextFile p = do
   contents <- Z.xMapE ReadError $ readTextFile p
   Z.xOk $ Z.mapL DecodeError $ Z.decode contents
 
-mkdir :: forall x p. Pathlike p => p -> x Z.# Z.EA Z.JsError Z.@> Unit
+mkdir :: forall x p. Pathlike p => p -> Z.X (Z.EA Z.JsError x) Unit
 mkdir = Z.effectPromiseX <<< js_mkdir <<< pathStr
 
-mkdirp :: forall x p. Pathlike p => p -> x Z.# Z.EA Z.JsError Z.@> Unit
+mkdirp :: forall x p. Pathlike p => p -> Z.X (Z.EA Z.JsError x) Unit
 mkdirp = Z.effectPromiseX <<< js_mkdirp <<< pathStr
 
 writeTextFile
-  :: forall x p. Pathlike p => p -> String -> x Z.# Z.EA Z.JsError Z.@> Unit
+  :: forall x p. Pathlike p => p -> String -> Z.X (Z.EA Z.JsError x) Unit
 writeTextFile p = Z.effectPromiseX <<< js_writeTextFile (pathStr p)
 
 encodeTextFile
@@ -83,7 +83,7 @@ encodeTextFile
   => Z.EncodeJson d
   => p
   -> d
-  -> Z.X x (Z.EA Z.JsError) Unit
+  -> Z.X (Z.EA Z.JsError x) Unit
 encodeTextFile p d = do
   writeTextFile p $ Z.encode d
 
@@ -91,13 +91,13 @@ foreign import js_lookupEnv
   :: (String -> Z.Maybe String)
   -> Z.Maybe String
   -> String
-  -> Z.Effect Z.$ Z.Maybe String
+  -> Z.Effect (Z.Maybe String)
 
 lookupEnv :: String -> Z.Effect Z.$ Z.Maybe String
 lookupEnv = js_lookupEnv Z.Just Z.Nothing
 
-xLookupEnv :: forall x. String -> x Z.# Z.A Z.@> Z.Maybe String
-xLookupEnv k = lookupEnv k # Z.tryEff # Z.xTry <#> getRes
+xLookupEnv :: forall x. String -> Z.X (Z.A x) (Z.Maybe String)
+xLookupEnv k = lookupEnv k # Z.xAEff # Z.xTry <#> getRes
   where
   getRes (Z.Right (Z.Just v)) = Z.Just v
   getRes _ = Z.Nothing
@@ -114,7 +114,7 @@ execAndExit a = Z.runAff_ onDone a
     js_exit 1
   onDone _ = pure unit
 
-xExecAndExit :: forall e a. a Z.<@ Z.EA e Z.$ () -> Z.Effect Unit
+xExecAndExit :: forall e a. Z.X (Z.EA e ()) a -> Z.Effect Unit
 xExecAndExit = Z.xExecAff >>> execAndExit
 
 foreign import js_exit :: Int -> Z.Effect Unit

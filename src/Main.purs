@@ -14,7 +14,7 @@ testCachePath =
 main :: Z.Effect Unit
 main = Sys.xExecAndExit do
   txtRes <- Sys.readTextFile "/home/dz/Repo/PS-WS/index.js"
-  Z.logInfo { txtRes }
+  Z.xInfo { txtRes }
   authToken <- Sys.xLookupEnv "CLM_STATS_GG_AUTH" >>= Z.xUnwrap
     (Z.jsError "Nothing#unwrap" "")
   client <- pure $ H2h.mkClient do
@@ -23,4 +23,4 @@ main = Sys.xExecAndExit do
   let slug = "tournament/rpm-97/event/melee-singles"
   let source = H2h.startggSource slug
   eventData <- H2h.getEventData source client Z.default
-  Z.logInfo eventData
+  Z.xInfo eventData

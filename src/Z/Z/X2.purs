@@ -6,6 +6,7 @@ module Z.Z.X2
   , EA
   , EFF
   , EarlyReturn
+  , Edit
   , EffF(..)
   , R
   , RA
@@ -23,6 +24,7 @@ module Z.Z.X2
   , RWSA
   , RWSE
   , RWSEA
+  , Result
   , S
   , SA
   , SE
@@ -50,9 +52,11 @@ module Z.Z.X2
   , xInfo
   , xLogError
   , xLogWarning
+  , xMapE
   , xOk
   , xOver
   , xReading
+  , xResult
   , xRetErr
   , xRetLift
   , xReturn
@@ -73,6 +77,7 @@ import Data.Either as Eor
 import Data.Lens as Lens
 import Data.Maybe as May
 import Data.Monoid as Monoid
+import Data.Tuple as Tup
 import Effect as Eff
 import Effect.Aff as Aff
 import Effect.Class as EffC
@@ -100,7 +105,7 @@ xEvalAff x = R.match { aff: \(AffCmd a) -> a } # R.run $ runEff x
 xExecAff :: forall e a. X (EA e ()) a -> Aff.Aff (Eor.Either e a)
 xExecAff = xEvalAff <<< xTry
 
---------------- MOD -------------------------------------------------------
+--------------- EDIT ------------------------------------------------------
 
 type Edit s = X (S s ()) Unit
 
@@ -173,11 +178,12 @@ xSet l v = do
 
 --------------- E FNS -----------------------------------------------------
 
-xResult :: forall e r x. Eor.Either e r -> R.Run (E e x) r
-xResult res =
-  case res of
-    Eor.Right r -> pure r
-    Eor.Left e -> RunE.throw e
+type Result w e a = { w :: (Array w), v :: (Eor.Either e a) }
+
+xResult :: forall x w e a. X (WE (Array w) e x) a -> X x (Result w e a)
+xResult m = do
+  w <- RunW.runWriter $ RunE.runExcept m
+  pure $ { w: (Tup.fst w), v: (Tup.snd w) }
 
 xMapE
   :: forall x e1 e2 a
@@ -186,7 +192,7 @@ xMapE
   -> R.Run (E e2 x) a
 xMapE f m = do
   res <- RunE.runExcept m
-  xResult $ Eor.either (\e1 -> Eor.Left $ f e1) (\r -> Eor.Right r) res
+  xOk $ Eor.either (\e1 -> Eor.Left $ f e1) (\r -> Eor.Right r) res
 
 xOk :: forall x e a. Eor.Either e a -> R.Run (E e x) a
 xOk (Eor.Left e) = RunE.throw e
@@ -213,13 +219,13 @@ xAff
   :: forall f x. (Aff.Aff f) -> R.Run (EA Z.JsError x) f
 xAff a = do
   res <- aff $ Aff.attempt a
-  xMapE Z.JsError $ xResult res
+  xMapE Z.JsError $ xOk res
 
 xAEff
   :: forall f x. (Eff.Effect f) -> R.Run (EA Z.JsError x) f
 xAEff a = do
   res <- aff $ Aff.attempt $ EffC.liftEffect a
-  xMapE Z.JsError $ xResult res
+  xMapE Z.JsError $ xOk res
 
 promiseToAff :: forall a. Promise.Promise a -> Aff.Aff a
 promiseToAff = Promise.toAff
