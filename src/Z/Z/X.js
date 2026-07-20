@@ -1,5 +1,3 @@
-Error.stackTraceLimit = Infinity;
-
 function getCleanStack() {
   const traceTarget = {};
   Error.captureStackTrace(traceTarget, getCleanStack);
@@ -27,13 +25,23 @@ const colors = {
   Bwhite: "\x1b[97m",
 };
 
-export const js_consoleFn = (prop) => (preface) => (args) => {
+export const js_consoleFn = (prop) => (args) => {
   const stack = getCleanStack();
   const stackStr = stack ? ` ${colors.yellow}${stack.substring(3)}` : "";
   const fn = console[prop];
+  const propColor = {
+    log: colors.cyan,
+    warn: colors.Byellow,
+    error: colors.red,
+  }[prop];
+  const propLabel = {
+    log: "info",
+    warn: "warning",
+    error: "error",
+  }[prop];
   return () => {
     fn(
-      `${colors.magenta}χ::${colors.cyan}${preface}${stackStr}`,
+      `${colors.magenta}χ::${propColor}${propLabel}${stackStr}`,
       `${colors.gray}[`,
       colors.reset,
     );

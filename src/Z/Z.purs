@@ -51,5 +51,5 @@ import Run (Run, extract) as Run
 import Run.State (execState) as RunS
 import Type.Proxy (Proxy(..)) as Proxy
 import Z.Z.Core (pass, JsError(..), jsErrorMessage, jsErrorName, jsErrorStack, jsError) as Core
-import Z.Z.X2 as XX
+import Z.Z.X as XX
 import Z.Z.Util as ZUtil
