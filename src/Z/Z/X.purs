@@ -4,10 +4,8 @@ module Z.Z.X
   , AffF
   , E
   , EA
-  , EFF
   , EarlyReturn
   , Edit
-  , EffF(..)
   , R
   , RA
   , RE
@@ -24,28 +22,59 @@ module Z.Z.X
   , RWSA
   , RWSE
   , RWSEA
+  , RWa
+  , RWaA
+  , RWaE
+  , RWaEA
+  , RWaS
+  , RWaSA
+  , RWaSE
+  , RWaSEA
   , Result
   , S
   , SA
   , SE
   , SEA
+  , TEarlyResult
+  , TEarlyReturn
+  , TError
+  , TResult
   , W
   , WA
   , WE
   , WEA
+  , WRITERa
   , WS
   , WSA
   , WSE
+  , Wa
+  , WaA
+  , WaE
+  , WaEA
+  , WaS
+  , WaSA
+  , WaSE
   , X
+  , XBASE
+  , XBaseF
+  , XRet
+  , XShortCircuit
   , edit
-  , effectPromiseX
+  , type (!$)
+  , type (!)
+  , type (-!$)
+  , type (-!)
   , xAEff
   , xAff
   , xAsk
+  , xEffectPromise
   , xEval
   , xEvalAff
+  , xEvalR
+  , xEvalS
   , xExec
   , xExecAff
+  , xExecS
   , xFail
   , xGet
   , xHush
@@ -53,18 +82,23 @@ module Z.Z.X
   , xLogError
   , xLogWarning
   , xMapE
+  , xMapW
+  , xMapWE
   , xOk
   , xOver
-  , xReading
   , xResult
-  , xRetErr
+  , xRetFail
   , xRetLift
   , xReturn
+  , xRunS
+  , xSay
   , xSet
-  , xTell
+  , xTellMappedHush
+  , xTellMappedMHush
   , xTimeout
   , xTry
   , xUnwrap
+  , xUnwrap'
   , xView
   , xWithRet
   , xrView
@@ -72,12 +106,14 @@ module Z.Z.X
 
 import Prelude
 
+import Control.Monad as Monad
 import Control.Promise as Promise
 import Data.Either as Eor
 import Data.Lens as Lens
 import Data.Maybe as May
 import Data.Monoid as Monoid
 import Data.Tuple as Tup
+import Data.Tuple.Nested as TupN
 import Effect as Eff
 import Effect.Aff as Aff
 import Effect.Class as EffC
@@ -94,13 +130,13 @@ import Z.Z.Core as Z
 --------------- EVAL -------------------------------------------------------
 
 xEval :: forall a. X () a -> a
-xEval r = Unsafe.unsafePerformEffect $ R.runBaseEffect $ R.expand $ runEff r
+xEval r = Unsafe.unsafePerformEffect $ R.runBaseEffect $ R.expand $ runXBase r
 
 xExec :: forall e a. X (E e ()) a -> Eor.Either e a
 xExec = xEval <<< xTry
 
 xEvalAff :: forall a. X (A ()) a -> Aff.Aff a
-xEvalAff x = R.match { aff: \(AffCmd a) -> a } # R.run $ runEff x
+xEvalAff x = R.match { aff: \(AffCmd a) -> a } # R.run $ runXBase x
 
 xExecAff :: forall e a. X (EA e ()) a -> Aff.Aff (Eor.Either e a)
 xExecAff = xEvalAff <<< xTry
@@ -110,21 +146,19 @@ xExecAff = xEvalAff <<< xTry
 type Edit s = X (S s ()) Unit
 
 edit :: forall a. a -> Edit a -> a
-edit init m = R.extract $ RunS.execState init $ runEff m
+edit init m = R.extract $ RunS.execState init $ runXBase m
 
---------------- XRet ------------------------------------------------------
+--------------- ShortCiruit ----------------------------------------------
 
 newtype EarlyReturn e a = EarlyReturn (Eor.Either e a)
 
 type XShortCircuit x e a r = R.Run (E (EarlyReturn e a) x) r
 
-type XRet x e r = XShortCircuit x e r r
-
 xReturn :: forall x e r. r -> XShortCircuit x e r Unit
 xReturn r = xFail $ EarlyReturn $ Eor.Right r
 
-xRetErr :: forall x e r a. e -> XShortCircuit x e r a
-xRetErr e = xFail $ EarlyReturn $ Eor.Left e
+xRetFail :: forall x e r a. e -> XShortCircuit x e r a
+xRetFail e = xFail $ EarlyReturn $ Eor.Left e
 
 xRetLift
   :: forall x e r a
@@ -132,7 +166,7 @@ xRetLift
   -> XShortCircuit x e r a
 xRetLift = xMapE (EarlyReturn <<< Eor.Left)
 
-xWithRet :: forall x e r. XRet (E e x) e r -> R.Run (E e x) r
+xWithRet :: forall x e r. XShortCircuit (E e x) e r r -> R.Run (E e x) r
 xWithRet m = RunE.runExcept m >>= handleRes
   where
   handleRes (Eor.Left (EarlyReturn earlyRet)) = xOk earlyRet
@@ -140,8 +174,8 @@ xWithRet m = RunE.runExcept m >>= handleRes
 
 --------------- R FNS -----------------------------------------------------
 
-xReading :: forall x r a. r -> R.Run (R r x) a -> R.Run x a
-xReading = RunR.runReader
+xEvalR :: forall x r a. r -> R.Run (R r x) a -> R.Run x a
+xEvalR = RunR.runReader
 
 xAsk :: forall x r. R.Run (R r x) r
 xAsk = RunR.ask
@@ -153,8 +187,45 @@ xrView l = do
 
 --------------- W FNS -----------------------------------------------------
 
-xTell :: forall x w. Monoid.Monoid w => w -> X (W w x) Unit
-xTell w = RunW.tell w
+xSay :: forall x m w. Monad.Monad m => w -> R.Run (W (m w) x) Unit
+xSay w = RunW.tell $ pure w
+
+xTellMappedHush
+  :: forall x e m d w
+   . Monad.Monad m
+  => Z.Defaultable d
+  => (e -> w)
+  -> X (WE (m w) e x) d
+  -> X (W (m w) x) d
+xTellMappedHush mapW m = xTry m >>= onDone
+  where
+  onDone (Eor.Left e) = xSay (mapW e) <#> const Z.default
+  onDone (Eor.Right r) = pure $ r
+
+xTellMappedMHush
+  :: forall x e m d w
+   . Monad.Monad m
+  => Z.Defaultable d
+  => (e -> m w)
+  -> X (WE (m w) e x) d
+  -> X (W (m w) x) d
+xTellMappedMHush mapW m = xTry m >>= onDone
+  where
+  onDone (Eor.Left e) = RunW.tell (mapW e) <#> const Z.default
+  onDone (Eor.Right r) = pure $ r
+
+xMapW
+  :: forall x m w1 w2 a
+   . Monad.Monad m
+  => Monoid.Monoid (m w1)
+  => Monoid.Monoid (m w2)
+  => (w1 -> w2)
+  -> R.Run (W (m w1) + W (m w2) x) a
+  -> R.Run (W (m w2) x) a
+xMapW f m = do
+  (w TupN./\ res) <- RunW.runWriter m
+  RunW.tell $ map f w
+  pure res
 
 --------------- S FNS -----------------------------------------------------
 
@@ -176,6 +247,15 @@ xSet l v = do
   o <- RunS.get
   RunS.put $ Lens.set l v o
 
+xExecS :: forall x s a. s -> R.Run (S s x) a -> R.Run x (s TupN./\ a)
+xExecS = RunS.runState
+
+xEvalS :: forall x s a. s -> R.Run (S s x) a -> R.Run x a
+xEvalS i m = RunS.runState i m <#> Tup.snd
+
+xRunS :: forall x s a. s -> R.Run (S s x) a -> R.Run x s
+xRunS i m = RunS.runState i m <#> Tup.fst
+
 --------------- E FNS -----------------------------------------------------
 
 type Result w e a = { w :: (Array w), v :: (Eor.Either e a) }
@@ -188,11 +268,22 @@ xResult m = do
 xMapE
   :: forall x e1 e2 a
    . (e1 -> e2)
-  -> R.Run (RunE.EXCEPT e1 + E e2 x) a
+  -> R.Run (E e1 + E e2 x) a
   -> R.Run (E e2 x) a
 xMapE f m = do
   res <- RunE.runExcept m
   xOk $ Eor.either (\e1 -> Eor.Left $ f e1) (\r -> Eor.Right r) res
+
+xMapWE
+  :: forall x m w1 w2 e1 e2 a
+   . Monad.Monad m
+  => Monoid.Monoid (m w1)
+  => Monoid.Monoid (m w2)
+  => (w1 -> w2)
+  -> (e1 -> e2)
+  -> R.Run (W (m w1) + W (m w2) + E e1 + E e2 x) a
+  -> R.Run (W (m w2) + E e2 x) a
+xMapWE fw fe m = xMapW fw $ xMapE fe m
 
 xOk :: forall x e a. Eor.Either e a -> R.Run (E e x) a
 xOk (Eor.Left e) = RunE.throw e
@@ -208,8 +299,11 @@ xUnwrap :: forall x e a. e -> May.Maybe a -> X (E e x) a
 xUnwrap _ (May.Just a) = pure a
 xUnwrap e _ = xFail e
 
-xHush :: forall x e a. R.Run (E e x) a -> R.Run x (May.Maybe a)
-xHush m = xTry m <#> Eor.hush
+xUnwrap' :: forall x a. May.Maybe a -> X (E Z.JsError x) a
+xUnwrap' = xUnwrap $ Z.jsError' "Nothing#unwrap"
+
+xHush :: forall x e d. Z.Defaultable d => R.Run (E e x) d -> R.Run x d
+xHush m = (xTry m <#> Eor.hush) <#> Z.orPass
 
 --------------- A FNS -----------------------------------------------------
 
@@ -233,34 +327,47 @@ promiseToAff = Promise.toAff
 effectPromiseToAff :: forall a. Eff.Effect (Promise.Promise a) -> Aff.Aff a
 effectPromiseToAff e = EffC.liftEffect e >>= promiseToAff
 
-effectPromiseX
+xEffectPromise
   :: forall a x
    . Eff.Effect (Promise.Promise a)
   -> X (EA Z.JsError x) a
-effectPromiseX = effectPromiseToAff >>> xAff
+xEffectPromise = effectPromiseToAff >>> xAff
 
 xTimeout :: forall x. Int -> X (A x) Unit
-xTimeout ms = Z.fDiscard $ xTry $ effectPromiseX $ js_timeout ms
-
---------------- UNSAFE EFFECT FNS -----------------------------------------
-
-foreign import js_consoleFn
-  :: forall a. String -> Array a -> Eff.Effect Unit
-
-xInfo :: forall l x. l -> X x Unit
-xInfo v = eff $ js_consoleFn "log" [ v ]
-
-xLogWarning :: forall l x. l -> X x Unit
-xLogWarning v = eff $ js_consoleFn "warn" [ v ]
-
-xLogError :: forall l x. l -> X x Unit
-xLogError v = eff $ js_consoleFn "error" [ v ]
+xTimeout ms = Z.fDiscard $ xTry $ xEffectPromise $ js_timeout ms
 
 --------------- CORE TYPE ---------------------------------------------------
 
-type X x a = R.Run (EFF x) a
+type X x a = R.Run (XBASE x) a
 
--- type XRet m e a = R.R
+type TEarlyReturn
+  :: forall k1 k2
+   . (Row (k1 -> Type) -> Type -> k2)
+  -> Row (k1 -> Type)
+  -> Type
+  -> Type
+  -> k2
+type TEarlyReturn m x e a = m (E (EarlyReturn e a) x) a
+
+type TEarlyResult
+  :: forall k
+   . (Row (Type -> Type) -> Type -> k)
+  -> Row (Type -> Type)
+  -> Type
+  -> Type
+  -> Type
+  -> k
+type TEarlyResult m x w e a = m (WE w (EarlyReturn e a) x) a
+
+type TError m x e a = m (E e x) a
+type TResult m x w e a = m (WE w e x) a
+
+infixr 0 type TEarlyReturn as !$
+infixr 0 type TEarlyResult as -!$
+infixr 0 type TError as !
+infixr 0 type TResult as -!
+
+type XRet x e a = X (E (EarlyReturn e a) x) a
 
 -- type Xclass x f a = R.Run (f x) a
 
@@ -277,27 +384,47 @@ _aff = P.Proxy :: P.Proxy "aff"
 aff :: forall f r. (Aff.Aff f) -> R.Run (AFF + r) f
 aff f = R.lift _aff (AffCmd f)
 
---------------- UNSAFE EFF ---------------------------------------------------
+--------------- XBase ---------------------------------------------------
 
-data EffF a = EffCmd (Eff.Effect a)
+foreign import js_consoleFn
+  :: forall a. String -> String -> Array a -> Eff.Effect Unit
 
-derive instance functorEffF :: Functor EffF
+foreign import js_getStack :: Eff.Effect String
 
-type EFF x = (eff :: EffF | x)
+data XBaseF a = LogCmd String String Z.JsAny a
 
-_eff = P.Proxy :: P.Proxy "eff"
+derive instance functorXBaseF :: Functor XBaseF
 
-eff :: forall f r. (Eff.Effect f) -> R.Run (EFF + r) f
-eff f = R.lift _eff (EffCmd f)
+type XBASE x = (xBase :: XBaseF | x)
 
-handleEff :: forall r. EffF ~> R.Run r
-handleEff = case _ of
-  EffCmd e -> pure $ Unsafe.unsafePerformEffect e
+_eff = P.Proxy :: P.Proxy "xBase"
 
-runEff :: forall r. R.Run (EFF + r) ~> R.Run r
-runEff = R.interpret (R.on _eff handleEff R.send)
+handleXBase :: forall r. XBaseF ~> R.Run r
+handleXBase = case _ of
+  LogCmd k src v e -> do
+    pure $ Unsafe.unsafePerformEffect $ js_consoleFn k src [ v ]
+    pure e
+
+runXBase :: forall r. R.Run (XBASE + r) ~> R.Run r
+runXBase = R.interpret (R.on _eff handleXBase R.send)
+
+xLogCmd :: forall l x. String -> l -> X x Unit
+xLogCmd k v = do
+  let src = Unsafe.unsafePerformEffect js_getStack
+  Z.fDiscard $ R.lift _eff (LogCmd k src (Z.jsAny v) unit)
+
+xInfo :: forall l x. l -> X x Unit
+xInfo = xLogCmd "log"
+
+xLogWarning :: forall l x. l -> X x Unit
+xLogWarning = xLogCmd "warn"
+
+xLogError :: forall l x. l -> X x Unit
+xLogError = xLogCmd "error"
 
 --------------- XBuilders ---------------------------------------------------
+
+type WRITERa w x = RunW.WRITER (Array w) x
 
 type R r x =
   RunR.READER r + x
@@ -305,8 +432,14 @@ type R r x =
 type W w x =
   RunW.WRITER w + x
 
+type Wa w x =
+  WRITERa w + x
+
 type RW r w x =
   RunR.READER r + RunW.WRITER w + x
+
+type RWa r w x =
+  RunR.READER r + WRITERa w + x
 
 type S s x =
   RunS.STATE s + x
@@ -317,8 +450,14 @@ type RS r s x =
 type WS w s x =
   RunW.WRITER w + RunS.STATE s + x
 
+type WaS w s x =
+  WRITERa w + RunS.STATE s + x
+
 type RWS r w s x =
   RunR.READER r + RunW.WRITER w + RunS.STATE s + x
+
+type RWaS r w s x =
+  RunR.READER r + WRITERa w + RunS.STATE s + x
 
 type E :: forall k. Type -> Row (k -> Type) -> Row (k -> Type)
 type E e x =
@@ -330,8 +469,14 @@ type RE r e x =
 type WE w e x =
   RunW.WRITER w + RunE.EXCEPT e + x
 
+type WaE w e x =
+  WRITERa w + RunE.EXCEPT e + x
+
 type RWE r w e x =
   RunR.READER r + RunW.WRITER w + RunE.EXCEPT e + x
+
+type RWaE r w e x =
+  RunR.READER r + WRITERa w + RunE.EXCEPT e + x
 
 type SE s e x =
   RunS.STATE s + RunE.EXCEPT e + x
@@ -342,8 +487,14 @@ type RSE r s e x =
 type WSE w s e x =
   RunW.WRITER w + RunS.STATE s + RunE.EXCEPT e + x
 
+type WaSE w s e x =
+  WRITERa w + RunS.STATE s + RunE.EXCEPT e + x
+
 type RWSE r w s e x =
   RunR.READER r + RunW.WRITER w + RunS.STATE s + RunE.EXCEPT e + x
+
+type RWaSE r w s e x =
+  RunR.READER r + WRITERa w + RunS.STATE s + RunE.EXCEPT e + x
 
 type A x =
   AFF + x
@@ -354,8 +505,14 @@ type RA r x =
 type WA w x =
   RunW.WRITER w + AFF + x
 
+type WaA w x =
+  WRITERa w + AFF + x
+
 type RWA r w x =
   RunR.READER r + RunW.WRITER w + AFF + x
+
+type RWaA r w x =
+  RunR.READER r + WRITERa w + AFF + x
 
 type SA s x =
   RunS.STATE s + AFF + x
@@ -366,8 +523,14 @@ type RSA r s x =
 type WSA w s x =
   RunW.WRITER w + RunS.STATE s + AFF + x
 
+type WaSA w s x =
+  WRITERa w + RunS.STATE s + AFF + x
+
 type RWSA r w s x =
   RunR.READER r + RunW.WRITER w + RunS.STATE s + AFF + x
+
+type RWaSA r w s x =
+  RunR.READER r + WRITERa w + RunS.STATE s + AFF + x
 
 type EA e x =
   RunE.EXCEPT e + AFF + x
@@ -378,8 +541,14 @@ type REA r e x =
 type WEA w e x =
   RunW.WRITER w + RunE.EXCEPT e + AFF + x
 
+type WaEA w e x =
+  WRITERa w + RunE.EXCEPT e + AFF + x
+
 type RWEA r w e x =
   RunR.READER r + RunW.WRITER w + RunE.EXCEPT e + AFF + x
+
+type RWaEA r w e x =
+  RunR.READER r + WRITERa w + RunE.EXCEPT e + AFF + x
 
 type SEA s e x =
   RunS.STATE s + RunE.EXCEPT e + AFF + x
@@ -389,3 +558,6 @@ type RSEA r s e x =
 
 type RWSEA r w s e x =
   RunR.READER r + RunW.WRITER w + RunS.STATE s + RunE.EXCEPT e + AFF + x
+
+type RWaSEA r w s e x =
+  RunR.READER r + WRITERa w + RunS.STATE s + RunE.EXCEPT e + AFF + x

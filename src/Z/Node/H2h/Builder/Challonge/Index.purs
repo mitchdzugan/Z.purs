@@ -1,4 +1,4 @@
-module Z.Node.H2h.Builder.Challonge where
+module Z.Node.H2h.Builder.Challonge.Index where
 
 import Prelude
 

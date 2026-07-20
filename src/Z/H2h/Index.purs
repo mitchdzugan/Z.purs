@@ -11,7 +11,7 @@ module Z.H2h.Index
 import Z.Gql as Gql
 import Z.Z as Z
 
-data Warning = WARNING
+data Warning = GqlW Gql.Warning
 
 derive instance genericWarning :: Z.Generic Warning _
 
@@ -22,7 +22,7 @@ instance encodeJsonWarning :: Z.EncodeJson Warning where
   encodeJson x = Z.genericEncodeJson x
 
 data Error
-  = Fetch Gql.Error
+  = GqlE Gql.Error
   | AutoBrowser String String Z.JsError
   | MissingData String
   | EventBuild Z.JsError

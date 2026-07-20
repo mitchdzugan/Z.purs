@@ -1,3 +1,4 @@
+export const js_JsAny = (a) => a;
 export const js_jsonStr = (j) => `${j}`;
 export const js_simpleHash = (str) => {
   let hash = 0;
@@ -7,8 +8,4 @@ export const js_simpleHash = (str) => {
     hash |= 0;
   }
   return hash;
-};
-
-export const js_timeout = (ms) => () => {
-  return new Promise((resolve) => setTimeout(() => resolve(), ms));
 };

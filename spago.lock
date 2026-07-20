@@ -10,6 +10,7 @@
             "argonaut-codecs",
             "argonaut-core",
             "argonaut-generic",
+            "barlow-lens",
             "codec",
             "codec-argonaut",
             "console",
@@ -832,6 +833,23 @@
         "functions",
         "maybe",
         "prelude"
+      ]
+    },
+    "barlow-lens": {
+      "type": "registry",
+      "version": "0.9.0",
+      "integrity": "sha256-v0oUq2ddHnrnxXz/5X5UG3kDkZuG9J5cnxE+b0ztcNo=",
+      "dependencies": [
+        "either",
+        "foldable-traversable",
+        "lists",
+        "maybe",
+        "newtype",
+        "prelude",
+        "profunctor",
+        "profunctor-lenses",
+        "tuples",
+        "typelevel-prelude"
       ]
     },
     "bifunctors": {

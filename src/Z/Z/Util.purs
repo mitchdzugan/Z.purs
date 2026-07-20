@@ -14,14 +14,10 @@ module Z.Z.Util
   , arrSortWith
   , asOrNum
   , asStringOr
-  , auto
-  , class Defaultable
   , decode
   , decode'
   , decodeJson
   , decodeJson'
-  , default
-  , discard
   , encode
   , id
   , jsonDecode
@@ -29,21 +25,16 @@ module Z.Z.Util
   , jsonLookup
   , jsonPairs
   , jsonSortedPairs
-  , jsonStr
   , jsonVals
   , mapL
   , nth
-  , simpleHash
   , stringOrNumString
   , type (#)
   , type ($)
-  , unwrap
   ) where
 
 import Prelude
 
-import Control.Promise (Promise) as Promise
-import Control.Promise (toAff)
 import Data.Argonaut.Core (stringify) as AArg
 import Data.Argonaut.Core as Arg
 import Data.Argonaut.Decode (JsonDecodeError(..)) as JDE
@@ -55,24 +46,12 @@ import Data.Argonaut.Encode.Generic (genericEncodeJson) as EncodeGeneric
 import Data.Array as Array
 import Data.Either as Either
 import Data.Generic.Rep (class Generic) as Generic
-import Data.Lens as Lens
 import Data.Maybe as Maybe
-import Data.Monoid as Monoid
 import Data.Ord as Ord
 import Data.Ordering as Ordering
 import Data.Tuple as Tup
-import Effect (Effect) as Effect
-import Effect.Aff as Aff
-import Effect.Class (liftEffect) as EffectClass
-import Effect.Unsafe (unsafePerformEffect)
 import Foreign.Object as FO
-import Run as Run
-import Run.Except as RunE
-import Run.Reader as RunR
-import Run.State as RunS
-import Run.Writer as RunW
 import Type.Proxy as Proxy
-import Z.Z.Core as Core
 
 nth :: forall a. Array a -> Int -> Maybe.Maybe a
 nth = Array.index
@@ -109,41 +88,6 @@ id a = a
 
 mapL :: forall l1 l2 r. (l1 -> l2) -> Either.Either l1 r -> Either.Either l2 r
 mapL f = Either.either (\x -> Either.Left $ f x) Either.Right
-
-discard :: forall m i. Monad m => m i -> m Unit
-discard = map $ const unit
-
-class Defaultable a where
-  default :: a
-
-instance defaultUnit :: Defaultable Unit where
-  default = unit
-
-instance defaultJust :: Defaultable (Maybe.Maybe a) where
-  default = Maybe.Nothing
-
-else instance defaultApplicable ::
-  ( Defaultable v
-  , Applicative a
-  ) =>
-  Defaultable (a v) where
-  default = pure default
-
-auto :: forall d r. Defaultable d => (d -> r) -> r
-auto f = f default
-
-unwrap :: forall d. Defaultable d => Maybe.Maybe d -> d
-unwrap m = Maybe.fromMaybe default m
-
-foreign import js_jsonStr :: Arg.Json -> String
-
-jsonStr :: Arg.Json -> String
-jsonStr = js_jsonStr
-
-foreign import js_simpleHash :: String -> Int
-
-simpleHash :: String -> Int
-simpleHash = js_simpleHash
 
 newtype JsonDecodeError = JsonDecodeError JDE.JsonDecodeError
 
@@ -241,12 +185,12 @@ type Type_Ap_R x f = f x
 infixr 0 type Type_Ap as $
 infixr 0 type Type_Ap_R as #
 
-type StringOrNum = Either.Either String Number
+type StringOrNum = Either.Either String Int
 
 asOrNum :: String -> StringOrNum
 asOrNum s = Either.Left s
 
-asStringOr :: Number -> StringOrNum
+asStringOr :: Int -> StringOrNum
 asStringOr n = Either.Right n
 
 stringOrNumString :: StringOrNum -> String
@@ -265,5 +209,3 @@ arg4'
   -> (a1 -> a2 -> a3 -> a4 -> r)
   -> (a1 -> a2 -> a3 -> r)
 arg4' a4 f a1 a2 a3 = f a1 a2 a3 a4
-
-foreign import js_timeout :: Int -> Effect.Effect (Promise.Promise Unit)

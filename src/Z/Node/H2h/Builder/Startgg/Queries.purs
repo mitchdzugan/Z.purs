@@ -1,12 +1,14 @@
 module Z.Node.H2h.Builder.Startgg.Queries
-  ( phaseGroupData
-  , tourneyData
-  , tourneyDataSmall
+  ( IdStub
+  , ImagesStub
+  , PageInfo
+  , PageNode
+  , PageNodes
   , TourneyDataRes
   , TourneyDataVars
-  , ImagesStub
-  , IdStub
-  , PageNodesRes
+  , phaseGroupData
+  , tourneyData
+  , tourneyDataSmall
   ) where
 
 import Z.Node.Gql as Gql
@@ -30,28 +32,28 @@ type TourneyDataVars = { pageE :: Int, pageS :: Int, slug :: String }
 
 type TourneyDataRes =
   { event ::
-      { id :: Number
+      { id :: Int
       , name :: String
       , slug :: String
       , state :: String
       , tournament ::
-          { id :: Number
+          { id :: Int
           , name :: String
-          , endAt :: Number
+          , endAt :: Int
           , images :: ImagesStub
           }
       , standings ::
-          PageNodesRes
-            (placement :: Number, isFinal :: Boolean, entrant :: IdStub)
+          PageInfo
+            (placement :: Int, isFinal :: Boolean, entrant :: IdStub)
       , entrants ::
-          PageNodesRes
-            ( initialSeedNum :: Number
+          PageInfo
+            ( initialSeedNum :: Int
             , participants ::
                 Array
                   { gamerTag :: String
                   , prefix :: Z.Maybe String
                   , player ::
-                      { id :: Number
+                      { id :: Int
                       , gamerTag :: String
                       , prefix :: Z.Maybe String
                       , user ::
@@ -72,41 +74,41 @@ type TourneyDataRes =
             )
       , phaseGroups ::
           Array
-            { id :: Number
+            { id :: Int
             , displayIdentifier :: String
-            , phase :: { id :: Number, name :: String, phaseOrder :: Number }
+            , phase :: { id :: Int, name :: String, phaseOrder :: Int }
             }
       }
   }
 
 type PhaseGroupDataRes =
-  { id :: Number
+  { id :: Int
   , bracketType :: String
   , sets ::
-      PageNodesRes
+      PageInfo
         ( fullRoundText :: String
-        , round :: Number
-        , wPlacement :: Number
-        , lPlacement :: Number
+        , round :: Int
+        , wPlacement :: Int
+        , lPlacement :: Int
         , identifier :: String
         , displayScore :: Z.Maybe String
-        , winnerId :: Z.Maybe Number
+        , winnerId :: Z.Maybe Int
         , slots :: Array { entrant :: IdStub }
-        , state :: Number
+        , state :: Int
         , games ::
             Z.Maybe
               ( Array
-                  { winnerId :: Z.Maybe Number
-                  , orderNum :: Number
-                  , entrant1Score :: Number
-                  , entrant2Score :: Number
+                  { winnerId :: Z.Maybe Int
+                  , orderNum :: Int
+                  , entrant1Score :: Int
+                  , entrant2Score :: Int
                   , selections ::
                       Array
-                        { id :: Number
+                        { id :: Int
                         , entrant :: IdStub
-                        , orderNum :: Number
+                        , orderNum :: Int
                         , selectionValue :: String
-                        , character :: { id :: Number, name :: String }
+                        , character :: { id :: Int, name :: String }
                         }
                   }
               )
@@ -115,7 +117,11 @@ type PhaseGroupDataRes =
 
 type ImagesStub = Array { url :: String, type :: String }
 
-type PageNodesRes rest =
-  { pageInfo :: { total :: Number }, nodes :: Array { id :: Number | rest } }
+type PageNode rest = { id :: Int | rest }
 
-type IdStub = { id :: Number }
+type PageNodes rest = Array (PageNode rest)
+
+type PageInfo rest =
+  { pageInfo :: { total :: Int }, nodes :: PageNodes rest }
+
+type IdStub = { id :: Int }

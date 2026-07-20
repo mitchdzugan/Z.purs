@@ -1,24 +1,26 @@
 module Z.Node.Sys.Index
-  ( FSDataError(..)
-  , Path
+  ( Path
   , basename
   , class Pathlike
   , decodeTextFile
   , dirname
   , encodeTextFile
+  , encodeTextFileP
   , join
   , lookupEnv
   , mkdir
-  , mkdirp
+  , mkdirP
   , pathStr
   , readTextFile
   , writeTextFile
+  , writeTextFileP
   , xExecAndExit
   , xLookupEnv
   ) where
 
 import Prelude
 
+import Z.Sys as Sys
 import Z.Z as Z
 
 foreign import js_readTextFile
@@ -45,37 +47,33 @@ instance pathlikeString :: Pathlike String where
   pathStr s = s
 
 readTextFile :: forall x p. Pathlike p => p -> Z.X (Z.EA Z.JsError x) String
-readTextFile = Z.effectPromiseX <<< js_readTextFile <<< pathStr
-
-data FSDataError = ReadError Z.JsError | DecodeError Z.JsonDecodeError
-
-derive instance genericFSDataError :: Z.Generic FSDataError _
-
-instance decodeJsonFSDataError :: Z.DecodeJson FSDataError where
-  decodeJson x = Z.genericDecodeJson x
-
-instance encodeJsonFSDataError :: Z.EncodeJson FSDataError where
-  encodeJson x = Z.genericEncodeJson x
+readTextFile = Z.xEffectPromise <<< js_readTextFile <<< pathStr
 
 decodeTextFile
   :: forall x p d
    . Pathlike p
   => Z.DecodeJson d
   => p
-  -> Z.X (Z.EA FSDataError x) d
+  -> Z.X (Z.EA Sys.FSDataError x) d
 decodeTextFile p = do
-  contents <- Z.xMapE ReadError $ readTextFile p
-  Z.xOk $ Z.mapL DecodeError $ Z.decode contents
+  contents <- Z.xMapE Sys.ReadError $ readTextFile p
+  Z.xOk $ Z.mapL Sys.DecodeError $ Z.decode contents
 
 mkdir :: forall x p. Pathlike p => p -> Z.X (Z.EA Z.JsError x) Unit
-mkdir = Z.effectPromiseX <<< js_mkdir <<< pathStr
+mkdir = Z.xEffectPromise <<< js_mkdir <<< pathStr
 
-mkdirp :: forall x p. Pathlike p => p -> Z.X (Z.EA Z.JsError x) Unit
-mkdirp = Z.effectPromiseX <<< js_mkdirp <<< pathStr
+mkdirP :: forall x p. Pathlike p => p -> Z.X (Z.EA Z.JsError x) Unit
+mkdirP = Z.xEffectPromise <<< js_mkdirp <<< pathStr
 
 writeTextFile
   :: forall x p. Pathlike p => p -> String -> Z.X (Z.EA Z.JsError x) Unit
-writeTextFile p = Z.effectPromiseX <<< js_writeTextFile (pathStr p)
+writeTextFile p = Z.xEffectPromise <<< js_writeTextFile (pathStr p)
+
+writeTextFileP
+  :: forall x p. Pathlike p => p -> String -> Z.X (Z.EA Z.JsError x) Unit
+writeTextFileP p s = do
+  mkdirP $ dirname p
+  writeTextFile p s
 
 encodeTextFile
   :: forall x p d
@@ -84,8 +82,16 @@ encodeTextFile
   => p
   -> d
   -> Z.X (Z.EA Z.JsError x) Unit
-encodeTextFile p d = do
-  writeTextFile p $ Z.encode d
+encodeTextFile p d = writeTextFile p $ Z.encode d
+
+encodeTextFileP
+  :: forall x p d
+   . Pathlike p
+  => Z.EncodeJson d
+  => p
+  -> d
+  -> Z.X (Z.EA Z.JsError x) Unit
+encodeTextFileP p d = writeTextFileP p $ Z.encode d
 
 foreign import js_lookupEnv
   :: (String -> Z.Maybe String)

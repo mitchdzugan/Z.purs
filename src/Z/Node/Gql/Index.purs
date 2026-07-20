@@ -50,39 +50,35 @@ requestGql
   -> Z.X (Z.EA Gql.Error x) Z.Json
 requestGql apiUrl authToken query vars = do
   Z.xMapE Gql.NetworkError
-    $ Z.effectPromiseX
+    $ Z.xEffectPromise
     $ js_requestGql apiUrl authToken query vars
 
 operateUnknown
   :: forall x
-   . Client
-  -> String
+   . String
   -> Z.Json
+  -> Client
   -> Z.Edit Gql.Opts
-  -> Z.X (Z.EA Gql.Error x) Z.Json
-operateUnknown client opString vars optsMod = Z.xWithRet operateUnknownImpl
+  -> Z.X (Z.WEA (Array Gql.Warning) Gql.Error x) Z.Json
+operateUnknown opString vars client optsMod = Z.xWithRet $ do
+  (collisionCount Z./\ cached) <- getCached cachePath networkControl
+  Z.whenJust cached Z.xReturn
+  when (networkControl == Gql.CacheOnly) $ Z.xRetFail Gql.CacheOnlyEmpty
+  Z.xInfo { gql: "submitting operation", op: opHeader, vars }
+  Z.xTimeout 6000
+  res <- Z.xRetLift $ requestGql client.url authToken opString vars
+  let toCache = [ res, Z.fromString opKeyStr ]
+  Z.xRetLift $ writeToCache cachePath collisionCount toCache
+  pure res
   where
-  operateUnknownImpl = do
-    Z.xInfo { opKey, isCacheOnly, nc: opts.networkControl }
-    (Z.Tuple collisionCount cached) <- getCached
-    Z.xInfo { collisionCount }
-    Z.xReturn <$> cached # Z.unwrap
-    when isCacheOnly $ Z.xRetLift $ Z.xFail Gql.CacheOnlyEmpty
-    Z.xInfo "Making GQL Call"
-    Z.xTimeout 6000
-    res <- Z.xRetLift $ requestGql client.url authToken opString vars
-    let toCache = [ res, Z.fromString opKeyStr ]
-    Z.xInfo toCache
-    Z.xRetLift $ writeToCache opts.cachePath collisionCount toCache
-    pure res
-  opts = fullOpts client optsMod
-  isCacheOnly = opts.networkControl == Gql.CacheOnly
+  { cachePath, networkControl } = fullOpts client optsMod
   authToken = Z.encodeJson client.authToken
   sortedPairs = Z.arrSort $ Z.jsonSortedPairs vars
   -- reverse in specific case to match my old startgg cache
   strVals = map Z.jsonStr $ map Z.snd $ case map Z.fst sortedPairs of
     [ "page", "phaseGroupId" ] -> Z.arrReverse sortedPairs
     _ -> sortedPairs
+  opHeader = Z.slice 0 1 $ Z.split (Z.Pattern "\n") opString
   opKeyStr = Z.joinWith "|" [ opString, Z.joinWith "|" strVals ]
   opKey = show $ Z.simpleHash opKeyStr
   filenameParts 0 = [ opKey, "json" ]
@@ -91,27 +87,26 @@ operateUnknown client opString vars optsMod = Z.xWithRet operateUnknownImpl
     Sys.join cachePath <<< Z.joinWith "." <<< filenameParts
   getCachedRec cachePath collisionCount = do
     let filename = cacheFilename cachePath collisionCount
-    Z.xInfo { filename }
-    parsed :: Z.Maybe (Array Z.Json) <- Z.xHush do
-      Sys.decodeTextFile filename
+    parsed <- Z.xTellMappedMHush mapMDecodeErr $ Sys.decodeTextFile filename
     handleParsed parsed
     where
+    mapMDecodeErr e@(Sys.DecodeError _) = [ Gql.CacheDecode e ]
+    mapMDecodeErr _ = []
     checkIsSelf parseData = Z.fromMaybe false do
       cachedOpKeyStr <- (Z.nth parseData 1)
       pure $ Z.caseJsonString false (eq opKeyStr) cachedOpKeyStr
-    handleParsed Z.Nothing = pure $ Z.Tuple collisionCount Z.Nothing
+    handleParsed Z.Nothing = pure $ collisionCount Z./\ Z.Nothing
     handleParsed (Z.Just parseData) = do
       let isSelf = checkIsSelf parseData
-      if isSelf then pure $ Z.Tuple collisionCount $ Z.nth parseData 0
+      if isSelf then pure $ collisionCount Z./\ Z.nth parseData 0
       else getCachedRec cachePath $ collisionCount + 1
-  getCachedArgs _ Gql.ForceFetch = pure $ Z.Tuple 0 Z.Nothing
-  getCachedArgs Z.Nothing _ = pure $ Z.Tuple 0 Z.Nothing
-  getCachedArgs (Z.Just p) _ = getCachedRec p 0
-  getCached = getCachedArgs opts.cachePath opts.networkControl
-  writeToCache Z.Nothing _ _ = Z.pass
+  getCached _ Gql.ForceFetch = pure $ 0 Z./\ Z.Nothing
+  getCached Z.Nothing _ = pure $ 0 Z./\ Z.Nothing
+  getCached (Z.Just p) _ = getCachedRec p 0
+  writeToCache Z.Nothing _ _ = Z.default
   writeToCache (Z.Just cachePath) collisionCount toCache = do
     let filename = cacheFilename cachePath collisionCount
-    Z.xMapE Gql.CacheWriter $ Sys.encodeTextFile filename toCache
+    Z.xTellMappedHush Gql.CacheWrite $ Sys.encodeTextFileP filename toCache
 
 data Operation vars res = Operation String (Z.JsonEncodeFn vars)
   (Z.JsonDecodeFn res)
@@ -128,11 +123,11 @@ defOperation opString _ _ = Operation opString Z.encodeJson Z.decodeJson
 
 operate
   :: forall vars res x
-   . Client
-  -> Operation vars res
+   . Operation vars res
   -> vars
+  -> Client
   -> Z.Edit Gql.Opts
-  -> Z.X (Z.EA Gql.Error x) res
-operate c (Operation opString enc dec) vars optsMod = do
-  j <- operateUnknown c opString (enc vars) optsMod
-  Z.xMapE Gql.ResponseTypeError $ Z.xOk $ dec j
+  -> Z.X (Z.WEA (Array Gql.Warning) Gql.Error x) res
+operate (Operation opString encode decode) vars c optsMod = do
+  j <- operateUnknown opString (encode vars) c optsMod
+  Z.xMapE Gql.ResponseTypeError $ Z.xOk $ decode j

@@ -3,12 +3,15 @@ module Z.Gql.Index
   , NetworkControl(..)
   , OpenOpts
   , Opts
+  , Warning(..)
   , _cachePath
   , _networkControl
   , baseOpts
   ) where
 
 import Prelude
+
+import Z.Sys as Sys
 import Z.Z as Z
 
 data NetworkControl
@@ -31,11 +34,23 @@ baseOpts = { networkControl: CacheFirst, cachePath: Z.Nothing }
 
 _networkControl
   :: forall r. Z.Lens' { networkControl :: NetworkControl | r } NetworkControl
-_networkControl = Z.prop (Z.Proxy :: Z.Proxy "networkControl")
+_networkControl = Z.prop (Z.p :: Z.P "networkControl")
 
 _cachePath
   :: forall r. Z.Lens' { cachePath :: Z.Maybe String | r } (Z.Maybe String)
-_cachePath = Z.prop (Z.Proxy :: Z.Proxy "cachePath")
+_cachePath = Z.prop (Z.p :: Z.P "cachePath")
+
+data Warning
+  = CacheDecode Sys.FSDataError
+  | CacheWrite Z.JsError
+
+derive instance genericWarning :: Z.Generic Warning _
+
+instance decodeJsonWarning :: Z.DecodeJson Warning where
+  decodeJson x = Z.genericDecodeJson x
+
+instance encodeJsonWarning :: Z.EncodeJson Warning where
+  encodeJson x = Z.genericEncodeJson x
 
 data Error
   = NetworkError Z.JsError

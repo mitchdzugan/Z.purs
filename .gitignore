@@ -12,3 +12,4 @@
 /.spec-results
 /target
 /dist
+/.cache-path
