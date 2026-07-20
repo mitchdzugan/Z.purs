@@ -8,3 +8,7 @@ export const js_simpleHash = (str) => {
   }
   return hash;
 };
+
+export const js_timeout = (ms) => () => {
+  return new Promise((resolve) => setTimeout(() => resolve(), ms));
+};

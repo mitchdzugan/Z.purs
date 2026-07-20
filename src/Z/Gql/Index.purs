@@ -13,7 +13,7 @@ import Z.Z as Z
 
 data NetworkControl
   = CacheOnly
-  | UseCache
+  | CacheFirst
   | ForceFetch
 
 derive instance eqNetworkControl :: Eq NetworkControl
@@ -27,7 +27,7 @@ type OpenOpts r =
 type Opts = OpenOpts ()
 
 baseOpts :: Opts
-baseOpts = { networkControl: CacheOnly, cachePath: Z.Nothing }
+baseOpts = { networkControl: CacheFirst, cachePath: Z.Nothing }
 
 _networkControl
   :: forall r. Z.Lens' { networkControl :: NetworkControl | r } NetworkControl

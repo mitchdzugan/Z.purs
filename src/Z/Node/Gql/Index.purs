@@ -16,21 +16,6 @@ import Z.Gql as Gql
 import Z.Node.Sys as Sys
 import Z.Z as Z
 
-foreign import js_requestGql
-  :: String -> Z.Json -> String -> Z.Json -> Z.Effect (Z.Promise Z.Json)
-
-requestGql
-  :: forall x
-   . String
-  -> Z.Json
-  -> String
-  -> Z.Json
-  -> x Z.# Z.EA Gql.Error Z.@> Z.Json
-requestGql apiUrl authToken query vars = do
-  Z.xMapE Gql.NetworkError
-    $ Z.effectPromiseX
-    $ js_requestGql apiUrl authToken query vars
-
 type Client = Gql.OpenOpts (url :: String, authToken :: Z.Maybe String)
 
 _authToken
@@ -53,6 +38,21 @@ fullOpts c optsMod = Z.xMod baseOpts optsMod
   where
   baseOpts = { cachePath: c.cachePath, networkControl: c.networkControl }
 
+foreign import js_requestGql
+  :: String -> Z.Json -> String -> Z.Json -> Z.Effect (Z.Promise Z.Json)
+
+requestGql
+  :: forall x
+   . String
+  -> Z.Json
+  -> String
+  -> Z.Json
+  -> Z.X x (Z.EA Gql.Error) Z.Json
+requestGql apiUrl authToken query vars = do
+  Z.xMapE Gql.NetworkError
+    $ Z.effectPromiseX
+    $ js_requestGql apiUrl authToken query vars
+
 operateUnknown
   :: forall x
    . Client
@@ -63,12 +63,18 @@ operateUnknown
 operateUnknown client opString vars optsMod = Z.xWithReturn operateUnknownImpl
   where
   operateUnknownImpl xReturn = do
-    Z.logInfo { opKey }
-    cached <- getCached
-    xReturn <$> Z.snd cached # Z.unwrap
+    Z.logInfo { opKey, isCacheOnly, nc: opts.networkControl }
+    (Z.Tuple collisionCount cached) <- getCached
+    Z.logInfo { collisionCount }
+    xReturn <$> cached # Z.unwrap
     when isCacheOnly $ Z.xLiftE $ Z.xFail Gql.CacheOnlyEmpty
     Z.logInfo "Making GQL Call"
-    Z.xLiftE $ requestGql client.url authToken opString vars
+    Z.xTimeout 6000
+    res <- Z.xLiftE $ requestGql client.url authToken opString vars
+    let toCache = [ res, Z.fromString opKeyStr ]
+    Z.logInfo toCache
+    Z.xLiftE $ writeToCache opts.cachePath collisionCount toCache
+    pure res
   opts = fullOpts client optsMod
   isCacheOnly = opts.networkControl == Gql.CacheOnly
   authToken = Z.encodeJson client.authToken
@@ -102,6 +108,10 @@ operateUnknown client opString vars optsMod = Z.xWithReturn operateUnknownImpl
   getCachedArgs Z.Nothing _ = pure $ Z.Tuple 0 Z.Nothing
   getCachedArgs (Z.Just p) _ = getCachedRec p 0
   getCached = getCachedArgs opts.cachePath opts.networkControl
+  writeToCache Z.Nothing _ _ = Z.pass
+  writeToCache (Z.Just cachePath) collisionCount toCache = do
+    let filename = cacheFilename cachePath collisionCount
+    Z.xMapE Gql.CacheWriter $ Sys.encodeTextFile filename toCache
 
 data Operation vars res = Operation String (Z.JsonEncodeFn vars)
   (Z.JsonDecodeFn res)

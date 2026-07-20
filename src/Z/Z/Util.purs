@@ -89,6 +89,7 @@ module Z.Z.Util
   , xReading
   , xResult
   , xTell
+  , xTimeout
   , xTry
   , xUnwrap
   ) where
@@ -439,3 +440,8 @@ xUnwrap e _ = xFail e
 
 xTell :: forall x w. Monoid.Monoid w => w -> x # W w @> Unit
 xTell w = RunW.tell w
+
+foreign import js_timeout :: Int -> Effect.Effect (Promise.Promise Unit)
+
+xTimeout :: forall x. Int -> X x A Unit
+xTimeout ms = discard $ xTry $ effectPromiseX $ js_timeout ms

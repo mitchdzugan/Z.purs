@@ -5,6 +5,7 @@ module Z.Node.Sys.Index
   , class Pathlike
   , decodeTextFile
   , dirname
+  , encodeTextFile
   , join
   , lookupEnv
   , mkdir
@@ -75,6 +76,16 @@ mkdirp = Z.effectPromiseX <<< js_mkdirp <<< pathStr
 writeTextFile
   :: forall x p. Pathlike p => p -> String -> x Z.# Z.EA Z.JsError Z.@> Unit
 writeTextFile p = Z.effectPromiseX <<< js_writeTextFile (pathStr p)
+
+encodeTextFile
+  :: forall x p d
+   . Pathlike p
+  => Z.EncodeJson d
+  => p
+  -> d
+  -> Z.X x (Z.EA Z.JsError) Unit
+encodeTextFile p d = do
+  writeTextFile p $ Z.encode d
 
 foreign import js_lookupEnv
   :: (String -> Z.Maybe String)

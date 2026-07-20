@@ -50,6 +50,6 @@ import Record (merge, get, set, modify) as Record
 import Run (Run, extract) as Run
 import Run.State (execState) as RunS
 import Type.Proxy (Proxy(..)) as Proxy
-import Z.Z.Core (JsError(..), jsErrorMessage, jsErrorName, jsErrorStack, jsError) as Core
-import Z.Z.X (pass, tryAff, tryEff, result, xMapE, xWithReturn, xLiftE, xSet, logInfo) as XX
+import Z.Z.Core (pass, JsError(..), jsErrorMessage, jsErrorName, jsErrorStack, jsError) as Core
+import Z.Z.X (tryAff, tryEff, result, xMapE, xWithReturn, xLiftE, xSet, logInfo) as XX
 import Z.Z.Util as ZUtil

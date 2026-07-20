@@ -1,15 +1,18 @@
 module Z.Z.Core
   ( JsError(..)
+  , fDiscard
   , jsError
   , jsErrorMessage
   , jsErrorName
   , jsErrorStack
+  , pass
   ) where
 
 import Prelude
 
 import Data.Argonaut.Decode (class DecodeJson, decodeJson)
 import Data.Argonaut.Encode (class EncodeJson, encodeJson)
+import Data.Functor as F
 import Data.Maybe (Maybe)
 import Effect.Exception as Exc
 
@@ -39,3 +42,9 @@ jsErrorStack (JsError e) = Exc.stack e
 
 jsError :: String -> String -> JsError
 jsError name message = fromPureJsError $ { name, message, "_": "" }
+
+pass :: forall a. Applicative a => a Unit
+pass = pure unit
+
+fDiscard :: forall f i. F.Functor f => f i -> f Unit
+fDiscard = map $ const unit

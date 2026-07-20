@@ -12,9 +12,12 @@ getEventData :: forall x. U.GetDataFn x
 getEventData = U.adaptBuilder do
   Z.logInfo "Starting aff"
   { client, slug } <- Z.xAsk
-  let vars = { pageE: 1, pageS: 1, slug }
-  res <- Z.xMapE H2h.Fetch $ Gql.operate client Q.tourneyData vars Z.default
-  Z.logInfo res
+  let vars1 = { pageE: 1, pageS: 1, slug }
+  let vars2 = { pageE: 0, pageS: 1, slug }
+  res1 <- Z.xMapE H2h.Fetch $ Gql.operate client Q.tourneyData vars1 Z.default
+  Z.logInfo res1
+  res2 <- Z.xMapE H2h.Fetch $ Gql.operate client Q.tourneyData vars2 Z.default
+  Z.logInfo res2
   pure
     { id: Z.asOrNum "tourneyId"
     , name: "Melee Singles"

@@ -87,7 +87,7 @@ runEff :: forall r. Run (EFF + r) ~> Run r
 runEff = Run.interpret (Run.on _eff handleEff Run.send)
 
 logInfo :: forall l x. l -> Run (EFF + x) Unit
-logInfo v = eff $ js_consoleFn "log" "χ::info" [ v ]
+logInfo v = eff $ js_consoleFn "log" "info" [ v ]
 
 ------------------------------
 
@@ -166,6 +166,10 @@ type XWithReturnFn x e a =
   -> (Run (EXCEPT (Either e a) + EXCEPT e + x) a)
 
 type XWithReturn x e a = XWithReturnFn x e a -> (Run (EXCEPT e + x) a)
+
+newtype EarlyReturn e a = EarlyReturn (Either e a)
+
+type XShortcircuit x e a = Run (EXCEPT (EarlyReturn e a) x) a
 
 xWithReturn
   :: forall x e a. XWithReturn x e a
