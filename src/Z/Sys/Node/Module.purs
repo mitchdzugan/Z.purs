@@ -4,4 +4,22 @@ module Z.Sys.Node.Module
   ) where
 
 import Z.Sys.Module (FSDataError(..)) as Sys
-import Z.Sys.Node.Impl as NodeSys
+import Z.Sys.Node.Impl
+  ( class Pathlike
+  , Path
+  , basename
+  , decodeTextFile
+  , dirname
+  , encodeTextFile
+  , encodeTextFileP
+  , join
+  , lookupEnv
+  , mkdir
+  , mkdirP
+  , pathStr
+  , readTextFile
+  , writeTextFile
+  , writeTextFileP
+  , xExecAndExit
+  , xLookupEnv
+  ) as NodeSys

@@ -359,7 +359,9 @@ type TEarlyResult
   -> k
 type TEarlyResult m x w e a = m (WE w (EarlyReturn e a) x) a
 
+type TError :: forall k1 k2 k3. (Row (k1 -> Type) -> k2 -> k3) -> Row (k1 -> Type) -> Type -> k2 -> k3
 type TError m x e a = m (E e x) a
+type TResult :: forall k1 k2. (Row (Type -> Type) -> k1 -> k2) -> Row (Type -> Type) -> Type -> Type -> k1 -> k2
 type TResult m x w e a = m (WE w e x) a
 
 infixr 0 type TEarlyReturn as !$
