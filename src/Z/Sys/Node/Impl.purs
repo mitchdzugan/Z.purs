@@ -116,6 +116,7 @@ execAndExit a = Z.runAff_ onDone a
     js_errorLog e
     js_exit 125
   onDone (Z.Right (Z.Left e)) = do
+    js_errorLog "HANDLED ERROR"
     js_errorLog e
     js_exit 1
   onDone _ = pure unit

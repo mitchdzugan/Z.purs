@@ -8,8 +8,7 @@ import Z.Sys.Node.Module as Sys
 import Z as Z
 
 testCachePath :: String
-testCachePath =
-  "/home/dz/Repo/PS-WS/.cache-path"
+testCachePath = "/home/dz/Repo/PS-WS/.cache-path"
 
 main :: Z.Effect Unit
 main = Sys.xExecAndExit do

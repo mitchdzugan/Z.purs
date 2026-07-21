@@ -13,10 +13,10 @@ module Z.Z.Module
   , module Enc
   , module EncodeGeneric
   , module Exists
-  , module Foldable
   , module Generic
   , module Lens
   , module LensRecord
+  , module Map
   , module Maybe
   , module Promise
   , module Proxy
@@ -52,7 +52,6 @@ import Data.Codec (Codec, Codec') as DC
 import Data.Codec.Argonaut (JsonCodec) as CA
 import Data.Either (Either(..), either) as Either
 import Data.Exists (Exists, mkExists, runExists) as Exists
-import Data.Foldable (for_) as Foldable
 import Data.Generic.Rep (class Generic) as Generic
 import Data.Lens (Lens, Lens', view, review, over, set) as Lens
 import Data.Lens.Record (prop) as LensRecord
@@ -70,140 +69,8 @@ import Record (merge) as Record
 import Run (Run, extract) as Run
 import Run.State (execState) as RunS
 import Type.Proxy (Proxy(..)) as Proxy
-import Z.Z.Core
-  ( class Defaultable
-  , JsAny
-  , JsError(..)
-  , P
-  , Set
-  , arrFilter
-  , arrSlice
-  , auto
-  , dec
-  , default
-  , fDiscard
-  , inc
-  , jsAny
-  , jsError
-  , jsError'
-  , jsErrorMessage
-  , jsErrorName
-  , jsErrorStack
-  , jsonStr
-  , orPass
-  , p
-  , setEmpty
-  , setFromFoldable
-  , setHas
-  , setSize
-  , simpleHash
-  , whenJust
-  ) as Core
-import Z.Z.X
-  ( type (!)
-  , type (!$)
-  , type (-!)
-  , type (-!$)
-  , A
-  , AFF
-  , AffF
-  , E
-  , EA
-  , EarlyReturn
-  , Edit
-  , R
-  , RA
-  , RE
-  , REA
-  , RS
-  , RSA
-  , RSE
-  , RSEA
-  , RW
-  , RWA
-  , RWE
-  , RWEA
-  , RWS
-  , RWSA
-  , RWSE
-  , RWSEA
-  , RWa
-  , RWaA
-  , RWaE
-  , RWaEA
-  , RWaS
-  , RWaSA
-  , RWaSE
-  , RWaSEA
-  , Result
-  , S
-  , SA
-  , SE
-  , SEA
-  , TEarlyResult
-  , TEarlyReturn
-  , TError
-  , TResult
-  , W
-  , WA
-  , WE
-  , WEA
-  , WRITERa
-  , WS
-  , WSA
-  , WSE
-  , Wa
-  , WaA
-  , WaE
-  , WaEA
-  , WaS
-  , WaSA
-  , WaSE
-  , X
-  , XBASE
-  , XBaseF
-  , XRet
-  , XShortCircuit
-  , edit
-  , xAEff
-  , xAff
-  , xAsk
-  , xEffectPromise
-  , xEval
-  , xEvalAff
-  , xEvalR
-  , xEvalS
-  , xExec
-  , xExecAff
-  , xExecS
-  , xFail
-  , xGet
-  , xHush
-  , xInfo
-  , xLogError
-  , xLogWarning
-  , xMapE
-  , xMapW
-  , xMapWE
-  , xOk
-  , xOver
-  , xResult
-  , xRetFail
-  , xRetLift
-  , xReturn
-  , xRunS
-  , xSay
-  , xSet
-  , xTellMappedHush
-  , xTellMappedMHush
-  , xTimeout
-  , xTry
-  , xUnwrap
-  , xUnwrap'
-  , xView
-  , xWithRet
-  , xrView
-  ) as XX
+import Z.Z.Core as Core
+import Z.Z.X as XX
 import Z.Z.Util
   ( type (#)
   , type ($)
@@ -238,6 +105,7 @@ import Z.Z.Util
   , nth
   , stringOrNumString
   ) as ZUtil
+import Data.Map (Map) as Map
 import Prelude
 
 px

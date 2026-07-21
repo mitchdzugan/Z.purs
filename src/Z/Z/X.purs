@@ -79,6 +79,7 @@ module Z.Z.X
   , xGet
   , xHush
   , xInfo
+  , xInvert
   , xLogError
   , xLogWarning
   , xMapE
@@ -97,6 +98,7 @@ module Z.Z.X
   , xTellMappedMHush
   , xTimeout
   , xTry
+  , xTryUntil
   , xUnwrap
   , xUnwrap'
   , xView
@@ -171,6 +173,15 @@ xWithRet m = RunE.runExcept m >>= handleRes
   where
   handleRes (Eor.Left (EarlyReturn earlyRet)) = xOk earlyRet
   handleRes (Eor.Right ret) = pure ret
+
+xTryUntil
+  :: forall x e r
+   . R.Run (E e + E r + E e x) r
+  -> Array (e -> R.Run (E e + E r + E e x) r)
+  -> R.Run (E e x) r
+xTryUntil try1 tryRest = xInvert do
+  e1 <- xInvert try1
+  Z.foldM (\e tryN -> xInvert $ tryN e) e1 tryRest
 
 --------------- R FNS -----------------------------------------------------
 
@@ -305,6 +316,9 @@ xUnwrap' = xUnwrap $ Z.jsError' "Nothing#unwrap"
 xHush :: forall x e d. Z.Defaultable d => R.Run (E e x) d -> R.Run x d
 xHush m = (xTry m <#> Eor.hush) <#> Z.orPass
 
+xInvert :: forall x e a. R.Run (E a + E e x) e -> R.Run (E e x) a
+xInvert r = xTry r <#> Z.invert >>= xOk
+
 --------------- A FNS -----------------------------------------------------
 
 foreign import js_timeout :: Int -> Eff.Effect (Promise.Promise Unit)
@@ -359,9 +373,23 @@ type TEarlyResult
   -> k
 type TEarlyResult m x w e a = m (WE w (EarlyReturn e a) x) a
 
-type TError :: forall k1 k2 k3. (Row (k1 -> Type) -> k2 -> k3) -> Row (k1 -> Type) -> Type -> k2 -> k3
+type TError
+  :: forall k1 k2 k3
+   . (Row (k1 -> Type) -> k2 -> k3)
+  -> Row (k1 -> Type)
+  -> Type
+  -> k2
+  -> k3
 type TError m x e a = m (E e x) a
-type TResult :: forall k1 k2. (Row (Type -> Type) -> k1 -> k2) -> Row (Type -> Type) -> Type -> Type -> k1 -> k2
+
+type TResult
+  :: forall k1 k2
+   . (Row (Type -> Type) -> k1 -> k2)
+  -> Row (Type -> Type)
+  -> Type
+  -> Type
+  -> k1
+  -> k2
 type TResult m x w e a = m (WE w e x) a
 
 infixr 0 type TEarlyReturn as !$

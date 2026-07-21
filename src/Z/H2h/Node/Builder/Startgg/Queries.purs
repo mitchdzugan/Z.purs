@@ -4,6 +4,7 @@ module Z.H2h.Node.Builder.Startgg.Queries
   , PageInfo
   , PageNode
   , PageNodes
+  , PhaseGroupDataRes
   , TourneyDataRes
   , TourneyDataVars
   , phaseGroupData
@@ -82,37 +83,41 @@ type TourneyDataRes =
   }
 
 type PhaseGroupDataRes =
-  { id :: Int
-  , bracketType :: String
-  , sets ::
-      PageInfo
-        ( fullRoundText :: String
-        , round :: Int
-        , wPlacement :: Int
-        , lPlacement :: Int
-        , identifier :: String
-        , displayScore :: Z.Maybe String
-        , winnerId :: Z.Maybe Int
-        , slots :: Array { entrant :: IdStub }
-        , state :: Int
-        , games ::
-            Z.Maybe
-              ( Array
-                  { winnerId :: Z.Maybe Int
-                  , orderNum :: Int
-                  , entrant1Score :: Int
-                  , entrant2Score :: Int
-                  , selections ::
-                      Array
-                        { id :: Int
-                        , entrant :: IdStub
-                        , orderNum :: Int
-                        , selectionValue :: String
-                        , character :: { id :: Int, name :: String }
-                        }
-                  }
-              )
-        )
+  { phaseGroup ::
+      { id :: Int
+      , bracketType :: String
+      , sets ::
+          PageInfo
+            ( fullRoundText :: String
+            , round :: Int
+            , wPlacement :: Z.Maybe Int
+            , lPlacement :: Z.Maybe Int
+            , identifier :: String
+            , displayScore :: Z.Maybe String
+            , winnerId :: Z.Maybe Int
+            , slots :: Array { entrant :: IdStub }
+            , state :: Int
+            , games ::
+                Z.Maybe
+                  ( Array
+                      { winnerId :: Z.Maybe Int
+                      , orderNum :: Z.Maybe Int
+                      , entrant1Score :: Int
+                      , entrant2Score :: Int
+                      , selections ::
+                          Z.Maybe
+                            ( Array
+                                { id :: Int
+                                , entrant :: IdStub
+                                , orderNum :: Z.Maybe Int
+                                , selectionValue :: Int
+                                , character :: { id :: Int, name :: String }
+                                }
+                            )
+                      }
+                  )
+            )
+      }
   }
 
 type ImagesStub = Array { url :: String, type :: String }

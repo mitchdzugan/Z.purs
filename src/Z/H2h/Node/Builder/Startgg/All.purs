@@ -35,7 +35,7 @@ ggQueryAll op initVars pageSpecs client optsEdit = do
   let r = { client, optsEdit, op }
   initRes <- Gql.operate op initVars client optsEdit
   let initS = { vars: initVars, res: initRes }
-  { res } <- Z.xEvalR r $ Z.xRunS initS $ Z.for_ pageSpecs ggPageSpecHandle
+  { res } <- Z.xEvalR r $ Z.xRunS initS $ Z.forM_ pageSpecs ggPageSpecHandle
   pure res
 
 type QAllR v r =
@@ -59,7 +59,7 @@ ggPageSpecHandleImpl
 ggPageSpecHandleImpl (GGPageSpecF pageL pageInfoL) = do
   { client, optsEdit, op } <- Z.xAsk
   currState <- Z.xGet
-  let localState = Z.merge currState { seenIds: Z.setEmpty :: Z.Set Int }
+  let localState = Z.merge currState { seenIds: Z.setEmpty @Int }
   Z.xEvalS localState $ Z.xWithRet $ looper op client optsEdit
   where
   updateState = do

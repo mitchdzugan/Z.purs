@@ -3,14 +3,20 @@ module Z.Z.Core
   , JsError(..)
   , P
   , Set
+  , arrEmpty
   , arrFilter
+  , arrSize
   , arrSlice
   , auto
   , class Defaultable
   , dec
   , default
   , fDiscard
+  , foldM
+  , forM
+  , forM_
   , inc
+  , invert
   , jsAny
   , jsError
   , jsError'
@@ -18,6 +24,9 @@ module Z.Z.Core
   , jsErrorName
   , jsErrorStack
   , jsonStr
+  , mapEmpty
+  , mapM
+  , mapSize
   , orPass
   , p
   , setEmpty
@@ -30,13 +39,17 @@ module Z.Z.Core
 
 import Prelude
 
+import Control.Applicative as Applicative
 import Control.Monad as Monad
 import Data.Argonaut.Core as Arg
 import Data.Argonaut.Decode (class DecodeJson, decodeJson)
 import Data.Argonaut.Encode (class EncodeJson, encodeJson)
 import Data.Array as Arr
+import Data.Either as Eor
 import Data.Foldable as Foldable
+import Data.Traversable as Traversable
 import Data.Functor as F
+import Data.Map as Map
 import Data.Maybe as May
 import Data.Ord as Ord
 import Data.Ring as Ring
@@ -138,9 +151,17 @@ inc s = Semiring.add s Semiring.one
 dec :: forall r. Ring r => r -> r
 dec s = Ring.sub s Semiring.one
 
+type Map k v = Map.Map k v
+
+mapEmpty :: forall @k @v. Ord k => Map.Map k v
+mapEmpty = Map.empty
+
+mapSize :: forall k v. Map k v -> Int
+mapSize = Map.size
+
 type Set a = Set.Set a
 
-setEmpty :: forall a. Set a
+setEmpty :: forall @a. Set a
 setEmpty = Set.empty
 
 setHas :: forall a. Ord.Ord a => a -> Set a -> Boolean
@@ -155,5 +176,52 @@ setFromFoldable = Set.fromFoldable
 arrSlice :: forall a. Int -> Int -> Array a -> Array a
 arrSlice = Arr.slice
 
+arrSize :: forall a. Array a -> Int
+arrSize = Arr.length
+
 arrFilter :: forall a. (a -> Boolean) -> Array a -> Array a
 arrFilter = Arr.filter
+
+arrEmpty :: forall @a. Array a
+arrEmpty = []
+
+invert :: forall e r. Eor.Either e r -> Eor.Either r e
+invert (Eor.Left e) = Eor.Right e
+invert (Eor.Right r) = Eor.Left r
+
+mapM
+  :: forall t a b m
+   . Traversable.Traversable t
+  => Applicative.Applicative m
+  => (a -> m b)
+  -> t a
+  -> m (t b)
+mapM = Traversable.traverse
+
+forM
+  :: forall t a b m
+   . Traversable.Traversable t
+  => Applicative.Applicative m
+  => t a
+  -> (a -> m b)
+  -> m (t b)
+forM = flip Traversable.traverse
+
+forM_
+  :: forall t a m
+   . Traversable.Traversable t
+  => Applicative.Applicative m
+  => t a
+  -> (a -> m Unit)
+  -> m Unit
+forM_ = flip Traversable.traverse_
+
+foldM
+  :: forall f m a b
+   . Foldable.Foldable f
+  => Monad.Monad m
+  => (b -> a -> m b)
+  -> b
+  -> f a
+  -> m b
+foldM = Foldable.foldM

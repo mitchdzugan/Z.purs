@@ -1,3 +1,21 @@
+const basePath = await (async () => {
+  try {
+    const { fileURLToPath } = await import("node:url");
+    const path = await import("node:path");
+    const fullPath = fileURLToPath(import.meta.url);
+    return path.dirname(path.dirname(path.dirname(fullPath)));
+  } catch (_e) {
+    return undefined;
+  }
+})();
+
+function replaceBasePath(s) {
+  if (!basePath) {
+    return s;
+  }
+  return s.replaceAll(basePath, ".");
+}
+
 export function js_getStack() {
   const traceTarget = {};
   Error.captureStackTrace(traceTarget, js_getStack);
@@ -5,7 +23,7 @@ export function js_getStack() {
     .split("\n")
     .slice(1)
     .map((s) => s.trim());
-  return s[2].replaceAll("<anonymous> ", "").trim();
+  return replaceBasePath(s[2].replaceAll("<anonymous> ", "").trim());
 }
 const colors = {
   reset: "\x1b[0m",

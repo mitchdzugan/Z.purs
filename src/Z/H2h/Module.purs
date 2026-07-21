@@ -1,8 +1,10 @@
 module Z.H2h.Module
   ( BracketingSite(..)
+  , Entrant
   , Error(..)
   , Event
   , EventSource
+  , PhaseGroup
   , Warning(..)
   , challongeSource
   , startggSource
@@ -46,6 +48,15 @@ instance decodeJsonBracketingSite :: Z.DecodeJson BracketingSite where
 instance encodeJsonBracketingSite :: Z.EncodeJson BracketingSite where
   encodeJson x = Z.genericEncodeJson x
 
+type PhaseGroup =
+  { id :: Z.StringOrNum
+  , displayIdentifier :: String
+  }
+
+type Entrant =
+  { id :: Z.StringOrNum
+  }
+
 type Event =
   { id :: Z.StringOrNum
   , site :: BracketingSite
@@ -53,6 +64,9 @@ type Event =
   , name :: String
   , slug :: String
   , state :: String
+  , entrants :: Z.Map Z.StringOrNum Entrant
+  , phaseGroups :: Array PhaseGroup
+  , numEntrants :: Int
   }
 
 type EventSource =
