@@ -1,4 +1,4 @@
-module Z.Node.Sys.Index
+module Z.Sys.Node.Impl
   ( Path
   , basename
   , class Pathlike
@@ -20,8 +20,8 @@ module Z.Node.Sys.Index
 
 import Prelude
 
-import Z.Sys as Sys
-import Z.Z as Z
+import Z.Sys.Module as Sys
+import Z as Z
 
 foreign import js_readTextFile
   :: String -> Z.Effect Z.$ Z.Promise String

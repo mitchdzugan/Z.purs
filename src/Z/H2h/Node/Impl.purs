@@ -1,14 +1,14 @@
-module Z.Node.H2h.Index
+module Z.H2h.Node.Impl
   ( getEventData
   , mkClient
   ) where
 
-import Z.H2h as H2h
-import Z.Node.Gql as Gql
-import Z.Node.H2h.Builder.Challonge.Index as Challonge
-import Z.Node.H2h.Builder.Startgg.Index as Startgg
-import Z.Node.H2h.Util as U
-import Z.Z as Z
+import Z.H2h.Module as H2h
+import Z.Gql.Node.Module as Gql
+import Z.H2h.Node.Builder.Challonge.Index as Challonge
+import Z.H2h.Node.Builder.Startgg.Index as Startgg
+import Z.H2h.Node.Util as U
+import Z as Z
 
 mkClient :: Z.Edit Gql.Client -> Gql.Client
 mkClient = Gql.mkClient "https://api.start.gg/gql/alpha"

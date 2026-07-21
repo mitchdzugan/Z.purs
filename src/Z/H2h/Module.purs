@@ -1,4 +1,4 @@
-module Z.H2h.Index
+module Z.H2h.Module
   ( BracketingSite(..)
   , Error(..)
   , Event

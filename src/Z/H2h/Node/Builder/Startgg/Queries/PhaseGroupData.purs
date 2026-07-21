@@ -1,4 +1,4 @@
-module Z.Node.H2h.Builder.Startgg.Queries.PhaseGroupData
+module Z.H2h.Node.Builder.Startgg.Queries.PhaseGroupData
   ( q
   ) where
 

@@ -1,4 +1,4 @@
-module Z.Node.H2h.Util
+module Z.H2h.Node.Util
   ( BuildX
   , GGPageSpecF
   , GetDataFn
@@ -9,10 +9,10 @@ module Z.Node.H2h.Util
 
 import Prelude
 
-import Z.H2h.Index as H2h
-import Z.Node.Gql as Gql
-import Z.Node.H2h.Builder.Startgg.Queries as GGQ
-import Z.Z as Z
+import Z.H2h.Module as H2h
+import Z.Gql.Node.Module as Gql
+import Z.H2h.Node.Builder.Startgg.Queries as GGQ
+import Z as Z
 
 ------------- ggQueryAll -------------------------------------------------
 

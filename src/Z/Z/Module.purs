@@ -1,4 +1,4 @@
-module Z.Z
+module Z.Z.Module
   ( module Aff
   , module Arg
   , module Array

@@ -1,4 +1,4 @@
-module Z.Gql.Index
+module Z.Gql.Module
   ( Error(..)
   , NetworkControl(..)
   , OpenOpts

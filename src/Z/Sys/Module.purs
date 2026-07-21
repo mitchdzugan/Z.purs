@@ -1,8 +1,8 @@
-module Z.Sys
+module Z.Sys.Module
   ( FSDataError(..)
   ) where
 
-import Z.Z as Z
+import Z as Z
 
 data FSDataError = ReadError Z.JsError | DecodeError Z.JsonDecodeError
 

@@ -1,4 +1,4 @@
-module Z.Test.Index
+module Z.Test.Module
   ( module Spec
   , module SpecAssert
   , module SpecDisc

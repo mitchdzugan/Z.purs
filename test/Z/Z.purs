@@ -2,7 +2,7 @@ module Test.Z.Z where
 
 import Prelude
 
-import Z.Test.Index as T
+import Z.Test.Module as T
 
 spec :: T.SpecMain
 spec = do

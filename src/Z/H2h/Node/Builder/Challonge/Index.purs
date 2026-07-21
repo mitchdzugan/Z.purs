@@ -1,10 +1,10 @@
-module Z.Node.H2h.Builder.Challonge.Index where
+module Z.H2h.Node.Builder.Challonge.Index where
 
 import Prelude
 
-import Z.H2h as H2h
-import Z.Node.H2h.Util as U
-import Z.Z as Z
+import Z.H2h.Module as H2h
+import Z.H2h.Node.Util as U
+import Z as Z
 
 getEventData :: forall x. U.GetDataFn x
 getEventData = U.adaptBuilder

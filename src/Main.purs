@@ -2,10 +2,10 @@ module Main where
 
 import Prelude
 
-import Z.Node.Gql as Gql
-import Z.Node.H2h as H2h
-import Z.Node.Sys as Sys
-import Z.Z as Z
+import Z.Gql.Node.Module as Gql
+import Z.H2h.Node.Module as H2h
+import Z.Sys.Node.Module as Sys
+import Z as Z
 
 testCachePath :: String
 testCachePath =

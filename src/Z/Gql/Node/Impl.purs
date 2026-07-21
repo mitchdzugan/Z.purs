@@ -1,4 +1,4 @@
-module Z.Node.Gql.Index
+module Z.Gql.Node.Impl
   ( Client
   , Operation
   , _authToken
@@ -12,9 +12,9 @@ module Z.Node.Gql.Index
 
 import Prelude
 
-import Z.Gql as Gql
-import Z.Node.Sys as Sys
-import Z.Z as Z
+import Z.Gql.Module as Gql
+import Z.Sys.Node.Module as Sys
+import Z as Z
 
 type Client = Gql.OpenOpts (url :: String, authToken :: Z.Maybe String)
 

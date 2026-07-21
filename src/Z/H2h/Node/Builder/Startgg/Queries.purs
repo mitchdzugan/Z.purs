@@ -1,4 +1,4 @@
-module Z.Node.H2h.Builder.Startgg.Queries
+module Z.H2h.Node.Builder.Startgg.Queries
   ( IdStub
   , ImagesStub
   , PageInfo
@@ -11,11 +11,11 @@ module Z.Node.H2h.Builder.Startgg.Queries
   , tourneyDataSmall
   ) where
 
-import Z.Node.Gql as Gql
-import Z.Node.H2h.Builder.Startgg.Queries.PhaseGroupData as PGDQ
-import Z.Node.H2h.Builder.Startgg.Queries.TourneyData as TDQ
-import Z.Node.H2h.Builder.Startgg.Queries.TourneyDataSmall as TDSQ
-import Z.Z as Z
+import Z.Gql.Node.Module as Gql
+import Z.H2h.Node.Builder.Startgg.Queries.PhaseGroupData as PGDQ
+import Z.H2h.Node.Builder.Startgg.Queries.TourneyData as TDQ
+import Z.H2h.Node.Builder.Startgg.Queries.TourneyDataSmall as TDSQ
+import Z as Z
 
 tourneyData :: Gql.Operation TourneyDataVars TourneyDataRes
 tourneyData = Gql.defOperation TDQ.q Z.Proxy Z.Proxy

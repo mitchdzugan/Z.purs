@@ -1,11 +1,11 @@
-module Z.Node.H2h.Builder.Startgg.Index where
+module Z.H2h.Node.Builder.Startgg.Index where
 
 import Prelude
 
-import Z.H2h as H2h
-import Z.Node.H2h.Builder.Startgg.Queries as Q
-import Z.Node.H2h.Util as U
-import Z.Z as Z
+import Z.H2h.Module as H2h
+import Z.H2h.Node.Builder.Startgg.Queries as Q
+import Z.H2h.Node.Util as U
+import Z as Z
 
 getEventData :: forall x. U.GetDataFn x
 getEventData = U.adaptBuilder do
