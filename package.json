@@ -7,7 +7,7 @@
   },
   "scripts": {
     "clean": "rimraf output",
-    "fix:apply": "cross-env-shell \"spago build --json-errors 2>&1 | ps-suggest --apply\"",
+    "fix:apply": "node ./scripts/applyPsSuggest.js",
     "fix": "run-s clean fix:apply",
     "build": "spago build", 
     "test": "spago test"
