@@ -98,8 +98,8 @@ fDiscard = map $ const unit
 type P :: forall k. k -> Type
 type P a = Proxy.Proxy a
 
-p :: forall (a :: Symbol). P a
-p = Proxy.Proxy :: Proxy.Proxy a
+p ∷ ∀ (@a ∷ Symbol). Proxy.Proxy a
+p = Proxy.Proxy
 
 class Defaultable a where
   default :: a

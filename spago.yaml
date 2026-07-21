@@ -15,6 +15,7 @@ package:
     - effect
     - either
     - exceptions
+    - exists
     - json
     - maybe
     - node-process

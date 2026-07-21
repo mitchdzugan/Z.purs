@@ -12,6 +12,8 @@ module Z.Z
   , module Either
   , module Enc
   , module EncodeGeneric
+  , module Exists
+  , module Foldable
   , module Generic
   , module Lens
   , module LensRecord
@@ -29,6 +31,8 @@ module Z.Z
   , module TupNested
   , module XX
   , module ZUtil
+  , ppx
+  , px
   ) where
 
 import Control.Promise (Promise) as Promise
@@ -41,6 +45,8 @@ import Data.Array (slice) as Array
 import Data.Codec (Codec, Codec') as DC
 import Data.Codec.Argonaut (JsonCodec) as CA
 import Data.Either (Either(..), either) as Either
+import Data.Exists (Exists, mkExists, runExists) as Exists
+import Data.Foldable (for_) as Foldable
 import Data.Generic.Rep (class Generic) as Generic
 import Data.Lens (Lens, Lens', view, review, over, set) as Lens
 import Data.Lens.Record (prop) as LensRecord
@@ -61,3 +67,20 @@ import Type.Proxy (Proxy(..)) as Proxy
 import Z.Z.Core as Core
 import Z.Z.X as XX
 import Z.Z.Util as ZUtil
+import Prelude
+
+px
+  :: ∀ (@l :: Symbol) r' r @a
+  . Symbol.IsSymbol l
+  ⇒ Row.Cons l a r' r
+  ⇒ Lens.Lens' (Record r) a
+px = LensRecord.prop (Proxy.Proxy @l)
+
+ppx
+  :: ∀ (@l1 :: Symbol) (@l2 :: Symbol) r1' r1 r2' r2 @a
+  . Symbol.IsSymbol l1
+  ⇒ Symbol.IsSymbol l2
+  ⇒ Row.Cons l1 (Record r2) r1' r1
+  ⇒ Row.Cons l2 a r2' r2
+  ⇒ Lens.Lens' (Record r1) a
+ppx = LensRecord.prop (Proxy.Proxy @l1) <<< LensRecord.prop (Proxy.Proxy @l2)
