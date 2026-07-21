@@ -1,13 +1,13 @@
-module Z.H2h.Node.Builder.Challonge.Index where
+module Z.H2h.Node.Builder.Challonge.Impl where
 
 import Prelude
 
 import Z.H2h.Module as H2h
-import Z.H2h.Node.Util as U
+import Z.H2h.Node.Builder.API as B
 import Z as Z
 
-getEventData :: forall x. U.GetDataFn x
-getEventData = U.adaptBuilder
+getEventData :: forall x. B.GetDataFn x
+getEventData = B.adaptBuilder
   do
     pure
       { id: Z.asOrNum "tourneyId"
