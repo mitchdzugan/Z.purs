@@ -87,10 +87,13 @@ module Z.Z.X
   , xMapWE
   , xOk
   , xOver
+  , xPlusS
   , xResult
   , xRetFail
   , xRetLift
   , xReturn
+  , xReview
+  , xReviewR
   , xRunS
   , xSay
   , xSet
@@ -102,8 +105,8 @@ module Z.Z.X
   , xUnwrap
   , xUnwrap'
   , xView
+  , xViewR
   , xWithRet
-  , xrView
   ) where
 
 import Prelude
@@ -114,12 +117,16 @@ import Data.Either as Eor
 import Data.Lens as Lens
 import Data.Maybe as May
 import Data.Monoid as Monoid
+import Data.Symbol (class IsSymbol)
 import Data.Tuple as Tup
 import Data.Tuple.Nested as TupN
 import Effect as Eff
 import Effect.Aff as Aff
 import Effect.Class as EffC
 import Effect.Unsafe as Unsafe
+import Type.Proxy (Proxy(..))
+import Prim.Row (class Cons, class Lacks)
+import Record as Rec
 import Run as R
 import Run.Except as RunE
 import Run.Reader as RunR
@@ -181,7 +188,7 @@ xTryUntil
   -> R.Run (E e x) r
 xTryUntil try1 tryRest = xInvert do
   e1 <- xInvert try1
-  Z.foldM (\e tryN -> xInvert $ tryN e) e1 tryRest
+  Z.reduceM (\e tryN -> xInvert $ tryN e) e1 tryRest
 
 --------------- R FNS -----------------------------------------------------
 
@@ -191,10 +198,15 @@ xEvalR = RunR.runReader
 xAsk :: forall x r. R.Run (R r x) r
 xAsk = RunR.ask
 
-xrView :: forall x r a. Lens.Lens' r a -> R.Run (R r x) a
-xrView l = do
+xViewR :: forall x s t a b. Lens.Lens s t a b -> R.Run (R s x) a
+xViewR l = do
   o <- xAsk
   pure $ Lens.view l o
+
+xReviewR :: forall x s t a b. Lens.Review s t a b -> R.Run (R b x) t
+xReviewR l = do
+  o <- xAsk
+  pure $ Lens.review l o
 
 --------------- W FNS -----------------------------------------------------
 
@@ -243,17 +255,22 @@ xMapW f m = do
 xGet :: forall x s. R.Run (S s x) s
 xGet = RunS.get
 
-xView :: forall x s a. Lens.Lens' s a -> R.Run (S s x) a
+xView :: forall x s t a b. Lens.Lens s t a b -> R.Run (S s x) a
 xView l = do
   o <- xGet
   pure $ Lens.view l o
 
-xOver :: forall x s a. Lens.Lens' s a -> (a -> a) -> R.Run (S s x) Unit
+xReview :: forall x s t a b. Lens.Review s t a b -> R.Run (S b x) t
+xReview l = do
+  o <- xGet
+  pure $ Lens.review l o
+
+xOver :: forall x s a b. Lens.Setter s s a b -> (a -> b) -> R.Run (S s x) Unit
 xOver l f = do
   o <- RunS.get
   RunS.put $ Lens.over l f o
 
-xSet :: forall x s a. Lens.Lens' s a -> a -> R.Run (S s x) Unit
+xSet :: forall x s a b. Lens.Setter s s a b -> b -> R.Run (S s x) Unit
 xSet l v = do
   o <- RunS.get
   RunS.put $ Lens.set l v o
@@ -266,6 +283,21 @@ xEvalS i m = RunS.runState i m <#> Tup.snd
 
 xRunS :: forall x s a. s -> R.Run (S s x) a -> R.Run x s
 xRunS i m = RunS.runState i m <#> Tup.fst
+
+xPlusS
+  :: forall x r1 r2 @l a v
+   . IsSymbol l
+  => Lacks l r1
+  => Cons l a r1 r2
+  => a
+  -> R.Run (S { | r2 } + S { | r1 } + x) v
+  -> R.Run (S { | r1 } x) v
+xPlusS v m = do
+  curr <- xGet
+  let next = Rec.insert (Proxy :: Proxy l) v curr
+  (s TupN./\ r) <- xExecS next m
+  RunS.put (Rec.delete (Proxy :: Proxy l) s)
+  pure r
 
 --------------- E FNS -----------------------------------------------------
 

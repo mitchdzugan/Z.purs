@@ -5,11 +5,11 @@ module Z.H2h.Node.Builder.Startgg.Queries
   , PageNode
   , PageNodes
   , PhaseGroupDataRes
-  , TourneyDataRes
-  , TourneyDataVars
-  , phaseGroupData
-  , tourneyData
-  , tourneyDataSmall
+  , EventDataRes
+  , EventDataVars
+  , phaseGroup
+  , event
+  , eventSmall
   ) where
 
 import Z.Gql.Node.Module as Gql
@@ -18,20 +18,20 @@ import Z.H2h.Node.Builder.Startgg.Queries.TourneyData as TDQ
 import Z.H2h.Node.Builder.Startgg.Queries.TourneyDataSmall as TDSQ
 import Z as Z
 
-tourneyData :: Gql.Operation TourneyDataVars TourneyDataRes
-tourneyData = Gql.defOperation TDQ.q Z.Proxy Z.Proxy
+event :: Gql.Operation EventDataVars EventDataRes
+event = Gql.defOperation TDQ.q Z.Proxy Z.Proxy
 
-tourneyDataSmall :: Gql.Operation TourneyDataVars TourneyDataRes
-tourneyDataSmall = Gql.defOperation TDSQ.q Z.Proxy Z.Proxy
+eventSmall :: Gql.Operation EventDataVars EventDataRes
+eventSmall = Gql.defOperation TDSQ.q Z.Proxy Z.Proxy
 
-phaseGroupData :: Gql.Operation PhaseGroupDataVars PhaseGroupDataRes
-phaseGroupData = Gql.defOperation PGDQ.q Z.Proxy Z.Proxy
+phaseGroup :: Gql.Operation PhaseGroupDataVars PhaseGroupDataRes
+phaseGroup = Gql.defOperation PGDQ.q Z.Proxy Z.Proxy
 
 type PhaseGroupDataVars = { page :: Int, phaseGroupId :: Int }
 
-type TourneyDataVars = { pageE :: Int, pageS :: Int, slug :: String }
+type EventDataVars = { pageE :: Int, pageS :: Int, slug :: String }
 
-type TourneyDataRes =
+type EventDataRes =
   { event ::
       { id :: Int
       , name :: String

@@ -4,14 +4,18 @@ module Z.H2h.Module
   , Error(..)
   , Event
   , EventSource
+  , Participant
   , PhaseGroup
+  , Player
+  , Standing
+  , Tournament
   , Warning(..)
   , challongeSource
   , startggSource
   ) where
 
-import Z.Gql.Module as Gql
 import Z as Z
+import Z.Gql.Module as Gql
 
 data Warning = GqlW Gql.Warning
 
@@ -53,20 +57,47 @@ type PhaseGroup =
   , displayIdentifier :: String
   }
 
+type Player =
+  { id :: Z.StringOrNum
+  , gamerTag :: String
+  , prefix :: Z.Maybe String
+  , pronouns :: Z.Maybe String
+  , name :: Z.Maybe String
+  , socials :: Z.Map String String
+  , images :: Z.Map String String
+  }
+
+type Participant =
+  { player :: Player
+  , prefix :: Z.Maybe String
+  , gamerTag :: String
+  , playerOrder :: Int
+  }
+
+type Standing = { placement :: Int, isFinal :: Boolean }
+
 type Entrant =
   { id :: Z.StringOrNum
+  , participants :: Array Participant
+  , standing :: Standing
+  }
+
+type Tournament =
+  { id :: Z.StringOrNum
+  , name :: String
+  , images :: Z.Map String String
+  , endAt :: Int
   }
 
 type Event =
   { id :: Z.StringOrNum
   , site :: BracketingSite
-  , tournamentName :: String
   , name :: String
   , slug :: String
   , state :: String
   , entrants :: Z.Map Z.StringOrNum Entrant
   , phaseGroups :: Array PhaseGroup
-  , numEntrants :: Int
+  , tournament :: Tournament
   }
 
 type EventSource =

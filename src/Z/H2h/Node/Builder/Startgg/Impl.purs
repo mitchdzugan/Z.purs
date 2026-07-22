@@ -2,19 +2,19 @@ module Z.H2h.Node.Builder.Startgg.Impl where
 
 import Prelude
 
+import Z as Z
 import Z.Gql.Node.Module as Gql
 import Z.H2h.Module as H2h
 import Z.H2h.Node.Builder.API as B
 import Z.H2h.Node.Builder.Startgg.All as All
 import Z.H2h.Node.Builder.Startgg.Queries as Q
-import Z as Z
 
-fetchRawEventData :: forall x. Z.X (B.BuildX x) Q.TourneyDataRes
+fetchRawEventData :: forall x. Z.X (B.BuildX x) Q.EventDataRes
 fetchRawEventData = Z.xTryUntil
-  (f' Q.tourneyData $ Z.xSet Gql._networkControl Gql.CacheOnly)
-  [ \_ -> (f' Q.tourneyDataSmall $ Z.xSet Gql._networkControl Gql.CacheOnly)
-  , \_ -> (f' Q.tourneyData Z.default)
-  , \_ -> (f' Q.tourneyDataSmall Z.default)
+  (f' Q.event $ Z.xSet (Z.px @"networkControl") Gql.CacheOnly)
+  [ const (f' Q.eventSmall $ Z.xSet (Z.px @"networkControl") Gql.CacheOnly)
+  , const (f' Q.event Z.default)
+  , const (f' Q.eventSmall Z.default)
   ]
   where
   f' q plusEdit = do
@@ -32,29 +32,77 @@ fetchRawPhaseGroupData phaseGroupId = do
   let initVars = { page: 0, phaseGroupId }
   let pSpecs = [ All.ggPageSpec (Z.px @"page") (Z.ppx @"phaseGroup" @"sets") ]
   Z.xMapWE H2h.GqlW H2h.GqlE do
-    All.ggQueryAll Q.phaseGroupData initVars pSpecs client optsEdit
+    All.ggQueryAll Q.phaseGroup initVars pSpecs client optsEdit
+
+mapOfPairsWithType
+  :: forall @l lt r'' r' r
+   . Z.IsSymbol l
+  => Z.IsSymbol lt
+  => Z.TypeEquals lt "type"
+  => Z.Cons lt String r'' r
+  => Z.Cons l String r' r
+  => Array { | r }
+  -> Z.Map String String
+mapOfPairsWithType = Z.reduce reducer Z.mapEmpty
+  where
+  reducer m i = Z.mapSet (Z.view (Z.px @lt) i) (Z.view (Z.px @l) i) m
 
 getEventData :: forall x. B.GetDataFn x
 getEventData = B.adaptBuilder $ Z.xEvalS initState do
   { slug } <- Z.xAsk
   { event } <- fetchRawEventData
-  let entrantNodes = event.entrants.nodes
-  participants <- flip Z.mapM entrantNodes $ \entrantNode -> do
-    pure entrantNode
+  let
+    entrantNodes = event.entrants.nodes
+  Z.forM_ entrantNodes $ \entrantNode -> do
+    participants <- Z.forM entrantNode.participants $ \participant -> do
+      let { player } = participant
+      let playerImages = Z.orPass $ player.user <#> Z.view (Z.px @"images")
+      let auths = Z.orPass $ player.user >>= Z.view (Z.px @"authorizations")
+      pure
+        { gamerTag: participant.gamerTag
+        , prefix: participant.prefix
+        , playerOrder: entrantNode.id
+        , player:
+            { id: Z.asStringOr player.id
+            , gamerTag: player.gamerTag
+            , prefix: player.prefix
+            , pronouns: player.user >>= Z.view (Z.px @"genderPronoun")
+            , name: player.user >>= Z.view (Z.px @"name")
+            , socials: mapOfPairsWithType @"externalUsername" auths
+            , images: mapOfPairsWithType @"url" playerImages
+            }
+        }
+    let
+      entrantId = Z.asStringOr entrantNode.id
+      entrant =
+        { id: entrantId
+        , participants
+        , standing: { placement: 0, isFinal: false }
+        }
+    Z.xOver (Z.px @"entrants") (Z.mapSet entrantId entrant)
+  Z.forM_ event.standings.nodes $ \standing -> do
+    let entrantId = Z.asStringOr standing.entrant.id
+    Z.xSet (Z.px @"entrants" <<< (Z.ix entrantId) <<< Z.px @"standing")
+      { placement: standing.placement, isFinal: standing.isFinal }
   Z.forM_ event.phaseGroups $ \phaseGroup -> do
     pgData <- fetchRawPhaseGroupData phaseGroup.id
-    Z.xInfo pgData
+    pure unit
   { entrants, phaseGroups } <- Z.xGet
+  Z.xInfo $ Z.arrFromFoldable entrants
   pure
     { id: Z.asStringOr event.id
     , name: event.name
     , slug
     , state: event.state
-    , tournamentName: event.tournament.name
     , site: H2h.Startgg
     , entrants
     , phaseGroups
-    , numEntrants: Z.mapSize entrants
+    , tournament:
+        { id: Z.asStringOr event.tournament.id
+        , name: event.tournament.name
+        , images: mapOfPairsWithType @"url" event.tournament.images
+        , endAt: event.tournament.endAt
+        }
     }
   where
   initState =

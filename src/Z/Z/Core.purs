@@ -5,6 +5,7 @@ module Z.Z.Core
   , Set
   , arrEmpty
   , arrFilter
+  , arrFromFoldable
   , arrSize
   , arrSlice
   , auto
@@ -12,7 +13,6 @@ module Z.Z.Core
   , dec
   , default
   , fDiscard
-  , foldM
   , forM
   , forM_
   , inc
@@ -26,9 +26,12 @@ module Z.Z.Core
   , jsonStr
   , mapEmpty
   , mapM
+  , mapSet
   , mapSize
   , orPass
   , p
+  , reduce
+  , reduceM
   , setEmpty
   , setFromFoldable
   , setHas
@@ -120,7 +123,10 @@ class Defaultable a where
 instance defaultUnit :: Defaultable Unit where
   default = unit
 
-instance defaultJust :: Defaultable (May.Maybe a) where
+else instance defaultArray :: Defaultable (Array a) where
+  default = []
+
+else instance defaultJust :: Defaultable (May.Maybe a) where
   default = May.Nothing
 
 else instance defaultApplicable ::
@@ -151,13 +157,14 @@ inc s = Semiring.add s Semiring.one
 dec :: forall r. Ring r => r -> r
 dec s = Ring.sub s Semiring.one
 
-type Map k v = Map.Map k v
-
 mapEmpty :: forall @k @v. Ord k => Map.Map k v
 mapEmpty = Map.empty
 
-mapSize :: forall k v. Map k v -> Int
+mapSize :: forall k v. Map.Map k v -> Int
 mapSize = Map.size
+
+mapSet :: forall @k @v. Ord k => k -> v -> Map.Map k v -> Map.Map k v
+mapSet = Map.insert
 
 type Set a = Set.Set a
 
@@ -184,6 +191,9 @@ arrFilter = Arr.filter
 
 arrEmpty :: forall @a. Array a
 arrEmpty = []
+
+arrFromFoldable :: forall a f. Foldable.Foldable f => f a -> Array a
+arrFromFoldable = Arr.fromFoldable
 
 invert :: forall e r. Eor.Either e r -> Eor.Either r e
 invert (Eor.Left e) = Eor.Right e
@@ -216,7 +226,7 @@ forM_
   -> m Unit
 forM_ = flip Traversable.traverse_
 
-foldM
+reduceM
   :: forall f m a b
    . Foldable.Foldable f
   => Monad.Monad m
@@ -224,4 +234,13 @@ foldM
   -> b
   -> f a
   -> m b
-foldM = Foldable.foldM
+reduceM = Foldable.foldM
+
+reduce
+  :: forall f a b
+   . Foldable.Foldable f
+  => (b -> a -> b)
+  -> b
+  -> f a
+  -> b
+reduce = Foldable.foldl

@@ -9,15 +9,11 @@ import Z.Gql.Module
   , OpenOpts
   , Opts
   , Warning(..)
-  , _cachePath
-  , _networkControl
   , baseOpts
   ) as Gql
 import Z.Gql.Node.Impl
   ( Client
   , Operation
-  , _authToken
-  , _url
   , defOperation
   , fullOpts
   , mkClient

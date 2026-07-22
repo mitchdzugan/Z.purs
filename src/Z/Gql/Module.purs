@@ -4,8 +4,6 @@ module Z.Gql.Module
   , OpenOpts
   , Opts
   , Warning(..)
-  , _cachePath
-  , _networkControl
   , baseOpts
   ) where
 
@@ -31,14 +29,6 @@ type Opts = OpenOpts ()
 
 baseOpts :: Opts
 baseOpts = { networkControl: CacheFirst, cachePath: Z.Nothing }
-
-_networkControl
-  :: forall r. Z.Lens' { networkControl :: NetworkControl | r } NetworkControl
-_networkControl = Z.prop (Z.p :: Z.P "networkControl")
-
-_cachePath
-  :: forall r. Z.Lens' { cachePath :: Z.Maybe String | r } (Z.Maybe String)
-_cachePath = Z.prop (Z.p :: Z.P "cachePath")
 
 data Warning
   = CacheDecode Sys.FSDataError

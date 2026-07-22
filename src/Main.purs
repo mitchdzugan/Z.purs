@@ -2,7 +2,6 @@ module Main where
 
 import Prelude
 
-import Z.Gql.Node.Module as Gql
 import Z.H2h.Node.Module as H2h
 import Z.Sys.Node.Module as Sys
 import Z as Z
@@ -14,8 +13,8 @@ main :: Z.Effect Unit
 main = Sys.xExecAndExit do
   authToken <- Sys.xLookupEnv "CLM_STATS_GG_AUTH" >>= Z.xUnwrap'
   client <- pure $ H2h.mkClient do
-    Z.xSet Gql._authToken $ Z.Just authToken
-    Z.xSet Gql._cachePath $ Z.Just testCachePath
+    Z.xSet (Z.px @"authToken") $ Z.Just authToken
+    Z.xSet (Z.px @"cachePath") $ Z.Just testCachePath
   let slug = "tournament/bracket-at-the-emporium-3/event/melee-singles"
   let source = H2h.startggSource slug
   eventData <- H2h.getEventData source client Z.default

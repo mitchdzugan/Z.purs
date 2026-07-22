@@ -56,27 +56,21 @@ ggPageSpecHandleImpl
   :: forall x v r pnr
    . GGPageSpecF v r pnr
   -> XPageSpecHandle x v r
-ggPageSpecHandleImpl (GGPageSpecF pageL pageInfoL) = do
+ggPageSpecHandleImpl (GGPageSpecF pageL dataL) = do
   { client, optsEdit, op } <- Z.xAsk
-  currState <- Z.xGet
-  let localState = Z.merge currState { seenIds: Z.setEmpty @Int }
-  Z.xEvalS localState $ Z.xWithRet $ looper op client optsEdit
+  Z.xPlusS @"seenIds" Z.setEmpty $ loop op client optsEdit
   where
-  updateState = do
-    nodes <- Z.xView (Z.px @"res" <<< pageInfoL <<< Z.px @"nodes")
-    let seenIds = Z.setFromFoldable $ map (\el -> el.id) nodes
-    Z.xSet (Z.px @"seenIds") seenIds
-    Z.xOver (Z.px @"vars" <<< pageL) Z.inc
-  looper op client optsEdit = do
-    updateState
+  loop op client optsEdit = do
+    lastNodes <- Z.xView (Z.px @"res" <<< dataL <<< Z.px @"nodes")
+    Z.xSet (Z.px @"seenIds") $ Z.setFromFoldable $ map (\el -> el.id) lastNodes
     seenIds <- Z.xView (Z.px @"seenIds")
-    total <- Z.xView
-      (Z.px @"res" <<< pageInfoL <<< Z.ppx @"pageInfo" @"total")
-    when (Z.setSize seenIds >= total) $ Z.xReturn Z.default
-    vars <- Z.xView (Z.px @"vars")
-    res <- Z.xRetLift $ Gql.operate op vars client optsEdit
-    let nodes = Z.view (pageInfoL <<< Z.px @"nodes") res
-    Z.xOver (Z.px @"res" <<< pageInfoL <<< Z.px @"nodes")
-      (flip (<>) $ Z.arrFilter (\node -> not $ Z.setHas node.id seenIds) nodes)
-    looper op client optsEdit
-
+    total <- Z.xView (Z.px @"res" <<< dataL <<< Z.ppx @"pageInfo" @"total")
+    Z.xInfo { total, seen: Z.setSize seenIds }
+    when (Z.setSize seenIds < total) do
+      Z.xOver (Z.px @"vars" <<< pageL) Z.inc
+      vars <- Z.xView (Z.px @"vars")
+      res <- Gql.operate op vars client optsEdit
+      let nodes = Z.view (dataL <<< Z.px @"nodes") res
+      Z.xOver (Z.px @"res" <<< dataL <<< Z.px @"nodes")
+        (flip (<>) $ Z.arrFilter (\{ id } -> not $ Z.setHas id seenIds) nodes)
+      loop op client optsEdit

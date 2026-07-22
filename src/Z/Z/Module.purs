@@ -15,6 +15,7 @@ module Z.Z.Module
   , module Exists
   , module Generic
   , module Lens
+  , module LensIndex
   , module LensRecord
   , module Map
   , module Maybe
@@ -29,6 +30,7 @@ module Z.Z.Module
   , module Symbol
   , module Tup
   , module TupNested
+  , module TypeEquals
   , module XX
   , module ZUtil
   , ppx
@@ -53,7 +55,8 @@ import Data.Codec.Argonaut (JsonCodec) as CA
 import Data.Either (Either(..), either) as Either
 import Data.Exists (Exists, mkExists, runExists) as Exists
 import Data.Generic.Rep (class Generic) as Generic
-import Data.Lens (Lens, Lens', view, review, over, set) as Lens
+import Data.Lens (Lens, Lens', view, review, over, set, _Just) as Lens
+import Data.Lens.Index (ix, class Index) as LensIndex
 import Data.Lens.Record (prop) as LensRecord
 import Data.Maybe (Maybe(..), fromMaybe, fromMaybe') as Maybe
 import Data.String (Pattern(..)) as Str
@@ -64,10 +67,11 @@ import Data.Tuple.Nested ((/\), type (/\)) as TupNested
 import Effect (Effect) as Effect
 import Effect.Aff (Aff, launchAff, launchAff_, runAff, runAff_) as Aff
 import Effect.Class (liftEffect) as EffectClass
-import Prim.Row (class Cons) as Row
+import Prim.Row (class Cons, class Lacks) as Row
 import Record (merge) as Record
 import Run (Run, extract) as Run
 import Run.State (execState) as RunS
+import Type.Equality (class TypeEquals) as TypeEquals
 import Type.Proxy (Proxy(..)) as Proxy
 import Z.Z.Core as Core
 import Z.Z.X as XX

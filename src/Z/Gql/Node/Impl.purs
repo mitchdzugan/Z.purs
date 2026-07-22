@@ -1,8 +1,6 @@
 module Z.Gql.Node.Impl
   ( Client
   , Operation
-  , _authToken
-  , _url
   , defOperation
   , fullOpts
   , mkClient
@@ -17,13 +15,6 @@ import Z.Sys.Node.Module as Sys
 import Z as Z
 
 type Client = Gql.OpenOpts (url :: String, authToken :: Z.Maybe String)
-
-_authToken
-  :: forall r. Z.Lens' { authToken :: Z.Maybe String | r } (Z.Maybe String)
-_authToken = Z.prop (Z.Proxy :: Z.Proxy "authToken")
-
-_url :: forall r. Z.Lens' { url :: String | r } String
-_url = Z.prop (Z.Proxy :: Z.Proxy "url")
 
 mkClient :: String -> Z.Edit Client -> Client
 mkClient url clientMod = Z.edit baseClient clientMod
