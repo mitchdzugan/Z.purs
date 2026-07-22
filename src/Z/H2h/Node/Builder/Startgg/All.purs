@@ -61,11 +61,10 @@ ggPageSpecHandleImpl (GGPageSpecF pageL dataL) = do
   Z.xPlusS @"seenIds" Z.setEmpty $ loop op client optsEdit
   where
   loop op client optsEdit = do
-    lastNodes <- Z.xView (Z.px @"res" <<< dataL <<< Z.px @"nodes")
-    Z.xSet (Z.px @"seenIds") $ Z.setFromFoldable $ map (\el -> el.id) lastNodes
+    Z.xView (Z.px @"res" <<< dataL <<< Z.px @"nodes") >>= \nodes ->
+      Z.xSet (Z.px @"seenIds") $ Z.setFromFoldable $ map (\el -> el.id) nodes
     seenIds <- Z.xView (Z.px @"seenIds")
     total <- Z.xView (Z.px @"res" <<< dataL <<< Z.ppx @"pageInfo" @"total")
-    Z.xInfo { total, seen: Z.setSize seenIds }
     when (Z.setSize seenIds < total) do
       Z.xOver (Z.px @"vars" <<< pageL) Z.inc
       vars <- Z.xView (Z.px @"vars")

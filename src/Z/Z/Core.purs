@@ -28,7 +28,7 @@ module Z.Z.Core
   , mapM
   , mapSet
   , mapSize
-  , orPass
+  , orDefault
   , p
   , reduce
   , reduceM
@@ -139,8 +139,8 @@ else instance defaultApplicable ::
 auto :: forall d r. Defaultable d => (d -> r) -> r
 auto f = f default
 
-orPass :: forall d. Defaultable d => May.Maybe d -> d
-orPass = auto <<< flip May.fromMaybe
+orDefault :: forall d. Defaultable d => May.Maybe d -> d
+orDefault = auto <<< flip May.fromMaybe
 
 whenJust
   :: forall m d a

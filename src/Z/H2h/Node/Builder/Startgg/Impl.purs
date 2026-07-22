@@ -1,4 +1,4 @@
-module Z.H2h.Node.Builder.Startgg.Impl where
+module Z.H2h.Node.Builder.Startgg.Impl (getEventData) where
 
 import Prelude
 
@@ -8,31 +8,6 @@ import Z.H2h.Module as H2h
 import Z.H2h.Node.Builder.API as B
 import Z.H2h.Node.Builder.Startgg.All as All
 import Z.H2h.Node.Builder.Startgg.Queries as Q
-
-fetchRawEventData :: forall x. Z.X (B.BuildX x) Q.EventDataRes
-fetchRawEventData = Z.xTryUntil
-  (f' Q.event $ Z.xSet (Z.px @"networkControl") Gql.CacheOnly)
-  [ const (f' Q.eventSmall $ Z.xSet (Z.px @"networkControl") Gql.CacheOnly)
-  , const (f' Q.event Z.default)
-  , const (f' Q.eventSmall Z.default)
-  ]
-  where
-  f' q plusEdit = do
-    { client, slug, optsEdit } <- Z.xAsk
-    let initVars = { pageE: 0, pageS: 0, slug }
-    let eSpec = All.ggPageSpec (Z.px @"pageE") (Z.ppx @"event" @"entrants")
-    let sSpec = All.ggPageSpec (Z.px @"pageS") (Z.ppx @"event" @"standings")
-    let pSpecs = [ eSpec, sSpec ]
-    Z.xMapWE H2h.GqlW H2h.GqlE do
-      All.ggQueryAll q initVars pSpecs client $ optsEdit *> plusEdit
-
-fetchRawPhaseGroupData :: forall x. Int -> Z.X (B.BuildX x) Q.PhaseGroupDataRes
-fetchRawPhaseGroupData phaseGroupId = do
-  { client, optsEdit } <- Z.xAsk
-  let initVars = { page: 0, phaseGroupId }
-  let pSpecs = [ All.ggPageSpec (Z.px @"page") (Z.ppx @"phaseGroup" @"sets") ]
-  Z.xMapWE H2h.GqlW H2h.GqlE do
-    All.ggQueryAll Q.phaseGroup initVars pSpecs client optsEdit
 
 mapOfPairsWithType
   :: forall @l lt r'' r' r
@@ -56,8 +31,8 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
   Z.forM_ entrantNodes $ \entrantNode -> do
     participants <- Z.forM entrantNode.participants $ \participant -> do
       let { player } = participant
-      let playerImages = Z.orPass $ player.user <#> Z.view (Z.px @"images")
-      let auths = Z.orPass $ player.user >>= Z.view (Z.px @"authorizations")
+      let playerImages = Z.orDefault $ player.user <#> Z.view (Z.px @"images")
+      let auths = Z.orDefault $ player.user >>= Z.view (Z.px @"authorizations")
       pure
         { gamerTag: participant.gamerTag
         , prefix: participant.prefix
@@ -84,11 +59,22 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
     let entrantId = Z.asStringOr standing.entrant.id
     Z.xSet (Z.px @"entrants" <<< (Z.ix entrantId) <<< Z.px @"standing")
       { placement: standing.placement, isFinal: standing.isFinal }
-  Z.forM_ event.phaseGroups $ \phaseGroup -> do
-    pgData <- fetchRawPhaseGroupData phaseGroup.id
-    pure unit
+
+  let pgs = Z.arrSortWith (Z.view $ Z.px @"id") event.phaseGroups
+  Z.forM_ pgs $ \pg -> Z.xPlusS @"sets" (Z.mapEmpty @Z.StringOrNum) do
+    { phaseGroup } <- fetchRawPhaseGroupData pg.id
+    Z.forM_ phaseGroup.sets.nodes $ \set -> do
+      let isDQ = set.displayScore == Z.Just "DQ"
+      let isBye = Z.reduce (\a s -> a || Z.isNothing s.entrant) false set.slots
+      slotScoreA Z./\ slotScoreB <- Z.xWithRet do
+        let games = Z.orDefault set.games
+        when (Z.arrSize games > 0) do
+          Z.xReturn $ "asdf" Z./\ "qwer"
+        pure $ "" Z./\ ""
+      Z.xInfo { isDQ, isBye }
+
   { entrants, phaseGroups } <- Z.xGet
-  Z.xInfo $ Z.arrFromFoldable entrants
+  -- Z.xInfo $ Z.arrFromFoldable entrants
   pure
     { id: Z.asStringOr event.id
     , name: event.name
@@ -109,3 +95,24 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
     { phaseGroups: Z.arrEmpty @H2h.PhaseGroup
     , entrants: Z.mapEmpty @Z.StringOrNum @H2h.Entrant
     }
+  fetchRawPhaseGroupData phaseGroupId = do
+    { client, optsEdit } <- Z.xAsk
+    let initVars = { page: 0, phaseGroupId }
+    let pSpecs = [ All.ggPageSpec (Z.px @"page") (Z.ppx @"phaseGroup" @"sets") ]
+    Z.xMapWE H2h.GqlW H2h.GqlE do
+      All.ggQueryAll Q.phaseGroup initVars pSpecs client optsEdit
+  fetchRawEventData = Z.xTryUntil
+    (f' Q.event $ Z.xSet (Z.px @"networkControl") Gql.CacheOnly)
+    [ const (f' Q.eventSmall $ Z.xSet (Z.px @"networkControl") Gql.CacheOnly)
+    , const (f' Q.event Z.default)
+    , const (f' Q.eventSmall Z.default)
+    ]
+    where
+    f' q plusEdit = do
+      { client, slug, optsEdit } <- Z.xAsk
+      let initVars = { pageE: 0, pageS: 0, slug }
+      let eSpec = All.ggPageSpec (Z.px @"pageE") (Z.ppx @"event" @"entrants")
+      let sSpec = All.ggPageSpec (Z.px @"pageS") (Z.ppx @"event" @"standings")
+      let pSpecs = [ eSpec, sSpec ]
+      Z.xMapWE H2h.GqlW H2h.GqlE do
+        All.ggQueryAll q initVars pSpecs client $ optsEdit *> plusEdit

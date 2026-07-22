@@ -95,7 +95,7 @@ type PhaseGroupDataRes =
             , identifier :: String
             , displayScore :: Z.Maybe String
             , winnerId :: Z.Maybe Int
-            , slots :: Array { entrant :: IdStub }
+            , slots :: Array { entrant :: Z.Maybe IdStub }
             , state :: Int
             , games ::
                 Z.Maybe

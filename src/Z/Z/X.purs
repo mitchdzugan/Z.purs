@@ -346,7 +346,7 @@ xUnwrap' :: forall x a. May.Maybe a -> X (E Z.JsError x) a
 xUnwrap' = xUnwrap $ Z.jsError' "Nothing#unwrap"
 
 xHush :: forall x e d. Z.Defaultable d => R.Run (E e x) d -> R.Run x d
-xHush m = (xTry m <#> Eor.hush) <#> Z.orPass
+xHush m = (xTry m <#> Eor.hush) <#> Z.orDefault
 
 xInvert :: forall x e a. R.Run (E a + E e x) e -> R.Run (E e x) a
 xInvert r = xTry r <#> Z.invert >>= xOk

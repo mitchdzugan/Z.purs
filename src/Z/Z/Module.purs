@@ -13,6 +13,7 @@ module Z.Z.Module
   , module Enc
   , module EncodeGeneric
   , module Exists
+  , module Foldable
   , module Generic
   , module Lens
   , module LensIndex
@@ -54,11 +55,12 @@ import Data.Codec (Codec, Codec') as DC
 import Data.Codec.Argonaut (JsonCodec) as CA
 import Data.Either (Either(..), either) as Either
 import Data.Exists (Exists, mkExists, runExists) as Exists
+import Data.Foldable (fold, class Foldable) as Foldable
 import Data.Generic.Rep (class Generic) as Generic
 import Data.Lens (Lens, Lens', view, review, over, set, _Just) as Lens
 import Data.Lens.Index (ix, class Index) as LensIndex
 import Data.Lens.Record (prop) as LensRecord
-import Data.Maybe (Maybe(..), fromMaybe, fromMaybe') as Maybe
+import Data.Maybe (Maybe(..), fromMaybe, fromMaybe', isJust, isNothing) as Maybe
 import Data.String (Pattern(..)) as Str
 import Data.String.Common (joinWith, split) as StrCommon
 import Data.Symbol (class IsSymbol, reifySymbol, reflectSymbol) as Symbol
