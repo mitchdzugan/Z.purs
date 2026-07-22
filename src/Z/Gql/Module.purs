@@ -1,34 +1,10 @@
 module Z.Gql.Module
   ( Error(..)
-  , NetworkControl(..)
-  , OpenOpts
-  , Opts
   , Warning(..)
-  , baseOpts
   ) where
-
-import Prelude
 
 import Z.Sys.Module as Sys
 import Z as Z
-
-data NetworkControl
-  = CacheOnly
-  | CacheFirst
-  | ForceFetch
-
-derive instance eqNetworkControl :: Eq NetworkControl
-
-type OpenOpts r =
-  { networkControl :: NetworkControl
-  , cachePath :: Z.Maybe String
-  | r
-  }
-
-type Opts = OpenOpts ()
-
-baseOpts :: Opts
-baseOpts = { networkControl: CacheFirst, cachePath: Z.Nothing }
 
 data Warning
   = CacheDecode Sys.FSDataError

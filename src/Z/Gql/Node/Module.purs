@@ -5,17 +5,13 @@ module Z.Gql.Node.Module
 
 import Z.Gql.Module
   ( Error(..)
-  , NetworkControl(..)
-  , OpenOpts
-  , Opts
   , Warning(..)
-  , baseOpts
   ) as Gql
 import Z.Gql.Node.Impl
   ( Client
+  , NetworkControl(..)
   , Operation
   , defOperation
-  , fullOpts
   , mkClient
   , operate
   , operateUnknown

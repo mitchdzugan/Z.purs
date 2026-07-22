@@ -96,23 +96,23 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
     , entrants: Z.mapEmpty @Z.StringOrNum @H2h.Entrant
     }
   fetchRawPhaseGroupData phaseGroupId = do
-    { client, optsEdit } <- Z.xAsk
+    { client, networkControl } <- Z.xAsk
     let initVars = { page: 0, phaseGroupId }
     let pSpecs = [ All.ggPageSpec (Z.px @"page") (Z.ppx @"phaseGroup" @"sets") ]
     Z.xMapWE H2h.GqlW H2h.GqlE do
-      All.ggQueryAll Q.phaseGroup initVars pSpecs client optsEdit
+      All.ggQueryAll Q.phaseGroup initVars pSpecs client networkControl
   fetchRawEventData = Z.xTryUntil
-    (f' Q.event $ Z.xSet (Z.px @"networkControl") Gql.CacheOnly)
-    [ const (f' Q.eventSmall $ Z.xSet (Z.px @"networkControl") Gql.CacheOnly)
-    , const (f' Q.event Z.default)
-    , const (f' Q.eventSmall Z.default)
+    (f' Q.event $ Z.Just Gql.CacheOnly)
+    [ const (f' Q.eventSmall $ Z.Just Gql.CacheOnly)
+    , const (f' Q.event Z.Nothing)
+    , const (f' Q.eventSmall Z.Nothing)
     ]
     where
-    f' q plusEdit = do
-      { client, slug, optsEdit } <- Z.xAsk
+    f' q override = do
+      { client, slug, networkControl } <- Z.xAsk
       let initVars = { pageE: 0, pageS: 0, slug }
       let eSpec = All.ggPageSpec (Z.px @"pageE") (Z.ppx @"event" @"entrants")
       let sSpec = All.ggPageSpec (Z.px @"pageS") (Z.ppx @"event" @"standings")
       let pSpecs = [ eSpec, sSpec ]
-      Z.xMapWE H2h.GqlW H2h.GqlE do
-        All.ggQueryAll q initVars pSpecs client $ optsEdit *> plusEdit
+      let nc = Z.fromMaybe networkControl override
+      Z.xMapWE H2h.GqlW H2h.GqlE $ All.ggQueryAll q initVars pSpecs client nc

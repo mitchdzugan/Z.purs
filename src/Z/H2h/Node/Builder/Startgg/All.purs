@@ -29,18 +29,18 @@ ggQueryAll
   -> { | v }
   -> Array (GGPageSpec v r)
   -> Gql.Client
-  -> Z.Edit Gql.Opts
+  -> Gql.NetworkControl
   -> Z.X (Z.WaEA Gql.Warning Gql.Error x) { | r }
-ggQueryAll op initVars pageSpecs client optsEdit = do
-  let r = { client, optsEdit, op }
-  initRes <- Gql.operate op initVars client optsEdit
+ggQueryAll op initVars pageSpecs client networkControl = do
+  let r = { client, networkControl, op }
+  initRes <- Gql.operate op initVars client networkControl
   let initS = { vars: initVars, res: initRes }
   { res } <- Z.xEvalR r $ Z.xRunS initS $ Z.forM_ pageSpecs ggPageSpecHandle
   pure res
 
 type QAllR v r =
   { client :: Gql.Client
-  , optsEdit :: Z.Edit Gql.Opts
+  , networkControl :: Gql.NetworkControl
   , op :: Gql.Operation { | v } { | r }
   }
 
@@ -57,10 +57,10 @@ ggPageSpecHandleImpl
    . GGPageSpecF v r pnr
   -> XPageSpecHandle x v r
 ggPageSpecHandleImpl (GGPageSpecF pageL dataL) = do
-  { client, optsEdit, op } <- Z.xAsk
-  Z.xPlusS @"seenIds" Z.setEmpty $ loop op client optsEdit
+  { client, networkControl, op } <- Z.xAsk
+  Z.xPlusS @"seenIds" Z.setEmpty $ loop op client networkControl
   where
-  loop op client optsEdit = do
+  loop op client networkControl = do
     Z.xView (Z.px @"res" <<< dataL <<< Z.px @"nodes") >>= \nodes ->
       Z.xSet (Z.px @"seenIds") $ Z.setFromFoldable $ map (\el -> el.id) nodes
     seenIds <- Z.xView (Z.px @"seenIds")
@@ -68,8 +68,8 @@ ggPageSpecHandleImpl (GGPageSpecF pageL dataL) = do
     when (Z.setSize seenIds < total) do
       Z.xOver (Z.px @"vars" <<< pageL) Z.inc
       vars <- Z.xView (Z.px @"vars")
-      res <- Gql.operate op vars client optsEdit
+      res <- Gql.operate op vars client networkControl
       let nodes = Z.view (dataL <<< Z.px @"nodes") res
       Z.xOver (Z.px @"res" <<< dataL <<< Z.px @"nodes")
         (flip (<>) $ Z.arrFilter (\{ id } -> not $ Z.setHas id seenIds) nodes)
-      loop op client optsEdit
+      loop op client networkControl

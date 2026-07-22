@@ -14,12 +14,12 @@ adaptBuilder
   :: forall x
    . Z.X (BuildX x) H2h.Event
   -> GetDataFn x
-adaptBuilder b source client optsEdit = Z.xResult $ Z.xEvalR env b
+adaptBuilder b source client networkControl = Z.xResult $ Z.xEvalR env b
   where
-  env = { slug: source.slug, client, optsEdit }
+  env = { slug: source.slug, client, networkControl }
 
 type BuildX x = Z.RWaEA
-  { client :: Gql.Client, slug :: String, optsEdit :: Z.Edit Gql.Opts }
+  { client :: Gql.Client, slug :: String, networkControl :: Gql.NetworkControl }
   H2h.Warning
   H2h.Error
   x
@@ -27,5 +27,5 @@ type BuildX x = Z.RWaEA
 type GetDataFn x =
   H2h.EventSource
   -> Gql.Client
-  -> Z.Edit Gql.Opts
+  -> Gql.NetworkControl
   -> Z.X (Z.A x) (Z.Result H2h.Warning H2h.Error H2h.Event)

@@ -1,8 +1,8 @@
 module Z.Gql.Node.Impl
   ( Client
+  , NetworkControl(..)
   , Operation
   , defOperation
-  , fullOpts
   , mkClient
   , operate
   , operateUnknown
@@ -10,24 +10,30 @@ module Z.Gql.Node.Impl
 
 import Prelude
 
+import Z as Z
 import Z.Gql.Module as Gql
 import Z.Sys.Node.Module as Sys
-import Z as Z
 
-type Client = Gql.OpenOpts (url :: String, authToken :: Z.Maybe String)
+type Client =
+  { url :: String
+  , authToken :: Z.Maybe String
+  , cachePath :: Z.Maybe String
+  }
 
 mkClient :: String -> Z.Edit Client -> Client
 mkClient url clientMod = Z.edit baseClient clientMod
   where
-  baseClient = Z.merge { url: url, authToken: Z.Nothing } Gql.baseOpts
+  baseClient = { url: url, authToken: Z.Nothing, cachePath: Z.Nothing }
 
-fullOpts
-  :: Client
-  -> Z.Edit Gql.Opts
-  -> Gql.Opts
-fullOpts c optsMod = Z.edit baseOpts optsMod
-  where
-  baseOpts = { cachePath: c.cachePath, networkControl: c.networkControl }
+data NetworkControl
+  = CacheOnly
+  | CacheFirst
+  | ForceFetch
+
+derive instance eqNetworkControl :: Eq NetworkControl
+
+instance defaultNC :: Z.Defaultable NetworkControl where
+  default = CacheFirst
 
 foreign import js_requestGql
   :: String -> Z.Json -> String -> Z.Json -> Z.Effect (Z.Promise Z.Json)
@@ -49,21 +55,21 @@ operateUnknown
    . String
   -> Z.Json
   -> Client
-  -> Z.Edit Gql.Opts
+  -> NetworkControl
   -> Z.X (Z.WEA (Array Gql.Warning) Gql.Error x) Z.Json
-operateUnknown opString vars client optsMod = Z.xWithRet $ do
+operateUnknown opString vars client networkControl = Z.xWithRet $ do
   (collisionCount Z./\ cached) <- getCached cachePath networkControl
   Z.whenJust cached Z.xReturn
-  when (networkControl == Gql.CacheOnly) $ Z.xRetFail Gql.CacheOnlyEmpty
+  when (networkControl == CacheOnly) $ Z.xRetFail Gql.CacheOnlyEmpty
   Z.xInfo { gql: "submitting operation", op: opHeader, vars }
   Z.xTimeout 6000
-  res <- Z.xRetLift $ requestGql client.url authToken opString vars
+  res <- Z.xRetLift $ requestGql url authTokenJson opString vars
   let toCache = [ res, Z.fromString opKeyStr ]
   Z.xRetLift $ writeToCache cachePath collisionCount toCache
   pure res
   where
-  { cachePath, networkControl } = fullOpts client optsMod
-  authToken = Z.encodeJson client.authToken
+  { cachePath, authToken, url } = client
+  authTokenJson = Z.encodeJson authToken
   sortedPairs = Z.arrSort $ Z.jsonSortedPairs vars
   -- reverse in specific case to match my old startgg cache
   strVals = map Z.jsonStr $ map Z.snd $ case map Z.fst sortedPairs of
@@ -91,7 +97,7 @@ operateUnknown opString vars client optsMod = Z.xWithRet $ do
       let isSelf = checkIsSelf parseData
       if isSelf then pure $ collisionCount Z./\ Z.nth parseData 0
       else getCachedRec cachePath $ collisionCount + 1
-  getCached _ Gql.ForceFetch = pure $ 0 Z./\ Z.Nothing
+  getCached _ ForceFetch = pure $ 0 Z./\ Z.Nothing
   getCached Z.Nothing _ = pure $ 0 Z./\ Z.Nothing
   getCached (Z.Just p) _ = getCachedRec p 0
   writeToCache Z.Nothing _ _ = Z.default
@@ -99,8 +105,7 @@ operateUnknown opString vars client optsMod = Z.xWithRet $ do
     let filename = cacheFilename cachePath collisionCount
     Z.xTellMappedHush Gql.CacheWrite $ Sys.encodeTextFileP filename toCache
 
-data Operation vars res = Operation String (Z.JsonEncodeFn vars)
-  (Z.JsonDecodeFn res)
+data Operation v r = Operation String (Z.JsonEncodeFn v) (Z.JsonDecodeFn r)
 
 defOperation
   :: forall vars res
@@ -117,8 +122,8 @@ operate
    . Operation vars res
   -> vars
   -> Client
-  -> Z.Edit Gql.Opts
+  -> NetworkControl
   -> Z.X (Z.WEA (Array Gql.Warning) Gql.Error x) res
-operate (Operation opString encode decode) vars c optsMod = do
-  j <- operateUnknown opString (encode vars) c optsMod
-  Z.xMapE Gql.ResponseTypeError $ Z.xOk $ decode j
+operate (Operation opString encode decode) vars client networkControl = do
+  json <- operateUnknown opString (encode vars) client networkControl
+  Z.xMapE Gql.ResponseTypeError $ Z.xOk $ decode json
