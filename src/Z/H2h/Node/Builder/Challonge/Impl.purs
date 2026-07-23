@@ -18,7 +18,7 @@ getEventData = B.adaptBuilder do
   P.useBrowser H2h.PuppeteerBrowserResource browserOpts $ \browser -> do
     Z.xInfo browser
     page <- Z.xMapE H2h.UnkPupp $ P.newPage browser
-    Z.xMapE H2h.UnkPupp $ P.goto "https://google.com" Z.default page
+    Z.xMapE H2h.UnkPupp $ P.goto' page "https://google.com"
     pure
       { id: Z.sOrN "tourneyId"
       , name: "Melee Singles"

@@ -8,9 +8,12 @@ module Z.Puppeteer.Node.Module
   , el
   , els
   , goto
+  , goto'
   , newPage
   , useBrowser
+  , useBrowser'
   , waitForSelector
+  , waitForSelector'
   ) where
 
 import Prelude
@@ -32,38 +35,55 @@ useBrowser mapE optsEdit fm = do
   Z.xMapE (mapE Z.Release) $ close browser
   Z.xOk res
 
+useBrowser'
+  :: forall x e a
+   . (Z.ResourceStage -> Z.JsError -> e)
+  -> (Browser -> Z.X (Z.EA e (Z.E e x)) a)
+  -> Z.X (Z.EA e x) a
+useBrowser' = Z.arg2' Z.default useBrowser
+
 newPage :: forall x. Browser -> Z.X (Z.EA Z.JsError x) Page
 newPage = Z.xEffectPromise <<< js_newPage
 
 goto
-  :: forall x. String -> Z.Edit GotoOpts -> Page -> Z.X (Z.EA Z.JsError x) Unit
-goto url _optsEdit page = do
+  :: forall x. Page -> String -> Z.Edit GotoOpts -> Z.X (Z.EA Z.JsError x) Unit
+goto page url _optsEdit = do
   Z.xEffectPromise $ js_goto url {} page
+
+goto' :: forall x. Page -> String -> Z.X (Z.EA Z.JsError x) Unit
+goto' = Z.arg3' Z.default goto
 
 waitForSelector
   :: forall x
-   . String
+   . Page
+  -> String
   -> Z.Edit WaitForOpts
-  -> Page
   -> Z.X (Z.EA Z.JsError x) Unit
-waitForSelector sel _optsEdit page = do
+waitForSelector page sel _optsEdit = do
   Z.xEffectPromise $ js_waitForSelector sel {} page
+
+waitForSelector'
+  :: forall x
+   . Page
+  -> String
+  -> Z.X (Z.EA Z.JsError x) Unit
+waitForSelector' = Z.arg3' Z.default waitForSelector
 
 els
   :: forall x o
    . IsPageOrElement o
-  => String
-  -> o
+  => o
+  -> String
   -> Z.X (Z.EA Z.JsError x) (Array Element)
-els sel pOrE = Z.xEffectPromise $ js_els sel (asPageOrElement pOrE)
+els pOrE sel = Z.xEffectPromise $ js_els sel (asPageOrElement pOrE)
 
 el
   :: forall x o
    . IsPageOrElement o
-  => String
-  -> o
+  => o
+  -> String
   -> Z.X (Z.EA Z.JsError x) Element
-el sel pOrE = Z.xEffectPromise $ js_el sel (asPageOrElement pOrE)
+el pOrE sel = Z.xEffectPromise $ js_el sel (asPageOrElement pOrE)
 
 -------------- foreign data imports -----------------------------------
 
