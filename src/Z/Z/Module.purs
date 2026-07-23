@@ -1,5 +1,8 @@
 module Z.Z.Module
-  ( module Aff
+  ( firstOfOn
+  , l
+  , lpt
+  , module Aff
   , module Arg
   , module Array
   , module CA
@@ -16,10 +19,13 @@ module Z.Z.Module
   , module Foldable
   , module Generic
   , module Lens
+  , module LensAt
   , module LensIndex
   , module LensRecord
+  , module LensT
   , module Map
   , module Maybe
+  , module MaybeFirst
   , module Promise
   , module Proxy
   , module Record
@@ -34,8 +40,8 @@ module Z.Z.Module
   , module TypeEquals
   , module XX
   , module ZUtil
-  , ppx
-  , px
+  , strJoinWith
+  , strSplit
   ) where
 
 import Control.Promise (Promise) as Promise
@@ -57,12 +63,19 @@ import Data.Either (Either(..), either) as Either
 import Data.Exists (Exists, mkExists, runExists) as Exists
 import Data.Foldable (fold, class Foldable) as Foldable
 import Data.Generic.Rep (class Generic) as Generic
-import Data.Lens (Lens, Lens', view, review, over, set, _Just) as Lens
+import Data.Lens (Fold, Optic, Lens, Lens', Prism, Prism', view, firstOf, lastOf, toArrayOf, review, over, set, _Just) as Lens
+import Data.Lens (previewOn)
+import Data.Lens.Barlow as Barlow
+import Data.Lens.Barlow.Construction as BarlowCons
+import Data.Lens.Barlow.Parser as BarlowParse
+import Data.Lens.Types (AffineTraversal) as LensT
+import Data.Lens.At (at, class At) as LensAt
 import Data.Lens.Index (ix, class Index) as LensIndex
 import Data.Lens.Record (prop) as LensRecord
 import Data.Maybe (Maybe(..), fromMaybe, fromMaybe', isJust, isNothing) as Maybe
+import Data.Maybe.First (First) as MaybeFirst
 import Data.String (Pattern(..)) as Str
-import Data.String.Common (joinWith, split) as StrCommon
+import Data.String.Common as StrCommon
 import Data.Symbol (class IsSymbol, reifySymbol, reflectSymbol) as Symbol
 import Data.Tuple (Tuple(..), fst, snd) as Tup
 import Data.Tuple.Nested ((/\), type (/\)) as TupNested
@@ -77,55 +90,34 @@ import Type.Equality (class TypeEquals) as TypeEquals
 import Type.Proxy (Proxy(..)) as Proxy
 import Z.Z.Core as Core
 import Z.Z.X as XX
-import Z.Z.Util
-  ( type (#)
-  , type ($)
-  , JsonDecodeError(..)
-  , JsonDecodeFn
-  , JsonEncodeFn
-  , StringOrNum
-  , Type_Ap
-  , Type_Ap_R
-  , arg2'
-  , arg3'
-  , arg4'
-  , arrReverse
-  , arrSort
-  , arrSortBy
-  , arrSortWith
-  , asOrNum
-  , asStringOr
-  , decode
-  , decode'
-  , decodeJson
-  , decodeJson'
-  , encode
-  , id
-  , jsonDecode
-  , jsonKeys
-  , jsonLookup
-  , jsonPairs
-  , jsonSortedPairs
-  , jsonVals
-  , mapL
-  , nth
-  , stringOrNumString
-  ) as ZUtil
+import Z.Z.Util as ZUtil
 import Data.Map (Map) as Map
 import Prelude
 
-px
+l
+  :: forall @string lenses p s t a b
+   . BarlowParse.ParseSymbol string lenses
+  => BarlowCons.ConstructBarlow lenses p s t a b
+  => Symbol.IsSymbol string
+  => Lens.Optic p s t a b
+l = Barlow.barlow @string
+
+lpt
   :: ∀ (@l :: Symbol) r' r @a
   . Symbol.IsSymbol l
   ⇒ Row.Cons l a r' r
   ⇒ Lens.Lens' (Record r) a
-px = LensRecord.prop (Proxy.Proxy @l)
+lpt = LensRecord.prop (Proxy.Proxy @l)
 
-ppx
-  :: ∀ (@l1 :: Symbol) (@l2 :: Symbol) r1' r1 r2' r2 @a
-  . Symbol.IsSymbol l1
-  ⇒ Symbol.IsSymbol l2
-  ⇒ Row.Cons l1 (Record r2) r1' r1
-  ⇒ Row.Cons l2 a r2' r2
-  ⇒ Lens.Lens' (Record r1) a
-ppx = LensRecord.prop (Proxy.Proxy @l1) <<< LensRecord.prop (Proxy.Proxy @l2)
+firstOfOn
+  :: forall s t a b
+   . s
+  -> Lens.Fold (MaybeFirst.First a) s t a b
+  -> Maybe.Maybe a
+firstOfOn = previewOn
+
+strJoinWith :: String -> Array String -> String
+strJoinWith = StrCommon.joinWith
+
+strSplit ∷ Str.Pattern → String → Array String
+strSplit = StrCommon.split

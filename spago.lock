@@ -10,7 +10,9 @@
             "argonaut-codecs",
             "argonaut-core",
             "argonaut-generic",
-            "barlow-lens",
+            {
+              "barlow-lens": "1.0.0"
+            },
             "codec",
             "codec-argonaut",
             "console",
@@ -689,7 +691,12 @@
         "zipperarray": "2.0.0"
       }
     },
-    "extra_packages": {}
+    "extra_packages": {
+      "barlow-lens": {
+        "git": "https://github.com/sigma-andex/purescript-barlow-lens.git",
+        "ref": "a5c00a84aff00d15d21d55a39accd59a4f78e1bb"
+      }
+    }
   },
   "packages": {
     "aff": {
@@ -837,9 +844,9 @@
       ]
     },
     "barlow-lens": {
-      "type": "registry",
-      "version": "0.9.0",
-      "integrity": "sha256-v0oUq2ddHnrnxXz/5X5UG3kDkZuG9J5cnxE+b0ztcNo=",
+      "type": "git",
+      "url": "https://github.com/sigma-andex/purescript-barlow-lens.git",
+      "rev": "a5c00a84aff00d15d21d55a39accd59a4f78e1bb",
       "dependencies": [
         "either",
         "foldable-traversable",

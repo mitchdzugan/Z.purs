@@ -2,7 +2,8 @@ module Z.Z.Util
   ( JsonDecodeError(..)
   , JsonDecodeFn
   , JsonEncodeFn
-  , StringOrNum
+  , ResourceStage(..)
+  , SorN(..)
   , Type_Ap
   , Type_Ap_R
   , arg2'
@@ -12,8 +13,7 @@ module Z.Z.Util
   , arrSort
   , arrSortBy
   , arrSortWith
-  , asOrNum
-  , asStringOr
+  , class IsStringOrNum
   , decode
   , decode'
   , decodeJson
@@ -28,7 +28,7 @@ module Z.Z.Util
   , jsonVals
   , mapL
   , nth
-  , stringOrNumString
+  , sOrN
   , type (#)
   , type ($)
   ) where
@@ -185,17 +185,33 @@ type Type_Ap_R x f = f x
 infixr 0 type Type_Ap as $
 infixr 0 type Type_Ap_R as #
 
-type StringOrNum = Either.Either String Int
+data SorN = SorN_S String | SorN_I Int
 
-asOrNum :: String -> StringOrNum
-asOrNum s = Either.Left s
+class IsStringOrNum a where
+  sOrN :: a -> SorN
 
-asStringOr :: Int -> StringOrNum
-asStringOr n = Either.Right n
+derive instance genericSorN :: Generic.Generic SorN _
 
-stringOrNumString :: StringOrNum -> String
-stringOrNumString (Either.Left s) = s
-stringOrNumString (Either.Right n) = show n
+instance eqSorN :: Eq SorN where
+  eq (SorN_S s1) (SorN_S s2) = eq s1 s2
+  eq (SorN_I i1) (SorN_I i2) = eq i1 i2
+  eq _ _ = false
+
+instance ordSorN :: Ord SorN where
+  compare (SorN_S s1) (SorN_S s2) = compare s1 s2
+  compare (SorN_I i1) (SorN_I i2) = compare i1 i2
+  compare (SorN_I _) _ = Ordering.LT
+  compare _ _ = Ordering.GT
+
+instance stringIsStringOrNum :: IsStringOrNum String where
+  sOrN = SorN_S
+
+instance intIsStringOrNum :: IsStringOrNum Int where
+  sOrN = SorN_I
+
+instance stringOrNumShow :: Show SorN where
+  show (SorN_S s) = s
+  show (SorN_I i) = show i
 
 arg2' :: forall a1 a2 r. a2 -> (a1 -> a2 -> r) -> (a1 -> r)
 arg2' a2 f a1 = f a1 a2
@@ -209,3 +225,13 @@ arg4'
   -> (a1 -> a2 -> a3 -> a4 -> r)
   -> (a1 -> a2 -> a3 -> r)
 arg4' a4 f a1 a2 a3 = f a1 a2 a3 a4
+
+data ResourceStage = Acquire | Release
+
+derive instance genericResourceStage :: Generic.Generic ResourceStage _
+
+instance decodeJsonResourceStage :: Dec.DecodeJson ResourceStage where
+  decodeJson x = DecodeGeneric.genericDecodeJson x
+
+instance encodeJsonResourceStage :: Enc.EncodeJson ResourceStage where
+  encodeJson x = EncodeGeneric.genericEncodeJson x

@@ -6,7 +6,7 @@ package:
     - argonaut-codecs
     - argonaut-core
     - argonaut-generic
-    - barlow-lens
+    - barlow-lens: 1.0.0
     - codec
     - codec-argonaut
     - console
@@ -35,4 +35,7 @@ package:
 workspace:
   packageSet:
     registry: 77.13.1
-  extraPackages: {}
+  extraPackages:
+    barlow-lens:
+      git: https://github.com/sigma-andex/purescript-barlow-lens.git
+      ref: a5c00a84aff00d15d21d55a39accd59a4f78e1bb

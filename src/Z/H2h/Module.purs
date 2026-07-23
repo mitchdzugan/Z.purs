@@ -5,12 +5,18 @@ module Z.H2h.Module
   , Event
   , EventSource
   , Participant
+  , Phase
   , PhaseGroup
   , Player
+  , Score(..)
+  , Set
+  , Slot
   , Standing
   , Tournament
   , Warning(..)
   , challongeSource
+  , mkScoreCount
+  , mkScoreDQ
   , startggSource
   ) where
 
@@ -29,7 +35,9 @@ instance encodeJsonWarning :: Z.EncodeJson Warning where
 
 data Error
   = GqlE Gql.Error
-  | AutoBrowser String String Z.JsError
+  | UnkPupp Z.JsError
+  | Puppeteer String String Z.JsError
+  | PuppeteerBrowserResource Z.ResourceStage Z.JsError
   | MissingData String
   | EventBuild Z.JsError
   | ParseCached Z.JsError
@@ -52,13 +60,57 @@ instance decodeJsonBracketingSite :: Z.DecodeJson BracketingSite where
 instance encodeJsonBracketingSite :: Z.EncodeJson BracketingSite where
   encodeJson x = Z.genericEncodeJson x
 
+data Score = DQ Boolean | Count Int | NoScore
+
+mkScoreDQ :: Boolean -> Score
+mkScoreDQ isDQd = DQ isDQd
+
+mkScoreCount :: Int -> Score
+mkScoreCount count = Count count
+
+derive instance genericScore :: Z.Generic Score _
+
+instance decodeJsonScore :: Z.DecodeJson Score where
+  decodeJson x = Z.genericDecodeJson x
+
+instance encodeJsonScore :: Z.EncodeJson Score where
+  encodeJson x = Z.genericEncodeJson x
+
+type Slot =
+  { entrantId :: Z.Maybe Z.SorN
+  , score :: Score
+  }
+
+type Set =
+  { id :: Z.SorN
+  , fullRoundText :: String
+  , isDQ :: Boolean
+  , isBye :: Boolean
+  , displayScore :: Z.Maybe String
+  , winnerId :: Z.Maybe Z.SorN
+  , doesCount :: Boolean
+  , isLosers :: Boolean
+  , isDropRound :: Boolean
+  , isGrands :: Boolean
+  , depth :: Int
+  , slots :: Slot Z./\ Slot
+  }
+
+type Phase =
+  { id :: Z.SorN
+  , name :: String
+  , phaseOrder :: Int
+  }
+
 type PhaseGroup =
-  { id :: Z.StringOrNum
+  { id :: Z.SorN
   , displayIdentifier :: String
+  , sets :: Z.Map Z.SorN Set
+  , phase :: Phase
   }
 
 type Player =
-  { id :: Z.StringOrNum
+  { id :: Z.SorN
   , gamerTag :: String
   , prefix :: Z.Maybe String
   , pronouns :: Z.Maybe String
@@ -77,25 +129,25 @@ type Participant =
 type Standing = { placement :: Int, isFinal :: Boolean }
 
 type Entrant =
-  { id :: Z.StringOrNum
+  { id :: Z.SorN
   , participants :: Array Participant
   , standing :: Standing
   }
 
 type Tournament =
-  { id :: Z.StringOrNum
+  { id :: Z.SorN
   , name :: String
   , images :: Z.Map String String
   , endAt :: Int
   }
 
 type Event =
-  { id :: Z.StringOrNum
+  { id :: Z.SorN
   , site :: BracketingSite
   , name :: String
   , slug :: String
   , state :: String
-  , entrants :: Z.Map Z.StringOrNum Entrant
+  , entrants :: Z.Map Z.SorN Entrant
   , phaseGroups :: Array PhaseGroup
   , tournament :: Tournament
   }

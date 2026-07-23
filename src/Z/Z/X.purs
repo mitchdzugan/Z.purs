@@ -76,6 +76,8 @@ module Z.Z.X
   , xExecAff
   , xExecS
   , xFail
+  , xFirstOf
+  , xFirstOfR
   , xGet
   , xHush
   , xInfo
@@ -100,6 +102,8 @@ module Z.Z.X
   , xTellMappedHush
   , xTellMappedMHush
   , xTimeout
+  , xToArrayOf
+  , xToArrayOfR
   , xTry
   , xTryUntil
   , xUnwrap
@@ -115,8 +119,11 @@ import Control.Monad as Monad
 import Control.Promise as Promise
 import Data.Either as Eor
 import Data.Lens as Lens
+import Data.List.Types as ListT
 import Data.Maybe as May
+import Data.Maybe.First as MayFirst
 import Data.Monoid as Monoid
+import Data.Monoid.Endo as Endo
 import Data.Symbol (class IsSymbol)
 import Data.Tuple as Tup
 import Data.Tuple.Nested as TupN
@@ -199,14 +206,22 @@ xAsk :: forall x r. R.Run (R r x) r
 xAsk = RunR.ask
 
 xViewR :: forall x s t a b. Lens.Lens s t a b -> R.Run (R s x) a
-xViewR l = do
-  o <- xAsk
-  pure $ Lens.view l o
+xViewR l = xAsk <#> Lens.view l
 
 xReviewR :: forall x s t a b. Lens.Review s t a b -> R.Run (R b x) t
-xReviewR l = do
-  o <- xAsk
-  pure $ Lens.review l o
+xReviewR l = xAsk <#> Lens.review l
+
+xToArrayOfR
+  :: forall x s t a b
+   . Lens.Fold (Endo.Endo Function (ListT.List a)) s t a b
+  -> R.Run (R s x) (Array a)
+xToArrayOfR l = xAsk <#> Lens.toArrayOf l
+
+xFirstOfR
+  :: forall x s t a b
+   . Lens.Fold (MayFirst.First a) s t a b
+  -> R.Run (R s x) (May.Maybe a)
+xFirstOfR l = xAsk <#> Lens.preview l
 
 --------------- W FNS -----------------------------------------------------
 
@@ -256,24 +271,28 @@ xGet :: forall x s. R.Run (S s x) s
 xGet = RunS.get
 
 xView :: forall x s t a b. Lens.Lens s t a b -> R.Run (S s x) a
-xView l = do
-  o <- xGet
-  pure $ Lens.view l o
+xView l = xGet <#> Lens.view l
+
+xToArrayOf
+  :: forall x s t a b
+   . Lens.Fold (Endo.Endo Function (ListT.List a)) s t a b
+  -> R.Run (S s x) (Array a)
+xToArrayOf l = xGet <#> Lens.toArrayOf l
 
 xReview :: forall x s t a b. Lens.Review s t a b -> R.Run (S b x) t
-xReview l = do
-  o <- xGet
-  pure $ Lens.review l o
+xReview l = xGet <#> Lens.review l
+
+xFirstOf
+  :: forall x s t a b
+   . Lens.Fold (MayFirst.First a) s t a b
+  -> R.Run (S s x) (May.Maybe a)
+xFirstOf l = xGet <#> Lens.preview l
 
 xOver :: forall x s a b. Lens.Setter s s a b -> (a -> b) -> R.Run (S s x) Unit
-xOver l f = do
-  o <- RunS.get
-  RunS.put $ Lens.over l f o
+xOver l f = RunS.get >>= RunS.put <<< Lens.over l f
 
 xSet :: forall x s a b. Lens.Setter s s a b -> b -> R.Run (S s x) Unit
-xSet l v = do
-  o <- RunS.get
-  RunS.put $ Lens.set l v o
+xSet l v = RunS.get >>= RunS.put <<< Lens.set l v
 
 xExecS :: forall x s a. s -> R.Run (S s x) a -> R.Run x (s TupN./\ a)
 xExecS = RunS.runState

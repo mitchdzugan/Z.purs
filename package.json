@@ -9,7 +9,7 @@
     "clean": "rimraf output",
     "fix:apply": "node ./scripts/applyPsSuggest.js",
     "fix": "run-s clean fix:apply",
-    "build": "spago build", 
+    "build": "spago build",
     "test": "spago test"
   },
   "type": "module",
@@ -18,11 +18,13 @@
   "description": "",
   "dependencies": {
     "graphql": "^16.14.2",
-    "graphql-request": "^7.4.0"
+    "graphql-request": "^7.4.0",
+    "puppeteer": "^25.3.0"
   },
   "devDependencies": {
     "cross-env": "^10.1.0",
     "npm-run-all2": "^9.0.2",
+    "purescript": "^0.15.16",
     "purescript-language-server": "^0.18.5",
     "purescript-suggest": "^2.2.0",
     "purs-tidy": "^0.11.1",
@@ -32,6 +34,8 @@
   },
   "allowScripts": {
     "cpu-features@0.0.10": true,
-    "ssh2@1.17.0": true
+    "ssh2@1.17.0": true,
+    "purescript@0.15.16": true,
+    "puppeteer@25.3.0": true
   }
 }

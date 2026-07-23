@@ -8,8 +8,8 @@ module Z.H2h.Node.Builder.Startgg.Queries
   , EventDataRes
   , EventDataVars
   , phaseGroup
-  , event
-  , eventSmall
+  , eventMaxDataPerReq
+  , evenMinComplexityPerReq
   ) where
 
 import Z.Gql.Node.Module as Gql
@@ -18,11 +18,11 @@ import Z.H2h.Node.Builder.Startgg.Queries.TourneyData as TDQ
 import Z.H2h.Node.Builder.Startgg.Queries.TourneyDataSmall as TDSQ
 import Z as Z
 
-event :: Gql.Operation EventDataVars EventDataRes
-event = Gql.defOperation TDQ.q Z.Proxy Z.Proxy
+eventMaxDataPerReq :: Gql.Operation EventDataVars EventDataRes
+eventMaxDataPerReq = Gql.defOperation TDQ.q Z.Proxy Z.Proxy
 
-eventSmall :: Gql.Operation EventDataVars EventDataRes
-eventSmall = Gql.defOperation TDSQ.q Z.Proxy Z.Proxy
+evenMinComplexityPerReq :: Gql.Operation EventDataVars EventDataRes
+evenMinComplexityPerReq = Gql.defOperation TDSQ.q Z.Proxy Z.Proxy
 
 phaseGroup :: Gql.Operation PhaseGroupDataVars PhaseGroupDataRes
 phaseGroup = Gql.defOperation PGDQ.q Z.Proxy Z.Proxy

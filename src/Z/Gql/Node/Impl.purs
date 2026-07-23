@@ -75,13 +75,13 @@ operateUnknown opString vars client networkControl = Z.xWithRet $ do
   strVals = map Z.jsonStr $ map Z.snd $ case map Z.fst sortedPairs of
     [ "page", "phaseGroupId" ] -> Z.arrReverse sortedPairs
     _ -> sortedPairs
-  opHeader = Z.slice 0 1 $ Z.split (Z.Pattern "\n") opString
-  opKeyStr = Z.joinWith "|" [ opString, Z.joinWith "|" strVals ]
+  opHeader = Z.slice 0 1 $ Z.strSplit (Z.Pattern "\n") opString
+  opKeyStr = Z.strJoinWith "|" [ opString, Z.strJoinWith "|" strVals ]
   opKey = show $ Z.simpleHash opKeyStr
   filenameParts 0 = [ opKey, "json" ]
   filenameParts collisionCount = [ opKey, show collisionCount, "json" ]
   cacheFilename cachePath =
-    Sys.join cachePath <<< Z.joinWith "." <<< filenameParts
+    Sys.join cachePath <<< Z.strJoinWith "." <<< filenameParts
   getCachedRec cachePath collisionCount = do
     let filename = cacheFilename cachePath collisionCount
     parsed <- Z.xTellMappedMHush mapMDecodeErr $ Sys.decodeTextFile filename

@@ -16,6 +16,5 @@ mkClient = Gql.mkClient "https://api.start.gg/gql/alpha"
 getEventData :: forall x. B.GetDataFn x
 getEventData source = getByBracketingSite source.site
   where
-  -- getByBracketingSite H2h.Challonge = Challonge.getEventData source
-  getByBracketingSite H2h.Challonge = Startgg.getEventData source
+  getByBracketingSite H2h.Challonge = Challonge.getEventData source
   getByBracketingSite H2h.Startgg = Startgg.getEventData source
