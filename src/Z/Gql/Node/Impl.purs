@@ -11,6 +11,8 @@ module Z.Gql.Node.Impl
 import Prelude
 
 import Z as Z
+import Z.Gql.Error as GqlE
+import Z.Gql.Warning as GqlW
 import Z.Gql.Module as Gql
 import Z.Sys.Node.Module as Sys
 
@@ -46,7 +48,7 @@ requestGql
   -> Z.Json
   -> Z.X (Z.EA Gql.Error x) Z.Json
 requestGql apiUrl authToken query vars = do
-  Z.xMapE Gql.NetworkError
+  Z.xMapE GqlE.NetworkError
     $ Z.xEffectPromise
     $ js_requestGql apiUrl authToken query vars
 
@@ -56,11 +58,11 @@ operateUnknown
   -> Z.Json
   -> Client
   -> NetworkControl
-  -> Z.X (Z.WEA (Array Gql.Warning) Gql.Error x) Z.Json
+  -> Z.X (Z.WEA (Array GqlW.T) GqlE.T x) Z.Json
 operateUnknown opString vars client networkControl = Z.xWithRet $ do
   (collisionCount Z./\ cached) <- getCached cachePath networkControl
   Z.whenJust cached Z.xReturn
-  when (networkControl == CacheOnly) $ Z.xRetFail Gql.CacheOnlyEmpty
+  when (networkControl == CacheOnly) $ Z.xRetFail GqlE.CacheOnlyEmpty
   Z.xInfo { gql: "submitting operation", op: opHeader, vars }
   Z.xTimeout 6000
   res <- Z.xRetLift $ requestGql url authTokenJson opString vars
@@ -87,7 +89,7 @@ operateUnknown opString vars client networkControl = Z.xWithRet $ do
     parsed <- Z.xTellMappedMHush mapMDecodeErr $ Sys.decodeTextFile filename
     handleParsed parsed
     where
-    mapMDecodeErr e@(Sys.DecodeError _) = [ Gql.CacheDecode e ]
+    mapMDecodeErr e@(Sys.DecodeError _) = [ GqlW.CacheDecode e ]
     mapMDecodeErr _ = []
     checkIsSelf parseData = Z.fromMaybe false do
       cachedOpKeyStr <- (Z.nth parseData 1)
@@ -103,7 +105,7 @@ operateUnknown opString vars client networkControl = Z.xWithRet $ do
   writeToCache Z.Nothing _ _ = Z.default
   writeToCache (Z.Just cachePath) collisionCount toCache = do
     let filename = cacheFilename cachePath collisionCount
-    Z.xTellMappedHush Gql.CacheWrite $ Sys.encodeTextFileP filename toCache
+    Z.xTellMappedHush GqlW.CacheWrite $ Sys.encodeTextFileP filename toCache
 
 data Operation v r = Operation String (Z.JsonEncodeFn v) (Z.JsonDecodeFn r)
 
@@ -123,7 +125,7 @@ operate
   -> vars
   -> Client
   -> NetworkControl
-  -> Z.X (Z.WEA (Array Gql.Warning) Gql.Error x) res
+  -> Z.X (Z.WEA (Array GqlW.T) GqlE.T x) res
 operate (Operation opString encode decode) vars client networkControl = do
   json <- operateUnknown opString (encode vars) client networkControl
-  Z.xMapE Gql.ResponseTypeError $ Z.xOk $ decode json
+  Z.xMapE GqlE.ResponseTypeError $ Z.xOk $ decode json

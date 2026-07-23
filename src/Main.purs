@@ -13,9 +13,10 @@ main :: Z.Effect Unit
 main = Sys.xExecAndExit do
   authToken <- Sys.xLookupEnv "CLM_STATS_GG_AUTH" >>= Z.xUnwrap'
   client <- pure $ H2h.mkClient do
-    Z.xSet (Z.l @"authToken") $ Z.Just authToken
-    Z.xSet (Z.l @"cachePath") $ Z.Just testCachePath
-  let slug = "tournament/bracket-at-the-emporium-3/event/melee-singles"
+    Z.xlSet @"authToken" $ Z.Just authToken
+    Z.xlSet @"cachePath" $ Z.Just testCachePath
+  -- let slug = "tournament/bracket-at-the-emporium-3/event/melee-singles"
+  let slug = "840lhvjn"
   let source = H2h.challongeSource slug
   eventData <- H2h.getEventData source client Z.default
   Z.xInfo eventData

@@ -4,10 +4,12 @@ import Prelude
 
 import Z as Z
 import Z.Gql.Node.Module as Gql
+import Z.H2h.Error as H2hE
 import Z.H2h.Module as H2h
 import Z.H2h.Node.Builder.API as B
 import Z.H2h.Node.Builder.Startgg.All as All
 import Z.H2h.Node.Builder.Startgg.Queries as Q
+import Z.H2h.Warning as H2hW
 
 mapOfPairsWithType
   :: forall @l lt r'' r' r
@@ -53,7 +55,7 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
         , participants
         , standing: { placement: 0, isFinal: false }
         }
-    Z.xOver (Z.l @"entrants") (Z.mapSet entrantId entrant)
+    Z.xlOver @"entrants" (Z.mapSet entrantId entrant)
   Z.forM_ event.standings.nodes $ \standing -> do
     let entrantId = Z.sOrN standing.entrant.id
     Z.xSet (Z.l @"entrants" <<< (Z.ix entrantId) <<< Z.l @"standing")
@@ -111,6 +113,9 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
       }
   Z.xInfo pgs
   { entrants } <- Z.xGet
+  let { endAt } = event.tournament
+  date <- Z.xUnwrap (H2hE.InvalidInstant endAt) do
+    Z.instant (Z.Milliseconds (Z.toNumber endAt)) <#> Z.toDateTime
   pure
     { id: Z.sOrN event.id
     , name: event.name
@@ -123,7 +128,7 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
         { id: Z.sOrN event.tournament.id
         , name: event.tournament.name
         , images: mapOfPairsWithType @"url" event.tournament.images
-        , endAt: event.tournament.endAt
+        , date
         }
     }
   where
@@ -132,7 +137,7 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
     { client, networkControl } <- Z.xAsk
     let initVars = { page: 0, phaseGroupId }
     let pSpecs = [ All.ggPageSpec (Z.l @"page") (Z.l @"phaseGroup.sets") ]
-    Z.xMapWE H2h.GqlW H2h.GqlE do
+    Z.xMapWE H2hW.Gql H2hE.Gql do
       All.ggQueryAll Q.phaseGroup initVars pSpecs client networkControl
   fetchRawEventData = Z.xTryUntil
     (f' Q.eventMaxDataPerReq $ Z.Just Gql.CacheOnly)
@@ -148,4 +153,4 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
       let eSpec = All.ggPageSpec (Z.l @"pageE") (Z.l @"event.entrants")
       let sSpec = All.ggPageSpec (Z.l @"pageS") (Z.l @"event.standings")
       let pSpecs = [ eSpec, sSpec ]
-      Z.xMapWE H2h.GqlW H2h.GqlE do All.ggQueryAll q initVars pSpecs client nc
+      Z.xMapWE H2hW.Gql H2hE.Gql do All.ggQueryAll q initVars pSpecs client nc

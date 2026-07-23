@@ -6,7 +6,6 @@ package:
     - argonaut-codecs
     - argonaut-core
     - argonaut-generic
-    - barlow-lens: 1.0.0
     - codec
     - codec-argonaut
     - console
@@ -20,6 +19,7 @@ package:
     - maybe
     - node-process
     - optparse
+    - parsing
     - prelude
     - profunctor
     - profunctor-lenses
@@ -29,6 +29,7 @@ package:
     - spec-discovery
     - typelevel-prelude
     - variant
+    - barlow-lens: 1.0.0
   test:
     main: Test.Main
     dependencies: []

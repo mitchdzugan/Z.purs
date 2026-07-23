@@ -9,3 +9,14 @@ export const js_simpleHash = (str) => {
   }
   return hash;
 };
+export const js_removeNils = (o) => {
+  const res = {};
+  for (const k in o) {
+    const v = o[k];
+    if (v === null || v === undefined) {
+      continue;
+    }
+    res[k] = v;
+  }
+  return res;
+};

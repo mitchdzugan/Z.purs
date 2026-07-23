@@ -1,7 +1,7 @@
 module Z.H2h.Module
   ( BracketingSite(..)
   , Entrant
-  , Error(..)
+  , Error
   , Event
   , EventSource
   , Participant
@@ -13,7 +13,7 @@ module Z.H2h.Module
   , Slot
   , Standing
   , Tournament
-  , Warning(..)
+  , Warning
   , challongeSource
   , mkScoreCount
   , mkScoreDQ
@@ -21,34 +21,12 @@ module Z.H2h.Module
   ) where
 
 import Z as Z
-import Z.Gql.Module as Gql
+import Z.H2h.Error as H2hE
+import Z.H2h.Warning as H2hW
 
-data Warning = GqlW Gql.Warning
+type Error = H2hE.T
 
-derive instance genericWarning :: Z.Generic Warning _
-
-instance decodeJsonWarning :: Z.DecodeJson Warning where
-  decodeJson x = Z.genericDecodeJson x
-
-instance encodeJsonWarning :: Z.EncodeJson Warning where
-  encodeJson x = Z.genericEncodeJson x
-
-data Error
-  = GqlE Gql.Error
-  | UnkPupp Z.JsError
-  | Puppeteer String String Z.JsError
-  | PuppeteerBrowserResource Z.ResourceStage Z.JsError
-  | MissingData String
-  | EventBuild Z.JsError
-  | ParseCached Z.JsError
-
-derive instance genericError :: Z.Generic Error _
-
-instance decodeJsonError :: Z.DecodeJson Error where
-  decodeJson x = Z.genericDecodeJson x
-
-instance encodeJsonError :: Z.EncodeJson Error where
-  encodeJson x = Z.genericEncodeJson x
+type Warning = H2hW.T
 
 data BracketingSite = Startgg | Challonge
 
@@ -138,7 +116,7 @@ type Tournament =
   { id :: Z.SorN
   , name :: String
   , images :: Z.Map String String
-  , endAt :: Int
+  , date :: Z.DateTime
   }
 
 type Event =

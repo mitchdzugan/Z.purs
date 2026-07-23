@@ -7,6 +7,7 @@ module Z.Z.Module
   , module Array
   , module CA
   , module Core
+  , module DateTime
   , module DC
   , module Dec
   , module DecodeGeneric
@@ -15,9 +16,11 @@ module Z.Z.Module
   , module Either
   , module Enc
   , module EncodeGeneric
+  , module Enum
   , module Exists
   , module Foldable
   , module Generic
+  , module Int
   , module Lens
   , module LensAt
   , module LensIndex
@@ -26,6 +29,8 @@ module Z.Z.Module
   , module Map
   , module Maybe
   , module MaybeFirst
+  , module Parsing
+  , module Prc
   , module Promise
   , module Proxy
   , module Record
@@ -33,7 +38,6 @@ module Z.Z.Module
   , module Run
   , module RunS
   , module Str
-  , module StrCommon
   , module Symbol
   , module Tup
   , module TupNested
@@ -59,10 +63,15 @@ import Data.Argonaut.Encode.Generic (genericEncodeJson) as EncodeGeneric
 import Data.Array (slice) as Array
 import Data.Codec (Codec, Codec') as DC
 import Data.Codec.Argonaut (JsonCodec) as CA
+import Data.DateTime (DateTime(..), Month(..), Hour, Year, Day, Second, Minute, Millisecond, canonicalDate, Time(..), Date) as DateTime
+import Data.Time.Duration (Milliseconds(..), Hours(..)) as DateTime
+import Data.DateTime.Instant (Instant, instant, toDateTime) as DateTime
 import Data.Either (Either(..), either) as Either
+import Data.Enum (toEnum) as Enum
 import Data.Exists (Exists, mkExists, runExists) as Exists
 import Data.Foldable (fold, class Foldable) as Foldable
 import Data.Generic.Rep (class Generic) as Generic
+import Data.Int (ceil, floor, round, trunc, toNumber) as Int
 import Data.Lens (Fold, Optic, Lens, Lens', Prism, Prism', view, firstOf, lastOf, toArrayOf, review, over, set, _Just) as Lens
 import Data.Lens (previewOn)
 import Data.Lens.Barlow as Barlow
@@ -82,6 +91,8 @@ import Data.Tuple.Nested ((/\), type (/\)) as TupNested
 import Effect (Effect) as Effect
 import Effect.Aff (Aff, launchAff, launchAff_, runAff, runAff_) as Aff
 import Effect.Class (liftEffect) as EffectClass
+import Parsing (ParserT) as Parsing
+import Parsing.Combinators ((<|>)) as Prc
 import Prim.Row (class Cons, class Lacks) as Row
 import Record (merge) as Record
 import Run (Run, extract) as Run
@@ -119,5 +130,5 @@ firstOfOn = previewOn
 strJoinWith :: String -> Array String -> String
 strJoinWith = StrCommon.joinWith
 
-strSplit ∷ Str.Pattern → String → Array String
+strSplit ∷ Str.Pattern -> String -> Array String
 strSplit = StrCommon.split

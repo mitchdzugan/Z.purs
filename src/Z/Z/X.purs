@@ -67,6 +67,7 @@ module Z.Z.X
   , xAEff
   , xAff
   , xAsk
+  , xBindE
   , xEffectPromise
   , xEval
   , xEvalAff
@@ -89,6 +90,7 @@ module Z.Z.X
   , xMapWE
   , xOk
   , xOver
+  , xParser
   , xPlusS
   , xResult
   , xRetFail
@@ -111,6 +113,9 @@ module Z.Z.X
   , xView
   , xViewR
   , xWithRet
+  , xlOver
+  , xlSet
+  , xlView
   ) where
 
 import Prelude
@@ -141,7 +146,14 @@ import Run.State as RunS
 import Run.Writer as RunW
 import Type.Proxy as P
 import Type.Row (type (+))
+import Parsing as Parsing
+import Z.Z.Barlow as Bl
 import Z.Z.Core as Z
+
+------------------------------------------------------------------
+
+xParser :: forall x s a. s -> Parsing.Parser s a -> R.Run (E Z.ParseError x) a
+xParser s pr = xOk $ Z.runParser s pr
 
 --------------- EVAL -------------------------------------------------------
 
@@ -273,14 +285,22 @@ xGet = RunS.get
 xView :: forall x s t a b. Lens.Lens s t a b -> R.Run (S s x) a
 xView l = xGet <#> Lens.view l
 
+xlView
+  :: forall @sym x lenses s t a b
+   . Bl.ParseSymbol sym lenses
+  => Bl.ConstructBarlow lenses (Bl.Forget a) s t a b
+  => Bl.IsSymbol sym
+  => R.Run (S s x) a
+xlView = xGet <#> Lens.view (Bl.l @sym)
+
 xToArrayOf
   :: forall x s t a b
    . Lens.Fold (Endo.Endo Function (ListT.List a)) s t a b
   -> R.Run (S s x) (Array a)
 xToArrayOf l = xGet <#> Lens.toArrayOf l
 
-xReview :: forall x s t a b. Lens.Review s t a b -> R.Run (S b x) t
-xReview l = xGet <#> Lens.review l
+xReview :: forall x s t a b. Lens.Review s t a b -> b -> R.Run (S t x) Unit
+xReview l b = RunS.put $ Lens.review l b
 
 xFirstOf
   :: forall x s t a b
@@ -293,6 +313,24 @@ xOver l f = RunS.get >>= RunS.put <<< Lens.over l f
 
 xSet :: forall x s a b. Lens.Setter s s a b -> b -> R.Run (S s x) Unit
 xSet l v = RunS.get >>= RunS.put <<< Lens.set l v
+
+xlSet
+  :: forall @sym x s a b lenses
+   . Bl.IsSymbol sym
+  => Bl.ParseSymbol sym lenses
+  => Bl.ConstructBarlow lenses Function s s a b
+  => b
+  -> R.Run (S s x) Unit
+xlSet v = RunS.get >>= RunS.put <<< Lens.set (Bl.l @sym) v
+
+xlOver
+  :: forall @sym x s a b lenses
+   . Bl.IsSymbol sym
+  => Bl.ParseSymbol sym lenses
+  => Bl.ConstructBarlow lenses Function s s a b
+  => (a -> b)
+  -> R.Run (S s x) Unit
+xlOver f = RunS.get >>= RunS.put <<< Lens.over (Bl.l @sym) f
 
 xExecS :: forall x s a. s -> R.Run (S s x) a -> R.Run x (s TupN./\ a)
 xExecS = RunS.runState
@@ -327,14 +365,22 @@ xResult m = do
   w <- RunW.runWriter $ RunE.runExcept m
   pure $ { w: (Tup.fst w), v: (Tup.snd w) }
 
+xBindE
+  :: forall x e1 e2 a
+   . (e1 -> R.Run (E e2 x) a)
+  -> R.Run (E e1 + E e2 x) a
+  -> R.Run (E e2 x) a
+xBindE h m = RunE.runExcept m >>= onDone
+  where
+  onDone (Eor.Left e1) = h e1
+  onDone (Eor.Right r) = pure r
+
 xMapE
   :: forall x e1 e2 a
    . (e1 -> e2)
   -> R.Run (E e1 + E e2 x) a
   -> R.Run (E e2 x) a
-xMapE f m = do
-  res <- RunE.runExcept m
-  xOk $ Eor.either (\e1 -> Eor.Left $ f e1) (\r -> Eor.Right r) res
+xMapE f m = xBindE (xFail <<< f) m
 
 xMapWE
   :: forall x m w1 w2 e1 e2 a

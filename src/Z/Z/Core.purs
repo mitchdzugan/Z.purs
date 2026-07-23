@@ -2,7 +2,9 @@ module Z.Z.Core
   ( JsAny
   , JsError(..)
   , P
+  , ParseError
   , Set
+  , adjustDateTime
   , arrEmpty
   , arrFilter
   , arrFromFoldable
@@ -11,7 +13,9 @@ module Z.Z.Core
   , auto
   , class Defaultable
   , dec
+  , def
   , default
+  , encodeOpts
   , fDiscard
   , forM
   , forM_
@@ -23,15 +27,27 @@ module Z.Z.Core
   , jsErrorMessage
   , jsErrorName
   , jsErrorStack
+  , jsonRmNils
   , jsonStr
   , mapEmpty
+  , mapL
   , mapM
   , mapSet
   , mapSize
   , orDefault
   , p
+  , parseFail
+  , parseFailWithPosition
+  , parseInt
+  , parseNumber
+  , parseString
+  , parseStringAs
+  , parseString_
+  , parseTry
+  , pureF
   , reduce
   , reduceM
+  , runParser
   , setEmpty
   , setFromFoldable
   , setHas
@@ -48,8 +64,11 @@ import Data.Argonaut.Core as Arg
 import Data.Argonaut.Decode (class DecodeJson, decodeJson)
 import Data.Argonaut.Encode (class EncodeJson, encodeJson)
 import Data.Array as Arr
+import Data.DateTime as DateTime
+import Data.Time.Duration as TimeDuration
 import Data.Either as Eor
 import Data.Foldable as Foldable
+import Data.Int as Int
 import Data.Traversable as Traversable
 import Data.Functor as F
 import Data.Map as Map
@@ -60,6 +79,10 @@ import Data.Semiring as Semiring
 import Data.Set as Set
 import Effect.Exception as Exc
 import Type.Proxy (Proxy(..)) as Proxy
+import Parsing as Parsing
+import Parsing.Combinators as Prc
+import Parsing.String as Prs
+import Parsing.String.Basic as Prsb
 
 foreign import data JsAny :: Type
 
@@ -69,11 +92,19 @@ foreign import js_simpleHash :: String -> Int
 
 foreign import js_jsonStr :: Arg.Json -> String
 
+foreign import js_removeNils :: Arg.Json -> Arg.Json
+
 jsAny :: forall a. a -> JsAny
 jsAny = js_JsAny
 
 jsonStr :: Arg.Json -> String
 jsonStr = js_jsonStr
+
+jsonRmNils :: Arg.Json -> Arg.Json
+jsonRmNils = js_removeNils
+
+encodeOpts :: forall d. EncodeJson d => d -> Arg.Json
+encodeOpts = jsonRmNils <<< encodeJson
 
 simpleHash :: String -> Int
 simpleHash = js_simpleHash
@@ -136,6 +167,9 @@ else instance defaultApplicable ::
   Defaultable (a v) where
   default = pure default
 
+def :: forall @d. Defaultable d => d
+def = default
+
 auto :: forall d r. Defaultable d => (d -> r) -> r
 auto f = f default
 
@@ -150,6 +184,9 @@ whenJust
   -> (a -> m d)
   -> m d
 whenJust m f = May.maybe (pure default) f m
+
+pureF :: forall a x y. Applicative a => (x -> y) -> x -> a y
+pureF f = pure <<< f
 
 inc :: forall s. Semiring s => s -> s
 inc s = Semiring.add s Semiring.one
@@ -244,3 +281,67 @@ reduce
   -> f a
   -> b
 reduce = Foldable.foldl
+
+newtype ParseError = ParseError Parsing.ParseError
+
+type PureParseError =
+  { "_" :: String, column :: Int, index :: Int, line :: Int, message :: String }
+
+fromPureParseError :: PureParseError -> ParseError
+fromPureParseError e = ParseError $ Parsing.ParseError e.message $
+  Parsing.Position { column: e.column, index: e.index, line: e.line }
+
+instance decodeParseError :: DecodeJson ParseError where
+  decodeJson j = map fromPureParseError $ decodeJson j
+
+instance encodeParseError :: EncodeJson ParseError where
+  encodeJson
+    ( ParseError
+        (Parsing.ParseError message (Parsing.Position { column, index, line }))
+    ) = encodeJson { "_": "ParseError", column, index, line, message }
+
+runParser :: forall s a. s -> Parsing.Parser s a -> Eor.Either ParseError a
+runParser s pr = mapL ParseError $ Parsing.runParser s pr
+
+mapL :: forall l1 l2 r. (l1 -> l2) -> Eor.Either l1 r -> Eor.Either l2 r
+mapL f = Eor.either (\x -> Eor.Left $ f x) Eor.Right
+
+parseFail :: forall m s a. String -> Parsing.ParserT s m a
+parseFail = Parsing.fail
+
+parseFailWithPosition
+  :: forall m s a. String -> Parsing.Position -> Parsing.ParserT s m a
+parseFailWithPosition = Parsing.failWithPosition
+
+parseTry
+  :: forall m s a. Parsing.ParserT s m a -> Parsing.ParserT s m a
+parseTry = Prc.try
+
+parseString :: forall m. String -> Parsing.ParserT String m String
+parseString = Prs.string
+
+parseStringAs :: forall m v. String -> v -> Parsing.ParserT String m v
+parseStringAs s v = Prs.string s <#> const v
+
+parseString_ :: forall m. String -> Parsing.ParserT String m Unit
+parseString_ s = parseStringAs s unit
+
+parseNumber :: forall m. Parsing.ParserT String m Number
+parseNumber = Prsb.number
+
+parseInt :: forall m. Parsing.ParserT String m Int
+parseInt = do
+  n <- Prsb.number
+  let i = Int.trunc n
+  let ni = Int.toNumber i
+  when (not (n == ni)) do
+    parseFail "Integer Number Expected"
+  pure i
+
+adjustDateTime
+  :: forall d
+   . TimeDuration.Duration d
+  => d
+  -> DateTime.DateTime
+  -> May.Maybe DateTime.DateTime
+adjustDateTime = DateTime.adjust

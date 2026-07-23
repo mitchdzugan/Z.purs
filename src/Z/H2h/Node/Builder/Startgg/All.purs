@@ -63,12 +63,12 @@ ggPageSpecHandleImpl (GGPageSpecF pageL dataL) = do
   where
   loop op client networkControl = do
     Z.xToArrayOf (Z.l @"res" <<< dataL <<< Z.l @"nodes+.id") >>= \ids -> do
-      (Z.xSet (Z.l @"seenIds") $ Z.setFromFoldable ids)
-    seenIds <- Z.xView (Z.l @"seenIds")
+      (Z.xlSet @"seenIds" $ Z.setFromFoldable ids)
+    seenIds <- Z.xlView @"seenIds"
     total <- Z.xView (Z.l @"res" <<< dataL <<< Z.l @"pageInfo.total")
     when (Z.setSize seenIds < total) do
       Z.xOver (Z.l @"vars" <<< pageL) Z.inc
-      vars <- Z.xView (Z.l @"vars")
+      vars <- Z.xlView @"vars"
       res <- Gql.operate op vars client networkControl
       let nodes = Z.view (dataL <<< Z.l @"nodes") res
       Z.xOver (Z.l @"res" <<< dataL <<< Z.l @"nodes")

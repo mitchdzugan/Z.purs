@@ -26,7 +26,6 @@ module Z.Z.Util
   , jsonPairs
   , jsonSortedPairs
   , jsonVals
-  , mapL
   , nth
   , sOrN
   , type (#)
@@ -52,6 +51,7 @@ import Data.Ordering as Ordering
 import Data.Tuple as Tup
 import Foreign.Object as FO
 import Type.Proxy as Proxy
+import Z.Z.Core as Z
 
 nth :: forall a. Array a -> Int -> Maybe.Maybe a
 nth = Array.index
@@ -85,9 +85,6 @@ jsonLookup k = Arg.caseJsonObject Maybe.Nothing (FO.lookup k)
 
 id :: forall a. a -> a
 id a = a
-
-mapL :: forall l1 l2 r. (l1 -> l2) -> Either.Either l1 r -> Either.Either l2 r
-mapL f = Either.either (\x -> Either.Left $ f x) Either.Right
 
 newtype JsonDecodeError = JsonDecodeError JDE.JsonDecodeError
 
@@ -137,7 +134,7 @@ type JsonDecodeFn t = Arg.Json -> Either.Either JsonDecodeError t
 type JsonEncodeFn t = t -> Arg.Json
 
 jsonDecode :: String -> Either.Either JsonDecodeError Arg.Json
-jsonDecode = Dec.fromJsonString >>> mapL JsonDecodeError
+jsonDecode = Dec.fromJsonString >>> Z.mapL JsonDecodeError
 
 decodeJson'
   :: forall v
@@ -145,7 +142,7 @@ decodeJson'
   => Proxy.Proxy v
   -> Arg.Json
   -> Either.Either JsonDecodeError v
-decodeJson' _ = ADec.decodeJson >>> mapL JsonDecodeError
+decodeJson' _ = ADec.decodeJson >>> Z.mapL JsonDecodeError
 
 decode'
   :: forall v
@@ -153,21 +150,21 @@ decode'
   => Proxy.Proxy v
   -> String
   -> Either.Either JsonDecodeError v
-decode' _ = Dec.fromJsonString >>> mapL JsonDecodeError
+decode' _ = Dec.fromJsonString >>> Z.mapL JsonDecodeError
 
 decodeJson
   :: forall v
    . Dec.DecodeJson v
   => Arg.Json
   -> Either.Either JsonDecodeError v
-decodeJson = ADec.decodeJson >>> mapL JsonDecodeError
+decodeJson = ADec.decodeJson >>> Z.mapL JsonDecodeError
 
 decode
   :: forall v
    . Dec.DecodeJson v
   => String
   -> Either.Either JsonDecodeError v
-decode = Dec.fromJsonString >>> mapL JsonDecodeError
+decode = Dec.fromJsonString >>> Z.mapL JsonDecodeError
 
 encode
   :: forall v
