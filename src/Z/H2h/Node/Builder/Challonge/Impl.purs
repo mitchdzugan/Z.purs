@@ -4,13 +4,15 @@ module Z.H2h.Node.Builder.Challonge.Impl
 
 import Prelude
 
-import Z (_o, o_)
+import Data.Foldable (maximum)
 import Z as Z
-import Z.Bk.Elimination.Round as ElimRound
+import Z.Bk.Elimination.Round as Round
 import Z.H2h.Error as H2hE
 import Z.H2h.Module as H2h
 import Z.H2h.Node.Builder.API as B
 import Z.Puppeteer.Node.Module as P
+import Z.Z.Barlow (__, _o_)
+import Z.Z.Shorthand (_o, g_, o_)
 
 userAgent :: String
 userAgent =
@@ -65,7 +67,7 @@ parseDate = do
 
 type BaseSet =
   { id :: Int
-  , winnerId :: Z.Maybe Z.SorN
+  , winner :: Z.Maybe Z.PairKey
   , slots :: Z.Pair H2h.Slot
   }
 
@@ -154,23 +156,28 @@ getEventData = B.adaptBuilder do
             }
           pure { entrantId: Z.Just entrantId, score }
         let emptySlot = { entrantId: Z.Nothing, score: H2h.NoScore }
-        let slotA = Z.fromMaybe emptySlot (Z.nth slots 0)
-        let slotB = Z.fromMaybe emptySlot (Z.nth slots 1)
+        let slotA = Z.or emptySlot (Z.nth slots 0)
+        let slotB = Z.or emptySlot (Z.nth slots 1)
         winnerId <- Z.xView_ @"winnerId"
-        let baseSet = { winnerId, id: setId, slots: slotA Z.~ slotB }
+        let
+          winner =
+            if Z.isNothing winnerId then Z.Nothing
+            else if winnerId == slotA.entrantId then Z.Just Z.Up
+            else Z.Just Z.Down
+        let baseSet = { winner, id: setId, slots: slotA Z.~ slotB }
         Z.xOver_ @"baseSets" $ Z.mapSet setId baseSet
 
     baseSetList <- Z.xView_ @"baseSets" <#>
-      Z.arrReverse <<< Z.arrSortWith (Z.lview @"id") <<< Z.arrFromFoldable
+      Z.arrReverse <<< Z.arrSortWith (g_ @"id") <<< Z.arrFromFoldable
 
     isComplete <- Z.xWithRet do
       Z.forM_ baseSetList $ \baseSet -> do
-        when (Z.isNothing baseSet.winnerId) (Z.xReturn false)
+        when (Z.isNothing baseSet.winner) (Z.xReturn false)
       pure true
 
     let
       setsLoopState =
-        { prev: Z.Nothing :: Z.Maybe { base :: BaseSet, round :: ElimRound.T }
+        { prev: Z.Nothing
         , depth: 0
         , roundInd: 0
         , isDropRound: true
@@ -178,14 +185,14 @@ getEventData = B.adaptBuilder do
         , gfEntrants: Z.setEmpty @Z.SorN
         , nonGfEntrants: Z.setEmpty @Z.SorN
         }
-    sets <- Z.xEvalS setsLoopState $ do
-      sets' <- Z.forM baseSetList $ \baseSet -> do
+    roundSets <- Z.xMergeS setsLoopState $ do
+      roundSets' <- Z.forM baseSetList $ \baseSet -> do
         { prev, isDropRound } <- Z.xGet
         let
           prevSet = prev <#> \p -> p.base
           prevRound = prev <#> \p -> p.round
-          wasGrands = Z.fromMaybe false $ prevRound <#> ElimRound.isGrands
-          wasLosers = Z.fromMaybe false $ prevRound <#> ElimRound.isLosers
+          wasGrands = Z.or false $ prevRound <#> Round.isGrands
+          wasLosers = Z.or false $ prevRound <#> Round.isLosers
           isGrands = Z.isNothing prev && isDE ||
             (wasGrands && (slotsKey baseSet) == mSlotsKey prevSet)
         when (isGrands && wasGrands) $ Z.xSet_ @"hasReset" true
@@ -205,8 +212,40 @@ getEventData = B.adaptBuilder do
         when ((not isLosers && wasLosers) || (not isGrands && wasGrands)) do
           Z.xSet_ @"depth" 0
           Z.xSet_ @"roundInd" 0
+        setDepth <- Z.xView_ @"depth"
+        let round = elimRound isDE setDepth isGrands isLosers isDropRound
+
+        let slotA Z.~ slotB = baseSet.slots
+        Z.whenJust slotA.entrantId \eA -> Z.whenJust slotB.entrantId \eB -> do
+          Z.whenJust baseSet.winner \w -> when isComplete do
+            let
+              setFinStanding = \id placement -> Z.xSet
+                (_o_ @"entrants" @"standing" $ Z.ix id)
+                { placement, isFinal: true }
+            let wId Z.~ lId = if w == Z.Up then eA Z.~ eB else eB Z.~ eA
+            Z.xInfo { wId, lId, w }
+            if isGrands && not wasGrands then do
+              setFinStanding wId 1
+              setFinStanding lId 2
+            else if isLosers then do
+              let p2Inc = Z.inc $ Z.p2 setDepth
+              setFinStanding lId $ if isDropRound then p2Inc else 3 * p2Inc / 2
+            else if isDE && setDepth == 0 then do
+              setFinStanding wId 1
+              setFinStanding lId 2
+            else if isDE then do
+              setFinStanding lId $ Z.inc $ Z.p2 setDepth
+            else pure unit
+
+        Z.xOver_ @"roundInd" Z.inc
         { depth, roundInd } <- Z.xGet
-        let round = elimRound isDE depth isGrands isLosers isDropRound
+        when (Z.p2 depth <= roundInd) do
+          Z.xSet_ @"roundInd" 0
+          if (isDropRound && isLosers) then do
+            Z.xSet_ @"isDropRound" false
+          else do
+            Z.xSet_ @"isDropRound" true
+            Z.xOver_ @"depth" Z.inc
 
         Z.xSet_ @"prev" $ Z.Just { base: baseSet, round }
         pure $
@@ -218,28 +257,45 @@ getEventData = B.adaptBuilder do
               , overrideScoreText: Z.Nothing
               , doesCount: isComplete
               , id: baseSet.id
-              , winnerId: baseSet.winnerId
+              , winner: baseSet.winner
               , slots: baseSet.slots
               }
           }
       { hasReset } <- Z.xGet
-      if (not hasReset) then pure sets'
-      else pure $ Z.set (Z.ix 0 # o_ @"round") (ElimRound.Grands true) sets'
+      if (not hasReset) then pure roundSets'
+      else pure $ Z.set (Z.ix 0 # o_ @"round") (Round.Grands true) roundSets'
 
-    Z.xInfo sets
+    let lSets = Z.arrFilter (Round.isLosers <<< g_ @"round") roundSets
+    let wSets = Z.arrFilter (Round.isWinners <<< g_ @"round") roundSets
+    let maxWR = Z.or 0 $ maximum $ wSets <#> Round.roundTypeInd <<< g_ @"round"
+    let maxLR = Z.or 0 $ maximum $ lSets <#> Round.roundTypeInd <<< g_ @"round"
+
+    { entrants } <- Z.xGet
+    let profileImageUrl = "https://i.imgur.com/7MsdKge.jpeg"
+    let
+      sets = Z.mapFromFoldable $ roundSets <#> \rs -> Z.Tuple rs.set.id $ Z.set
+        (__ @"roundText")
+        (roundLabel rs.round maxWR maxLR)
+        rs.set
 
     pure
       { id: Z.sOrN $ "Challonge-" <> slug <> "-eventId"
       , name
       , slug
-      , state: "COMPLETE"
+      , state: if isComplete then "COMPLETE" else "ACTIVE"
       , site: H2h.Challonge
-      , phaseGroups: Z.arrEmpty @H2h.PhaseGroup
-      , entrants: Z.mapEmpty @Z.SorN @H2h.Entrant
+      , phaseGroups:
+          [ { id: Z.sOrN 1
+            , phase: { id: Z.sOrN 1, name: "Bracket", phaseOrder: 1 }
+            , displayIdentifier: "1"
+            , sets
+            }
+          ]
+      , entrants
       , tournament:
           { id: Z.sOrN $ "Challonge-" <> slug <> "-tournamentId"
           , name: tournamentName
-          , images: Z.mapEmpty
+          , images: Z.mapFromFoldable [ "profile" Z./\ profileImageUrl ]
           , date: date
           }
       }
@@ -260,6 +316,15 @@ getEventData = B.adaptBuilder do
   mEntrantIdKey (Z.Just id) = show id
   mEntrantIdKey _ = "_"
   -- elimRound isDE depth isGrands isLosers isDropRound
-  elimRound _ _ true _ _ = ElimRound.Grands false
-  elimRound isDE depth _ false _ = ElimRound.Winners isDE depth
-  elimRound _ depth _ _ isDropRound = ElimRound.Losers isDropRound depth
+  elimRound _ _ true _ _ = Round.Grands false
+  elimRound isDE depth _ false _ = Round.Winners isDE depth
+  elimRound _ depth _ _ isDropRound = Round.Losers isDropRound depth
+  roundLabel (Round.Grands true) _ _ = "Finals (reset)"
+  roundLabel (Round.Grands _) _ _ = "Finals"
+  roundLabel s@(Round.Losers _ _) _ maxL = (<>) "Losers Round " $ show
+    $ maxL - Round.roundTypeInd s + 1
+  roundLabel (Round.Winners true 0) _ _ = "Semifinals"
+  roundLabel (Round.Winners false 0) _ _ = "Finals"
+  roundLabel (Round.Winners false 1) _ _ = "Semifinals"
+  roundLabel s@(Round.Winners _ _) maxW _ = (<>) "Winners Round " $ show
+    $ maxW - Round.roundTypeInd s + 1

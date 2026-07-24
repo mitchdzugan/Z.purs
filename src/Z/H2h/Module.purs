@@ -63,7 +63,7 @@ type Set =
   { id :: Int
   , isDQ :: Boolean
   , isBye :: Boolean
-  , winnerId :: Z.Maybe Z.SorN
+  , winner :: Z.Maybe Z.PairKey
   , doesCount :: Boolean
   , roundText :: String
   , slots :: Z.Pair Slot

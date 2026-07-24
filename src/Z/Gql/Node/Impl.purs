@@ -91,7 +91,7 @@ operateUnknown opString vars client networkControl = Z.xWithRet $ do
     where
     mapMDecodeErr e@(Sys.DecodeError _) = [ GqlW.CacheDecode e ]
     mapMDecodeErr _ = []
-    checkIsSelf parseData = Z.fromMaybe false do
+    checkIsSelf parseData = Z.or false do
       cachedOpKeyStr <- (Z.nth parseData 1)
       pure $ Z.caseJsonString false (eq opKeyStr) cachedOpKeyStr
     handleParsed Z.Nothing = pure $ collisionCount Z./\ Z.Nothing

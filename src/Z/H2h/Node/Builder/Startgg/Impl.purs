@@ -2,7 +2,7 @@ module Z.H2h.Node.Builder.Startgg.Impl (getEventData) where
 
 import Prelude
 
-import Z (_o, _o_, o_)
+import Z.Z.Shorthand (_o, _o_, g_, gmOr'_, o_)
 import Z as Z
 import Z.Gql.Node.Module as Gql
 import Z.H2h.Error as H2hE
@@ -28,7 +28,7 @@ mapOfJsonElsWithFieldsTypeAnd_t
   -> Z.Map String String
 mapOfJsonElsWithFieldsTypeAnd_t = Z.reduce reducer Z.mapEmpty
   where
-  reducer m i = Z.mapSet (Z.lview @ttype i) (Z.lview @t i) m
+  reducer m i = Z.mapSet (g_ @ttype i) (g_ @t i) m
 
 getEventData :: forall x. B.GetDataFn x
 getEventData = B.adaptBuilder $ Z.xEvalS initState do
@@ -38,8 +38,8 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
   Z.forM_ entrantNodes $ \entrantNode -> do
     participants <- Z.forM entrantNode.participants $ \participant -> do
       let { player } = participant
-      let playerImages = Z.orDefault $ Z.lpreview @"user?.images" player
-      let auths = Z.orDefault $ Z.lpreview @"user?.authorizations?" player
+      let playerImages = gmOr'_ @"user?.images" player
+      let auths = gmOr'_ @"user?.authorizations?" player
       pure
         { gamerTag: participant.gamerTag
         , prefix: participant.prefix
@@ -48,8 +48,8 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
             { id: Z.sOrN player.id
             , gamerTag: player.gamerTag
             , prefix: player.prefix
-            , pronouns: Z.lview @"user?.genderPronoun" player
-            , name: Z.lview @"user?.name" player
+            , pronouns: g_ @"user?.genderPronoun" player
+            , name: g_ @"user?.name" player
             , socials: mapOfJsonElsWithFieldsTypeAnd_t @"externalUsername" auths
             , images: mapOfJsonElsWithFieldsTypeAnd_t @"url" playerImages
             }
@@ -67,16 +67,21 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
     Z.xSet (_o_ @"entrants" @"standing" (Z.ix entrantId))
       { placement: standing.placement, isFinal: standing.isFinal }
 
-  let rawPgs = Z.arrSortWith (Z.lview @"id") event.phaseGroups
+  let rawPgs = Z.arrSortWith (g_ @"id") event.phaseGroups
   pgs <- Z.forM rawPgs $ \pg -> Z.xPlusS @"sets" (Z.mapEmpty @Int) do
     { phaseGroup } <- fetchRawPhaseGroupData pg.id
     Z.forM_ phaseGroup.sets.nodes $ \set -> do
-      let setId = set.id
-      let isDQ = set.displayScore == Z.Just "DQ"
-      let isBye = Z.reduce (\a s -> a || Z.isNothing s.entrant) false set.slots
-      let eIdA = Z.preview (Z.ix 0 # o_ @"entrant?.id") set.slots
-      let eIdB = Z.preview (Z.ix 1 # o_ @"entrant?.id") set.slots
-      let isWinA = eIdA == set.winnerId && Z.isJust set.winnerId
+      let
+        setId = set.id
+        isDQ = set.displayScore == Z.Just "DQ"
+        isBye = Z.reduce (\a s -> a || Z.isNothing s.entrant) false set.slots
+        eIdA = Z.preview (Z.ix 0 # o_ @"entrant?.id") set.slots
+        eIdB = Z.preview (Z.ix 1 # o_ @"entrant?.id") set.slots
+        isWinA = eIdA == set.winnerId && Z.isJust set.winnerId
+        winner =
+          if Z.isNothing set.winnerId then Z.Nothing
+          else if isWinA then Z.Just Z.Up
+          else Z.Just Z.Down
       slotScoreA Z./\ slotScoreB <- Z.xWithRet do
         let games = Z.orDefault set.games
         let winnerIds = games <#> \g -> g.winnerId
@@ -98,7 +103,7 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
         , overrideScoreText: set.displayScore
         , isDQ
         , isBye
-        , winnerId: set.winnerId <#> Z.sOrN
+        , winner
         , doesCount: (not isBye) && (not isDQ) && (Z.isJust set.winnerId)
         , slots: slotA Z.~ slotB
         }
@@ -150,7 +155,7 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
     where
     f' q ncOverride = do
       { client, slug } <- Z.xAsk
-      nc <- Z.xAsk <#> \r -> Z.fromMaybe r.networkControl ncOverride
+      nc <- Z.xAsk <#> \r -> Z.or r.networkControl ncOverride
       let initVars = { pageE: 0, pageS: 0, slug }
       let eSpec = All.ggPageSpec (__ @"pageE") (__ @"event.entrants")
       let sSpec = All.ggPageSpec (__ @"pageS") (__ @"event.standings")

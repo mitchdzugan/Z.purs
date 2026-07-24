@@ -86,9 +86,11 @@ module Z.Z.X
   , xMapE
   , xMapW
   , xMapWE
+  , xMergeS
   , xOk
   , xOrDefault
   , xOver
+  , xOver_
   , xParser
   , xPlusS
   , xPreview
@@ -102,6 +104,7 @@ module Z.Z.X
   , xRunS
   , xSay
   , xSet
+  , xSet_
   , xTellMappedHush
   , xTellMappedMHush
   , xTimeout
@@ -113,10 +116,8 @@ module Z.Z.X
   , xUnwrap'
   , xView
   , xViewR
-  , xWithRet
-  , xOver_
-  , xSet_
   , xView_
+  , xWithRet
   ) where
 
 import Prelude
@@ -138,7 +139,7 @@ import Effect.Aff as Aff
 import Effect.Class as EffC
 import Effect.Unsafe as Unsafe
 import Type.Proxy (Proxy(..))
-import Prim.Row (class Cons, class Lacks)
+import Prim.Row (class Cons, class Lacks, class Union, class Nub)
 import Record as Rec
 import Run as R
 import Run.Except as RunE
@@ -148,6 +149,7 @@ import Run.Writer as RunW
 import Type.Proxy as P
 import Type.Row (type (+))
 import Parsing as Parsing
+import Unsafe.Coerce as UnsCoer
 import Z.Z.Barlow as Bl
 import Z.Z.Defaultable as ZD
 import Z.Z.Core as Z
@@ -359,6 +361,20 @@ xPlusS v m = do
   let next = Rec.insert (Proxy :: Proxy l) v curr
   (s TupN./\ r) <- xExecS next m
   RunS.put (Rec.delete (Proxy :: Proxy l) s)
+  pure r
+
+xMergeS
+  :: forall x r1 r2 r3 v
+   . Union r1 r2 r3
+  => Nub r3 r3
+  => { | r2 }
+  -> R.Run (S { | r3 } + S { | r1 } + x) v
+  -> R.Run (S { | r1 } x) v
+xMergeS rNew m = do
+  curr <- xGet
+  let next = Rec.disjointUnion curr rNew
+  (s TupN./\ r) <- xExecS next m
+  RunS.put (UnsCoer.unsafeCoerce s)
   pure r
 
 --------------- E FNS -----------------------------------------------------

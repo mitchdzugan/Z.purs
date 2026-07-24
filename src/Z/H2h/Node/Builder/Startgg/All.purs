@@ -6,7 +6,7 @@ module Z.H2h.Node.Builder.Startgg.All
 
 import Prelude
 
-import Z (_o, _o_, o_)
+import Z.Z.Shorthand (_o, _o_, o_)
 import Z as Z
 import Z.Gql.Node.Module as Gql
 import Z.H2h.Node.Builder.Startgg.Queries as GGQ

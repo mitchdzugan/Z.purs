@@ -26,6 +26,7 @@ module Z.Z.Core
   , jsonRmNils
   , jsonStr
   , mapEmpty
+  , mapFromFoldable
   , mapL
   , mapM
   , mapSet
@@ -65,6 +66,7 @@ import Data.Either as Eor
 import Data.Foldable as Foldable
 import Data.Int as Int
 import Data.Traversable as Traversable
+import Data.Tuple.Nested as TupN
 import Data.Functor as F
 import Data.Map as Map
 import Data.Maybe as May
@@ -160,6 +162,14 @@ mapSize = Map.size
 
 mapSet :: forall @k @v. Ord k => k -> v -> Map.Map k v -> Map.Map k v
 mapSet = Map.insert
+
+mapFromFoldable
+  :: forall @k @v f
+   . Foldable.Foldable f
+  => Ord k
+  => f (k TupN./\ v)
+  -> Map.Map k v
+mapFromFoldable = Map.fromFoldable
 
 type Set a = Set.Set a
 
