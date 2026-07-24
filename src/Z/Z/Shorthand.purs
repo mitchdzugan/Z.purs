@@ -10,87 +10,92 @@ module Z.Z.Shorthand
   , or
   ) where
 
-import Data.Lens as Lens
-import Data.Maybe as Maybe
-import Z.Z.Barlow as ZBl
-import Z.Z.Defaultable as ZDefaultable
 import Prelude
 
-or :: forall a. a -> Maybe.Maybe a -> a
-or = Maybe.fromMaybe
+import Z.Z.Barlow as Z
+import Z.Z.Core as Z
+import Z.Z.Defaultable as Z
+import Z.Z.Ext as Z
+import Z.Z.String as Z
+import Z.Z.PairKey as Z
+import Z.Z.Util as Z
+import Z.Z.X as Z
+
+or :: forall a. a -> Z.Maybe a -> a
+or = Z.fromMaybe
 
 g_
   :: forall @sym lenses s t a b
-   . ZBl.ParseSymbol sym lenses
-  => ZBl.ConstructBarlow lenses (ZBl.Forget a) s t a b
-  => ZBl.IsSymbol sym
+   . Z.ParseSymbol sym lenses
+  => Z.ConstructBarlow lenses (Z.Forget a) s t a b
+  => Z.IsSymbol sym
   => s
   -> a
-g_ = Lens.view (ZBl.__ @sym)
+g_ = Z.view (Z.barlow @sym)
 
 gm_
   :: forall @sym lenses s t a b
-   . ZBl.ParseSymbol sym lenses
-  => ZBl.ConstructBarlow lenses (ZBl.Forget (ZBl.First a)) s t a b
-  => ZBl.IsSymbol sym
+   . Z.ParseSymbol sym lenses
+  => Z.ConstructBarlow lenses (Z.Forget (Z.First a)) s t a b
+  => Z.IsSymbol sym
   => s
-  -> Maybe.Maybe a
-gm_ = Lens.preview (ZBl.__ @sym)
+  -> Z.Maybe a
+gm_ = Z.preview (Z.barlow @sym)
 
 gmOr_
   :: forall @sym lenses s t a b
-   . ZBl.ParseSymbol sym lenses
-  => ZBl.ConstructBarlow lenses (ZBl.Forget (ZBl.First a)) s t a b
-  => ZBl.IsSymbol sym
+   . Z.ParseSymbol sym lenses
+  => Z.ConstructBarlow lenses (Z.Forget (Z.First a)) s t a b
+  => Z.IsSymbol sym
   => a
   -> s
   -> a
-gmOr_ a d = Maybe.fromMaybe a $ Lens.preview (ZBl.__ @sym) d
+gmOr_ a d = Z.fromMaybe a $ Z.preview (Z.barlow @sym) d
 
 gmOr'_
   :: forall @sym lenses s t a b
-   . ZBl.ParseSymbol sym lenses
-  => ZBl.ConstructBarlow lenses (ZBl.Forget (ZBl.First a)) s t a b
-  => ZBl.IsSymbol sym
-  => ZDefaultable.Defaultable a
+   . Z.ParseSymbol sym lenses
+  => Z.ConstructBarlow lenses (Z.Forget (Z.First a)) s t a b
+  => Z.IsSymbol sym
+  => Z.Defaultable a
   => s
   -> a
-gmOr'_ d = ZDefaultable.orDefault $ Lens.preview (ZBl.__ @sym) d
+gmOr'_ d = Z.orDefault $ Z.preview (Z.barlow @sym) d
 
 __
   :: forall @string lenses p s t a b
-   . ZBl.ParseSymbol string lenses
-  => ZBl.ConstructBarlow lenses p s t a b
-  => ZBl.IsSymbol string
-  => Lens.Optic p s t a b
-__ = ZBl.barlow @string
+   . Z.ParseSymbol string lenses
+  => Z.ConstructBarlow lenses p s t a b
+  => Z.IsSymbol string
+  => Z.Optic p s t a b
+__ = Z.barlow @string
 
 _o
   :: forall @string lenses p s t a b y z
-   . ZBl.ParseSymbol string lenses
-  => ZBl.ConstructBarlow lenses p s t a b
-  => ZBl.IsSymbol string
-  => ZBl.Optic p a b y z
-  -> ZBl.Optic p s t y z
-_o i = ZBl.barlow @string <<< i
+   . Z.ParseSymbol string lenses
+  => Z.ConstructBarlow lenses p s t a b
+  => Z.IsSymbol string
+  => Z.Optic p a b y z
+  -> Z.Optic p s t y z
+_o i = Z.barlow @string <<< i
 
 o_
   :: forall @string lenses p s t a b y z
-   . ZBl.ParseSymbol string lenses
-  => ZBl.ConstructBarlow lenses p s t a b
-  => ZBl.IsSymbol string
-  => Lens.Optic p y z s t
-  -> Lens.Optic p y z a b
-o_ i = ZBl.barlow @string >>> i
+   . Z.ParseSymbol string lenses
+  => Z.ConstructBarlow lenses p s t a b
+  => Z.IsSymbol string
+  => Z.Optic p y z s t
+  -> Z.Optic p y z a b
+o_ i = Z.barlow @string >>> i
 
 _o_
   :: forall @string1 @string2 lenses1 lenses2 p s1 t1 a1 b1 s2 t2 a2 b2
-   . ZBl.ParseSymbol string1 lenses1
-  => ZBl.ParseSymbol string2 lenses2
-  => ZBl.ConstructBarlow lenses1 p s1 t1 a1 b1
-  => ZBl.ConstructBarlow lenses2 p s2 t2 a2 b2
-  => ZBl.IsSymbol string1
-  => ZBl.IsSymbol string2
-  => Lens.Optic p a1 b1 s2 t2
-  -> Lens.Optic p s1 t1 a2 b2
-_o_ i = ZBl.barlow @string1 <<< i <<< ZBl.barlow @string2
+   . Z.ParseSymbol string1 lenses1
+  => Z.ParseSymbol string2 lenses2
+  => Z.ConstructBarlow lenses1 p s1 t1 a1 b1
+  => Z.ConstructBarlow lenses2 p s2 t2 a2 b2
+  => Z.IsSymbol string1
+  => Z.IsSymbol string2
+  => Z.Optic p a1 b1 s2 t2
+  -> Z.Optic p s1 t1 a2 b2
+_o_ i = Z.barlow @string1 <<< i <<< Z.barlow @string2

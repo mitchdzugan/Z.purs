@@ -1,6 +1,5 @@
-module Z.Z.Module
-  ( PairKey(..)
-  , module Aff
+module Z.Z.Ext
+  ( module Aff
   , module Arg
   , module Array
   , module CA
@@ -40,20 +39,7 @@ module Z.Z.Module
   , module Tup
   , module TupNested
   , module TypeEquals
-  , module ZBl
-  , module ZCore
-  , module ZDefaultable
-  , module ZUtil
-  , module ZX
-  , or
-  , p2
-  , preview_
-  , strJoinWith
-  , strSplit
-  , view_
   ) where
-
-import Prelude
 
 import Control.Promise (Promise) as Promise
 import Data.Argonaut.Core (Json, caseJsonString, caseJsonNumber, fromString, jsonNull) as Arg
@@ -82,7 +68,6 @@ import Data.Maybe (Maybe(..), fromMaybe, fromMaybe', isJust, isNothing) as Maybe
 import Data.Maybe.First (First) as MaybeFirst
 import Data.Pair (Pair(..), (~)) as Pair
 import Data.String (Pattern(..)) as Str
-import Data.String.Common as StrCommon
 import Data.Symbol (class IsSymbol, reifySymbol, reflectSymbol) as Symbol
 import Data.Time.Duration (Milliseconds(..), Hours(..)) as DateTime
 import Data.Tuple (Tuple(..), fst, snd) as Tup
@@ -98,50 +83,3 @@ import Run (Run, extract) as Run
 import Run.State (execState) as RunS
 import Type.Equality (class TypeEquals) as TypeEquals
 import Type.Proxy (Proxy(..)) as Proxy
-import Z.Z.Barlow (class Barlow, class ConstructBarlow, class IsSymbol, class ParseSymbol, class Strong, First, Forget, barlow) as ZBl
-import Z.Z.Core as ZCore
-import Z.Z.Defaultable as ZDefaultable
-import Z.Z.Util as ZUtil
-import Z.Z.X as ZX
-
-or :: forall a. a -> Maybe.Maybe a -> a
-or = Maybe.fromMaybe
-
-p2 :: Int -> Int
-p2 = Int.pow 2
-
-strJoinWith :: String -> Array String -> String
-strJoinWith = StrCommon.joinWith
-
-strSplit ∷ Str.Pattern -> String -> Array String
-strSplit = StrCommon.split
-
-view_
-  :: forall @sym lenses s t a b
-   . ZBl.ParseSymbol sym lenses
-  => ZBl.ConstructBarlow lenses (ZBl.Forget a) s t a b
-  => ZBl.IsSymbol sym
-  => s
-  -> a
-view_ = Lens.view (ZBl.barlow @sym)
-
-preview_
-  :: forall @sym lenses s t a b
-   . ZBl.ParseSymbol sym lenses
-  => ZBl.ConstructBarlow lenses (ZBl.Forget (ZBl.First a)) s t a b
-  => ZBl.IsSymbol sym
-  => s
-  -> Maybe.Maybe a
-preview_ = Lens.preview (ZBl.barlow @sym)
-
-data PairKey = Up | Down
-
-derive instance eqUser :: Eq PairKey
-derive instance ordUser :: Ord PairKey
-derive instance genericT :: Generic.Generic PairKey _
-
-instance decodeJsonT :: Dec.DecodeJson PairKey where
-  decodeJson x = DecodeGeneric.genericDecodeJson x
-
-instance encodeJsonT :: Enc.EncodeJson PairKey where
-  encodeJson x = EncodeGeneric.genericEncodeJson x

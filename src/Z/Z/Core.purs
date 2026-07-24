@@ -31,7 +31,9 @@ module Z.Z.Core
   , mapM
   , mapSet
   , mapSize
+  , or
   , p
+  , p2
   , parseFail
   , parseFailWithPosition
   , parseInt
@@ -316,3 +318,9 @@ adjustDateTime
   -> DateTime.DateTime
   -> May.Maybe DateTime.DateTime
 adjustDateTime = DateTime.adjust
+
+or :: forall a. a -> May.Maybe a -> a
+or = May.fromMaybe
+
+p2 :: Int -> Int
+p2 = Int.pow 2
