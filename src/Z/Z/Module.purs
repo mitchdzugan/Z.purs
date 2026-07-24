@@ -6,7 +6,6 @@ module Z.Z.Module
   , module Arg
   , module Array
   , module CA
-  , module Core
   , module DateTime
   , module DC
   , module Dec
@@ -42,7 +41,9 @@ module Z.Z.Module
   , module Tup
   , module TupNested
   , module TypeEquals
-  , module XX
+  , module ZCore
+  , module ZX
+  , module ZDefaultable
   , module ZUtil
   , strJoinWith
   , strSplit
@@ -99,8 +100,9 @@ import Run (Run, extract) as Run
 import Run.State (execState) as RunS
 import Type.Equality (class TypeEquals) as TypeEquals
 import Type.Proxy (Proxy(..)) as Proxy
-import Z.Z.Core as Core
-import Z.Z.X as XX
+import Z.Z.Core as ZCore
+import Z.Z.Defaultable as ZDefaultable
+import Z.Z.X as ZX
 import Z.Z.Util as ZUtil
 import Data.Map (Map) as Map
 import Prelude

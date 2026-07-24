@@ -28,6 +28,7 @@ package:
     - spec
     - spec-discovery
     - typelevel-prelude
+    - unsafe-coerce
     - variant
     - barlow-lens: 1.0.0
   test:

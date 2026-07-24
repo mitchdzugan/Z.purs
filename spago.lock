@@ -35,6 +35,7 @@
             "spec",
             "spec-discovery",
             "typelevel-prelude",
+            "unsafe-coerce",
             "variant"
           ]
         },

@@ -5,6 +5,7 @@ module Z.H2h.Node.Builder.Challonge.Impl
 import Prelude
 
 import Z as Z
+import Z.Bk.Elimination.Round as ElimRound
 import Z.H2h.Error as H2hE
 import Z.H2h.Module as H2h
 import Z.H2h.Node.Builder.API as B
@@ -61,6 +62,12 @@ parseDate = do
   mOr _ (Z.Just y) = pure y
   dAdjust d dt = mOr "invalid date adjustment" $ Z.adjustDateTime d dt
 
+type BaseSet =
+  { id :: Int
+  , winnerId :: Z.Maybe Z.SorN
+  , slots :: H2h.Slot Z./\ H2h.Slot
+  }
+
 getEventData :: forall x. B.GetDataFn x
 getEventData = B.adaptBuilder do
   P.useBrowser H2hE.PuppeteerBrowserResource browserOpts $ \browser -> do
@@ -87,6 +94,8 @@ getEventData = B.adaptBuilder do
     { isDE: false
     , eOrName: Z.Left $ H2hE.MissingData "event.name"
     , eOrDate: Z.Left $ H2hE.MissingData "event.date"
+    , baseSets: Z.mapEmpty @Int @BaseSet
+    , entrants: Z.mapEmpty @Z.SorN @H2h.Entrant
     }
   readPageData page = do
     { slug } <- Z.xAsk
@@ -95,7 +104,6 @@ getEventData = B.adaptBuilder do
       itemLabel <- mapEPupp $ P.el el ".item-label" >>= P.innerText
       itemText <- mapEPupp $ P.el el ".text" >>= P.innerText
       when (itemLabel == "Start Time" || itemLabel == "Start") do
-        Z.xInfo { itemText }
         date <- Z.xMapE H2hE.ParseTime $ Z.xParser itemText parseDate
         Z.xlSet @"eOrDate" $ Z.Right date
         pure unit
@@ -103,7 +111,6 @@ getEventData = B.adaptBuilder do
         Z.xlSet @"eOrName" $ Z.Right itemText
       when (itemLabel == "Format") do
         Z.xlSet @"isDE" $ itemText == "Double Elimination"
-      Z.xInfo { itemLabel }
     name <- Z.xlView @"eOrName" >>= Z.xOk
     date <- Z.xlView @"eOrDate" >>= Z.xOk
     isDE <- Z.xlView @"isDE"
@@ -111,9 +118,113 @@ getEventData = B.adaptBuilder do
     bracketEls <- mapEPupp $ P.els page ".bracket-svg"
     Z.forM_ bracketEls $ \bracketEl -> do
       matchEls <- mapEPupp $ P.els bracketEl ".match"
-      Z.forM_ matchEls $ \matchEl -> do
-        setId <- mapEPupp $ P.getAttribute matchEl "data-match-id"
-        Z.xInfo { setId }
+      Z.forM_ matchEls $ \matchEl -> Z.xPlusS @"winnerId" Z.Nothing do
+        setId <- readDataAttr matchEl "match" >>= \s -> Z.xMapE H2hE.ParseTime
+          (Z.xParser s Z.parseInt)
+        playerEls <- mapEPupp $ P.els matchEl ".match--player"
+        slots <- Z.forM playerEls $ \playerEl -> do
+          entrantId <- readIdDataAttr playerEl "participant"
+          playerName <- mapEPupp $ (P.el playerEl "title" >>= P.innerHtml)
+          scoreEl <- mapEPupp $ P.el playerEl ".match--player-score"
+          scoreClass <- mapEPupp $ P.getAttribute scoreEl "class"
+          scoreS <- mapEPupp $ P.innerHtml scoreEl
+          score <- Z.xMapE H2hE.ParseTime do
+            Z.xParser scoreS Z.parseInt <#> H2h.mkScoreCount
+          Z.forM_ (Z.strSplit (Z.Pattern " ") scoreClass) $ \cn -> do
+            when (cn == "-winner") $ Z.xlSet @"winnerId" $ Z.Just entrantId
+          Z.xSet (Z.l @"entrants" <<< Z.at entrantId) $ Z.Just
+            { id: entrantId
+            , standing: { placement: 0, isFinal: false }
+            , participants:
+                [ { prefix: Z.Nothing
+                  , gamerTag: playerName
+                  , playerOrder: 1
+                  , player:
+                      { id: Z.sOrN $ "Challonge-" <> playerName <> "-playerId"
+                      , gamerTag: playerName
+                      , prefix: Z.Nothing
+                      , pronouns: Z.Nothing
+                      , name: Z.Nothing
+                      , socials: Z.mapEmpty
+                      , images: Z.mapEmpty
+                      }
+                  }
+                ]
+            }
+          pure { entrantId: Z.Just entrantId, score }
+        let emptySlot = { entrantId: Z.Nothing, score: H2h.NoScore }
+        let slotA = Z.fromMaybe emptySlot (Z.nth slots 0)
+        let slotB = Z.fromMaybe emptySlot (Z.nth slots 1)
+        winnerId <- Z.xlView @"winnerId"
+        let baseSet = { winnerId, id: setId, slots: slotA Z./\ slotB }
+        Z.xlOver @"baseSets" $ Z.mapSet setId baseSet
+
+    baseSetList <- Z.xlView @"baseSets" <#>
+      Z.arrReverse <<< Z.arrSortWith (Z.view (Z.l @"id")) <<< Z.arrFromFoldable
+
+    isComplete <- Z.xWithRet do
+      Z.forM_ baseSetList $ \baseSet -> do
+        when (Z.isNothing baseSet.winnerId) (Z.xReturn false)
+      pure true
+
+    let
+      setsLoopState =
+        { last: Z.Nothing :: Z.Maybe { base :: BaseSet, round :: ElimRound.T }
+        , wasGrands: false
+        , depth: 0
+        , roundInd: 0
+        , isDropRound: true
+        , sets: Z.mapEmpty @Int @H2h.Set
+        , gfEntrants: Z.setEmpty @Z.SorN
+        , nonGfEntrants: Z.setEmpty @Z.SorN
+        }
+    Z.xEvalS setsLoopState $ do
+      Z.forM_ baseSetList $ \baseSet -> do
+        { last, wasGrands, isDropRound } <- Z.xGet
+        let
+          isGrands = Z.isNothing last && isDE ||
+            (wasGrands && (slotsKey baseSet) == lastSlotsKey last)
+        when (isGrands && wasGrands) $ Z.whenJust last \l -> do
+          Z.xSet (Z.l @"sets" <<< Z.ix l.base.id <<< Z.l @"round")
+            (ElimRound.Grands true)
+        Z.forM_ [ Z.fst baseSet.slots, Z.snd baseSet.slots ] $ \slot -> do
+          Z.whenJust slot.entrantId $ \entrantId -> do
+            Z.setAdd entrantId #
+              ( if isGrands then Z.xlOver @"gfEntrants"
+                else Z.xlOver @"nonGfEntrants"
+              )
+        { gfEntrants, nonGfEntrants } <- Z.xGet
+        seenAllGFEntrants <- Z.xWithRet do
+          Z.forM_ (Z.arrFromFoldable gfEntrants) $ \id -> do
+            when (not (Z.setHas id nonGfEntrants)) (Z.xReturn false)
+          pure true
+        let wasLosers = (not isGrands) && wasGrands
+        let isLosers = wasLosers && not seenAllGFEntrants
+        when ((not isLosers && wasLosers) || (not isGrands && wasGrands)) do
+          Z.xlSet @"depth" 0
+          Z.xlSet @"roundInd" 0
+        { depth, roundInd } <- Z.xGet
+        let round = elimRound isDE depth isGrands isLosers isDropRound
+        let
+          set =
+            { fullRoundText: "String"
+            , isDQ: false
+            , isBye: false
+            , displayScore: Z.Nothing
+            , doesCount: isComplete
+            , round
+            , id: baseSet.id
+            , winnerId: baseSet.winnerId
+            , slots: baseSet.slots
+            } :: H2h.Set
+        Z.xlOver @"sets" (Z.mapSet baseSet.id set)
+        Z.xInfo { roundInd }
+        Z.xInfo round
+        Z.xlSet @"wasGrands" $ isGrands
+        Z.xlSet @"last" $ Z.Just { base: baseSet, round }
+        pure unit
+      pure unit
+
     pure
       { id: Z.sOrN $ "Challonge-" <> slug <> "-eventId"
       , name
@@ -129,6 +240,8 @@ getEventData = B.adaptBuilder do
           , date: date
           }
       }
+  readDataAttr e n = mapEPupp $ P.getAttribute e ("data-" <> n <> "-id")
+  readIdDataAttr e n = readDataAttr e n <#> Z.sOrN
   waitFor page sel = do
     Z.xInfo { op: "waitFor", sel }
     pure unit
@@ -136,3 +249,14 @@ getEventData = B.adaptBuilder do
   browserOpts = do
     let uaOpt = "--user-agent=" <> userAgent
     Z.xlSet @"args" [ uaOpt, "--no-sandbox", "--disable-setuid-sandbox" ]
+  lastSlotsKey (Z.Just { base: { slots: (eA Z./\ eB) }, round: _ }) =
+    Z.strJoinWith "|" $ Z.arrSort
+      [ mEntrantIdKey eA.entrantId, mEntrantIdKey eB.entrantId ]
+  lastSlotsKey _ = "__"
+  slotsKey s = lastSlotsKey $ Z.Just { base: s, round: ElimRound.Grands false }
+  mEntrantIdKey (Z.Just id) = show id
+  mEntrantIdKey _ = "_"
+  -- elimRound isDE depth isGrands isLosers isDropRound
+  elimRound _ _ true _ _ = ElimRound.Grands false
+  elimRound isDE depth _ false _ = ElimRound.Winners isDE depth
+  elimRound _ depth _ _ isDropRound = ElimRound.Losers isDropRound depth

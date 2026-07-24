@@ -11,6 +11,7 @@ module Z.Puppeteer.Node.Module
   , getAttribute
   , goto
   , goto'
+  , innerHtml
   , innerText
   , newPage
   , setViewport
@@ -110,6 +111,13 @@ innerText
   -> Z.X (Z.EA Z.JsError x) String
 innerText pOrE = Z.xEffectPromise $ js_innerText (asPageOrElement pOrE)
 
+innerHtml
+  :: forall x o
+   . IsPageOrElement o
+  => o
+  -> Z.X (Z.EA Z.JsError x) String
+innerHtml pOrE = Z.xEffectPromise $ js_innerHtml (asPageOrElement pOrE)
+
 getAttribute
   :: forall x
    . Element
@@ -146,6 +154,8 @@ foreign import js_els
 foreign import js_el :: String -> PageOrElement -> Z.Effect (Z.Promise Element)
 
 foreign import js_innerText :: PageOrElement -> Z.Effect (Z.Promise String)
+
+foreign import js_innerHtml :: PageOrElement -> Z.Effect (Z.Promise String)
 
 foreign import js_getAttribute
   :: Element -> String -> Z.Effect (Z.Promise String)

@@ -3,6 +3,7 @@ module Z.H2h.Node.Builder.Startgg.Impl (getEventData) where
 import Prelude
 
 import Z as Z
+import Z.Bk.Elimination.Round as ElimRound
 import Z.Gql.Node.Module as Gql
 import Z.H2h.Error as H2hE
 import Z.H2h.Module as H2h
@@ -62,10 +63,10 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
       { placement: standing.placement, isFinal: standing.isFinal }
 
   let rawPgs = Z.arrSortWith (Z.view $ Z.l @"id") event.phaseGroups
-  pgs <- Z.forM rawPgs $ \pg -> Z.xPlusS @"sets" (Z.mapEmpty @Z.SorN) do
+  pgs <- Z.forM rawPgs $ \pg -> Z.xPlusS @"sets" (Z.mapEmpty @Int) do
     { phaseGroup } <- fetchRawPhaseGroupData pg.id
     Z.forM_ phaseGroup.sets.nodes $ \set -> do
-      let setId = Z.sOrN set.id
+      let setId = set.id
       let isDQ = set.displayScore == Z.Just "DQ"
       let isBye = Z.reduce (\a s -> a || Z.isNothing s.entrant) false set.slots
       let eIdA = Z.firstOfOn set.slots (Z.ix 0 <<< Z.l @"entrant?.id")
@@ -94,10 +95,7 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
         , displayScore: set.displayScore
         , winnerId: set.winnerId <#> Z.sOrN
         , doesCount: true -- TODO
-        , isLosers: true -- TODO
-        , isDropRound: true -- TODO
-        , isGrands: true -- TODO
-        , depth: 0 -- TODO
+        , round: ElimRound.Grands true -- TODO
         , slots: slotA Z./\ slotB
         }
     { sets } <- Z.xGet

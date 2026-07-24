@@ -148,6 +148,7 @@ import Type.Proxy as P
 import Type.Row (type (+))
 import Parsing as Parsing
 import Z.Z.Barlow as Bl
+import Z.Z.Defaultable as ZD
 import Z.Z.Core as Z
 
 ------------------------------------------------------------------
@@ -243,25 +244,25 @@ xSay w = RunW.tell $ pure w
 xTellMappedHush
   :: forall x e m d w
    . Monad.Monad m
-  => Z.Defaultable d
+  => ZD.Defaultable d
   => (e -> w)
   -> X (WE (m w) e x) d
   -> X (W (m w) x) d
 xTellMappedHush mapW m = xTry m >>= onDone
   where
-  onDone (Eor.Left e) = xSay (mapW e) <#> const Z.default
+  onDone (Eor.Left e) = xSay (mapW e) <#> const ZD.default
   onDone (Eor.Right r) = pure $ r
 
 xTellMappedMHush
   :: forall x e m d w
    . Monad.Monad m
-  => Z.Defaultable d
+  => ZD.Defaultable d
   => (e -> m w)
   -> X (WE (m w) e x) d
   -> X (W (m w) x) d
 xTellMappedMHush mapW m = xTry m >>= onDone
   where
-  onDone (Eor.Left e) = RunW.tell (mapW e) <#> const Z.default
+  onDone (Eor.Left e) = RunW.tell (mapW e) <#> const ZD.default
   onDone (Eor.Right r) = pure $ r
 
 xMapW
@@ -410,8 +411,8 @@ xUnwrap e _ = xFail e
 xUnwrap' :: forall x a. May.Maybe a -> X (E Z.JsError x) a
 xUnwrap' = xUnwrap $ Z.jsError' "Nothing#unwrap"
 
-xHush :: forall x e d. Z.Defaultable d => R.Run (E e x) d -> R.Run x d
-xHush m = (xTry m <#> Eor.hush) <#> Z.orDefault
+xHush :: forall x e d. ZD.Defaultable d => R.Run (E e x) d -> R.Run x d
+xHush m = (xTry m <#> Eor.hush) <#> ZD.orDefault
 
 xInvert :: forall x e a. R.Run (E a + E e x) e -> R.Run (E e x) a
 xInvert r = xTry r <#> Z.invert >>= xOk

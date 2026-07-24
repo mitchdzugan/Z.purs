@@ -10,11 +10,7 @@ module Z.Z.Core
   , arrFromFoldable
   , arrSize
   , arrSlice
-  , auto
-  , class Defaultable
   , dec
-  , def
-  , default
   , encodeOpts
   , fDiscard
   , forM
@@ -34,7 +30,6 @@ module Z.Z.Core
   , mapM
   , mapSet
   , mapSize
-  , orDefault
   , p
   , parseFail
   , parseFailWithPosition
@@ -48,12 +43,12 @@ module Z.Z.Core
   , reduce
   , reduceM
   , runParser
+  , setAdd
   , setEmpty
   , setFromFoldable
   , setHas
   , setSize
   , simpleHash
-  , whenJust
   ) where
 
 import Prelude
@@ -148,43 +143,6 @@ type P a = Proxy.Proxy a
 p ∷ ∀ (@a ∷ Symbol). Proxy.Proxy a
 p = Proxy.Proxy
 
-class Defaultable a where
-  default :: a
-
-instance defaultUnit :: Defaultable Unit where
-  default = unit
-
-else instance defaultArray :: Defaultable (Array a) where
-  default = []
-
-else instance defaultJust :: Defaultable (May.Maybe a) where
-  default = May.Nothing
-
-else instance defaultApplicable ::
-  ( Defaultable v
-  , Applicative a
-  ) =>
-  Defaultable (a v) where
-  default = pure default
-
-def :: forall @d. Defaultable d => d
-def = default
-
-auto :: forall d r. Defaultable d => (d -> r) -> r
-auto f = f default
-
-orDefault :: forall d. Defaultable d => May.Maybe d -> d
-orDefault = auto <<< flip May.fromMaybe
-
-whenJust
-  :: forall m d a
-   . Monad.Monad m
-  => Defaultable d
-  => May.Maybe a
-  -> (a -> m d)
-  -> m d
-whenJust m f = May.maybe (pure default) f m
-
 pureF :: forall a x y. Applicative a => (x -> y) -> x -> a y
 pureF f = pure <<< f
 
@@ -210,6 +168,9 @@ setEmpty = Set.empty
 
 setHas :: forall a. Ord.Ord a => a -> Set a -> Boolean
 setHas = Set.member
+
+setAdd :: forall a. Ord.Ord a => a -> Set a -> Set a
+setAdd = Set.insert
 
 setSize :: forall a. Set a -> Int
 setSize = Set.size
