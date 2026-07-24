@@ -12,14 +12,9 @@ module Z.Z.Shorthand
 
 import Prelude
 
-import Z.Z.Barlow as Z
-import Z.Z.Core as Z
-import Z.Z.Defaultable as Z
-import Z.Z.Ext as Z
-import Z.Z.String as Z
-import Z.Z.PairKey as Z
-import Z.Z.Util as Z
-import Z.Z.X as Z
+import Z.Z.Barlow (class ConstructBarlow, class ParseSymbol, Forget, barlow) as Z
+import Z.Z.Defaultable (class Defaultable, orDefault) as Z
+import Z.Z.Ext (class IsSymbol, First, Maybe, Optic, fromMaybe, preview, view) as Z
 
 or :: forall a. a -> Z.Maybe a -> a
 or = Z.fromMaybe
