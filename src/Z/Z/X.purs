@@ -77,8 +77,6 @@ module Z.Z.X
   , xExecAff
   , xExecS
   , xFail
-  , xFirstOf
-  , xFirstOfR
   , xGet
   , xHush
   , xInfo
@@ -89,9 +87,12 @@ module Z.Z.X
   , xMapW
   , xMapWE
   , xOk
+  , xOrDefault
   , xOver
   , xParser
   , xPlusS
+  , xPreview
+  , xPreviewR
   , xResult
   , xRetFail
   , xRetLift
@@ -113,9 +114,9 @@ module Z.Z.X
   , xView
   , xViewR
   , xWithRet
-  , xlOver
-  , xlSet
-  , xlView
+  , xOver_
+  , xSet_
+  , xView_
   ) where
 
 import Prelude
@@ -155,6 +156,9 @@ import Z.Z.Core as Z
 
 xParser :: forall x s a. s -> Parsing.Parser s a -> R.Run (E Z.ParseError x) a
 xParser s pr = xOk $ Z.runParser s pr
+
+xOrDefault :: forall x d. ZD.Defaultable d => R.Run x (May.Maybe d) -> R.Run x d
+xOrDefault m = m <#> ZD.orDefault
 
 --------------- EVAL -------------------------------------------------------
 
@@ -230,11 +234,11 @@ xToArrayOfR
   -> R.Run (R s x) (Array a)
 xToArrayOfR l = xAsk <#> Lens.toArrayOf l
 
-xFirstOfR
+xPreviewR
   :: forall x s t a b
    . Lens.Fold (MayFirst.First a) s t a b
   -> R.Run (R s x) (May.Maybe a)
-xFirstOfR l = xAsk <#> Lens.preview l
+xPreviewR l = xAsk <#> Lens.preview l
 
 --------------- W FNS -----------------------------------------------------
 
@@ -286,13 +290,13 @@ xGet = RunS.get
 xView :: forall x s t a b. Lens.Lens s t a b -> R.Run (S s x) a
 xView l = xGet <#> Lens.view l
 
-xlView
+xView_
   :: forall @sym x lenses s t a b
    . Bl.ParseSymbol sym lenses
   => Bl.ConstructBarlow lenses (Bl.Forget a) s t a b
   => Bl.IsSymbol sym
   => R.Run (S s x) a
-xlView = xGet <#> Lens.view (Bl.l @sym)
+xView_ = xGet <#> Lens.view (Bl.__ @sym)
 
 xToArrayOf
   :: forall x s t a b
@@ -303,11 +307,11 @@ xToArrayOf l = xGet <#> Lens.toArrayOf l
 xReview :: forall x s t a b. Lens.Review s t a b -> b -> R.Run (S t x) Unit
 xReview l b = RunS.put $ Lens.review l b
 
-xFirstOf
+xPreview
   :: forall x s t a b
    . Lens.Fold (MayFirst.First a) s t a b
   -> R.Run (S s x) (May.Maybe a)
-xFirstOf l = xGet <#> Lens.preview l
+xPreview l = xGet <#> Lens.preview l
 
 xOver :: forall x s a b. Lens.Setter s s a b -> (a -> b) -> R.Run (S s x) Unit
 xOver l f = RunS.get >>= RunS.put <<< Lens.over l f
@@ -315,23 +319,23 @@ xOver l f = RunS.get >>= RunS.put <<< Lens.over l f
 xSet :: forall x s a b. Lens.Setter s s a b -> b -> R.Run (S s x) Unit
 xSet l v = RunS.get >>= RunS.put <<< Lens.set l v
 
-xlSet
+xSet_
   :: forall @sym x s a b lenses
    . Bl.IsSymbol sym
   => Bl.ParseSymbol sym lenses
   => Bl.ConstructBarlow lenses Function s s a b
   => b
   -> R.Run (S s x) Unit
-xlSet v = RunS.get >>= RunS.put <<< Lens.set (Bl.l @sym) v
+xSet_ v = RunS.get >>= RunS.put <<< Lens.set (Bl.__ @sym) v
 
-xlOver
+xOver_
   :: forall @sym x s a b lenses
    . Bl.IsSymbol sym
   => Bl.ParseSymbol sym lenses
   => Bl.ConstructBarlow lenses Function s s a b
   => (a -> b)
   -> R.Run (S s x) Unit
-xlOver f = RunS.get >>= RunS.put <<< Lens.over (Bl.l @sym) f
+xOver_ f = RunS.get >>= RunS.put <<< Lens.over (Bl.__ @sym) f
 
 xExecS :: forall x s a. s -> R.Run (S s x) a -> R.Run x (s TupN./\ a)
 xExecS = RunS.runState
@@ -412,7 +416,7 @@ xUnwrap' :: forall x a. May.Maybe a -> X (E Z.JsError x) a
 xUnwrap' = xUnwrap $ Z.jsError' "Nothing#unwrap"
 
 xHush :: forall x e d. ZD.Defaultable d => R.Run (E e x) d -> R.Run x d
-xHush m = (xTry m <#> Eor.hush) <#> ZD.orDefault
+xHush m = xOrDefault $ xTry m <#> Eor.hush
 
 xInvert :: forall x e a. R.Run (E a + E e x) e -> R.Run (E e x) a
 xInvert r = xTry r <#> Z.invert >>= xOk

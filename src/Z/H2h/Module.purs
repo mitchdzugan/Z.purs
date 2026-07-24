@@ -21,7 +21,6 @@ module Z.H2h.Module
   ) where
 
 import Z as Z
-import Z.Bk.Elimination.Round as ElimRound
 import Z.H2h.Error as H2hE
 import Z.H2h.Warning as H2hW
 
@@ -62,14 +61,13 @@ type Slot =
 
 type Set =
   { id :: Int
-  , fullRoundText :: String
   , isDQ :: Boolean
   , isBye :: Boolean
-  , displayScore :: Z.Maybe String
   , winnerId :: Z.Maybe Z.SorN
   , doesCount :: Boolean
-  , round :: ElimRound.T
-  , slots :: Slot Z./\ Slot
+  , roundText :: String
+  , slots :: Z.Pair Slot
+  , overrideScoreText :: Z.Maybe String
   }
 
 type Phase =

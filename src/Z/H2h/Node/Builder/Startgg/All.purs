@@ -6,10 +6,10 @@ module Z.H2h.Node.Builder.Startgg.All
 
 import Prelude
 
+import Z (_o, _o_, o_)
+import Z as Z
 import Z.Gql.Node.Module as Gql
 import Z.H2h.Node.Builder.Startgg.Queries as GGQ
-import Z as Z
-import Data.Lens as Lens
 
 data GGPageSpecF v r pnr = GGPageSpecF
   (Z.Lens' { | v } Int)
@@ -62,15 +62,15 @@ ggPageSpecHandleImpl (GGPageSpecF pageL dataL) = do
   Z.xPlusS @"seenIds" Z.setEmpty $ loop op client networkControl
   where
   loop op client networkControl = do
-    Z.xToArrayOf (Z.l @"res" <<< dataL <<< Z.l @"nodes+.id") >>= \ids -> do
-      (Z.xlSet @"seenIds" $ Z.setFromFoldable ids)
-    seenIds <- Z.xlView @"seenIds"
-    total <- Z.xView (Z.l @"res" <<< dataL <<< Z.l @"pageInfo.total")
+    Z.xToArrayOf (_o_ @"res" @"nodes+.id" dataL) >>= \ids -> do
+      (Z.xSet_ @"seenIds" $ Z.setFromFoldable ids)
+    seenIds <- Z.xView_ @"seenIds"
+    total <- Z.xView (_o_ @"res" @"pageInfo.total" dataL)
     when (Z.setSize seenIds < total) do
-      Z.xOver (Z.l @"vars" <<< pageL) Z.inc
-      vars <- Z.xlView @"vars"
+      Z.xOver (_o @"vars" pageL) Z.inc
+      vars <- Z.xView_ @"vars"
       res <- Gql.operate op vars client networkControl
-      let nodes = Z.view (dataL <<< Z.l @"nodes") res
-      Z.xOver (Z.l @"res" <<< dataL <<< Z.l @"nodes")
+      let nodes = Z.view (dataL # o_ @"nodes") res
+      Z.xOver (_o_ @"res" @"nodes" dataL)
         (flip (<>) $ Z.arrFilter (\{ id } -> not $ Z.setHas id seenIds) nodes)
       loop op client networkControl

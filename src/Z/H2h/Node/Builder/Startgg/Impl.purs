@@ -2,8 +2,8 @@ module Z.H2h.Node.Builder.Startgg.Impl (getEventData) where
 
 import Prelude
 
+import Z (_o, _o_, o_)
 import Z as Z
-import Z.Bk.Elimination.Round as ElimRound
 import Z.Gql.Node.Module as Gql
 import Z.H2h.Error as H2hE
 import Z.H2h.Module as H2h
@@ -11,19 +11,24 @@ import Z.H2h.Node.Builder.API as B
 import Z.H2h.Node.Builder.Startgg.All as All
 import Z.H2h.Node.Builder.Startgg.Queries as Q
 import Z.H2h.Warning as H2hW
+import Z.Z.Barlow (__)
 
-mapOfPairsWithType
-  :: forall @l lt r'' r' r
-   . Z.IsSymbol l
-  => Z.IsSymbol lt
-  => Z.TypeEquals lt "type"
-  => Z.Cons lt String r'' r
-  => Z.Cons l String r' r
+mapOfJsonElsWithFieldsTypeAnd_t
+  :: forall @t ttype tLns ttypeLns tr' ttyper' r
+   . Z.IsSymbol t
+  => Z.IsSymbol ttype
+  => Z.TypeEquals ttype "type"
+  => Z.Cons ttype String ttyper' r
+  => Z.Cons t String tr' r
+  => Z.ParseSymbol t tLns
+  => Z.ConstructBarlow tLns (Z.Forget String) { | r } { | r } String String
+  => Z.ParseSymbol ttype ttypeLns
+  => Z.ConstructBarlow ttypeLns (Z.Forget String) { | r } { | r } String String
   => Array { | r }
   -> Z.Map String String
-mapOfPairsWithType = Z.reduce reducer Z.mapEmpty
+mapOfJsonElsWithFieldsTypeAnd_t = Z.reduce reducer Z.mapEmpty
   where
-  reducer m i = Z.mapSet (Z.view (Z.lpt @lt) i) (Z.view (Z.lpt @l) i) m
+  reducer m i = Z.mapSet (Z.lview @ttype i) (Z.lview @t i) m
 
 getEventData :: forall x. B.GetDataFn x
 getEventData = B.adaptBuilder $ Z.xEvalS initState do
@@ -33,8 +38,8 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
   Z.forM_ entrantNodes $ \entrantNode -> do
     participants <- Z.forM entrantNode.participants $ \participant -> do
       let { player } = participant
-      let playerImages = Z.orDefault $ Z.firstOf (Z.l @"user?.images") player
-      let auths = Z.orDefault $ Z.firstOf (Z.l @"user?.authorizations?") player
+      let playerImages = Z.orDefault $ Z.lpreview @"user?.images" player
+      let auths = Z.orDefault $ Z.lpreview @"user?.authorizations?" player
       pure
         { gamerTag: participant.gamerTag
         , prefix: participant.prefix
@@ -43,10 +48,10 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
             { id: Z.sOrN player.id
             , gamerTag: player.gamerTag
             , prefix: player.prefix
-            , pronouns: Z.view (Z.l @"user?.genderPronoun") player
-            , name: Z.view (Z.l @"user?.name") player
-            , socials: mapOfPairsWithType @"externalUsername" auths
-            , images: mapOfPairsWithType @"url" playerImages
+            , pronouns: Z.lview @"user?.genderPronoun" player
+            , name: Z.lview @"user?.name" player
+            , socials: mapOfJsonElsWithFieldsTypeAnd_t @"externalUsername" auths
+            , images: mapOfJsonElsWithFieldsTypeAnd_t @"url" playerImages
             }
         }
     let
@@ -56,21 +61,21 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
         , participants
         , standing: { placement: 0, isFinal: false }
         }
-    Z.xlOver @"entrants" (Z.mapSet entrantId entrant)
+    Z.xOver_ @"entrants" (Z.mapSet entrantId entrant)
   Z.forM_ event.standings.nodes $ \standing -> do
     let entrantId = Z.sOrN standing.entrant.id
-    Z.xSet (Z.l @"entrants" <<< (Z.ix entrantId) <<< Z.l @"standing")
+    Z.xSet (_o_ @"entrants" @"standing" (Z.ix entrantId))
       { placement: standing.placement, isFinal: standing.isFinal }
 
-  let rawPgs = Z.arrSortWith (Z.view $ Z.l @"id") event.phaseGroups
+  let rawPgs = Z.arrSortWith (Z.lview @"id") event.phaseGroups
   pgs <- Z.forM rawPgs $ \pg -> Z.xPlusS @"sets" (Z.mapEmpty @Int) do
     { phaseGroup } <- fetchRawPhaseGroupData pg.id
     Z.forM_ phaseGroup.sets.nodes $ \set -> do
       let setId = set.id
       let isDQ = set.displayScore == Z.Just "DQ"
       let isBye = Z.reduce (\a s -> a || Z.isNothing s.entrant) false set.slots
-      let eIdA = Z.firstOfOn set.slots (Z.ix 0 <<< Z.l @"entrant?.id")
-      let eIdB = Z.firstOfOn set.slots (Z.ix 1 <<< Z.l @"entrant?.id")
+      let eIdA = Z.preview (Z.ix 0 # o_ @"entrant?.id") set.slots
+      let eIdB = Z.preview (Z.ix 1 # o_ @"entrant?.id") set.slots
       let isWinA = eIdA == set.winnerId && Z.isJust set.winnerId
       slotScoreA Z./\ slotScoreB <- Z.xWithRet do
         let games = Z.orDefault set.games
@@ -87,16 +92,15 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
         pure $ H2h.NoScore Z./\ H2h.NoScore
       let slotA = { entrantId: eIdA <#> Z.sOrN, score: slotScoreA }
       let slotB = { entrantId: eIdB <#> Z.sOrN, score: slotScoreB }
-      Z.xSet (Z.l @"sets" <<< Z.at setId) $ Z.Just
+      Z.xSet (_o @"sets" $ Z.at setId) $ Z.Just
         { id: setId
-        , fullRoundText: set.fullRoundText
+        , roundText: set.fullRoundText
+        , overrideScoreText: set.displayScore
         , isDQ
         , isBye
-        , displayScore: set.displayScore
         , winnerId: set.winnerId <#> Z.sOrN
-        , doesCount: true -- TODO
-        , round: ElimRound.Grands true -- TODO
-        , slots: slotA Z./\ slotB
+        , doesCount: (not isBye) && (not isDQ) && (Z.isJust set.winnerId)
+        , slots: slotA Z.~ slotB
         }
     { sets } <- Z.xGet
     pure
@@ -125,7 +129,7 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
     , tournament:
         { id: Z.sOrN event.tournament.id
         , name: event.tournament.name
-        , images: mapOfPairsWithType @"url" event.tournament.images
+        , images: mapOfJsonElsWithFieldsTypeAnd_t @"url" event.tournament.images
         , date
         }
     }
@@ -134,7 +138,7 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
   fetchRawPhaseGroupData phaseGroupId = do
     { client, networkControl } <- Z.xAsk
     let initVars = { page: 0, phaseGroupId }
-    let pSpecs = [ All.ggPageSpec (Z.l @"page") (Z.l @"phaseGroup.sets") ]
+    let pSpecs = [ All.ggPageSpec (__ @"page") (__ @"phaseGroup.sets") ]
     Z.xMapWE H2hW.Gql H2hE.Gql do
       All.ggQueryAll Q.phaseGroup initVars pSpecs client networkControl
   fetchRawEventData = Z.xTryUntil
@@ -148,7 +152,7 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
       { client, slug } <- Z.xAsk
       nc <- Z.xAsk <#> \r -> Z.fromMaybe r.networkControl ncOverride
       let initVars = { pageE: 0, pageS: 0, slug }
-      let eSpec = All.ggPageSpec (Z.l @"pageE") (Z.l @"event.entrants")
-      let sSpec = All.ggPageSpec (Z.l @"pageS") (Z.l @"event.standings")
+      let eSpec = All.ggPageSpec (__ @"pageE") (__ @"event.entrants")
+      let sSpec = All.ggPageSpec (__ @"pageS") (__ @"event.standings")
       let pSpecs = [ eSpec, sSpec ]
       Z.xMapWE H2hW.Gql H2hE.Gql do All.ggQueryAll q initVars pSpecs client nc
