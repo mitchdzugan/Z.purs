@@ -4,8 +4,8 @@ module Z.Gql.Node.Module
   ) where
 
 import Z.Gql.Module
-  ( Error(..)
-  , Warning(..)
+  ( Error
+  , Warning
   ) as Gql
 import Z.Gql.Node.Impl
   ( Client

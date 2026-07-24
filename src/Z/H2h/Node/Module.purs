@@ -5,10 +5,10 @@ module Z.H2h.Node.Module
 
 import Z.H2h.Module
   ( BracketingSite(..)
-  , Error(..)
+  , Error
   , Event
   , EventSource
-  , Warning(..)
+  , Warning
   , challongeSource
   , startggSource
   ) as H2h
