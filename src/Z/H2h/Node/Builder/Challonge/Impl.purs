@@ -223,7 +223,6 @@ getEventData = B.adaptBuilder do
                 (_o_ @"entrants" @"standing" $ Z.ix id)
                 { placement, isFinal: true }
             let wId Z.~ lId = if w == Z.Up then eA Z.~ eB else eB Z.~ eA
-            Z.xInfo { wId, lId, w }
             if isGrands && not wasGrands then do
               setFinStanding wId 1
               setFinStanding lId 2
@@ -303,7 +302,6 @@ getEventData = B.adaptBuilder do
   readIdDataAttr e n = readDataAttr e n <#> Z.sOrN
   waitFor page sel = do
     Z.xInfo { op: "waitFor", sel }
-    pure unit
     P.waitForSelector page sel $ Z.xSet_ @"timeout" $ Z.Just 120000
   browserOpts = do
     let uaOpt = "--user-agent=" <> userAgent

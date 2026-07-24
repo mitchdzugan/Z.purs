@@ -84,7 +84,7 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
           else Z.Just Z.Down
       slotScoreA Z./\ slotScoreB <- Z.xWithRet do
         let games = Z.orDefault set.games
-        let winnerIds = games <#> \g -> g.winnerId
+        let winnerIds = games <#> _.winnerId
         let doneGames = Z.arrSize $ Z.arrFilter Z.isJust winnerIds
         when (Z.arrSize games == doneGames && doneGames > 0) do
           let w1Games = Z.arrSize $ Z.arrFilter (eq eIdA) winnerIds
@@ -118,7 +118,6 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
           , phaseOrder: pg.phase.phaseOrder
           }
       }
-  Z.xInfo pgs
   { entrants } <- Z.xGet
   let { endAt } = event.tournament
   date <- Z.xUnwrap (H2hE.InvalidInstant endAt) do
