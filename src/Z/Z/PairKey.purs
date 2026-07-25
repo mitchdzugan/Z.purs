@@ -9,7 +9,7 @@ import Data.Argonaut.Encode (class EncodeJson) as Enc
 import Data.Argonaut.Encode.Generic (genericEncodeJson) as EncodeGeneric
 import Data.Generic.Rep (class Generic) as Generic
 
-data PairKey = Up | Down
+data PairKey = Pos | Neg
 
 derive instance eqUser :: Eq PairKey
 derive instance ordUser :: Ord PairKey

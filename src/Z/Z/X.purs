@@ -298,7 +298,7 @@ xView_
   => Bl.ConstructBarlow lenses (Bl.Forget a) s t a b
   => Bl.IsSymbol sym
   => R.Run (S s x) a
-xView_ = xGet <#> Lens.view (Bl.__ @sym)
+xView_ = xGet <#> Lens.view (Bl.barlow @sym)
 
 xToArrayOf
   :: forall x s t a b
@@ -328,7 +328,7 @@ xSet_
   => Bl.ConstructBarlow lenses Function s s a b
   => b
   -> R.Run (S s x) Unit
-xSet_ v = RunS.get >>= RunS.put <<< Lens.set (Bl.__ @sym) v
+xSet_ v = RunS.get >>= RunS.put <<< Lens.set (Bl.barlow @sym) v
 
 xOver_
   :: forall @sym x s a b lenses
@@ -337,7 +337,7 @@ xOver_
   => Bl.ConstructBarlow lenses Function s s a b
   => (a -> b)
   -> R.Run (S s x) Unit
-xOver_ f = RunS.get >>= RunS.put <<< Lens.over (Bl.__ @sym) f
+xOver_ f = RunS.get >>= RunS.put <<< Lens.over (Bl.barlow @sym) f
 
 xExecS :: forall x s a. s -> R.Run (S s x) a -> R.Run x (s TupN./\ a)
 xExecS = RunS.runState
@@ -554,7 +554,7 @@ handleXBase = case _ of
     pure e
 
 runXBase :: forall r. R.Run (XBASE + r) ~> R.Run r
-runXBase = R.interpret (R.on _eff handleXBase R.send)
+runXBase = R.run (R.on _eff handleXBase R.send)
 
 xLogCmd :: forall l x. String -> l -> X x Unit
 xLogCmd k v = do

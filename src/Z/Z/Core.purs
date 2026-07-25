@@ -4,7 +4,6 @@ module Z.Z.Core
   , P
   , ParseError
   , Set
-  , adjustDateTime
   , arrEmpty
   , arrFilter
   , arrFromFoldable
@@ -31,7 +30,6 @@ module Z.Z.Core
   , mapM
   , mapSet
   , mapSize
-  , or
   , p
   , p2
   , parseFail
@@ -62,8 +60,6 @@ import Data.Argonaut.Core as Arg
 import Data.Argonaut.Decode (class DecodeJson, decodeJson)
 import Data.Argonaut.Encode (class EncodeJson, encodeJson)
 import Data.Array as Arr
-import Data.DateTime as DateTime
-import Data.Time.Duration as TimeDuration
 import Data.Either as Eor
 import Data.Foldable as Foldable
 import Data.Int as Int
@@ -310,17 +306,6 @@ parseInt = do
   when (not (n == ni)) do
     parseFail "Integer Number Expected"
   pure i
-
-adjustDateTime
-  :: forall d
-   . TimeDuration.Duration d
-  => d
-  -> DateTime.DateTime
-  -> May.Maybe DateTime.DateTime
-adjustDateTime = DateTime.adjust
-
-or :: forall a. a -> May.Maybe a -> a
-or = May.fromMaybe
 
 p2 :: Int -> Int
 p2 = Int.pow 2

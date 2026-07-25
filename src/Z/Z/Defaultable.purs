@@ -14,6 +14,9 @@ import Data.Maybe as May
 class Defaultable a where
   default :: a
 
+instance defaultString :: Defaultable String where
+  default = ""
+
 instance defaultUnit :: Defaultable Unit where
   default = unit
 

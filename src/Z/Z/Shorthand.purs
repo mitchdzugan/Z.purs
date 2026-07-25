@@ -1,23 +1,75 @@
 module Z.Z.Shorthand
-  ( __
+  ( (%)
+  , (~)
+  , __
   , _o
   , _o_
   , g_
   , gmOr'_
   , gmOr_
   , gm_
+  , jOr
+  , jOr'
+  , jOr0
+  , jOr1
+  , jOr1n
+  , jOrF
+  , jOrT
   , o_
-  , or
+  , over_
+  , set_
   ) where
 
 import Prelude
 
 import Z.Z.Barlow (class ConstructBarlow, class ParseSymbol, Forget, barlow) as Z
 import Z.Z.Defaultable (class Defaultable, orDefault) as Z
-import Z.Z.Ext (class IsSymbol, First, Maybe, Optic, fromMaybe, preview, view) as Z
+import Z.Z.Ext (class IsSymbol, First, Maybe, Optic, fromMaybe, preview, over, view, set) as Z
 
-or :: forall a. a -> Z.Maybe a -> a
-or = Z.fromMaybe
+jOr :: forall a. a -> Z.Maybe a -> a
+jOr = Z.fromMaybe
+
+jOr' :: forall a. Z.Defaultable a => Z.Maybe a -> a
+jOr' = Z.orDefault
+
+jOr0 :: Z.Maybe Int -> Int
+jOr0 = Z.fromMaybe 0
+
+jOr1 :: Z.Maybe Int -> Int
+jOr1 = Z.fromMaybe 1
+
+jOr1n :: Z.Maybe Int -> Int
+jOr1n = Z.fromMaybe (-1)
+
+jOrT :: Z.Maybe Boolean -> Boolean
+jOrT = Z.fromMaybe true
+
+jOrF :: Z.Maybe Boolean -> Boolean
+jOrF = Z.fromMaybe false
+
+set_
+  :: forall s t a b @sym lenses
+   . Z.IsSymbol sym
+  => Z.ParseSymbol sym lenses
+  => Z.ConstructBarlow lenses Function s t a b
+  => s
+  -> b
+  -> t
+set_ = flip (Z.set (Z.barlow @sym))
+
+infixr 0 set_ as ~
+
+over_
+  :: forall s t a b @sym lenses
+   . Z.IsSymbol sym
+  => Z.ParseSymbol sym lenses
+  => Z.ConstructBarlow lenses Function s t a b
+  => s
+  -> (a -> b)
+  -> t
+over_ = flip (Z.over (Z.barlow @sym))
+
+infixr 0 over_ as %
 
 g_
   :: forall @sym lenses s t a b

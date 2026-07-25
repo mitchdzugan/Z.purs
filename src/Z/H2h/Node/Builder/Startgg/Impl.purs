@@ -2,7 +2,6 @@ module Z.H2h.Node.Builder.Startgg.Impl (getEventData) where
 
 import Prelude
 
-import Z.Z.Shorthand (_o, _o_, g_, gmOr'_, o_)
 import Z as Z
 import Z.Gql.Node.Module as Gql
 import Z.H2h.Error as H2hE
@@ -11,7 +10,7 @@ import Z.H2h.Node.Builder.API as B
 import Z.H2h.Node.Builder.Startgg.All as All
 import Z.H2h.Node.Builder.Startgg.Queries as Q
 import Z.H2h.Warning as H2hW
-import Z.Z.Barlow (__)
+import Z.Z.Shorthand (__, _o, _o_, g_, gmOr'_, jOr, o_)
 
 mapOfJsonElsWithFieldsTypeAnd_t
   :: forall @t ttype tLns ttypeLns tr' ttyper' r
@@ -38,8 +37,8 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
   Z.forM_ entrantNodes $ \entrantNode -> do
     participants <- Z.forM entrantNode.participants $ \participant -> do
       let { player } = participant
-      let playerImages = gmOr'_ @"user?.images" player
-      let auths = gmOr'_ @"user?.authorizations?" player
+      let playerImages = player # gmOr'_ @"user?.images"
+      let auths = player # gmOr'_ @"user?.authorizations?"
       pure
         { gamerTag: participant.gamerTag
         , prefix: participant.prefix
@@ -48,8 +47,8 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
             { id: Z.sOrN player.id
             , gamerTag: player.gamerTag
             , prefix: player.prefix
-            , pronouns: g_ @"user?.genderPronoun" player
-            , name: g_ @"user?.name" player
+            , pronouns: player # g_ @"user?.genderPronoun"
+            , name: player # g_ @"user?.name"
             , socials: mapOfJsonElsWithFieldsTypeAnd_t @"externalUsername" auths
             , images: mapOfJsonElsWithFieldsTypeAnd_t @"url" playerImages
             }
@@ -80,8 +79,8 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
         isWinA = eIdA == set.winnerId && Z.isJust set.winnerId
         winner =
           if Z.isNothing set.winnerId then Z.Nothing
-          else if isWinA then Z.Just Z.Up
-          else Z.Just Z.Down
+          else if isWinA then Z.Just Z.Pos
+          else Z.Just Z.Neg
       slotScoreA Z./\ slotScoreB <- Z.xWithRet do
         let games = Z.orDefault set.games
         let winnerIds = games <#> _.winnerId
@@ -154,7 +153,7 @@ getEventData = B.adaptBuilder $ Z.xEvalS initState do
     where
     f' q ncOverride = do
       { client, slug } <- Z.xAsk
-      nc <- Z.xAsk <#> \r -> Z.or r.networkControl ncOverride
+      nc <- Z.xAsk <#> \r -> jOr r.networkControl ncOverride
       let initVars = { pageE: 0, pageS: 0, slug }
       let eSpec = All.ggPageSpec (__ @"pageE") (__ @"event.entrants")
       let sSpec = All.ggPageSpec (__ @"pageS") (__ @"event.standings")

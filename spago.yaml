@@ -19,7 +19,6 @@ package:
     - maybe
     - node-process
     - optparse
-    - pairs
     - parsing
     - prelude
     - profunctor

@@ -1,11 +1,13 @@
 module Z.Puppeteer.Node.Module
   ( Browser
-  , Element
+  , Element_
+  , Element(..)
   , Page
   , PageOrElement
   , WaitUntil(..)
   , asPageOrElement
   , class IsPageOrElement
+  , context
   , el
   , els
   , getAttribute
@@ -94,7 +96,9 @@ els
   => o
   -> String
   -> Z.X (Z.EA Z.JsError x) (Array Element)
-els pOrE sel = Z.xEffectPromise $ js_els sel (asPageOrElement pOrE)
+els pOrE sel = do
+  els_ <- Z.xEffectPromise $ js_els sel (asPageOrElement pOrE)
+  pure $ els_ <#> \el_ -> Element ("(" <> context pOrE <> ")[]") el_
 
 el
   :: forall x o
@@ -102,7 +106,9 @@ el
   => o
   -> String
   -> Z.X (Z.EA Z.JsError x) Element
-el pOrE sel = Z.xEffectPromise $ js_el sel (asPageOrElement pOrE)
+el pOrE sel = do
+  el_ <- Z.xEffectPromise $ js_el sel (asPageOrElement pOrE)
+  pure $ Element (context pOrE <> " |> ") el_
 
 innerText
   :: forall x o
@@ -123,14 +129,16 @@ getAttribute
    . Element
   -> String
   -> Z.X (Z.EA Z.JsError x) String
-getAttribute elem attr = Z.xEffectPromise $ js_getAttribute elem attr
+getAttribute (Element _ e) attr = Z.xEffectPromise $ js_getAttribute e attr
 
 -------------- foreign data imports -----------------------------------
 
 foreign import data Browser :: Type
 foreign import data Page :: Type
-foreign import data Element :: Type
+foreign import data Element_ :: Type
 foreign import data PageOrElement :: Type
+
+data Element = Element String Element_
 
 -------------- foreign imports ----------------------------------------
 
@@ -149,20 +157,20 @@ foreign import js_waitForSelector
   :: String -> Z.Json -> Page -> Z.Effect (Z.Promise Unit)
 
 foreign import js_els
-  :: String -> PageOrElement -> Z.Effect (Z.Promise (Array Element))
+  :: String -> PageOrElement -> Z.Effect (Z.Promise (Array Element_))
 
-foreign import js_el :: String -> PageOrElement -> Z.Effect (Z.Promise Element)
+foreign import js_el :: String -> PageOrElement -> Z.Effect (Z.Promise Element_)
 
 foreign import js_innerText :: PageOrElement -> Z.Effect (Z.Promise String)
 
 foreign import js_innerHtml :: PageOrElement -> Z.Effect (Z.Promise String)
 
 foreign import js_getAttribute
-  :: Element -> String -> Z.Effect (Z.Promise String)
+  :: Element_ -> String -> Z.Effect (Z.Promise String)
 
 foreign import js_PageOrElement_P :: Page -> PageOrElement
 
-foreign import js_PageOrElement_E :: Element -> PageOrElement
+foreign import js_PageOrElement_E :: Element_ -> PageOrElement
 
 -------------- internal impls -----------------------------------------
 
@@ -176,12 +184,19 @@ close = Z.xEffectPromise <<< js_browserClose
 
 class IsPageOrElement a where
   asPageOrElement :: a -> PageOrElement
+  context :: a -> String
 
 instance pageIsPageOrElement :: IsPageOrElement Page where
   asPageOrElement = js_PageOrElement_P
+  context _ = ""
 
-instance elementIsPageOrElement :: IsPageOrElement Element where
+instance elementIsPageOrElement :: IsPageOrElement Element_ where
   asPageOrElement = js_PageOrElement_E
+  context _ = ""
+
+instance element__IsPageOrElement :: IsPageOrElement Element where
+  asPageOrElement (Element _ e) = js_PageOrElement_E e
+  context (Element x _) = x
 
 type BrowserOpts =
   { exe :: Z.Maybe String
@@ -198,4 +213,5 @@ type GotoOpts =
   }
 
 type WaitForOpts =
-  { timeout :: Z.Maybe Int }
+  { timeout :: Z.Maybe Int
+  }

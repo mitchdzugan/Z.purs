@@ -12,9 +12,10 @@ import Prelude
 
 import Z as Z
 import Z.Gql.Error as GqlE
-import Z.Gql.Warning as GqlW
 import Z.Gql.Module as Gql
+import Z.Gql.Warning as GqlW
 import Z.Sys.Node.Module as Sys
+import Z.Z.Shorthand (jOrF)
 
 type Client =
   { url :: String
@@ -91,7 +92,7 @@ operateUnknown opString vars client networkControl = Z.xWithRet $ do
     where
     mapMDecodeErr e@(Sys.DecodeError _) = [ GqlW.CacheDecode e ]
     mapMDecodeErr _ = []
-    checkIsSelf parseData = Z.or false do
+    checkIsSelf parseData = jOrF do
       cachedOpKeyStr <- (Z.nth parseData 1)
       pure $ Z.caseJsonString false (eq opKeyStr) cachedOpKeyStr
     handleParsed Z.Nothing = pure $ collisionCount Z./\ Z.Nothing

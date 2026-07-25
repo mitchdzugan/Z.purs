@@ -5,6 +5,8 @@ module Z.Z.Ext
   , module CA
   , module DC
   , module DateTime
+  , module DateTimeDuration
+  , module DateTimeInst
   , module Dec
   , module DecodeGeneric
   , module Effect
@@ -25,7 +27,7 @@ module Z.Z.Ext
   , module Map
   , module Maybe
   , module MaybeFirst
-  , module Pair
+  , module Newtype
   , module Parsing
   , module Prc
   , module Promise
@@ -50,8 +52,8 @@ import Data.Argonaut.Encode.Generic (genericEncodeJson) as EncodeGeneric
 import Data.Array (slice) as Array
 import Data.Codec (Codec, Codec') as DC
 import Data.Codec.Argonaut (JsonCodec) as CA
-import Data.DateTime (DateTime(..), Month(..), Hour, Year, Day, Second, Minute, Millisecond, canonicalDate, Time(..), Date) as DateTime
-import Data.DateTime.Instant (Instant, instant, toDateTime) as DateTime
+import Data.DateTime (Month(..), Hour, Year, Day, Second, Minute, Millisecond, canonicalDate, Time(..), Date) as DateTime
+import Data.DateTime.Instant (Instant, instant) as DateTimeInst
 import Data.Either (Either(..), either, hush) as Either
 import Data.Enum (toEnum) as Enum
 import Data.Exists (Exists, mkExists, runExists) as Exists
@@ -66,10 +68,10 @@ import Data.Lens.Types (AffineTraversal) as LensT
 import Data.Map (Map) as Map
 import Data.Maybe (Maybe(..), fromMaybe, fromMaybe', isJust, isNothing) as Maybe
 import Data.Maybe.First (First) as MaybeFirst
-import Data.Pair (Pair(..), (~)) as Pair
+import Data.Newtype (wrap, unwrap) as Newtype
 import Data.String (Pattern(..)) as Str
 import Data.Symbol (class IsSymbol, reifySymbol, reflectSymbol) as Symbol
-import Data.Time.Duration (Milliseconds(..), Hours(..)) as DateTime
+import Data.Time.Duration (Milliseconds(..), Hours(..)) as DateTimeDuration
 import Data.Tuple (Tuple(..), fst, snd) as Tup
 import Data.Tuple.Nested ((/\), type (/\)) as TupNested
 import Effect (Effect) as Effect

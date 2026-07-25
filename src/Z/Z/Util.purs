@@ -188,17 +188,14 @@ class IsStringOrNum a where
   sOrN :: a -> SorN
 
 derive instance genericSorN :: Generic.Generic SorN _
+derive instance eqSorN :: Eq SorN
+derive instance ordSorN :: Ord SorN
 
-instance eqSorN :: Eq SorN where
-  eq (SorN_S s1) (SorN_S s2) = eq s1 s2
-  eq (SorN_I i1) (SorN_I i2) = eq i1 i2
-  eq _ _ = false
+instance decodeSorN :: Dec.DecodeJson SorN where
+  decodeJson x = DecodeGeneric.genericDecodeJson x
 
-instance ordSorN :: Ord SorN where
-  compare (SorN_S s1) (SorN_S s2) = compare s1 s2
-  compare (SorN_I i1) (SorN_I i2) = compare i1 i2
-  compare (SorN_I _) _ = Ordering.LT
-  compare _ _ = Ordering.GT
+instance encodeSorN :: Enc.EncodeJson SorN where
+  encodeJson x = EncodeGeneric.genericEncodeJson x
 
 instance stringIsStringOrNum :: IsStringOrNum String where
   sOrN = SorN_S

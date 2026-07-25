@@ -7,12 +7,12 @@ import Prelude
 import Data.Foldable (maximum)
 import Z as Z
 import Z.Bk.Elimination.Round as Round
+import Z.H2h.Error as H2HE
 import Z.H2h.Error as H2hE
 import Z.H2h.Module as H2h
 import Z.H2h.Node.Builder.API as B
 import Z.Puppeteer.Node.Module as P
-import Z.Z.Barlow (__, _o_)
-import Z.Z.Shorthand (_o, g_, o_)
+import Z.Z.Shorthand (__, _o, _o_, g_, jOr, jOr0, jOrF, o_, (~))
 
 userAgent :: String
 userAgent =
@@ -75,24 +75,19 @@ getEventData :: forall x. B.GetDataFn x
 getEventData = B.adaptBuilder do
   P.useBrowser H2hE.PuppeteerBrowserResource browserOpts $ \browser -> do
     Z.xInfo { op: "newPage" }
-    page <- mapEPupp $ P.newPage browser
+    page <- pDo "newPage" "" $ P.newPage browser
     Z.xInfo { op: "setViewport" }
-    mapEPupp $ P.setViewport page 1920 1080
+    pDo "setViewport" "1920x1080" $ P.setViewport page 1920 1080
     { slug } <- Z.xAsk
     let url = "https://challonge.com/" <> slug
     Z.xInfo { op: "goto", url }
-    mapEPupp $ P.goto page url $ Z.xSet_ @"waitUntil" $ Z.Just
+    pDo "goto" url $ P.goto page url $ Z.xSet_ @"waitUntil" $ Z.Just
       P.DOMContentLoaded
-    mapEPupp $ waitFor page ".redesigned-meta-list .item .text"
-    mapEPupp $ waitFor page ".title #title"
-    mapEPupp $ waitFor page ".bracket-svg .match .match--player"
+    pWaitFor page ".redesigned-meta-list .item .text"
+    pWaitFor page ".title #title"
+    pWaitFor page ".bracket-svg .match .match--player"
     Z.xEvalS initialState $ readPageData page
   where
-  mapEPupp
-    :: forall xx a
-     . Z.X (Z.E Z.JsError (Z.E H2hE.T xx)) a
-    -> Z.X (Z.E H2hE.T xx) a
-  mapEPupp m = Z.xMapE H2hE.UnkPupp m
   initialState =
     { isDE: false
     , eOrName: Z.Left $ H2hE.MissingData "event.name"
@@ -100,12 +95,13 @@ getEventData = B.adaptBuilder do
     , baseSets: Z.mapEmpty @Int @BaseSet
     , entrants: Z.mapEmpty @Z.SorN @H2h.Entrant
     }
+
   readPageData page = do
     { slug } <- Z.xAsk
-    itemEls <- mapEPupp $ P.els page ".redesigned-meta-list .item"
+    itemEls <- pEls page ".redesigned-meta-list .item"
     Z.forM_ itemEls $ \el -> do
-      itemLabel <- mapEPupp $ P.el el ".item-label" >>= P.innerText
-      itemText <- mapEPupp $ P.el el ".text" >>= P.innerText
+      itemLabel <- pEl el ".item-label" >>= pInnerText
+      itemText <- pEl el ".text" >>= pInnerText
       when (itemLabel == "Start Time" || itemLabel == "Start") do
         date <- Z.xMapE H2hE.ParseTime $ Z.xParser itemText parseDate
         Z.xSet_ @"eOrDate" $ Z.Right date
@@ -117,20 +113,20 @@ getEventData = B.adaptBuilder do
     name <- Z.xView_ @"eOrName" >>= Z.xOk
     date <- Z.xView_ @"eOrDate" >>= Z.xOk
     isDE <- Z.xView_ @"isDE"
-    tournamentName <- mapEPupp $ P.el page ".title #title" >>= P.innerText
-    bracketEls <- mapEPupp $ P.els page ".bracket-svg"
+    tournamentName <- pEl page ".title #title" >>= pInnerText
+    bracketEls <- pEls page ".bracket-svg"
     Z.forM_ bracketEls $ \bracketEl -> do
-      matchEls <- mapEPupp $ P.els bracketEl ".match"
+      matchEls <- pEls bracketEl ".match"
       Z.forM_ matchEls $ \matchEl -> Z.xPlusS @"winnerId" Z.Nothing do
-        setId <- readDataAttr matchEl "match" >>= \s -> Z.xMapE H2hE.ParseTime
+        setId <- pReadDataAttr matchEl "match" >>= \s -> Z.xMapE H2hE.ParseTime
           (Z.xParser s Z.parseInt)
-        playerEls <- mapEPupp $ P.els matchEl ".match--player"
+        playerEls <- pEls matchEl ".match--player"
         slots <- Z.forM playerEls $ \playerEl -> do
-          entrantId <- readIdDataAttr playerEl "participant"
-          playerName <- mapEPupp $ (P.el playerEl "title" >>= P.innerHtml)
-          scoreEl <- mapEPupp $ P.el playerEl ".match--player-score"
-          scoreClass <- mapEPupp $ P.getAttribute scoreEl "class"
-          scoreS <- mapEPupp $ P.innerHtml scoreEl
+          entrantId <- pReadIdDataAttr playerEl "participant"
+          playerName <- pEl playerEl "title" >>= pInnerHtml
+          scoreEl <- pEl playerEl ".match--player-score"
+          scoreClass <- pGetAttribute scoreEl "class"
+          scoreS <- pInnerHtml scoreEl
           score <- Z.xMapE H2hE.ParseTime do
             Z.xParser scoreS Z.parseInt <#> H2h.mkScoreCount
           Z.forM_ (Z.strSplit (Z.Pattern " ") scoreClass) $ \cn -> do
@@ -156,25 +152,22 @@ getEventData = B.adaptBuilder do
             }
           pure { entrantId: Z.Just entrantId, score }
         let emptySlot = { entrantId: Z.Nothing, score: H2h.NoScore }
-        let slotA = Z.or emptySlot (Z.nth slots 0)
-        let slotB = Z.or emptySlot (Z.nth slots 1)
+        let slotA = jOr emptySlot (Z.nth slots 0)
+        let slotB = jOr emptySlot (Z.nth slots 1)
         winnerId <- Z.xView_ @"winnerId"
         let
           winner =
             if Z.isNothing winnerId then Z.Nothing
-            else if winnerId == slotA.entrantId then Z.Just Z.Up
-            else Z.Just Z.Down
+            else if winnerId == slotA.entrantId then Z.Just Z.Pos
+            else Z.Just Z.Neg
         let baseSet = { winner, id: setId, slots: slotA Z.~ slotB }
         Z.xOver_ @"baseSets" $ Z.mapSet setId baseSet
-
     baseSetList <- Z.xView_ @"baseSets" <#>
       Z.arrReverse <<< Z.arrSortWith (g_ @"id") <<< Z.arrFromFoldable
-
     isComplete <- Z.xWithRet do
       Z.forM_ baseSetList $ \baseSet -> do
         when (Z.isNothing baseSet.winner) (Z.xReturn false)
       pure true
-
     let
       setsLoopState =
         { prev: Z.Nothing
@@ -182,30 +175,27 @@ getEventData = B.adaptBuilder do
         , roundInd: 0
         , isDropRound: true
         , hasReset: false
-        , gfEntrants: Z.setEmpty @Z.SorN
-        , nonGfEntrants: Z.setEmpty @Z.SorN
+        , gfEIds: Z.setEmpty @Z.SorN
+        , nonGfEIds: Z.setEmpty @Z.SorN
         }
     roundSets <- Z.xMergeS setsLoopState $ do
       roundSets' <- Z.forM baseSetList $ \baseSet -> do
         { prev, isDropRound } <- Z.xGet
-        let
-          prevSet = prev <#> \p -> p.base
-          prevRound = prev <#> \p -> p.round
-          wasGrands = Z.or false $ prevRound <#> Round.isGrands
-          wasLosers = Z.or false $ prevRound <#> Round.isLosers
-          isGrands = Z.isNothing prev && isDE ||
-            (wasGrands && (slotsKey baseSet) == mSlotsKey prevSet)
+        let prevSet = prev <#> \p -> p.base
+        let prevRound = prev <#> \p -> p.round
+        let wasGrands = jOrF $ prevRound <#> Round.isGrands
+        let wasLosers = jOrF $ prevRound <#> Round.isLosers
+        let sameSlots = (slotsKey baseSet) == mSlotsKey prevSet
+        let isGrands = Z.isNothing prev && isDE || (wasGrands && sameSlots)
         when (isGrands && wasGrands) $ Z.xSet_ @"hasReset" true
         Z.forM_ (Z.arrFromFoldable baseSet.slots) $ \slot -> do
           Z.whenJust slot.entrantId $ \entrantId -> do
             Z.setAdd entrantId #
-              ( if isGrands then Z.xOver_ @"gfEntrants"
-                else Z.xOver_ @"nonGfEntrants"
-              )
-        { gfEntrants, nonGfEntrants } <- Z.xGet
+              Z.xOver (if isGrands then __ @"gfEIds" else __ @"nonGfEIds")
+        { gfEIds, nonGfEIds } <- Z.xGet
         seenAllGFEntrants <- Z.xWithRet do
-          Z.forM_ (Z.arrFromFoldable gfEntrants) $ \id -> do
-            when (not (Z.setHas id nonGfEntrants)) (Z.xReturn false)
+          Z.forM_ (Z.arrFromFoldable gfEIds) $ \id -> do
+            when (not (Z.setHas id nonGfEIds)) (Z.xReturn false)
           pure true
         let nowLosers = (not isGrands) && (wasGrands || wasLosers)
         let isLosers = nowLosers && not seenAllGFEntrants
@@ -214,7 +204,6 @@ getEventData = B.adaptBuilder do
           Z.xSet_ @"roundInd" 0
         setDepth <- Z.xView_ @"depth"
         let round = elimRound isDE setDepth isGrands isLosers isDropRound
-
         let slotA Z.~ slotB = baseSet.slots
         Z.whenJust slotA.entrantId \eA -> Z.whenJust slotB.entrantId \eB -> do
           Z.whenJust baseSet.winner \w -> when isComplete do
@@ -222,7 +211,7 @@ getEventData = B.adaptBuilder do
               setFinStanding = \id placement -> Z.xSet
                 (_o_ @"entrants" @"standing" $ Z.ix id)
                 { placement, isFinal: true }
-            let wId Z.~ lId = if w == Z.Up then eA Z.~ eB else eB Z.~ eA
+            let wId Z.~ lId = if w == Z.Pos then eA Z.~ eB else eB Z.~ eA
             if isGrands && not wasGrands then do
               setFinStanding wId 1
               setFinStanding lId 2
@@ -235,7 +224,6 @@ getEventData = B.adaptBuilder do
             else if isDE then do
               setFinStanding lId $ Z.inc $ Z.p2 setDepth
             else pure unit
-
         Z.xOver_ @"roundInd" Z.inc
         { depth, roundInd } <- Z.xGet
         when (Z.p2 depth <= roundInd) do
@@ -245,7 +233,6 @@ getEventData = B.adaptBuilder do
           else do
             Z.xSet_ @"isDropRound" true
             Z.xOver_ @"depth" Z.inc
-
         Z.xSet_ @"prev" $ Z.Just { base: baseSet, round }
         pure $
           { round
@@ -263,20 +250,15 @@ getEventData = B.adaptBuilder do
       { hasReset } <- Z.xGet
       if (not hasReset) then pure roundSets'
       else pure $ Z.set (Z.ix 0 # o_ @"round") (Round.Grands true) roundSets'
-
     let lSets = Z.arrFilter (Round.isLosers <<< g_ @"round") roundSets
     let wSets = Z.arrFilter (Round.isWinners <<< g_ @"round") roundSets
-    let maxWR = Z.or 0 $ maximum $ wSets <#> Round.roundTypeInd <<< g_ @"round"
-    let maxLR = Z.or 0 $ maximum $ lSets <#> Round.roundTypeInd <<< g_ @"round"
-
+    let maxWR = jOr0 $ maximum $ wSets <#> Round.roundTypeInd <<< g_ @"round"
+    let maxLR = jOr0 $ maximum $ lSets <#> Round.roundTypeInd <<< g_ @"round"
     { entrants } <- Z.xGet
     let profileImageUrl = "https://i.imgur.com/7MsdKge.jpeg"
-    let
-      sets = Z.mapFromFoldable $ roundSets <#> \rs -> Z.Tuple rs.set.id $ Z.set
-        (__ @"roundText")
-        (roundLabel rs.round maxWR maxLR)
-        rs.set
-
+    let mkSet = \rs -> rs.set `(~) @"roundText"` roundLabel rs.round maxWR maxLR
+    let mkSetT = \rs -> Z.Tuple rs.set.id $ mkSet rs
+    let sets = Z.mapFromFoldable $ roundSets <#> mkSetT
     pure
       { id: Z.sOrN $ "Challonge-" <> slug <> "-eventId"
       , name
@@ -298,11 +280,6 @@ getEventData = B.adaptBuilder do
           , date: date
           }
       }
-  readDataAttr e n = mapEPupp $ P.getAttribute e ("data-" <> n <> "-id")
-  readIdDataAttr e n = readDataAttr e n <#> Z.sOrN
-  waitFor page sel = do
-    Z.xInfo { op: "waitFor", sel }
-    P.waitForSelector page sel $ Z.xSet_ @"timeout" $ Z.Just 120000
   browserOpts = do
     let uaOpt = "--user-agent=" <> userAgent
     Z.xSet_ @"args" [ uaOpt, "--no-sandbox", "--disable-setuid-sandbox" ]
@@ -326,3 +303,46 @@ getEventData = B.adaptBuilder do
   roundLabel (Round.Winners false 1) _ _ = "Semifinals"
   roundLabel s@(Round.Winners _ _) maxW _ = (<>) "Winners Round " $ show
     $ maxW - Round.roundTypeInd s + 1
+
+  pDo
+    :: forall xx a
+     . String
+    -> String
+    -> Z.X (Z.E Z.JsError (Z.E H2hE.T xx)) a
+    -> Z.X (Z.E H2hE.T xx) a
+  pDo s1 s2 m = Z.xMapE (H2HE.Puppeteer s1 s2) m
+
+  pDoPorE
+    :: forall xx pOrE a
+     . P.IsPageOrElement pOrE
+    => pOrE
+    -> String
+    -> Z.X (Z.E Z.JsError (Z.E H2hE.T xx)) a
+    -> Z.X (Z.E H2hE.T xx) a
+  pDoPorE pOrE s m = Z.xMapE (H2HE.Puppeteer (P.context pOrE) s) m
+
+  pEls
+    :: forall xx pOrE
+     . P.IsPageOrElement pOrE
+    => pOrE
+    -> String
+    -> Z.X (Z.EA H2hE.T xx) (Array P.Element)
+  pEls pOrE sel = pDoPorE pOrE sel $ P.els pOrE sel
+
+  pEl
+    :: forall xx pOrE
+     . P.IsPageOrElement pOrE
+    => pOrE
+    -> String
+    -> Z.X (Z.EA H2hE.T xx) P.Element
+  pEl pOrE sel = pDoPorE pOrE sel $ P.el pOrE sel
+
+  pInnerText pOrE = pDoPorE pOrE "innerText" $ P.innerText pOrE
+  pInnerHtml pOrE = pDoPorE pOrE "innerHtml" $ P.innerHtml pOrE
+  pGetAttribute pOrE attr = pDoPorE pOrE ("getAttribute('" <> attr <> "')") $
+    P.getAttribute pOrE attr
+  pReadDataAttr e n = pGetAttribute e ("data-" <> n <> "-id")
+  pReadIdDataAttr e n = pReadDataAttr e n <#> Z.sOrN
+  pWaitFor page sel = pDo "waitFor" sel do
+    Z.xInfo { op: "waitFor", sel }
+    P.waitForSelector page sel $ Z.xSet_ @"timeout" $ Z.Just 120000
