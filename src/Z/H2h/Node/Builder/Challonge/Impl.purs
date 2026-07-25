@@ -4,75 +4,47 @@ module Z.H2h.Node.Builder.Challonge.Impl
 
 import Prelude
 
-import Data.Foldable (maximum)
 import Z as Z
 import Z.Bk.Elimination.Round as Round
-import Z.H2h.Error as H2HE
+import Z.Gql.Node.Module as Gql
+import Z.Gql.Warning as GqlW
+import Z.Gql.Error as GqlE
 import Z.H2h.Error as H2hE
 import Z.H2h.Module as H2h
 import Z.H2h.Node.Builder.API as B
+import Z.H2h.Warning as H2hW
 import Z.Puppeteer.Node.Module as P
-import Z.Z.Shorthand (__, _o, _o_, g_, jOr, jOr0, jOrF, o_, (~))
-
-userAgent :: String
-userAgent =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-
-parseMonth :: forall m. Z.ParserT String m Z.Month
-parseMonth = Z.parseTry (Z.parseStringAs "January" Z.January)
-  Z.<|> Z.parseTry (Z.parseStringAs "February" Z.February)
-  Z.<|> Z.parseTry (Z.parseStringAs "March" Z.March)
-  Z.<|> Z.parseTry (Z.parseStringAs "April" Z.April)
-  Z.<|> Z.parseTry (Z.parseStringAs "May" Z.May)
-  Z.<|> Z.parseTry (Z.parseStringAs "June" Z.June)
-  Z.<|> Z.parseTry (Z.parseStringAs "July" Z.July)
-  Z.<|> Z.parseTry (Z.parseStringAs "August" Z.August)
-  Z.<|> Z.parseTry (Z.parseStringAs "September" Z.September)
-  Z.<|> Z.parseTry (Z.parseStringAs "October" Z.October)
-  Z.<|> Z.parseTry (Z.parseStringAs "November" Z.November)
-  Z.<|> Z.parseTry (Z.parseStringAs "December" Z.December)
-  Z.<|> Z.parseFail "Expected %Month%"
-
-parseAMorPM :: forall m. Z.ParserT String m Boolean
-parseAMorPM = Z.parseTry (Z.parseStringAs "AM" false)
-  Z.<|> Z.parseTry (Z.parseStringAs "PM" true)
-  Z.<|> Z.parseFail "Expected AM|PM"
-
-parseDate :: forall m. Z.ParserT String m Z.DateTime
-parseDate = do
-  month <- parseMonth
-  Z.parseString_ " "
-  day <- Z.parseInt <#> Z.toEnum @Z.Day >>= mOr "invalid day"
-  Z.parseString_ ","
-  Z.parseString_ " "
-  year <- Z.parseInt <#> Z.toEnum @Z.Year >>= mOr "invalid year"
-  Z.parseString_ " at "
-  hour <- Z.parseInt <#> Z.toEnum @Z.Hour >>= mOr "invalid hour"
-  let date = Z.canonicalDate year month day
-  Z.parseString_ ":"
-  m <- Z.parseInt <#> Z.toEnum @Z.Minute >>= mOr "invalid minute"
-  s <- pure 0 <#> Z.toEnum @Z.Second >>= mOr "invalid second"
-  ms <- pure 0 <#> Z.toEnum @Z.Millisecond >>= mOr "invalid millisecond"
-  let time = Z.Time hour m s ms
-  let rawDatetime = Z.DateTime date time
-  Z.parseString_ " "
-  isPM <- parseAMorPM
-  let hOff = Z.Hours $ Z.toNumber $ if isPM then 12 else 0
-  dAdjust hOff rawDatetime
-  where
-  mOr :: forall mm a. String -> Z.Maybe a -> Z.ParserT String mm a
-  mOr s Z.Nothing = Z.parseFail s
-  mOr _ (Z.Just y) = pure y
-  dAdjust d dt = mOr "invalid date adjustment" $ Z.adjustDateTime d dt
-
-type BaseSet =
-  { id :: Int
-  , winner :: Z.Maybe Z.PairKey
-  , slots :: Z.Pair H2h.Slot
-  }
+import Z.Sys.Node.Module as Sys
+import Z.Z.Shorthand (__, _o, _o_, g_, jOr, jOr0, jOrF, o_, (~), type (+), type (#>), type (<#))
 
 getEventData :: forall x. B.GetDataFn x
-getEventData = B.adaptBuilder do
+getEventData = B.adaptBuilder $ Z.xWithRet do
+  { client, networkControl, slug } <- Z.xAsk
+  let { cachePath } = client
+  let eCacheOnlyEmpty = H2hE.Gql GqlE.CacheOnlyEmpty
+  cached <- getCached slug cachePath networkControl
+  Z.whenJust cached Z.xReturn
+  when (networkControl == Gql.CacheOnly) $ Z.xRetFail eCacheOnlyEmpty
+  res <- Z.xRetLift getEventDataImpl
+  Z.xRetLift $ writeToCache slug cachePath res
+  pure res
+  where
+  fullPath slug path = Sys.join path ("CHALLONGE-" <> slug <> ".json")
+  writeToCache _ Z.Nothing _ = pure unit
+  writeToCache slug (Z.Just path) res =
+    Z.xTellMappedHush (H2hW.Gql <<< GqlW.CacheWrite) $ Sys.encodeTextFileP
+      (fullPath slug path)
+      res
+  getCached _ Z.Nothing _ = pure Z.Nothing
+  getCached _ _ Gql.ForceFetch = pure Z.Nothing
+  getCached slug (Z.Just path) _ = Z.xTellMappedMHush mapMDecodeErr
+    $ Sys.decodeTextFile
+    $ fullPath slug path
+  mapMDecodeErr e@(Sys.DecodeError _) = [ H2hW.Gql $ GqlW.CacheDecode e ]
+  mapMDecodeErr _ = []
+
+getEventDataImpl :: forall x. H2h.Event <# B.BuildX x
+getEventDataImpl = do
   P.useBrowser H2hE.PuppeteerBrowserResource browserOpts $ \browser -> do
     Z.xInfo { op: "newPage" }
     page <- pDo "newPage" "" $ P.newPage browser
@@ -252,8 +224,8 @@ getEventData = B.adaptBuilder do
       else pure $ Z.set (Z.ix 0 # o_ @"round") (Round.Grands true) roundSets'
     let lSets = Z.arrFilter (Round.isLosers <<< g_ @"round") roundSets
     let wSets = Z.arrFilter (Round.isWinners <<< g_ @"round") roundSets
-    let maxWR = jOr0 $ maximum $ wSets <#> Round.roundTypeInd <<< g_ @"round"
-    let maxLR = jOr0 $ maximum $ lSets <#> Round.roundTypeInd <<< g_ @"round"
+    let maxWR = jOr0 $ Z.maximum $ wSets <#> Round.roundTypeInd <<< g_ @"round"
+    let maxLR = jOr0 $ Z.maximum $ lSets <#> Round.roundTypeInd <<< g_ @"round"
     { entrants } <- Z.xGet
     let profileImageUrl = "https://i.imgur.com/7MsdKge.jpeg"
     let mkSet = \rs -> rs.set `(~) @"roundText"` roundLabel rs.round maxWR maxLR
@@ -308,25 +280,25 @@ getEventData = B.adaptBuilder do
     :: forall xx a
      . String
     -> String
-    -> Z.X (Z.E Z.JsError (Z.EA H2hE.T xx)) a
-    -> Z.X (Z.EA H2hE.T xx) a
-  pDo s1 s2 m = Z.xMapE (H2HE.Puppeteer s1 s2) m
+    -> Z.E Z.JsError + Z.EA H2hE.T xx #> a
+    -> Z.EA H2hE.T xx #> a
+  pDo s1 s2 m = Z.xMapE (H2hE.Puppeteer s1 s2) m
 
   pDoPorE
     :: forall xx pOrE a
      . P.IsPageOrElement pOrE
     => pOrE
     -> String
-    -> Z.X (Z.E Z.JsError (Z.EA H2hE.T xx)) a
-    -> Z.X (Z.EA H2hE.T xx) a
-  pDoPorE pOrE s m = Z.xMapE (H2HE.Puppeteer (P.context pOrE) s) m
+    -> Z.E Z.JsError + Z.EA H2hE.T xx #> a
+    -> Z.EA H2hE.T xx #> a
+  pDoPorE pOrE s m = Z.xMapE (H2hE.Puppeteer (P.context pOrE) s) m
 
   pEls
     :: forall xx pOrE
      . P.IsPageOrElement pOrE
     => pOrE
     -> String
-    -> Z.X (Z.EA H2hE.T xx) (Array P.Element)
+    -> Z.EA H2hE.T xx #> Array P.Element
   pEls pOrE sel = pDoPorE pOrE sel $ P.els pOrE sel
 
   pEl
@@ -334,7 +306,7 @@ getEventData = B.adaptBuilder do
      . P.IsPageOrElement pOrE
     => pOrE
     -> String
-    -> Z.X (Z.EA H2hE.T xx) P.Element
+    -> Z.EA H2hE.T xx #> P.Element
   pEl pOrE sel = pDoPorE pOrE sel $ P.el pOrE sel
 
   pInnerText pOrE = pDoPorE pOrE "innerText" $ P.innerText pOrE
@@ -346,3 +318,60 @@ getEventData = B.adaptBuilder do
   pWaitFor page sel = pDo "waitFor" sel do
     Z.xInfo { op: "waitFor", sel }
     P.waitForSelector page sel $ Z.xSet_ @"timeout" $ Z.Just 120000
+
+userAgent :: String
+userAgent =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+
+parseMonth :: forall m. Z.ParserT String m Z.Month
+parseMonth = Z.parseTry (Z.parseStringAs "January" Z.January)
+  Z.<|> Z.parseTry (Z.parseStringAs "February" Z.February)
+  Z.<|> Z.parseTry (Z.parseStringAs "March" Z.March)
+  Z.<|> Z.parseTry (Z.parseStringAs "April" Z.April)
+  Z.<|> Z.parseTry (Z.parseStringAs "May" Z.May)
+  Z.<|> Z.parseTry (Z.parseStringAs "June" Z.June)
+  Z.<|> Z.parseTry (Z.parseStringAs "July" Z.July)
+  Z.<|> Z.parseTry (Z.parseStringAs "August" Z.August)
+  Z.<|> Z.parseTry (Z.parseStringAs "September" Z.September)
+  Z.<|> Z.parseTry (Z.parseStringAs "October" Z.October)
+  Z.<|> Z.parseTry (Z.parseStringAs "November" Z.November)
+  Z.<|> Z.parseTry (Z.parseStringAs "December" Z.December)
+  Z.<|> Z.parseFail "Expected %Month%"
+
+parseAMorPM :: forall m. Z.ParserT String m Boolean
+parseAMorPM = Z.parseTry (Z.parseStringAs "AM" false)
+  Z.<|> Z.parseTry (Z.parseStringAs "PM" true)
+  Z.<|> Z.parseFail "Expected AM|PM"
+
+parseDate :: forall m. Z.ParserT String m Z.DateTime
+parseDate = do
+  month <- parseMonth
+  Z.parseString_ " "
+  day <- Z.parseInt <#> Z.toEnum @Z.Day >>= mOr "invalid day"
+  Z.parseString_ ","
+  Z.parseString_ " "
+  year <- Z.parseInt <#> Z.toEnum @Z.Year >>= mOr "invalid year"
+  Z.parseString_ " at "
+  hour <- Z.parseInt <#> Z.toEnum @Z.Hour >>= mOr "invalid hour"
+  let date = Z.canonicalDate year month day
+  Z.parseString_ ":"
+  m <- Z.parseInt <#> Z.toEnum @Z.Minute >>= mOr "invalid minute"
+  s <- pure 0 <#> Z.toEnum @Z.Second >>= mOr "invalid second"
+  ms <- pure 0 <#> Z.toEnum @Z.Millisecond >>= mOr "invalid millisecond"
+  let time = Z.Time hour m s ms
+  let rawDatetime = Z.DateTime date time
+  Z.parseString_ " "
+  isPM <- parseAMorPM
+  let hOff = Z.Hours $ Z.toNumber $ if isPM then 12 else 0
+  dAdjust hOff rawDatetime
+  where
+  mOr :: forall mm a. String -> Z.Maybe a -> Z.ParserT String mm a
+  mOr s Z.Nothing = Z.parseFail s
+  mOr _ (Z.Just y) = pure y
+  dAdjust d dt = mOr "invalid date adjustment" $ Z.adjustDateTime d dt
+
+type BaseSet =
+  { id :: Int
+  , winner :: Z.Maybe Z.PairKey
+  , slots :: Z.Pair H2h.Slot
+  }

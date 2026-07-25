@@ -9,10 +9,11 @@ import Prelude
 import Z.H2h.Module as H2h
 import Z.Gql.Node.Module as Gql
 import Z as Z
+import Z.Z.Shorthand (type (#>))
 
 adaptBuilder
   :: forall x
-   . Z.X (BuildX x) H2h.Event
+   . BuildX x #> H2h.Event
   -> GetDataFn x
 adaptBuilder b source client networkControl = Z.xResult $ Z.xEvalR env b
   where
@@ -28,4 +29,4 @@ type GetDataFn x =
   H2h.EventSource
   -> Gql.Client
   -> Gql.NetworkControl
-  -> Z.X (Z.A x) (Z.Result H2h.Warning H2h.Error H2h.Event)
+  -> Z.A x #> Z.Result H2h.Warning H2h.Error H2h.Event

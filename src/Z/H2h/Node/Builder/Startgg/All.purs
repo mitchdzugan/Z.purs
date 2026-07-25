@@ -6,7 +6,7 @@ module Z.H2h.Node.Builder.Startgg.All
 
 import Prelude
 
-import Z.Z.Shorthand (_o, _o_, o_)
+import Z.Z.Shorthand (_o, _o_, o_, type (#>))
 import Z as Z
 import Z.Gql.Node.Module as Gql
 import Z.H2h.Node.Builder.Startgg.Queries as GGQ
@@ -31,7 +31,7 @@ ggQueryAll
   -> Array (GGPageSpec v r)
   -> Gql.Client
   -> Gql.NetworkControl
-  -> Z.X (Z.WaEA Gql.Warning Gql.Error x) { | r }
+  -> Z.WaEA Gql.Warning Gql.Error x #> { | r }
 ggQueryAll op initVars pageSpecs client networkControl = do
   let r = { client, networkControl, op }
   initRes <- Gql.operate op initVars client networkControl
@@ -48,7 +48,7 @@ type QAllR v r =
 type QAllS v r = { vars :: { | v }, res :: { | r } }
 
 type XPageSpecHandle x v r =
-  Z.X (Z.RWaSEA (QAllR v r) Gql.Warning (QAllS v r) Gql.Error x) Unit
+  Z.RWaSEA (QAllR v r) Gql.Warning (QAllS v r) Gql.Error x #> Unit
 
 ggPageSpecHandle :: forall x v r. GGPageSpec v r -> XPageSpecHandle x v r
 ggPageSpecHandle = Z.runExists ggPageSpecHandleImpl

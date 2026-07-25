@@ -29,9 +29,10 @@ main = Sys.xExecAndExit do
   client <- pure $ H2h.mkClient do
     Z.xSet_ @"authToken" $ Z.Just authToken
     Z.xSet_ @"cachePath" $ Z.Just testCachePath
-  let slug = "tournament/bracket-at-the-emporium-3/event/melee-singles"
-  -- let slug = "840lhvjn"
-  let source = H2h.startggSource slug
+  -- let slug = "tournament/bracket-at-the-emporium-3/event/melee-singles"
+  -- let source = H2h.startggSource slug
+  let slug = "840lhvjn"
+  let source = H2h.challongeSource slug
   eventDataRes <- H2h.getEventData source client Z.default
   eventData <- Z.xMapE Z.Right $ Z.xUnresult eventDataRes
   Z.xOut $ Z.encode eventData

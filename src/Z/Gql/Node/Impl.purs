@@ -15,7 +15,7 @@ import Z.Gql.Error as GqlE
 import Z.Gql.Module as Gql
 import Z.Gql.Warning as GqlW
 import Z.Sys.Node.Module as Sys
-import Z.Z.Shorthand (jOrF)
+import Z.Z.Shorthand (jOrF, type (#>))
 
 type Client =
   { url :: String
@@ -47,7 +47,7 @@ requestGql
   -> Z.Json
   -> String
   -> Z.Json
-  -> Z.X (Z.EA Gql.Error x) Z.Json
+  -> Z.EA Gql.Error x #> Z.Json
 requestGql apiUrl authToken query vars = do
   Z.xMapE GqlE.NetworkError
     $ Z.xEffectPromise
@@ -59,7 +59,7 @@ operateUnknown
   -> Z.Json
   -> Client
   -> NetworkControl
-  -> Z.X (Z.WEA (Array GqlW.T) GqlE.T x) Z.Json
+  -> Z.WEA (Array GqlW.T) GqlE.T x #> Z.Json
 operateUnknown opString vars client networkControl = Z.xWithRet $ do
   (collisionCount Z./\ cached) <- getCached cachePath networkControl
   Z.whenJust cached Z.xReturn
@@ -126,7 +126,7 @@ operate
   -> vars
   -> Client
   -> NetworkControl
-  -> Z.X (Z.WEA (Array GqlW.T) GqlE.T x) res
+  -> Z.WEA (Array GqlW.T) GqlE.T x #> res
 operate (Operation opString encode decode) vars client networkControl = do
   json <- operateUnknown opString (encode vars) client networkControl
   Z.xMapE GqlE.ResponseTypeError $ Z.xOk $ decode json

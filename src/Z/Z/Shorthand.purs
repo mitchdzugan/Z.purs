@@ -1,6 +1,8 @@
 module Z.Z.Shorthand
   ( (%)
   , (~)
+  , TPlus
+  , Xflipped
   , __
   , _o
   , _o_
@@ -18,6 +20,9 @@ module Z.Z.Shorthand
   , o_
   , over_
   , set_
+  , type (#>)
+  , type (+)
+  , type (<#)
   ) where
 
 import Prelude
@@ -25,6 +30,19 @@ import Prelude
 import Z.Z.Barlow (class ConstructBarlow, class ParseSymbol, Forget, barlow) as Z
 import Z.Z.Defaultable (class Defaultable, orDefault) as Z
 import Z.Z.Ext (class IsSymbol, First, Maybe, Optic, fromMaybe, preview, over, view, set) as Z
+import Z.Z.X as X
+import Type.Row (type (+)) as TypeRow
+
+type Xflipped a x = X.X x a
+
+type TPlus :: forall k. (Row k -> Row k) -> Row k -> Row k
+type TPlus a b = a TypeRow.+ b
+
+infixr 0 type X.X as #>
+
+infixr 0 type Xflipped as <#
+
+infixr 1 type TPlus as +
 
 jOr :: forall a. a -> Z.Maybe a -> a
 jOr = Z.fromMaybe

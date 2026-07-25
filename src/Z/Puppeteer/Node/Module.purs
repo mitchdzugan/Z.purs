@@ -26,6 +26,7 @@ module Z.Puppeteer.Node.Module
 import Prelude
 
 import Z as Z
+import Z.Z.Shorthand (type (#>), type (<#), type (+))
 
 ---------- public api ------------------------------------------------
 
@@ -33,8 +34,8 @@ useBrowser
   :: forall x e a
    . (Z.ResourceStage -> Z.JsError -> e)
   -> Z.Edit BrowserOpts
-  -> (Browser -> Z.X (Z.EA e (Z.E e x)) a)
-  -> Z.X (Z.EA e x) a
+  -> (Browser -> Z.EA e + Z.E e x #> a)
+  -> Z.EA e x #> a
 useBrowser mapE optsEdit fm = do
   let baseOpts = { exe: Z.Nothing, args: [] }
   let opts = Z.encodeOpts $ Z.edit baseOpts optsEdit
@@ -46,21 +47,21 @@ useBrowser mapE optsEdit fm = do
 useBrowser'
   :: forall x e a
    . (Z.ResourceStage -> Z.JsError -> e)
-  -> (Browser -> Z.X (Z.EA e (Z.E e x)) a)
-  -> Z.X (Z.EA e x) a
+  -> (Browser -> Z.EA e + Z.E e x #> a)
+  -> Z.EA e x #> a
 useBrowser' = Z.arg2' Z.default useBrowser
 
-newPage :: forall x. Browser -> Z.X (Z.EA Z.JsError x) Page
+newPage :: forall x. Browser -> Z.EA Z.JsError x #> Page
 newPage = Z.xEffectPromise <<< js_newPage
 
 goto
-  :: forall x. Page -> String -> Z.Edit GotoOpts -> Z.X (Z.EA Z.JsError x) Unit
+  :: forall x. Page -> String -> Z.Edit GotoOpts -> Z.EA Z.JsError x #> Unit
 goto page url optsEdit = do
   let baseOpts = { waitUntil: Z.Nothing }
   let opts = Z.encodeOpts $ Z.edit baseOpts optsEdit
   Z.xEffectPromise $ js_goto url opts page
 
-goto' :: forall x. Page -> String -> Z.X (Z.EA Z.JsError x) Unit
+goto' :: forall x. Page -> String -> Z.EA Z.JsError x #> Unit
 goto' = Z.arg3' Z.default goto
 
 setViewport
@@ -68,7 +69,7 @@ setViewport
    . Page
   -> Int
   -> Int
-  -> Z.X (Z.EA Z.JsError x) Unit
+  -> Z.EA Z.JsError x #> Unit
 setViewport page width height = do
   Z.xEffectPromise $ js_setViewport width height page
 
@@ -77,7 +78,7 @@ waitForSelector
    . Page
   -> String
   -> Z.Edit WaitForOpts
-  -> Z.X (Z.EA Z.JsError x) Unit
+  -> Z.EA Z.JsError x #> Unit
 waitForSelector page sel optsEdit = do
   let baseOpts = { timeout: Z.Nothing }
   let opts = Z.encodeOpts $ Z.edit baseOpts optsEdit
@@ -87,7 +88,7 @@ waitForSelector'
   :: forall x
    . Page
   -> String
-  -> Z.X (Z.EA Z.JsError x) Unit
+  -> Z.EA Z.JsError x #> Unit
 waitForSelector' = Z.arg3' Z.default waitForSelector
 
 els
@@ -95,7 +96,7 @@ els
    . IsPageOrElement o
   => o
   -> String
-  -> Z.X (Z.EA Z.JsError x) (Array Element)
+  -> Z.EA Z.JsError x #> Array Element
 els pOrE sel = do
   els_ <- Z.xEffectPromise $ js_els sel (asPageOrElement pOrE)
   pure $ els_ <#> \el_ -> Element ("(" <> context pOrE <> ")[]") el_
@@ -105,7 +106,7 @@ el
    . IsPageOrElement o
   => o
   -> String
-  -> Z.X (Z.EA Z.JsError x) Element
+  -> Z.EA Z.JsError x #> Element
 el pOrE sel = do
   el_ <- Z.xEffectPromise $ js_el sel (asPageOrElement pOrE)
   pure $ Element (context pOrE <> " |> ") el_
@@ -114,21 +115,21 @@ innerText
   :: forall x o
    . IsPageOrElement o
   => o
-  -> Z.X (Z.EA Z.JsError x) String
+  -> Z.EA Z.JsError x #> String
 innerText pOrE = Z.xEffectPromise $ js_innerText (asPageOrElement pOrE)
 
 innerHtml
   :: forall x o
    . IsPageOrElement o
   => o
-  -> Z.X (Z.EA Z.JsError x) String
+  -> Z.EA Z.JsError x #> String
 innerHtml pOrE = Z.xEffectPromise $ js_innerHtml (asPageOrElement pOrE)
 
 getAttribute
   :: forall x
    . Element
   -> String
-  -> Z.X (Z.EA Z.JsError x) String
+  -> Z.EA Z.JsError x #> String
 getAttribute (Element _ e) attr = Z.xEffectPromise $ js_getAttribute e attr
 
 -------------- foreign data imports -----------------------------------
@@ -174,10 +175,10 @@ foreign import js_PageOrElement_E :: Element_ -> PageOrElement
 
 -------------- internal impls -----------------------------------------
 
-launch :: forall x. Z.Json -> Z.X (Z.EA Z.JsError x) Browser
+launch :: forall x. Z.Json -> Z.EA Z.JsError x #> Browser
 launch = Z.xEffectPromise <<< js_launchPuppeteer
 
-close :: forall x. Browser -> Z.X (Z.EA Z.JsError x) Unit
+close :: forall x. Browser -> Z.EA Z.JsError x #> Unit
 close = Z.xEffectPromise <<< js_browserClose
 
 -------------- internal types -----------------------------------------
