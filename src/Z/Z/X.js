@@ -47,9 +47,21 @@ const colors = {
 const cl = "﹃";
 const cr = "﹄";
 
+export const js_consoleDirectFn = (prop) => (arg) => () => {
+  const fn = {
+    log: console.log,
+    error: console.error,
+  }[prop];
+  fn(arg);
+};
+
 export const js_consoleFn = (prop) => (src) => (args) => {
   const stackStr = src ? ` ${colors.gray}${src.substring(3)}` : "";
-  const fn = console[prop];
+  const fn = {
+    log: console.warn,
+    warn: console.warn,
+    error: console.error,
+  }[prop];
   const propColor = {
     log: colors.cyan,
     warn: colors.Byellow,

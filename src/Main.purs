@@ -30,4 +30,4 @@ main = Sys.xExecAndExit do
   let slug = "840lhvjn"
   let source = H2h.challongeSource slug
   eventData <- H2h.getEventData source client Z.default
-  Z.xInfo $ Z.encode eventData
+  Z.xOut $ Z.encode eventData

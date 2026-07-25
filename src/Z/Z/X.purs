@@ -89,6 +89,8 @@ module Z.Z.X
   , xMergeS
   , xOk
   , xOrDefault
+  , xOut
+  , xOutErr
   , xOver
   , xOver_
   , xParser
@@ -537,9 +539,12 @@ aff f = R.lift _aff (AffCmd f)
 foreign import js_consoleFn
   :: forall a. String -> String -> Array a -> Eff.Effect Unit
 
+foreign import js_consoleDirectFn
+  :: forall a. String -> a -> Eff.Effect Unit
+
 foreign import js_getStack :: Eff.Effect String
 
-data XBaseF a = LogCmd String String Z.JsAny a
+data XBaseF a = LogCmd String String Z.JsAny a | LogDirectCmd String Z.JsAny a
 
 derive instance functorXBaseF :: Functor XBaseF
 
@@ -552,9 +557,18 @@ handleXBase = case _ of
   LogCmd k src v e -> do
     pure $ Unsafe.unsafePerformEffect $ js_consoleFn k src [ v ]
     pure e
+  LogDirectCmd k v e -> do
+    pure $ Unsafe.unsafePerformEffect $ js_consoleDirectFn k v
+    pure e
 
 runXBase :: forall r. R.Run (XBASE + r) ~> R.Run r
 runXBase = R.run (R.on _eff handleXBase R.send)
+
+xOut :: forall l x. l -> X x Unit
+xOut v = Z.fDiscard $ R.lift _eff (LogDirectCmd "log" (Z.jsAny v) unit)
+
+xOutErr :: forall l x. l -> X x Unit
+xOutErr v = Z.fDiscard $ R.lift _eff (LogDirectCmd "error" (Z.jsAny v) unit)
 
 xLogCmd :: forall l x. String -> l -> X x Unit
 xLogCmd k v = do
