@@ -1,6 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
+export const js_readFile = (p) => () => fs.readFile(p);
 export const js_readTextFile = (p) => () => fs.readFile(p, "utf-8");
 export const js_mkdir = (p) => () => fs.mkdir(p);
 export const js_mkdirp = (p) => () => fs.mkdir(p, { recursive: true });

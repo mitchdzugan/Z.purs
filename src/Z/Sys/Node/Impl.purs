@@ -11,6 +11,7 @@ module Z.Sys.Node.Impl
   , mkdir
   , mkdirP
   , pathStr
+  , readFile
   , readTextFile
   , writeTextFile
   , writeTextFileP
@@ -20,11 +21,15 @@ module Z.Sys.Node.Impl
 
 import Prelude
 
-import Z.Sys.Module as Sys
+import Run as R
 import Z as Z
+import Z.Sys.Module as Sys
 
 foreign import js_readTextFile
   :: String -> Z.Effect Z.$ Z.Promise String
+
+foreign import js_readFile
+  :: String -> Z.Effect Z.$ Z.Promise Z.Buffer
 
 foreign import js_mkdir
   :: String -> Z.Effect Z.$ Z.Promise Unit
@@ -45,6 +50,9 @@ instance pathlikePath :: Pathlike Path where
 
 instance pathlikeString :: Pathlike String where
   pathStr s = s
+
+readFile :: forall x p. Pathlike p => p -> Z.X (Z.EA Z.JsError x) Z.Buffer
+readFile = Z.xEffectPromise <<< js_readFile <<< pathStr
 
 readTextFile :: forall x p. Pathlike p => p -> Z.X (Z.EA Z.JsError x) String
 readTextFile = Z.xEffectPromise <<< js_readTextFile <<< pathStr
@@ -121,8 +129,14 @@ execAndExit a = Z.runAff_ onDone a
     js_exit 1
   onDone _ = pure unit
 
-xExecAndExit :: forall e a. Z.X (Z.EA e ()) a -> Z.Effect Unit
-xExecAndExit = Z.xExecAff >>> execAndExit
+xExecAndExit
+  :: forall @w @e a. Z.XWa w (Z.EA e) a -> Z.Effect Unit
+xExecAndExit m = execAndExit $ Z.xExecAff $ do
+  w Z./\ res <- Z.xListen @(Array w) (R.expand m)
+  when (Z.arrSize w > 0) do
+    Z.xLogWarning "⌄ unhandled warnings ⌄ "
+    Z.xLogWarning w
+  pure res
 
 foreign import js_exit :: Int -> Z.Effect Unit
 foreign import js_errorLog :: forall a. a -> Z.Effect Unit

@@ -55,15 +55,19 @@ module Z.Z.X
   , WaSA
   , WaSE
   , X
+  , X2
   , XBASE
   , XBaseF
   , XRet
   , XShortCircuit
+  , XWa
   , edit
   , type (!$)
   , type (!)
   , type (-!$)
   , type (-!)
+  , x2EvalAff
+  , x2ExecAff
   , xAEff
   , xAff
   , xAsk
@@ -81,6 +85,7 @@ module Z.Z.X
   , xHush
   , xInfo
   , xInvert
+  , xListen
   , xLogError
   , xLogWarning
   , xMapE
@@ -114,6 +119,7 @@ module Z.Z.X
   , xToArrayOfR
   , xTry
   , xTryUntil
+  , xUnresult
   , xUnwrap
   , xUnwrap'
   , xView
@@ -156,6 +162,8 @@ import Z.Z.Barlow as Bl
 import Z.Z.Defaultable as ZD
 import Z.Z.Core as Z
 
+type Id a = a
+
 ------------------------------------------------------------------
 
 xParser :: forall x s a. s -> Parsing.Parser s a -> R.Run (E Z.ParseError x) a
@@ -178,12 +186,20 @@ xEvalAff x = R.match { aff: \(AffCmd a) -> a } # R.run $ runXBase x
 xExecAff :: forall e a. X (EA e ()) a -> Aff.Aff (Eor.Either e a)
 xExecAff = xEvalAff <<< xTry
 
+x2EvalAff :: forall a. X2 () A a -> Aff.Aff a
+x2EvalAff x = R.match { aff: \(AffCmd a) -> a } # R.run $ runXBase do
+  RunW.runWriter (RunR.runReader {} $ RunS.evalState {} x) <#> Tup.snd
+
+x2ExecAff :: forall e a. X2 () (EA e) a -> Aff.Aff (Eor.Either e a)
+x2ExecAff = x2EvalAff <<< xTry
+
 --------------- EDIT ------------------------------------------------------
 
 type Edit s = X (S s ()) Unit
 
 edit :: forall a. a -> Edit a -> a
-edit init m = R.extract $ RunS.execState init $ runXBase m
+edit init m = R.extract $ RunS.execState init $
+  runXBase m
 
 --------------- ShortCiruit ----------------------------------------------
 
@@ -254,8 +270,8 @@ xTellMappedHush
    . Monad.Monad m
   => ZD.Defaultable d
   => (e -> w)
-  -> X (WE (m w) e x) d
-  -> X (W (m w) x) d
+  -> R.Run (WE (m w) e x) d
+  -> R.Run (W (m w) x) d
 xTellMappedHush mapW m = xTry m >>= onDone
   where
   onDone (Eor.Left e) = xSay (mapW e) <#> const ZD.default
@@ -266,8 +282,8 @@ xTellMappedMHush
    . Monad.Monad m
   => ZD.Defaultable d
   => (e -> m w)
-  -> X (WE (m w) e x) d
-  -> X (W (m w) x) d
+  -> R.Run (WE (m w) e x) d
+  -> R.Run (W (m w) x) d
 xTellMappedMHush mapW m = xTry m >>= onDone
   where
   onDone (Eor.Left e) = RunW.tell (mapW e) <#> const ZD.default
@@ -285,6 +301,10 @@ xMapW f m = do
   (w TupN./\ res) <- RunW.runWriter m
   RunW.tell $ map f w
   pure res
+
+xListen
+  :: forall x @w a. Monoid.Monoid w => R.Run (W w x) a -> R.Run x (w TupN./\ a)
+xListen = RunW.runWriter
 
 --------------- S FNS -----------------------------------------------------
 
@@ -383,10 +403,15 @@ xMergeS rNew m = do
 
 type Result w e a = { w :: (Array w), v :: (Eor.Either e a) }
 
-xResult :: forall x w e a. X (WE (Array w) e x) a -> X x (Result w e a)
+xResult :: forall x w e a. R.Run (WE (Array w) e x) a -> R.Run x (Result w e a)
 xResult m = do
   w <- RunW.runWriter $ RunE.runExcept m
   pure $ { w: (Tup.fst w), v: (Tup.snd w) }
+
+xUnresult :: forall x w e a. (Result w e a) -> R.Run (WE (Array w) e x) a
+xUnresult { w, v } = do
+  RunW.tell w
+  xOk v
 
 xBindE
   :: forall x e1 e2 a
@@ -473,6 +498,9 @@ xTimeout ms = Z.fDiscard $ xTry $ xEffectPromise $ js_timeout ms
 --------------- CORE TYPE ---------------------------------------------------
 
 type X x a = R.Run (XBASE x) a
+type X2 x fx a = R.Run (fx + XBASE + Wa Void + R {} + S {} x) a
+
+type XWa w fx a = R.Run (XBASE + fx + Wa w ()) a
 
 type TEarlyReturn
   :: forall k1 k2

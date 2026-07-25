@@ -8,8 +8,7 @@ module Z.Z.Dict
 import Prelude
 import Z.Z.Key (class Keyed, keyStr)
 import Z.Z.Core (mapM)
-import Z.Z.Ext as Z
-import Z.Z.Util as Z
+import Z.Z.Ext (class EncodeJson, class Generic, Json, Maybe(..), encodeJson, genericDecodeJson) as Z
 import Data.Argonaut.Decode (decodeJson, class DecodeJson)
 
 foreign import data Dict :: Type -> Type

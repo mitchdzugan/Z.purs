@@ -308,8 +308,8 @@ getEventData = B.adaptBuilder do
     :: forall xx a
      . String
     -> String
-    -> Z.X (Z.E Z.JsError (Z.E H2hE.T xx)) a
-    -> Z.X (Z.E H2hE.T xx) a
+    -> Z.X (Z.E Z.JsError (Z.EA H2hE.T xx)) a
+    -> Z.X (Z.EA H2hE.T xx) a
   pDo s1 s2 m = Z.xMapE (H2HE.Puppeteer s1 s2) m
 
   pDoPorE
@@ -317,8 +317,8 @@ getEventData = B.adaptBuilder do
      . P.IsPageOrElement pOrE
     => pOrE
     -> String
-    -> Z.X (Z.E Z.JsError (Z.E H2hE.T xx)) a
-    -> Z.X (Z.E H2hE.T xx) a
+    -> Z.X (Z.E Z.JsError (Z.EA H2hE.T xx)) a
+    -> Z.X (Z.EA H2hE.T xx) a
   pDoPorE pOrE s m = Z.xMapE (H2HE.Puppeteer (P.context pOrE) s) m
 
   pEls

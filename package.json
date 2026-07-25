@@ -17,6 +17,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@slippi/slippi-js": "^9.1.2",
     "graphql": "^16.14.2",
     "graphql-request": "^7.4.0",
     "puppeteer": "^25.3.0"

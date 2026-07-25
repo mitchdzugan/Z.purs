@@ -27,6 +27,7 @@ module Z.Z.Ext
   , module Map
   , module Maybe
   , module MaybeFirst
+  , module Monoid
   , module Newtype
   , module Parsing
   , module Prc
@@ -41,6 +42,7 @@ module Z.Z.Ext
   , module Tup
   , module TupNested
   , module TypeEquals
+  , module TypeRow
   ) where
 
 import Control.Promise (Promise) as Promise
@@ -55,7 +57,7 @@ import Data.Codec.Argonaut (JsonCodec) as CA
 import Data.DateTime (Month(..), Hour, Year, Day, Second, Minute, Millisecond, canonicalDate, Time(..), Date) as DateTime
 import Data.DateTime.Instant (Instant, instant) as DateTimeInst
 import Data.Either (Either(..), either, hush) as Either
-import Data.Enum (toEnum) as Enum
+import Data.Enum (toEnum, class BoundedEnum, class Enum, defaultCardinality, defaultFromEnum, defaultToEnum) as Enum
 import Data.Exists (Exists, mkExists, runExists) as Exists
 import Data.Foldable (fold, class Foldable) as Foldable
 import Data.Generic.Rep (class Generic) as Generic
@@ -68,7 +70,8 @@ import Data.Lens.Types (AffineTraversal) as LensT
 import Data.Map (Map) as Map
 import Data.Maybe (Maybe(..), fromMaybe, fromMaybe', isJust, isNothing) as Maybe
 import Data.Maybe.First (First) as MaybeFirst
-import Data.Newtype (wrap, unwrap) as Newtype
+import Data.Monoid (class Monoid) as Monoid
+import Data.Newtype (wrap, unwrap, class Newtype) as Newtype
 import Data.String (Pattern(..)) as Str
 import Data.Symbol (class IsSymbol, reifySymbol, reflectSymbol) as Symbol
 import Data.Time.Duration (Milliseconds(..), Hours(..)) as DateTimeDuration
@@ -85,3 +88,4 @@ import Run (Run, extract) as Run
 import Run.State (execState) as RunS
 import Type.Equality (class TypeEquals) as TypeEquals
 import Type.Proxy (Proxy(..)) as Proxy
+import Type.Row (type (+)) as TypeRow
