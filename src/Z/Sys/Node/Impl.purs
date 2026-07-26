@@ -1,5 +1,5 @@
 module Z.Sys.Node.Impl
-  ( (~)
+  ( (/)
   , EnvPaths
   , Path
   , Platform(..)
@@ -16,7 +16,7 @@ module Z.Sys.Node.Impl
   , envData
   , envPaths
   , envTmp
-  , join
+  , pathJoin
   , lookupEnv
   , mkdir
   , mkdirP
@@ -28,15 +28,16 @@ module Z.Sys.Node.Impl
   , writeTextFile
   , writeTextFileP
   , xExecAndExit
+  , xExecAndExitArgv
   , xLookupEnv
   ) where
 
-import Prelude hiding (join)
+import Prelude
 
+import Effect.Unsafe as Unsafe
 import Z as Z
 import Z.Sys.Module as Sys
 import Z.Z.Shorthand (type (+), type (#>))
-import Effect.Unsafe as Unsafe
 
 foreign import js_readTextFile
   :: String -> Z.Effect Z.$ Z.Promise String
@@ -132,7 +133,7 @@ xLookupEnv k = lookupEnv k # Z.xAEff # Z.xTry <#> getRes
   getRes (Z.Right (Z.Just v)) = Z.Just v
   getRes _ = Z.Nothing
 
-execAndExit :: forall e a. Z.Aff (Z.Either e a) -> Z.Effect Unit
+execAndExit :: forall e a. Z.RtError e => Z.Aff (Z.Either e a) -> Z.Effect Unit
 execAndExit a = Z.runAff_ onDone a
   where
   onDone (Z.Left e) = do
@@ -140,21 +141,28 @@ execAndExit a = Z.runAff_ onDone a
     js_errorLog e
     js_exit 125
   onDone (Z.Right (Z.Left e)) = do
-    js_errorLog "⌄ error ⌄"
-    js_errorLog e
+    js_errorLog $ "thrown error [| " <> Z.rtErrName e <> " |] ⌄"
+    js_errorLog $ Z.rtErrMessage e
     js_exit 1
   onDone _ = pure unit
 
 type XNodeEA e x = Z.EA e (XNODE x)
 
 xExecAndExit
-  :: forall @w @e a. Z.XWa w (XNodeEA e) a -> Z.Effect Unit
+  :: forall @w @e a. Z.RtError e => Z.XWa w (XNodeEA e) a -> Z.Effect Unit
 xExecAndExit m = execAndExit $ Z.xExecAff $ do
   w Z./\ res <- Z.xListen $ Z.expand $ runXNode m
   when (Z.arrSize w > 0) do
-    Z.xLogWarning "⌄ unhandled warnings ⌄"
+    Z.xLogWarning "collected warnings ⌄"
     Z.xLogWarning w
   pure res
+
+xExecAndExitArgv
+  :: forall @w @e a
+   . Z.RtError e
+  => (Array String -> Z.XWa w (XNodeEA e) a)
+  -> Z.Effect Unit
+xExecAndExitArgv fm = xExecAndExit $ argv >>= fm
 
 data Platform = Win32 | Darwin | Linux | Android | FreeBSD | OpenBSD | Unknown
 
@@ -248,9 +256,9 @@ dirname p = Path $ js_pathDirname $ pathStr p
 basename :: forall p. Pathlike p => p -> Path
 basename p = Path $ js_pathBasename $ pathStr p
 
-join :: forall p1 p2. Pathlike p1 => Pathlike p2 => p1 -> p2 -> Path
-join p1 p2 = Path $ js_pathJoin (pathStr p1) (pathStr p2)
+pathJoin :: forall p1 p2. Pathlike p1 => Pathlike p2 => p1 -> p2 -> Path
+pathJoin p1 p2 = Path $ js_pathJoin (pathStr p1) (pathStr p2)
 
-infixr 0 join as ~
+infixr 0 pathJoin as /
 
 type XNode x a = Z.X (xNode :: XNodeF | x) a

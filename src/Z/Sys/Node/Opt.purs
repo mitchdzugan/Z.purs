@@ -16,14 +16,12 @@ import Z.Sys.Node.Impl as Sys
 argParse
   :: forall x a
    . ParserInfo a
-  -> Z.Maybe (Array String)
+  -> Array String
   -> (a -> Sys.XNode x Unit)
   -> Sys.XNode x Unit
-argParse opts argm fm =
-  args argm >>= handleParse <<< execParserPure defaultPrefs opts
+argParse opts args fm =
+  handleParse $ execParserPure defaultPrefs opts args
   where
-  args (Z.Just a) = pure a
-  args _ = Sys.argv
   handleParse (Success a) = fm a
   handleParse (Failure f) = do
     let msg Z./\ _exit = renderFailure f "slp-rec"

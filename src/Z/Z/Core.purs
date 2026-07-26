@@ -10,6 +10,7 @@ module Z.Z.Core
   , arrFromFoldable
   , arrSize
   , arrSlice
+  , class RtError
   , dec
   , encodeOpts
   , fDiscard
@@ -45,6 +46,9 @@ module Z.Z.Core
   , reduce
   , reduceM
   , runParser
+  , rtErrName
+  , rtErrMessage
+  , rtErrExtra
   , setAdd
   , setEmpty
   , setFromFoldable
@@ -134,6 +138,21 @@ jsError name message = fromPureJsError $ { name, message, "_": "" }
 
 jsError' :: String -> JsError
 jsError' = flip jsError ""
+
+class RtError a where
+  rtErrName :: a -> String
+  rtErrMessage :: a -> String
+  rtErrExtra :: a -> Arg.Json
+
+instance jsErrorRtError :: RtError JsError where
+  rtErrName = jsErrorName
+  rtErrMessage = jsErrorMessage
+  rtErrExtra e = encodeJson { stack: jsErrorStack e }
+
+instance voidRtError :: RtError Void where
+  rtErrName _ = "unreachable error"
+  rtErrMessage _ = "should never see this"
+  rtErrExtra _ = encodeJson {}
 
 fDiscard :: forall f i. F.Functor f => f i -> f Unit
 fDiscard = map $ const unit

@@ -84,7 +84,7 @@ operateUnknown opString vars client networkControl = Z.xWithRet $ do
   filenameParts 0 = [ opKey, "json" ]
   filenameParts collisionCount = [ opKey, show collisionCount, "json" ]
   cacheFilename cachePath =
-    Sys.join cachePath <<< Z.strJoinWith "." <<< filenameParts
+    Sys.(/) cachePath <<< Z.strJoinWith "." <<< filenameParts
   getCachedRec cachePath collisionCount = do
     let filename = cacheFilename cachePath collisionCount
     parsed <- Z.xTellMappedMHush mapMDecodeErr $ Sys.decodeTextFile filename

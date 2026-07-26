@@ -13,9 +13,17 @@ import Options.Applicative.Builder (PrefsMod(..))
 import Z as Z
 import Z.SSBM.Slp.Port as Port
 import Z.Sys.Node.Module as Sys
+import Z.Z.Shorthand (g_)
 
-run :: forall x. Z.Maybe (Array String) -> Sys.XNode x Unit
-run argm = do
+data Error = NoIso
+
+instance errorRtError :: Z.RtError Error where
+  rtErrExtra _ = Z.encodeJson {}
+  rtErrName _ = "melee iso not found"
+  rtErrMessage _ = "please supply via opt `-i %ISO_PATH%`"
+
+run :: forall x. Array String -> Sys.XNode (Z.EA Error x) Unit
+run args = do
   wd <- Sys.wd
   envPaths <- Sys.envPaths "slp-rec" $ Z.Just ""
   platform <- Sys.platform
@@ -25,21 +33,24 @@ run argm = do
   let
     launcherSettingsPath =
       cfgPath
-        Sys.~ ".."
-        Sys.~ (if platform == Sys.Win32 then ".." else ".")
-        Sys.~ "Slippi Launcher"
-        Sys.~ "Settings"
-  let re = Z.decode @RecordConfig "{\"g\":123}"
-  Z.xInfo { cfgPath, tmpPath, dataPath, platform, launcherSettingsPath, re }
-  Sys.argParse (cliInfo wd) argm \o -> do
+        Sys./ ".."
+        Sys./ (if platform == Sys.Win32 then ".." else ".")
+        Sys./ "Slippi Launcher"
+        Sys./ "Settings"
+  launcherSettings <-
+    Sys.decodeTextFile @LauncherSettings' launcherSettingsPath # Z.xTry <#>
+      Z.hush
+  let isoPath = launcherSettings <#> g_ @"settings.isoPath"
+  Z.xInfo { isoPath }
+  Sys.argParse (cliInfo wd) args \o -> do
     Z.xInfo { o }
 
-type LauncherSettingsPartial =
+type LauncherSettings' =
   { settings :: { isoPath :: String }
   }
 
 type EnvBuildState =
-  { isoPath :: String
+  { eOrIsoPath :: Z.Either Error String
   , tempPath :: String
   , texturePath :: String
   , iniMods :: Array IniMod
@@ -123,143 +134,76 @@ cliOpts :: Sys.Path -> Parser CliOpts
 cliOpts wd = map CliOpts $ optsProd
   <$> strArgument (metavar "SLP_FILE" <> help ".slp file to record")
   <*> optional
-    ( option int
-        ( long "start-frame"
-            <> short 's'
-            <> metavar "INT"
-            <> help
-              "First frame to begin recording (default: `GAME_FRAME_START`)"
-        )
+    ( option int $ (long "start-frame" <> short 's' <> metavar "INT")
+        <> help "First frame to begin recording (default: `GAME_FRAME_START`)"
+
     )
   <*> optional
-    ( option int
-        ( long "total-frames"
-            <> short 't'
-            <> metavar "INT"
-            <> help "Total frames to record (default: `all remaining`)"
-        )
+    ( option int $ (long "total-frames" <> short 't' <> metavar "INT")
+        <> help "Total frames to record (default: `all remaining`)"
     )
   <*> optional
-    ( strOption
-        ( long "output"
-            <> short 'o'
-            <> metavar "MP4"
-            <> help
-              ( "Output file (default: "
-                  <> show (Sys.join wd "output.mp4")
-                  <> ")"
-              )
-        )
+    ( strOption $ (long "output" <> short 'o' <> metavar "MP4")
+        <> help
+          ( "Output file (default: "
+              <> show (wd Sys./ "output.mp4")
+              <> ")"
+          )
     )
   <*> optional
-    ( strOption
-        ( long "iso"
-            <> short 'i'
-            <> metavar "ISO"
-            <> help
-              ( "melee iso file (default: `slippi-launcher config`)"
-              )
-        )
+    ( strOption $ (long "iso" <> short 'i' <> metavar "ISO")
+        <> help
+          ( "melee iso file (default: `slippi-launcher config`)"
+          )
     )
   <*> optional
-    ( strOption
-        ( long "texture-path"
-            <> short 'x'
-            <> metavar "DIR"
-            <> help
-              ( "directory with texture overrides"
-              )
-        )
+    ( strOption $ (long "texture-path" <> short 'x' <> metavar "DIR")
+        <> help "directory with texture overrides"
     )
   <*> many
-    ( option optReadColorOverride
-        ( long "port-costume"
-            <> short 'p'
-            <> metavar "PORTC"
-            <> help
-              ( "port costume overrides. PORTC => `[1|2|3|4]=[1|2|3|4|5|6]`"
-              )
-        )
+    ( option optReadColorOverride $
+        (long "port-costume" <> short 'p' <> metavar "PORTC")
+          <> help
+            ( "port costume overrides. PORTC => `$port=$costime`"
+                <> " => `[1|2|3|4]=[1|2|3|4|5|6]`"
+            )
     )
   <*> many
-    ( option optReadIniMod
-        ( long "ini-mod"
-            <> short 'I'
-            <> metavar "INI_MOD"
-            <> help
-              ( "slippi ini file overrides. INI_MOD => `ini:prop=val`"
-              )
-        )
+    ( option optReadIniMod $ (long "ini-mod" <> short 'I' <> metavar "INI_MOD")
+        <> help
+          ( "slippi ini overrides. INI_MOD => `$ini:$prop=$val`"
+              <> " => `[Dolphin|GFX|Logger]:$prop=$val"
+          )
     )
   <*> many
-    ( strOption
-        ( long "gecko-code"
-            <> short 'g'
-            <> metavar "CODE"
-            <> help
-              ( "raw string containing code to directly include while recording"
-              )
-        )
+    ( strOption $
+        (long "gecko-code" <> short 'g' <> metavar "CODE")
+          <> help
+            "raw string containing code to directly include while recording"
     )
   <*> many
-    ( strOption
-        ( long "gecko-enable"
-            <> short '+'
-            <> metavar "NAME"
-            <> help
-              ( "name of gecko codes to force enable"
-              )
-        )
+    ( strOption $ (long "gecko-enable" <> short '+' <> metavar "NAME")
+        <> help "name of gecko codes to force enable"
     )
   <*> many
-    ( strOption
-        ( long "gecko-disable"
-            <> short '_'
-            <> metavar "NAME"
-            <> help
-              ( "name of gecko codes to force disable"
-              )
-        )
+    ( strOption $ (long "gecko-disable" <> short '_' <> metavar "NAME")
+        <> help "name of gecko codes to force disable"
     )
   <*> optional
-    ( strOption
-        ( long "temp-path"
-            <> short 'T'
-            <> metavar "DIR"
-            <> help
-              ( "directory with store temporary recording files"
-              )
-        )
+    ( strOption $ (long "temp-path" <> short 'T' <> metavar "DIR")
+        <> help "directory with store temporary recording files"
     )
   <*> many
-    ( strOption
-        ( long "config"
-            <> short 'c'
-            <> metavar "FILE"
-            <> help
-              ( "config files to source"
-              )
-        )
+    ( strOption $ (long "config" <> short 'c' <> metavar "FILE")
+        <> help "config files to source"
     )
   <*> optional
-    ( strOption
-        ( long "slippi-playback"
-            <> short 'S'
-            <> metavar "BIN"
-            <> help
-              ( "slippi-playback binary path"
-              )
-        )
+    ( strOption $ (long "slippi-playback" <> short 'S' <> metavar "BIN")
+        <> help "slippi-playback binary path"
     )
   <*> optional
-    ( strOption
-        ( long "ffmpeg"
-            <> short 'F'
-            <> metavar "BIN"
-            <> help
-              ( "ffmpeg binary path"
-              )
-        )
+    ( strOption $ (long "ffmpeg" <> short 'F' <> metavar "BIN")
+        <> help "ffmpeg binary path"
     )
   where
   optsProd a b c d e f g h i j k l m n o =

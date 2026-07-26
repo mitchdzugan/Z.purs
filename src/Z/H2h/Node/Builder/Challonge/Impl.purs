@@ -29,7 +29,7 @@ getEventData = B.adaptBuilder $ Z.xWithRet do
   Z.xRetLift $ writeToCache slug cachePath res
   pure res
   where
-  fullPath slug path = Sys.join path ("CHALLONGE-" <> slug <> ".json")
+  fullPath slug path = path Sys./ ("CHALLONGE-" <> slug <> ".json")
   writeToCache _ Z.Nothing _ = pure unit
   writeToCache slug (Z.Just path) res =
     Z.xTellMappedHush (H2hW.Gql <<< GqlW.CacheWrite) $ Sys.encodeTextFileP
