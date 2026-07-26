@@ -24,6 +24,7 @@ module Z.Z.Ext
   , module LensIndex
   , module LensRecord
   , module LensT
+  , module List
   , module Map
   , module Maybe
   , module MaybeFirst
@@ -67,6 +68,7 @@ import Data.Lens.At (at, class At) as LensAt
 import Data.Lens.Index (ix, class Index) as LensIndex
 import Data.Lens.Record (prop) as LensRecord
 import Data.Lens.Types (AffineTraversal) as LensT
+import Data.List (List) as List
 import Data.Map (Map) as Map
 import Data.Maybe (Maybe(..), fromMaybe, fromMaybe', isJust, isNothing) as Maybe
 import Data.Maybe.First (First) as MaybeFirst
@@ -84,7 +86,7 @@ import Parsing (ParserT) as Parsing
 import Parsing.Combinators ((<|>)) as Prc
 import Prim.Row (class Cons, class Lacks) as Row
 import Record (merge) as Record
-import Run (Run, extract) as Run
+import Run (Run, extract, lift, run, send, on, expand) as Run
 import Run.State (execState) as RunS
 import Type.Equality (class TypeEquals) as TypeEquals
 import Type.Proxy (Proxy(..)) as Proxy

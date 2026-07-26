@@ -160,7 +160,7 @@ decodeJson
 decodeJson = ADec.decodeJson >>> Z.mapL JsonDecodeError
 
 decode
-  :: forall v
+  :: forall @v
    . Dec.DecodeJson v
   => String
   -> Either.Either JsonDecodeError v

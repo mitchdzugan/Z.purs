@@ -10,6 +10,7 @@
     "fix:apply": "node ./scripts/applyPsSuggest.js",
     "fix": "run-s clean fix:apply",
     "build": "spago build",
+    "start": "spago run --",
     "test": "spago test"
   },
   "type": "module",
@@ -18,6 +19,7 @@
   "description": "",
   "dependencies": {
     "@slippi/slippi-js": "^9.1.2",
+    "env-paths": "^4.0.0",
     "graphql": "^16.14.2",
     "graphql-request": "^7.4.0",
     "puppeteer": "^25.3.0"

@@ -3,9 +3,9 @@ module Main where
 import Prelude
 
 import Z as Z
-import Z.Gql.Warning as GqlW
 import Z.H2h.Node.Module as H2h
-import Z.H2h.Warning as H2hW
+import Z.SSBM.Slp.Rec.Node.Impl as SlpRec
+import Z.SSBM.Slp.Read.Impl as SlpRead
 import Z.Sys.Node.Module as Sys
 
 testCachePath :: String
@@ -13,6 +13,12 @@ testCachePath = "/home/dz/Repo/PS-WS/.cache-path"
 
 main :: Z.Effect Unit
 main = Sys.xExecAndExit do
+  Z.xMapE Z.Left $ SlpRec.run Z.Nothing
+  _ <- Z.xFail $ Z.Left $ Z.jsError "asdf" "adf"
+  b <- Z.xMapE Z.Left $ Sys.readFile "/home/dz/Slippi/Game_20260709T183630.slp"
+  let game = SlpRead.game b
+  Z.xInfo $ SlpRead.stats game
+  _ <- Z.xFail $ Z.Left $ Z.jsError "asdf" "adf"
   Z.xInfo $ Z.key
     [ Z.key (-1)
     , Z.key (0 Z./\ 3)

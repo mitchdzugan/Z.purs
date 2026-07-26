@@ -4,6 +4,7 @@ module Z.Z.Core
   , P
   , ParseError
   , Set
+  , arrDrop
   , arrEmpty
   , arrFilter
   , arrFromFoldable
@@ -188,6 +189,9 @@ setFromFoldable = Set.fromFoldable
 
 arrSlice :: forall a. Int -> Int -> Array a -> Array a
 arrSlice = Arr.slice
+
+arrDrop :: forall a. Int -> Array a -> Array a
+arrDrop n a = Arr.slice n (arrSize a) a
 
 arrSize :: forall a. Array a -> Int
 arrSize = Arr.length

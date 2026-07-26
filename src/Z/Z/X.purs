@@ -162,8 +162,6 @@ import Z.Z.Barlow as Bl
 import Z.Z.Defaultable as ZD
 import Z.Z.Core as Z
 
-type Id a = a
-
 ------------------------------------------------------------------
 
 xParser :: forall x s a. s -> Parsing.Parser s a -> R.Run (E Z.ParseError x) a

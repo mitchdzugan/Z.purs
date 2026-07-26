@@ -15,7 +15,7 @@ module Z
 
 import Z.Z.Barlow (class Barlow, class ConstructBarlow, class IsSymbol, class ParseSymbol, class Strong, First, Forget, Optic, Proxy(..), barlow) as ZBl
 import Z.Z.Buffer as ZBuffer
-import Z.Z.Core (JsAny, JsError(..), P, ParseError, Set, arrEmpty, arrFilter, arrFromFoldable, arrSize, arrSlice, dec, encodeOpts, fDiscard, forM, forM_, inc, invert, jsAny, jsError, jsError', jsErrorMessage, jsErrorName, jsErrorStack, jsonRmNils, jsonStr, mapEmpty, mapFromFoldable, mapL, mapM, mapSet, mapSize, p, p2, parseFail, parseFailWithPosition, parseInt, parseNumber, parseString, parseStringAs, parseString_, parseTry, pureF, reduce, reduceM, runParser, setAdd, setEmpty, setFromFoldable, setHas, setSize, simpleHash) as ZCore
+import Z.Z.Core as ZCore
 import Z.Z.Defaultable (class Defaultable, auto, default, default', orDefault, whenJust) as ZDefaultable
 import Z.Z.DateTime (DateTime(..), adjustDateTime, toDateTime) as ZDateTime
 import Z.Z.Ext as ZExt
