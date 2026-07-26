@@ -65,13 +65,17 @@ mergeMListOps
 mergeMListOps l Z.Nothing = l
 mergeMListOps l (Z.Just ops) = mergeListOps l ops
 
+arrMergeListOpts
+  :: forall a f. Z.Foldable f => Z.List a -> f (ListOp a) -> Array a
+arrMergeListOpts a b = Z.arrFromFoldable $ mergeListOps a b
+
 updateEnv :: forall x. EnvBuildState -> RecordConfig -> EnvBuildState
 updateEnv st cfg =
   { eOrIsoPath: st.eOrIsoPath
   , tempPath: st.tempPath
   , texturePath: st.texturePath
   , iniMods: mergeMListOps st.iniMods cfg.iniMods
-  , geckoCodes: st.geckoCodes
+  , geckoCodes: mergeMListOps st.geckoCodes cfg.geckoCodes
   , geckoEnable: st.geckoEnable
   , geckoDisable: st.geckoDisable
   }
@@ -87,8 +91,8 @@ finalizeEnv st (CliOpts opts) = do
     , recPath: opts.recPath
     , tempPath: ""
     , texturePath: []
-    , iniMods: Z.arrFromFoldable $ mergeListOps st.iniMods opts.iniMods
-    , geckoCodes: []
+    , iniMods: arrMergeListOpts st.iniMods opts.iniMods
+    , geckoCodes: arrMergeListOpts st.geckoCodes opts.geckoCodes
     , geckoEnable: []
     , geckoDisable: []
     , colorOverrides: Z.mapEmpty
