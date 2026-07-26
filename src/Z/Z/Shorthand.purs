@@ -1,5 +1,7 @@
 module Z.Z.Shorthand
   ( (%)
+  , (>|>)
+  , (<|<)
   , (~)
   , TPlus
   , Xflipped
@@ -18,12 +20,15 @@ module Z.Z.Shorthand
   , jOrE
   , jOrF
   , jOrT
+  , mfirst
+  , mlast
   , o_
   , over_
   , set_
   , type (#>)
   , type (+)
   , type (<#)
+  , module ZExp
   ) where
 
 import Prelude
@@ -38,7 +43,7 @@ import Z.Z.Defaultable (class Defaultable, orDefault) as Z
 import Z.Z.Ext
   ( class IsSymbol
   , First
-  , Maybe
+  , Maybe(..)
   , Optic
   , Either(..)
   , fromMaybe
@@ -47,8 +52,21 @@ import Z.Z.Ext
   , view
   , set
   ) as Z
+import Z.Z.Ext ((/\)) as ZExp
 import Z.Z.X as X
 import Type.Row (type (+)) as TypeRow
+
+mfirst :: forall a. Z.Maybe a -> Z.Maybe a -> Z.Maybe a
+mfirst Z.Nothing b = b
+mfirst a _ = a
+
+mlast :: forall a. Z.Maybe a -> Z.Maybe a -> Z.Maybe a
+mlast a Z.Nothing = a
+mlast _ b = b
+
+infixr 0 mlast as <|<
+
+infixr 0 mfirst as >|>
 
 type Xflipped a x = X.X x a
 

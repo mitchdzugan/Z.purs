@@ -17,6 +17,7 @@ module Z.Z.Core
   , forM
   , forM_
   , inc
+  , intFromString
   , invert
   , jsAny
   , jsError
@@ -45,10 +46,10 @@ module Z.Z.Core
   , pureF
   , reduce
   , reduceM
-  , runParser
-  , rtErrName
-  , rtErrMessage
   , rtErrExtra
+  , rtErrMessage
+  , rtErrName
+  , runParser
   , setAdd
   , setEmpty
   , setFromFoldable
@@ -332,3 +333,6 @@ parseInt = do
 
 p2 :: Int -> Int
 p2 = Int.pow 2
+
+intFromString :: String -> May.Maybe Int
+intFromString = Int.fromString

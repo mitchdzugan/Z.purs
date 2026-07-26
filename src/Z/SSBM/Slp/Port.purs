@@ -1,11 +1,27 @@
 module Z.SSBM.Slp.Port
   ( T(..)
+  , asInt
+  , ofInt
   ) where
 
 import Prelude
 import Z as Z
 
 data T = P1 | P2 | P3 | P4 | NonOEM Int
+
+ofInt :: Int -> T
+ofInt 1 = P1
+ofInt 2 = P2
+ofInt 3 = P3
+ofInt 4 = P4
+ofInt n = NonOEM n
+
+asInt :: T -> Int
+asInt P1 = 1
+asInt P2 = 2
+asInt P3 = 3
+asInt P4 = 4
+asInt (NonOEM n) = n
 
 derive instance eqT :: Eq T
 derive instance ordT :: Ord T
