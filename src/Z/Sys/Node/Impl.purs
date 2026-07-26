@@ -158,6 +158,8 @@ xExecAndExit m = execAndExit $ Z.xExecAff $ do
 
 data Platform = Win32 | Darwin | Linux | Android | FreeBSD | OpenBSD | Unknown
 
+derive instance eqPlatform :: Eq Platform
+
 toPlatform :: String -> Platform
 toPlatform "win32" = Win32
 toPlatform "darwin" = Darwin

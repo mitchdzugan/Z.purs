@@ -5,6 +5,7 @@ import Prelude
 import Data.Array (replicate)
 import Data.Foldable (sequence_)
 import Data.Generic.Rep (class Generic)
+import Data.List.Types as L
 import Data.Maybe (optional)
 import Data.Show.Generic (genericShow)
 import Options.Applicative (Parser, ParserInfo, ParserResult, ReadM, argument, execParser, execParserPure, fullDesc, header, help, helper, info, int, long, many, metavar, option, prefs, progDesc, short, showDefault, some, str, strArgument, strOption, switch, value, (<**>))
@@ -23,11 +24,19 @@ run argm = do
   let dataPath = Sys.envData envPaths
   let
     launcherSettingsPath =
-      cfgPath Sys.~ ".." Sys.~ "Slippi Launcher" Sys.~ "Settings"
-
-  Z.xInfo { cfgPath, tmpPath, dataPath, platform, launcherSettingsPath }
+      cfgPath
+        Sys.~ ".."
+        Sys.~ (if platform == Sys.Win32 then ".." else ".")
+        Sys.~ "Slippi Launcher"
+        Sys.~ "Settings"
+  let re = Z.decode @RecordConfig "{\"g\":123}"
+  Z.xInfo { cfgPath, tmpPath, dataPath, platform, launcherSettingsPath, re }
   Sys.argParse (cliInfo wd) argm \o -> do
     Z.xInfo { o }
+
+type LauncherSettingsPartial =
+  { settings :: { isoPath :: String }
+  }
 
 type EnvBuildState =
   { isoPath :: String
@@ -92,6 +101,17 @@ type IniProperty = String
 type IniValue = String
 
 data IniMod = IniMod IniFilename IniProperty IniValue
+
+derive instance eqIniMod :: Eq IniMod
+derive instance ordIniMod :: Ord IniMod
+
+derive instance genericIniMod :: Z.Generic IniMod _
+
+instance decodeJsonIniMod :: Z.DecodeJson IniMod where
+  decodeJson x = Z.genericDecodeJson x
+
+instance encodeJsonIniMod :: Z.EncodeJson IniMod where
+  encodeJson x = Z.genericEncodeJson x
 
 optReadIniMod :: ReadM IniMod
 optReadIniMod = pure $ IniMod "" "" ""
