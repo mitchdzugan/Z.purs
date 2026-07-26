@@ -13,6 +13,7 @@ module Z.Z.Util
   , arrSort
   , arrSortBy
   , arrSortWith
+  , baseDecodeJson
   , class IsStringOrNum
   , decode
   , decode'
@@ -96,6 +97,9 @@ data JsonDecodeErrorInt
   | Named String JsonDecodeErrorInt
   | MissingValue
 
+instance showJsonDecodeError :: Show JsonDecodeError where
+  show (JsonDecodeError jde) = show jde
+
 decodeRtoI :: JDE.JsonDecodeError -> JsonDecodeErrorInt
 decodeRtoI (JDE.TypeMismatch s) = TypeMismatch s
 decodeRtoI (JDE.UnexpectedValue j) = UnexpectedValue j
@@ -158,6 +162,13 @@ decodeJson
   => Arg.Json
   -> Either.Either JsonDecodeError v
 decodeJson = ADec.decodeJson >>> Z.mapL JsonDecodeError
+
+baseDecodeJson
+  :: forall v
+   . Dec.DecodeJson v
+  => Arg.Json
+  -> Either.Either ADec.JsonDecodeError v
+baseDecodeJson = ADec.decodeJson
 
 decode
   :: forall @v

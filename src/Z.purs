@@ -23,5 +23,5 @@ import Z.Z.Key (class Keyed, Key, key, keyStr) as ZKey
 import Z.Z.String (strJoinWith, strSplit) as ZString
 import Z.Z.Pair (Pair(..), (~)) as ZPair
 import Z.Z.PairKey (PairKey(..)) as ZPairKey
-import Z.Z.Util (class IsStringOrNum, type (#), type ($), JsonDecodeError(..), JsonDecodeFn, JsonEncodeFn, ResourceStage(..), SorN(..), Type_Ap, Type_Ap_R, arg2', arg3', arg4', arrReverse, arrSort, arrSortBy, arrSortWith, decode, decode', decodeJson, decodeJson', encode, id, jsonDecode, jsonKeys, jsonLookup, jsonPairs, jsonSortedPairs, jsonVals, nth, sOrN) as ZUtil
+import Z.Z.Util as ZUtil
 import Z.Z.X as ZX

@@ -1,4 +1,4 @@
-module Main where
+module Test.Scratch where
 
 import Prelude
 

@@ -15,6 +15,7 @@ module Z.Z.Shorthand
   , jOr0
   , jOr1
   , jOr1n
+  , jOrE
   , jOrF
   , jOrT
   , o_
@@ -27,9 +28,25 @@ module Z.Z.Shorthand
 
 import Prelude
 
-import Z.Z.Barlow (class ConstructBarlow, class ParseSymbol, Forget, barlow) as Z
+import Z.Z.Barlow
+  ( class ConstructBarlow
+  , class ParseSymbol
+  , Forget
+  , barlow
+  ) as Z
 import Z.Z.Defaultable (class Defaultable, orDefault) as Z
-import Z.Z.Ext (class IsSymbol, First, Maybe, Optic, fromMaybe, preview, over, view, set) as Z
+import Z.Z.Ext
+  ( class IsSymbol
+  , First
+  , Maybe
+  , Optic
+  , Either(..)
+  , fromMaybe
+  , preview
+  , over
+  , view
+  , set
+  ) as Z
 import Z.Z.X as X
 import Type.Row (type (+)) as TypeRow
 
@@ -64,6 +81,9 @@ jOrT = Z.fromMaybe true
 
 jOrF :: Z.Maybe Boolean -> Boolean
 jOrF = Z.fromMaybe false
+
+jOrE :: forall e a. e -> Z.Maybe a -> Z.Either e a
+jOrE e m = Z.fromMaybe (Z.Left e) $ m <#> Z.Right
 
 set_
   :: forall s t a b @sym lenses
