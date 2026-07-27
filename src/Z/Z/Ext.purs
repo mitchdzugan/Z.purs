@@ -1,13 +1,5 @@
 module Z.Z.Ext
-  ( OptParser
-  , OptParserInfo
-  , OptReadM
-  , cliFullDesc
-  , cliHeader
-  , cliHelper
-  , cliInfo
-  , cliProgDesc
-  , module Aff
+  ( module Aff
   , module Arg
   , module Array
   , module CA
@@ -38,7 +30,6 @@ module Z.Z.Ext
   , module MaybeFirst
   , module Monoid
   , module Newtype
-  , module OptionsApplicative
   , module Parsing
   , module Prc
   , module Promise
@@ -53,16 +44,6 @@ module Z.Z.Ext
   , module TupNested
   , module TypeEquals
   , module TypeRow
-  , optEitherReader
-  , optHelp
-  , optInt
-  , optLong
-  , optMany
-  , optMetavar
-  , optOption
-  , optShort
-  , optStrArgument
-  , optStrOption
   ) where
 
 import Control.Promise (Promise) as Promise
@@ -110,27 +91,3 @@ import Run.State (execState) as RunS
 import Type.Equality (class TypeEquals) as TypeEquals
 import Type.Proxy (Proxy(..)) as Proxy
 import Type.Row (type (+)) as TypeRow
-
-import Options.Applicative (Parser, ParserInfo, ReadM, fullDesc, header, help, helper, info, int, long, many, metavar, option, progDesc, short, strArgument, strOption, eitherReader)
-import Options.Applicative ((<**>)) as OptionsApplicative
-
-type OptParser = Parser
-type OptParserInfo = ParserInfo
-type OptReadM = ReadM
-
-cliFullDesc = fullDesc
-cliHeader = header
-cliProgDesc = progDesc
-cliInfo = info
-cliHelper = helper
-
-optHelp = help
-optInt = int
-optLong = long
-optMany = many
-optMetavar = metavar
-optOption = option
-optShort = short
-optStrArgument = strArgument
-optStrOption = strOption
-optEitherReader = eitherReader

@@ -3,6 +3,7 @@ module Z.SSBM.Slp.Rec.Node.Impl where
 import Z.Prelude
 import Z.SSBM.Slp.Port as Port
 import Z.Sys.Node.Module as Sys
+import Z.Z.Opt as O
 
 addConfigs
   :: forall x
@@ -256,104 +257,104 @@ instance encodeListOp :: EncodeJson a => EncodeJson (ListOp a) where
   encodeJson LReset = encodeJson ":"
   encodeJson (LCons a) = encodeJson a
 
-optJson :: forall @a. DecodeJson a => OptReadM a
-optJson = optEitherReader \s -> mapL show $ decode @a ("\"" <> s <> "\"")
+optJson :: forall @a. DecodeJson a => O.ReadM a
+optJson = O.eitherReader \s -> mapL show $ decode @a ("\"" <> s <> "\"")
 
-optJsonListOp :: forall @a. DecodeJson a => OptReadM (ListOp a)
+optJsonListOp :: forall @a. DecodeJson a => O.ReadM (ListOp a)
 optJsonListOp = optJson @(ListOp a)
 
-optReadIniMod :: OptReadM IniMod
+optReadIniMod :: O.ReadM IniMod
 optReadIniMod = pure $ IniMod "" "" ""
 
-optReadColorOverride :: OptReadM (Port.T /\ Int)
+optReadColorOverride :: O.ReadM (Port.T /\ Int)
 optReadColorOverride = pure $ Port.P1 /\ 1
 
-cliOpts :: Sys.Path -> OptParser CliOpts
+cliOpts :: Sys.Path -> O.Parser CliOpts
 cliOpts wd = map CliOpts $ optsProd
-  <$> optStrArgument
-    (optMetavar "SLP_FILE" <> optHelp ".slp file to record")
+  <$> O.strArgument
+    (O.metavar "SLP_FILE" <> O.help ".slp file to record")
   <*> optional
-    ( optOption optInt
-        $ (optLong "start-frame" <> optShort 's' <> optMetavar "INT")
-        <> optHelp
+    ( O.option O.int
+        $ (O.long "start-frame" <> O.short 's' <> O.metavar "INT")
+        <> O.help
           "First frame to begin recording (default: `GAME_FRAME_START`)"
 
     )
   <*> optional
-    ( optOption optInt
-        $ (optLong "total-frames" <> optShort 't' <> optMetavar "INT")
-        <> optHelp "Total frames to record (default: `all remaining`)"
+    ( O.option O.int
+        $ (O.long "total-frames" <> O.short 't' <> O.metavar "INT")
+        <> O.help "Total frames to record (default: `all remaining`)"
     )
   <*> optional
-    ( optStrOption $ (optLong "output" <> optShort 'o' <> optMetavar "MP4")
-        <> optHelp
+    ( O.strOption $ (O.long "output" <> O.short 'o' <> O.metavar "MP4")
+        <> O.help
           ( "Output file (default: "
               <> show (wd Sys./ "output.mp4")
               <> ")"
           )
     )
   <*> optional
-    ( optStrOption $ (optLong "iso" <> optShort 'i' <> optMetavar "ISO")
-        <> optHelp
+    ( O.strOption $ (O.long "iso" <> O.short 'i' <> O.metavar "ISO")
+        <> O.help
           ( "melee iso file (default: `slippi-launcher config`)"
           )
     )
-  <*> optMany
-    ( optOption (optJsonListOp @String)
-        $ (optLong "texture-path" <> optShort 'x' <> optMetavar "DIR")
-        <> optHelp "directory with texture overrides"
+  <*> O.many
+    ( O.option (optJsonListOp @String)
+        $ (O.long "texture-path" <> O.short 'x' <> O.metavar "DIR")
+        <> O.help "directory with texture overrides"
     )
-  <*> optMany
-    ( optOption (optJsonListOp @PortCostume)
-        $ (optLong "port-costume" <> optShort 'p' <> optMetavar "PORTC")
-        <> optHelp
+  <*> O.many
+    ( O.option (optJsonListOp @PortCostume)
+        $ (O.long "port-costume" <> O.short 'p' <> O.metavar "PORTC")
+        <> O.help
           ( "port costume overrides. PORTC => `$port=$costime`"
               <> " => `[1|2|3|4]=[1|2|3|4|5|6]`"
           )
     )
-  <*> optMany
-    ( optOption (optJsonListOp @IniMod)
-        $ (optLong "ini-mod" <> optShort 'I' <> optMetavar "INI_MOD")
-        <> optHelp
+  <*> O.many
+    ( O.option (optJsonListOp @IniMod)
+        $ (O.long "ini-mod" <> O.short 'I' <> O.metavar "INI_MOD")
+        <> O.help
           ( "slippi ini overrides. INI_MOD => `$ini:$prop=$val`"
               <> " => `[Dolphin|GFX|Logger]:$prop=$val"
           )
     )
-  <*> optMany
-    ( optOption (optJsonListOp @String)
-        $ (optLong "gecko-code" <> optShort 'g' <> optMetavar "CODE")
-        <> optHelp
+  <*> O.many
+    ( O.option (optJsonListOp @String)
+        $ (O.long "gecko-code" <> O.short 'g' <> O.metavar "CODE")
+        <> O.help
           "raw string containing code to directly include while recording"
     )
-  <*> optMany
-    ( optOption (optJsonListOp @String)
-        $ (optLong "gecko-enable" <> optShort '+' <> optMetavar "NAME")
-        <> optHelp "name of gecko codes to force enable"
+  <*> O.many
+    ( O.option (optJsonListOp @String)
+        $ (O.long "gecko-enable" <> O.short '+' <> O.metavar "NAME")
+        <> O.help "name of gecko codes to force enable"
     )
-  <*> optMany
-    ( optOption (optJsonListOp @String)
-        $ (optLong "gecko-disable" <> optShort '_' <> optMetavar "NAME")
-        <> optHelp "name of gecko codes to force disable"
-    )
-  <*> optional
-    ( optStrOption
-        $ (optLong "temp-path" <> optShort 'T' <> optMetavar "DIR")
-        <> optHelp "directory with store temporary recording files"
-    )
-  <*> optMany
-    ( optStrOption
-        $ (optLong "config" <> optShort 'c' <> optMetavar "FILE")
-        <> optHelp "config files to source"
+  <*> O.many
+    ( O.option (optJsonListOp @String)
+        $ (O.long "gecko-disable" <> O.short '_' <> O.metavar "NAME")
+        <> O.help "name of gecko codes to force disable"
     )
   <*> optional
-    ( optStrOption
-        $ (optLong "slippi-playback" <> optShort 'S' <> optMetavar "BIN")
-        <> optHelp "slippi-playback binary path"
+    ( O.strOption
+        $ (O.long "temp-path" <> O.short 'T' <> O.metavar "DIR")
+        <> O.help "directory with store temporary recording files"
+    )
+  <*> O.many
+    ( O.strOption
+        $ (O.long "config" <> O.short 'c' <> O.metavar "FILE")
+        <> O.help "config files to source"
     )
   <*> optional
-    ( optStrOption
-        $ (optLong "ffmpeg" <> optShort 'F' <> optMetavar "BIN")
-        <> optHelp "ffmpeg binary path"
+    ( O.strOption
+        $ (O.long "slippi-playback" <> O.short 'S' <> O.metavar "BIN")
+        <> O.help "slippi-playback binary path"
+    )
+  <*> optional
+    ( O.strOption
+        $ (O.long "ffmpeg" <> O.short 'F' <> O.metavar "BIN")
+        <> O.help "ffmpeg binary path"
     )
   where
   optsProd a b c d e f g h i j k l m n o =
@@ -374,11 +375,11 @@ cliOpts wd = map CliOpts $ optsProd
     , ffmpegBin: o
     }
 
-slpRecInfo :: Sys.Path -> OptParserInfo CliOpts
-slpRecInfo wd = cliInfo (cliOpts wd <**> cliHelper)
-  ( cliFullDesc
-      <> cliProgDesc "record SLP to MP4"
-      <> cliHeader "slp-rec | @dz-ssbm | .slp recording"
+slpRecInfo :: Sys.Path -> O.ParserInfo CliOpts
+slpRecInfo wd = O.info (cliOpts wd O.<**> O.helper)
+  ( O.fullDesc
+      <> O.progDesc "record SLP to MP4"
+      <> O.header "slp-rec | @dz-ssbm | .slp recording"
   )
 
 data Error = NoIso | ConfigNotFound String | ConfigDecodeErr JsonDecodeError
