@@ -5,7 +5,6 @@ module Z.SSBM.Slp.Read.Impl
   , stats
   ) where
 
-import Prelude
 import Z as Z
 
 foreign import data Game :: Type

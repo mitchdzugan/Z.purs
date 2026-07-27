@@ -1,7 +1,6 @@
 module Test.Scratch where
 
 import Node.Z.Prelude
-import Node.Z.H2h as H2h
 import Z.SSBM.Slp.Read.Impl as SlpRead
 
 testCachePath :: String
