@@ -20,7 +20,7 @@ module Z.H2h.Module
   , startggSource
   ) where
 
-import Z as Z
+import Z.Prelude hiding (Set)
 import Z.H2h.Error as H2hE
 import Z.H2h.Warning as H2hW
 
@@ -30,13 +30,13 @@ type Warning = H2hW.T
 
 data BracketingSite = Startgg | Challonge
 
-derive instance genericBracketingSite :: Z.Generic BracketingSite _
+derive instance genericBracketingSite :: Generic BracketingSite _
 
-instance decodeJsonBracketingSite :: Z.DecodeJson BracketingSite where
-  decodeJson x = Z.genericDecodeJson x
+instance decodeJsonBracketingSite :: DecodeJson BracketingSite where
+  decodeJson x = genericDecodeJson x
 
-instance encodeJsonBracketingSite :: Z.EncodeJson BracketingSite where
-  encodeJson x = Z.genericEncodeJson x
+instance encodeJsonBracketingSite :: EncodeJson BracketingSite where
+  encodeJson x = genericEncodeJson x
 
 data Score = DQ Boolean | Count Int | NoScore
 
@@ -46,16 +46,16 @@ mkScoreDQ isDQd = DQ isDQd
 mkScoreCount :: Int -> Score
 mkScoreCount count = Count count
 
-derive instance genericScore :: Z.Generic Score _
+derive instance genericScore :: Generic Score _
 
-instance decodeJsonScore :: Z.DecodeJson Score where
-  decodeJson x = Z.genericDecodeJson x
+instance decodeJsonScore :: DecodeJson Score where
+  decodeJson x = genericDecodeJson x
 
-instance encodeJsonScore :: Z.EncodeJson Score where
-  encodeJson x = Z.genericEncodeJson x
+instance encodeJsonScore :: EncodeJson Score where
+  encodeJson x = genericEncodeJson x
 
 type Slot =
-  { entrantId :: Z.Maybe Z.SorN
+  { entrantId :: Maybe SorN
   , score :: Score
   }
 
@@ -63,39 +63,39 @@ type Set =
   { id :: Int
   , isDQ :: Boolean
   , isBye :: Boolean
-  , winner :: Z.Maybe Z.PairKey
+  , winner :: Maybe PairKey
   , doesCount :: Boolean
   , roundText :: String
-  , slots :: Z.Pair Slot
-  , overrideScoreText :: Z.Maybe String
+  , slots :: Pair Slot
+  , overrideScoreText :: Maybe String
   }
 
 type Phase =
-  { id :: Z.SorN
+  { id :: SorN
   , name :: String
   , phaseOrder :: Int
   }
 
 type PhaseGroup =
-  { id :: Z.SorN
+  { id :: SorN
   , displayIdentifier :: String
-  , sets :: Z.Map Int Set
+  , sets :: Map Int Set
   , phase :: Phase
   }
 
 type Player =
-  { id :: Z.SorN
+  { id :: SorN
   , gamerTag :: String
-  , prefix :: Z.Maybe String
-  , pronouns :: Z.Maybe String
-  , name :: Z.Maybe String
-  , socials :: Z.Map String String
-  , images :: Z.Map String String
+  , prefix :: Maybe String
+  , pronouns :: Maybe String
+  , name :: Maybe String
+  , socials :: Map String String
+  , images :: Map String String
   }
 
 type Participant =
   { player :: Player
-  , prefix :: Z.Maybe String
+  , prefix :: Maybe String
   , gamerTag :: String
   , playerOrder :: Int
   }
@@ -103,25 +103,25 @@ type Participant =
 type Standing = { placement :: Int, isFinal :: Boolean }
 
 type Entrant =
-  { id :: Z.SorN
+  { id :: SorN
   , participants :: Array Participant
   , standing :: Standing
   }
 
 type Tournament =
-  { id :: Z.SorN
+  { id :: SorN
   , name :: String
-  , images :: Z.Map String String
-  , date :: Z.DateTime
+  , images :: Map String String
+  , date :: DateTime
   }
 
 type Event =
-  { id :: Z.SorN
+  { id :: SorN
   , site :: BracketingSite
   , name :: String
   , slug :: String
   , state :: String
-  , entrants :: Z.Map Z.SorN Entrant
+  , entrants :: Map SorN Entrant
   , phaseGroups :: Array PhaseGroup
   , tournament :: Tournament
   }

@@ -2,14 +2,14 @@ module Z.Sys.Module
   ( FSDataError(..)
   ) where
 
-import Z as Z
+import Z.Prelude
 
-data FSDataError = ReadError Z.JsError | DecodeError Z.JsonDecodeError
+data FSDataError = ReadError JsError | DecodeError JsonDecodeError
 
-derive instance genericFSDataError :: Z.Generic FSDataError _
+derive instance genericFSDataError :: Generic FSDataError _
 
-instance decodeJsonFSDataError :: Z.DecodeJson FSDataError where
-  decodeJson x = Z.genericDecodeJson x
+instance decodeJsonFSDataError :: DecodeJson FSDataError where
+  decodeJson x = genericDecodeJson x
 
-instance encodeJsonFSDataError :: Z.EncodeJson FSDataError where
-  encodeJson x = Z.genericEncodeJson x
+instance encodeJsonFSDataError :: EncodeJson FSDataError where
+  encodeJson x = genericEncodeJson x

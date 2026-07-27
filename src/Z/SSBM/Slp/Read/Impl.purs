@@ -5,15 +5,15 @@ module Z.SSBM.Slp.Read.Impl
   , stats
   ) where
 
-import Z as Z
+import Z.Prelude
 
 foreign import data Game :: Type
 foreign import data Stats :: Type
 
-foreign import js_gameOfBuffer :: Z.Buffer -> Game
+foreign import js_gameOfBuffer :: Buffer -> Game
 foreign import js_stats :: Game -> Stats
 
-game :: Z.Buffer -> Game
+game :: Buffer -> Game
 game = js_gameOfBuffer
 
 stats :: Game -> Stats

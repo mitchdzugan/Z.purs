@@ -4,8 +4,7 @@ module Z.SSBM.Slp.Port
   , ofInt
   ) where
 
-import Prelude
-import Z as Z
+import Z.Prelude
 
 data T = P1 | P2 | P3 | P4 | NonOEM Int
 
@@ -26,13 +25,13 @@ asInt (NonOEM n) = n
 derive instance eqT :: Eq T
 derive instance ordT :: Ord T
 
-derive instance genericT :: Z.Generic T _
+derive instance genericT :: Generic T _
 
-instance decodeJsonT :: Z.DecodeJson T where
-  decodeJson x = Z.genericDecodeJson x
+instance decodeJsonT :: DecodeJson T where
+  decodeJson x = genericDecodeJson x
 
-instance encodeJsonT :: Z.EncodeJson T where
-  encodeJson x = Z.genericEncodeJson x
+instance encodeJsonT :: EncodeJson T where
+  encodeJson x = genericEncodeJson x
 
 instance showT :: Show T where
   show P1 = "p1"
@@ -45,19 +44,19 @@ instance boundedT :: Bounded T where
   top = P4
   bottom = P1
 
-instance enumT :: Z.Enum T where
-  succ P4 = Z.Nothing
-  succ P3 = Z.Just P4
-  succ P2 = Z.Just P3
-  succ P1 = Z.Just P2
-  succ _ = Z.Nothing
-  pred P4 = Z.Just P3
-  pred P3 = Z.Just P2
-  pred P2 = Z.Just P1
-  pred P1 = Z.Nothing
-  pred _ = Z.Nothing
+instance enumT :: Enum T where
+  succ P4 = Nothing
+  succ P3 = Just P4
+  succ P2 = Just P3
+  succ P1 = Just P2
+  succ _ = Nothing
+  pred P4 = Just P3
+  pred P3 = Just P2
+  pred P2 = Just P1
+  pred P1 = Nothing
+  pred _ = Nothing
 
-instance boundedEnumT :: Z.BoundedEnum T where
-  cardinality = Z.defaultCardinality
-  toEnum = Z.defaultToEnum
-  fromEnum = Z.defaultFromEnum
+instance boundedEnumT :: BoundedEnum T where
+  cardinality = defaultCardinality
+  toEnum = defaultToEnum
+  fromEnum = defaultFromEnum

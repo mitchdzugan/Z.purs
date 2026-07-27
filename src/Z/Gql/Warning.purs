@@ -2,17 +2,16 @@ module Z.Gql.Warning
   ( T(..)
   ) where
 
-import Z.Sys.Module as Sys
-import Z as Z
+import Node.Z.Prelude
 
 data T
-  = CacheDecode Sys.FSDataError
-  | CacheWrite Z.JsError
+  = CacheDecode FSDataError
+  | CacheWrite JsError
 
-derive instance gnericT :: Z.Generic T _
+derive instance gnericT :: Generic T _
 
-instance decodeT :: Z.DecodeJson T where
-  decodeJson x = Z.genericDecodeJson x
+instance decodeT :: DecodeJson T where
+  decodeJson x = genericDecodeJson x
 
-instance encodeT :: Z.EncodeJson T where
-  encodeJson x = Z.genericEncodeJson x
+instance encodeT :: EncodeJson T where
+  encodeJson x = genericEncodeJson x

@@ -2,19 +2,19 @@ module Z.Gql.Error
   ( T(..)
   ) where
 
-import Z as Z
+import Z.Prelude
 
 data T
-  = NetworkError Z.JsError
-  | CachePrep Z.JsError
-  | CacheWriter Z.JsError
+  = NetworkError JsError
+  | CachePrep JsError
+  | CacheWriter JsError
   | CacheOnlyEmpty
-  | ResponseTypeError Z.JsonDecodeError
+  | ResponseTypeError JsonDecodeError
 
-derive instance gnericT :: Z.Generic T _
+derive instance gnericT :: Generic T _
 
-instance decodeT :: Z.DecodeJson T where
-  decodeJson x = Z.genericDecodeJson x
+instance decodeT :: DecodeJson T where
+  decodeJson x = genericDecodeJson x
 
-instance encodeT :: Z.EncodeJson T where
-  encodeJson x = Z.genericEncodeJson x
+instance encodeT :: EncodeJson T where
+  encodeJson x = genericEncodeJson x
