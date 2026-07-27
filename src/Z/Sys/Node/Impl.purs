@@ -1,5 +1,6 @@
 module Z.Sys.Node.Impl
   ( (/)
+  , (/-)
   , EnvPaths
   , Path
   , Platform(..)
@@ -8,7 +9,9 @@ module Z.Sys.Node.Impl
   , argv
   , basename
   , class Pathlike
+  , decodeAnyYamlExt
   , decodeTextFile
+  , decodeYamlFile
   , dirname
   , encodeTextFile
   , encodeTextFileP
@@ -16,10 +19,11 @@ module Z.Sys.Node.Impl
   , envData
   , envPaths
   , envTmp
-  , pathJoin
   , lookupEnv
   , mkdir
   , mkdirP
+  , pathJoin
+  , pathJoinAbs
   , pathStr
   , platform
   , readFile
@@ -54,6 +58,12 @@ foreign import js_mkdirp
 foreign import js_writeTextFile
   :: String -> String -> Z.Effect Z.$ Z.Promise Unit
 
+foreign import js_loadYaml
+  :: String
+  -> (Z.JsError -> Z.Either Z.JsError Z.Json)
+  -> (Z.Json -> Z.Either Z.JsError Z.Json)
+  -> Z.Either Z.JsError Z.Json
+
 newtype Path = Path String
 
 instance showPath :: Show Path where
@@ -83,6 +93,39 @@ decodeTextFile
 decodeTextFile p = do
   contents <- Z.xMapE Sys.ReadError $ readTextFile p
   Z.xOk $ Z.mapL Sys.DecodeError $ Z.decode contents
+
+decodeYamlString
+  :: forall x @d
+   . Z.DecodeJson d
+  => String
+  -> Z.EA Sys.FSDataError x #> d
+decodeYamlString contents = do
+  json <- Z.xOk $ Z.mapL Sys.ReadError $ js_loadYaml contents Z.Left Z.Right
+  Z.xOk $ Z.mapL Sys.DecodeError $ Z.decodeJson json
+
+decodeYamlFile
+  :: forall x p @d
+   . Pathlike p
+  => Z.DecodeJson d
+  => p
+  -> Z.EA Sys.FSDataError x #> d
+decodeYamlFile p = do
+  contents <- Z.xMapE Sys.ReadError $ readTextFile p
+  decodeYamlString contents
+
+decodeAnyYamlExt
+  :: forall x p @d
+   . Pathlike p
+  => Z.DecodeJson d
+  => p
+  -> Z.EA Sys.FSDataError x #> d
+decodeAnyYamlExt p = do
+  contents <- Z.xTryUntil
+    (Z.xMapE Sys.ReadError $ readTextFile $ (pathStr p) <> ".yaml")
+    [ const $ Z.xMapE Sys.ReadError $ readTextFile $ (pathStr p) <> ".json"
+    , const $ Z.xMapE Sys.ReadError $ readTextFile $ p
+    ]
+  decodeYamlString contents
 
 mkdir :: forall x p. Pathlike p => p -> Z.EA Z.JsError x #> Unit
 mkdir = Z.xEffectPromise <<< js_mkdir <<< pathStr
@@ -137,11 +180,12 @@ execAndExit :: forall e a. Z.RtError e => Z.Aff (Z.Either e a) -> Z.Effect Unit
 execAndExit a = Z.runAff_ onDone a
   where
   onDone (Z.Left e) = do
-    js_errorLog "⌄ UNHANDLED error !!! ⌄"
+    js_errorLog "process failed with UNHANDLED UNKNOWN error ⌄"
     js_errorLog e
     js_exit 125
   onDone (Z.Right (Z.Left e)) = do
-    js_errorLog $ "thrown error [| " <> Z.rtErrName e <> " |] ⌄"
+    js_errorLog $
+      "process failed with known error [| " <> Z.rtErrName e <> " |] ⌄"
     js_errorLog $ Z.rtErrMessage e
     js_exit 1
   onDone _ = pure unit
@@ -215,6 +259,7 @@ foreign import js_pathDirname :: String -> String
 foreign import js_pathBasename :: String -> String
 
 foreign import js_pathJoin :: String -> String -> String
+foreign import js_pathJoinAbs :: String -> String -> String
 
 foreign import js_wd :: Z.Effect String
 
@@ -259,6 +304,10 @@ basename p = Path $ js_pathBasename $ pathStr p
 pathJoin :: forall p1 p2. Pathlike p1 => Pathlike p2 => p1 -> p2 -> Path
 pathJoin p1 p2 = Path $ js_pathJoin (pathStr p1) (pathStr p2)
 
+pathJoinAbs :: forall p1 p2. Pathlike p1 => Pathlike p2 => p1 -> p2 -> Path
+pathJoinAbs p1 p2 = Path $ js_pathJoinAbs (pathStr p1) (pathStr p2)
+
 infixr 0 pathJoin as /
+infixr 0 pathJoinAbs as /-
 
 type XNode x a = Z.X (xNode :: XNodeF | x) a

@@ -1,29 +1,31 @@
 module Z.SSBM.Slp.Rec.Node.Impl where
 
-import Prelude
-
-import Data.Argonaut.Decode (JsonDecodeError(..)) as Dec
-import Data.Foldable (foldlDefault)
-import Z as Z
+import Z.Prelude
 import Z.SSBM.Slp.Port as Port
 import Z.Sys.Node.Module as Sys
-import Z.Z.Shorthand (type (#>), g_, jOr, jOrE, (>|>), (/\))
 
-data Error = NoIso
+addConfigs
+  :: forall x
+   . Boolean
+  -> Sys.Path
+  -> Array String
+  -> SEA EnvBuildState Error x #> Unit
+addConfigs allowFNF wd configPaths = do
+  forM_ configPaths \configPath -> do
+    let fullPath = wd Sys./- configPath
+    Sys.decodeAnyYamlExt @RecordConfig fullPath # xTry >>= onDecode fullPath
+  where
+  onDecode fullPath (Right c) = do
+    xModify $ updateEnv c
+    addConfigs false (Sys.dirname fullPath) (gmOr'_ @"includes?" c)
+  onDecode fp (Left (Sys.ReadError _)) = do
+    when (not allowFNF) $ xFail $ ConfigNotFound $ show fp
+  onDecode _ (Left (Sys.DecodeError e)) = xFail $ ConfigDecodeErr e
 
-instance errorRtError :: Z.RtError Error where
-  rtErrExtra _ = Z.encodeJson {}
-  rtErrName _ = "melee iso not found"
-  rtErrMessage _ = "please supply via opt `-i %ISO_PATH%`"
-
-buildEnv :: forall x. Z.SEA EnvBuildState Error x #> Unit
-buildEnv = do
-  pure unit
-
-run :: forall x. Array String -> Sys.XNode (Z.EA Error x) Unit
+run :: forall x. Array String -> Sys.XNode (EA Error x) Unit
 run args = do
   wd <- Sys.wd
-  envPaths <- Sys.envPaths "slp-rec" $ Z.Just ""
+  envPaths <- Sys.envPaths "slp-rec" $ Just ""
   platform <- Sys.platform
   let cfgPath = Sys.envCfg envPaths
   let tmpPath = Sys.envTmp envPaths
@@ -35,54 +37,59 @@ run args = do
         Sys./ "Slippi Launcher"
         Sys./ "Settings"
   launcherSettings <-
-    Sys.decodeTextFile @LauncherSettings' launcherSettingsPath # Z.xTry <#>
-      Z.hush
+    Sys.decodeTextFile @LauncherSettings' launcherSettingsPath # xTry <#>
+      hush
   let isoPath = launcherSettings <#> g_ @"settings.isoPath"
-  envState <- flip Z.xRunS buildEnv
-    { isoPath: isoPath
-    , tempPath: show tmpPath
-    , texturePath: Z.Nil
-    , iniMods: Z.Nil
-    , geckoCodes: Z.Nil
-    , geckoEnable: Z.Nil
-    , geckoDisable: Z.Nil
-    }
-  Z.xInfo { isoPath }
-  Sys.argParse (cliInfo wd) args \opts -> do
+  let
+    envStateInit =
+      { isoPath: isoPath
+      , tempPath: show tmpPath
+      , texturePaths: Nil
+      , iniMods: Nil
+      , geckoCodes: Nil
+      , geckoEnables: Nil
+      , geckoDisables: Nil
+      }
+  Sys.argParse (slpRecInfo wd) args \opts -> do
+    let optConfigs = arrFromFoldable $ g_ @"!.configPaths" opts
+    let noOptConfigs = arrSize optConfigs == 0
+    let baseConfigPath = show $ cfgPath Sys./ "config"
+    let configs = if noOptConfigs then [ baseConfigPath ] else optConfigs
+    envState <- xRunS envStateInit $ addConfigs noOptConfigs wd configs
     env <- finalizeEnv envState opts $ show $ wd Sys./ "output.mp4"
-    Z.xInfo env
+    xInfo env
 
 mergeListOps
-  :: forall a f. Z.Foldable f => Z.List a -> f (ListOp a) -> Z.List a
+  :: forall a f. Foldable f => List a -> f (ListOp a) -> List a
 mergeListOps l ops = foldlDefault folder l ops
   where
-  folder _ Reset = Z.Nil
-  folder l' (Cons v) = Z.Cons v l'
+  folder _ LReset = Nil
+  folder l' (LCons v) = Cons v l'
 
 mergeMListOps
-  :: forall a f. Z.Foldable f => Z.List a -> Z.Maybe (f (ListOp a)) -> Z.List a
-mergeMListOps l Z.Nothing = l
-mergeMListOps l (Z.Just ops) = mergeListOps l ops
+  :: forall a f. Foldable f => List a -> Maybe (f (ListOp a)) -> List a
+mergeMListOps l Nothing = l
+mergeMListOps l (Just ops) = mergeListOps l ops
 
 arrMergeListOpts
-  :: forall a f. Z.Foldable f => Z.List a -> f (ListOp a) -> Array a
-arrMergeListOpts a b = Z.arrFromFoldable $ mergeListOps a b
+  :: forall a f. Foldable f => List a -> f (ListOp a) -> Array a
+arrMergeListOpts a b = arrFromFoldable $ mergeListOps a b
 
-updateEnv :: EnvBuildState -> RecordConfig -> EnvBuildState
-updateEnv st cfg =
+updateEnv :: RecordConfig -> EnvBuildState -> EnvBuildState
+updateEnv cfg st =
   { isoPath: cfg.isoPath >|> st.isoPath
   , tempPath: st.tempPath
-  , texturePath: mergeMListOps st.texturePath cfg.texturePath
+  , texturePaths: mergeMListOps st.texturePaths cfg.texturePaths
   , iniMods: mergeMListOps st.iniMods cfg.iniMods
   , geckoCodes: mergeMListOps st.geckoCodes cfg.geckoCodes
-  , geckoEnable: mergeMListOps st.geckoEnable cfg.geckoEnables
-  , geckoDisable: mergeMListOps st.geckoDisable cfg.geckoDisables
+  , geckoEnables: mergeMListOps st.geckoEnables cfg.geckoEnables
+  , geckoDisables: mergeMListOps st.geckoDisables cfg.geckoDisables
   }
 
 finalizeEnv
-  :: forall x. EnvBuildState -> CliOpts -> String -> Z.E Error x #> RecordEnv
+  :: forall x. EnvBuildState -> CliOpts -> String -> E Error x #> RecordEnv
 finalizeEnv st (CliOpts opts) defaultOutputPath = do
-  isoPath <- Z.xOk $ jOrE NoIso st.isoPath
+  isoPath <- xOk $ jOrE NoIso st.isoPath
   pure
     { isoPath
     , outputPath: jOr defaultOutputPath opts.outputPath
@@ -90,13 +97,13 @@ finalizeEnv st (CliOpts opts) defaultOutputPath = do
     , totalFrames: opts.totalFrames
     , recPath: opts.recPath
     , tempPath: jOr st.tempPath opts.tempPath
-    , texturePath: arrMergeListOpts st.texturePath opts.texturePath
+    , texturePaths: arrMergeListOpts st.texturePaths opts.texturePaths
     , iniMods: arrMergeListOpts st.iniMods opts.iniMods
     , geckoCodes: arrMergeListOpts st.geckoCodes opts.geckoCodes
-    , geckoEnable: arrMergeListOpts st.geckoEnable opts.geckoEnables
-    , geckoDisable: arrMergeListOpts st.geckoDisable opts.geckoDisables
-    , colorOverrides: Z.mapFromFoldable $
-        (mergeListOps Z.Nil opts.colorOverrides) <#> Z.unwrap
+    , geckoEnables: arrMergeListOpts st.geckoEnables opts.geckoEnables
+    , geckoDisables: arrMergeListOpts st.geckoDisables opts.geckoDisables
+    , colorOverrides: mapFromFoldable $ unwrap
+        <$> mergeListOps Nil opts.colorOverrides
     , slippiPlaybackBin: "slippi-playback"
     , ffmpegBin: "ffmpeg"
     }
@@ -106,65 +113,67 @@ type LauncherSettings' =
   }
 
 type EnvBuildState =
-  { isoPath :: Z.Maybe String
+  { isoPath :: Maybe String
   , tempPath :: String
-  , texturePath :: Z.List String
-  , iniMods :: Z.List IniMod
-  , geckoCodes :: Z.List String
-  , geckoEnable :: Z.List String
-  , geckoDisable :: Z.List String
+  , texturePaths :: List String
+  , iniMods :: List IniMod
+  , geckoCodes :: List String
+  , geckoEnables :: List String
+  , geckoDisables :: List String
   }
 
 type RecordEnv =
-  { startFrame :: Z.Maybe Int
-  , totalFrames :: Z.Maybe Int
+  { startFrame :: Maybe Int
+  , totalFrames :: Maybe Int
   , outputPath :: String
   , recPath :: String
   , isoPath :: String
   , tempPath :: String
-  , texturePath :: Array String
+  , texturePaths :: Array String
   , iniMods :: Array IniMod
   , geckoCodes :: Array String
-  , geckoEnable :: Array String
-  , geckoDisable :: Array String
-  , colorOverrides :: Z.Map Port.T Int
+  , geckoEnables :: Array String
+  , geckoDisables :: Array String
+  , colorOverrides :: Map Port.T Int
   , slippiPlaybackBin :: String
   , ffmpegBin :: String
   }
 
-type CfgMany a = Z.Maybe (Array (ListOp a))
-type CliMany a = Z.List (ListOp a)
+type CfgMany a = Maybe (Array (ListOp a))
+type CliMany a = List (ListOp a)
 
 type RecordConfig =
-  { isoPath :: Z.Maybe String
-  , texturePath :: CfgMany String
+  { isoPath :: Maybe String
+  , texturePaths :: CfgMany String
   , iniMods :: CfgMany IniMod
-  , tempPath :: Z.Maybe String
-  , includes :: CfgMany String
+  , tempPath :: Maybe String
   , geckoCodes :: CfgMany String
   , geckoEnables :: CfgMany String
   , geckoDisables :: CfgMany String
-  , slippiPlaybackBin :: Z.Maybe String
-  , ffmpegBin :: Z.Maybe String
+  , slippiPlaybackBin :: Maybe String
+  , ffmpegBin :: Maybe String
+  , includes :: Maybe (Array String)
   }
 
-data CliOpts = CliOpts
-  { startFrame :: Z.Maybe Int
-  , totalFrames :: Z.Maybe Int
-  , outputPath :: Z.Maybe String
-  , isoPath :: Z.Maybe String
-  , texturePath :: CliMany String
+newtype CliOpts = CliOpts
+  { startFrame :: Maybe Int
+  , totalFrames :: Maybe Int
+  , outputPath :: Maybe String
+  , isoPath :: Maybe String
+  , texturePaths :: CliMany String
   , iniMods :: CliMany IniMod
   , geckoCodes :: CliMany String
   , geckoEnables :: CliMany String
   , geckoDisables :: CliMany String
   , colorOverrides :: CliMany PortCostume
-  , tempPath :: Z.Maybe String
-  , configPaths :: CliMany String
-  , slippiPlaybackBin :: Z.Maybe String
-  , ffmpegBin :: Z.Maybe String
+  , tempPath :: Maybe String
+  , configPaths :: List String
+  , slippiPlaybackBin :: Maybe String
+  , ffmpegBin :: Maybe String
   , recPath :: String
   }
+
+derive instance newtypeCliOpts :: Newtype CliOpts _
 
 type IniFilename = String
 type IniProperty = String
@@ -175,177 +184,176 @@ data IniMod = IniMod IniFilename IniProperty IniValue
 derive instance eqIniMod :: Eq IniMod
 derive instance ordIniMod :: Ord IniMod
 
-derive instance genericIniMod :: Z.Generic IniMod _
+derive instance genericIniMod :: Generic IniMod _
 
 iniModToStr :: IniMod -> String
 iniModToStr (IniMod i p v) = i <> ":" <> p <> "=" <> v
 
-iniModOfStr :: String -> Z.Either String IniMod
+iniModOfStr :: String -> Either String IniMod
 iniModOfStr s = do
-  let csplit = Z.strSplit (Z.Pattern ":") s
-  i <- jOrE emsg $ Z.nth csplit 0
-  rest <- jOrE emsg $ Z.nth csplit 1
-  let rsplit = Z.strSplit (Z.Pattern "=") rest
-  p <- jOrE emsg $ Z.nth rsplit 0
-  v <- jOrE emsg $ Z.nth rsplit 1
+  let csplit = strSplit (Pattern ":") s
+  i <- jOrE emsg $ nth csplit 0
+  rest <- jOrE emsg $ nth csplit 1
+  let rsplit = strSplit (Pattern "=") rest
+  p <- jOrE emsg $ nth rsplit 0
+  v <- jOrE emsg $ nth rsplit 1
   pure $ IniMod i p v
   where
   emsg = "Expected `$ini:$prop=$val`"
 
-instance decodeJsonIniMod :: Z.DecodeJson IniMod where
+instance decodeJsonIniMod :: DecodeJson IniMod where
   decodeJson x = do
-    (Z.baseDecodeJson x <#> iniModOfStr) >>= onEor
+    (baseDecodeJson x <#> iniModOfStr) >>= onEor
     where
-    onEor (Z.Right v) = pure v
-    onEor (Z.Left msg) = Z.Left $ Dec.TypeMismatch msg
+    onEor (Right v) = pure v
+    onEor (Left msg) = decodeFailTypeMismatch msg
 
-instance encodeJsonIniMod :: Z.EncodeJson IniMod where
-  encodeJson x = Z.encodeJson $ iniModToStr x
+instance encodeJsonIniMod :: EncodeJson IniMod where
+  encodeJson x = encodeJson $ iniModToStr x
 
-newtype PortCostume = PortCostume (Port.T Z./\ Int)
+newtype PortCostume = PortCostume (Port.T /\ Int)
 
-derive instance newtypePortCostume :: Z.Newtype PortCostume _
+derive instance newtypePortCostume :: Newtype PortCostume _
 
 derive instance eqPortCostume :: Eq PortCostume
 derive instance ordPortCostume :: Ord PortCostume
 
-derive instance genericPortCostume :: Z.Generic PortCostume _
+derive instance genericPortCostume :: Generic PortCostume _
 
 portCostumeToStr :: PortCostume -> String
 portCostumeToStr (PortCostume (p /\ c)) = (show $ Port.asInt p) <> "=" <> show c
 
-portCostumeOfStr :: String -> Z.Either String PortCostume
+portCostumeOfStr :: String -> Either String PortCostume
 portCostumeOfStr s = do
-  let esplit = Z.strSplit (Z.Pattern "=") s
-  p <- jOrE emsg $ Z.nth esplit 0 >>= Z.intFromString
-  c <- jOrE emsg $ Z.nth esplit 1 >>= Z.intFromString
+  let esplit = strSplit (Pattern "=") s
+  p <- jOrE emsg $ nth esplit 0 >>= intFromString
+  c <- jOrE emsg $ nth esplit 1 >>= intFromString
   pure $ PortCostume $ (Port.ofInt p) /\ c
   where
   emsg = "Expected `$port:$costume` => `[1|2|3|4]=[1|2|3|4|5|6]"
 
-instance decodeJsonPortCostume :: Z.DecodeJson PortCostume where
+instance decodeJsonPortCostume :: DecodeJson PortCostume where
   decodeJson x = do
-    (Z.baseDecodeJson x <#> portCostumeOfStr) >>= onEor
+    (baseDecodeJson x <#> portCostumeOfStr) >>= onEor
     where
-    onEor (Z.Right v) = pure v
-    onEor (Z.Left msg) = Z.Left $ Dec.TypeMismatch msg
+    onEor (Right v) = pure v
+    onEor (Left msg) = decodeFailTypeMismatch msg
 
-instance encodeJsonPortCostume :: Z.EncodeJson PortCostume where
-  encodeJson x = Z.encodeJson $ portCostumeToStr x
+instance encodeJsonPortCostume :: EncodeJson PortCostume where
+  encodeJson x = encodeJson $ portCostumeToStr x
 
-data ListOp a = Reset | Cons a
+data ListOp a = LReset | LCons a
 
-instance decodeListOp :: Z.DecodeJson a => Z.DecodeJson (ListOp a) where
+instance decodeListOp :: DecodeJson a => DecodeJson (ListOp a) where
   decodeJson x = do
-    Z.caseJsonString decodeCons onString x
+    caseJsonString decodeCons onString x
     where
-    onString ":" = pure Reset
+    onString ":" = pure LReset
     onString _ = decodeCons
-    decodeCons = Z.baseDecodeJson x <#> Cons
+    decodeCons = baseDecodeJson x <#> LCons
 
-instance encodeListOp :: Z.EncodeJson a => Z.EncodeJson (ListOp a) where
-  encodeJson Reset = Z.encodeJson ":"
-  encodeJson (Cons a) = Z.encodeJson a
+instance encodeListOp :: EncodeJson a => EncodeJson (ListOp a) where
+  encodeJson LReset = encodeJson ":"
+  encodeJson (LCons a) = encodeJson a
 
-optJson :: forall @a. Z.DecodeJson a => Z.OptReadM a
-optJson = Z.optEitherReader \s -> Z.mapL show $ Z.decode @a ("\"" <> s <> "\"")
+optJson :: forall @a. DecodeJson a => OptReadM a
+optJson = optEitherReader \s -> mapL show $ decode @a ("\"" <> s <> "\"")
 
-optJsonListOp :: forall @a. Z.DecodeJson a => Z.OptReadM (ListOp a)
+optJsonListOp :: forall @a. DecodeJson a => OptReadM (ListOp a)
 optJsonListOp = optJson @(ListOp a)
 
-optReadIniMod :: Z.OptReadM IniMod
+optReadIniMod :: OptReadM IniMod
 optReadIniMod = pure $ IniMod "" "" ""
 
-optReadColorOverride :: Z.OptReadM (Port.T Z./\ Int)
-optReadColorOverride = pure $ Port.P1 Z./\ 1
+optReadColorOverride :: OptReadM (Port.T /\ Int)
+optReadColorOverride = pure $ Port.P1 /\ 1
 
-cliOpts :: Sys.Path -> Z.OptParser CliOpts
+cliOpts :: Sys.Path -> OptParser CliOpts
 cliOpts wd = map CliOpts $ optsProd
-  <$> Z.optStrArgument
-    (Z.optMetavar "SLP_FILE" <> Z.optHelp ".slp file to record")
-  <*> Z.optional
-    ( Z.optOption Z.optInt $
-        (Z.optLong "start-frame" <> Z.optShort 's' <> Z.optMetavar "INT")
-          <> Z.optHelp
-            "First frame to begin recording (default: `GAME_FRAME_START`)"
+  <$> optStrArgument
+    (optMetavar "SLP_FILE" <> optHelp ".slp file to record")
+  <*> optional
+    ( optOption optInt
+        $ (optLong "start-frame" <> optShort 's' <> optMetavar "INT")
+        <> optHelp
+          "First frame to begin recording (default: `GAME_FRAME_START`)"
 
     )
-  <*> Z.optional
-    ( Z.optOption Z.optInt $
-        (Z.optLong "total-frames" <> Z.optShort 't' <> Z.optMetavar "INT")
-          <> Z.optHelp "Total frames to record (default: `all remaining`)"
+  <*> optional
+    ( optOption optInt
+        $ (optLong "total-frames" <> optShort 't' <> optMetavar "INT")
+        <> optHelp "Total frames to record (default: `all remaining`)"
     )
-  <*> Z.optional
-    ( Z.optStrOption $
-        (Z.optLong "output" <> Z.optShort 'o' <> Z.optMetavar "MP4")
-          <> Z.optHelp
-            ( "Output file (default: "
-                <> show (wd Sys./ "output.mp4")
-                <> ")"
-            )
+  <*> optional
+    ( optStrOption $ (optLong "output" <> optShort 'o' <> optMetavar "MP4")
+        <> optHelp
+          ( "Output file (default: "
+              <> show (wd Sys./ "output.mp4")
+              <> ")"
+          )
     )
-  <*> Z.optional
-    ( Z.optStrOption $ (Z.optLong "iso" <> Z.optShort 'i' <> Z.optMetavar "ISO")
-        <> Z.optHelp
+  <*> optional
+    ( optStrOption $ (optLong "iso" <> optShort 'i' <> optMetavar "ISO")
+        <> optHelp
           ( "melee iso file (default: `slippi-launcher config`)"
           )
     )
-  <*> Z.optMany
-    ( Z.optOption (optJsonListOp @String) $
-        (Z.optLong "texture-path" <> Z.optShort 'x' <> Z.optMetavar "DIR")
-          <> Z.optHelp "directory with texture overrides"
+  <*> optMany
+    ( optOption (optJsonListOp @String)
+        $ (optLong "texture-path" <> optShort 'x' <> optMetavar "DIR")
+        <> optHelp "directory with texture overrides"
     )
-  <*> Z.optMany
-    ( Z.optOption (optJsonListOp @PortCostume) $
-        (Z.optLong "port-costume" <> Z.optShort 'p' <> Z.optMetavar "PORTC")
-          <> Z.optHelp
-            ( "port costume overrides. PORTC => `$port=$costime`"
-                <> " => `[1|2|3|4]=[1|2|3|4|5|6]`"
-            )
+  <*> optMany
+    ( optOption (optJsonListOp @PortCostume)
+        $ (optLong "port-costume" <> optShort 'p' <> optMetavar "PORTC")
+        <> optHelp
+          ( "port costume overrides. PORTC => `$port=$costime`"
+              <> " => `[1|2|3|4]=[1|2|3|4|5|6]`"
+          )
     )
-  <*> Z.optMany
-    ( Z.optOption (optJsonListOp @IniMod) $
-        (Z.optLong "ini-mod" <> Z.optShort 'I' <> Z.optMetavar "INI_MOD")
-          <> Z.optHelp
-            ( "slippi ini overrides. INI_MOD => `$ini:$prop=$val`"
-                <> " => `[Dolphin|GFX|Logger]:$prop=$val"
-            )
+  <*> optMany
+    ( optOption (optJsonListOp @IniMod)
+        $ (optLong "ini-mod" <> optShort 'I' <> optMetavar "INI_MOD")
+        <> optHelp
+          ( "slippi ini overrides. INI_MOD => `$ini:$prop=$val`"
+              <> " => `[Dolphin|GFX|Logger]:$prop=$val"
+          )
     )
-  <*> Z.optMany
-    ( Z.optOption (optJsonListOp @String) $
-        (Z.optLong "gecko-code" <> Z.optShort 'g' <> Z.optMetavar "CODE")
-          <> Z.optHelp
-            "raw string containing code to directly include while recording"
+  <*> optMany
+    ( optOption (optJsonListOp @String)
+        $ (optLong "gecko-code" <> optShort 'g' <> optMetavar "CODE")
+        <> optHelp
+          "raw string containing code to directly include while recording"
     )
-  <*> Z.optMany
-    ( Z.optOption (optJsonListOp @String) $
-        (Z.optLong "gecko-enable" <> Z.optShort '+' <> Z.optMetavar "NAME")
-          <> Z.optHelp "name of gecko codes to force enable"
+  <*> optMany
+    ( optOption (optJsonListOp @String)
+        $ (optLong "gecko-enable" <> optShort '+' <> optMetavar "NAME")
+        <> optHelp "name of gecko codes to force enable"
     )
-  <*> Z.optMany
-    ( Z.optOption (optJsonListOp @String) $
-        (Z.optLong "gecko-disable" <> Z.optShort '_' <> Z.optMetavar "NAME")
-          <> Z.optHelp "name of gecko codes to force disable"
+  <*> optMany
+    ( optOption (optJsonListOp @String)
+        $ (optLong "gecko-disable" <> optShort '_' <> optMetavar "NAME")
+        <> optHelp "name of gecko codes to force disable"
     )
-  <*> Z.optional
-    ( Z.optStrOption $
-        (Z.optLong "temp-path" <> Z.optShort 'T' <> Z.optMetavar "DIR")
-          <> Z.optHelp "directory with store temporary recording files"
+  <*> optional
+    ( optStrOption
+        $ (optLong "temp-path" <> optShort 'T' <> optMetavar "DIR")
+        <> optHelp "directory with store temporary recording files"
     )
-  <*> Z.optMany
-    ( Z.optOption (optJsonListOp @String) $
-        (Z.optLong "config" <> Z.optShort 'c' <> Z.optMetavar "FILE")
-          <> Z.optHelp "config files to source"
+  <*> optMany
+    ( optStrOption
+        $ (optLong "config" <> optShort 'c' <> optMetavar "FILE")
+        <> optHelp "config files to source"
     )
-  <*> Z.optional
-    ( Z.optStrOption $
-        (Z.optLong "slippi-playback" <> Z.optShort 'S' <> Z.optMetavar "BIN")
-          <> Z.optHelp "slippi-playback binary path"
+  <*> optional
+    ( optStrOption
+        $ (optLong "slippi-playback" <> optShort 'S' <> optMetavar "BIN")
+        <> optHelp "slippi-playback binary path"
     )
-  <*> Z.optional
-    ( Z.optStrOption $
-        (Z.optLong "ffmpeg" <> Z.optShort 'F' <> Z.optMetavar "BIN")
-          <> Z.optHelp "ffmpeg binary path"
+  <*> optional
+    ( optStrOption
+        $ (optLong "ffmpeg" <> optShort 'F' <> optMetavar "BIN")
+        <> optHelp "ffmpeg binary path"
     )
   where
   optsProd a b c d e f g h i j k l m n o =
@@ -354,7 +362,7 @@ cliOpts wd = map CliOpts $ optsProd
     , totalFrames: c
     , outputPath: d
     , isoPath: e
-    , texturePath: f
+    , texturePaths: f
     , colorOverrides: g
     , iniMods: h
     , geckoCodes: i
@@ -366,9 +374,22 @@ cliOpts wd = map CliOpts $ optsProd
     , ffmpegBin: o
     }
 
-cliInfo :: Sys.Path -> Z.OptParserInfo CliOpts
-cliInfo wd = Z.cliInfo (cliOpts wd Z.<**> Z.cliHelper)
-  ( Z.cliFullDesc
-      <> Z.cliProgDesc "record SLP to MP4"
-      <> Z.cliHeader "slp-rec | @dz-ssbm | .slp recording"
+slpRecInfo :: Sys.Path -> OptParserInfo CliOpts
+slpRecInfo wd = cliInfo (cliOpts wd <**> cliHelper)
+  ( cliFullDesc
+      <> cliProgDesc "record SLP to MP4"
+      <> cliHeader "slp-rec | @dz-ssbm | .slp recording"
   )
+
+data Error = NoIso | ConfigNotFound String | ConfigDecodeErr JsonDecodeError
+
+instance errorRtError :: RtError Error where
+  rtErrExtra _ = encodeJson {}
+  rtErrName NoIso = "melee iso not found"
+  rtErrName (ConfigNotFound _) = "config file not found"
+  rtErrName (ConfigDecodeErr _) = "config file invalid type"
+  -- rtErrName _ = "_err_name_not_implemented_"
+  rtErrMessage NoIso = "please supply via opt `-i %ISO_PATH%`"
+  rtErrMessage (ConfigNotFound p) = p
+  rtErrMessage (ConfigDecodeErr e) = show e
+-- rtErrMessage _ = "_err_message_not_implemented_"

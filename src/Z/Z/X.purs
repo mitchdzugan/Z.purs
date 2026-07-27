@@ -92,6 +92,7 @@ module Z.Z.X
   , xMapW
   , xMapWE
   , xMergeS
+  , xModify
   , xOk
   , xOrDefault
   , xOut
@@ -308,6 +309,9 @@ xListen = RunW.runWriter
 
 xGet :: forall x s. R.Run (S s x) s
 xGet = RunS.get
+
+xModify :: forall x s. (s -> s) -> R.Run (S s x) Unit
+xModify f = RunS.modify f
 
 xView :: forall x s t a b. Lens.Lens s t a b -> R.Run (S s x) a
 xView l = xGet <#> Lens.view l

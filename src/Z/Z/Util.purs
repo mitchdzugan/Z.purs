@@ -17,6 +17,8 @@ module Z.Z.Util
   , class IsStringOrNum
   , decode
   , decode'
+  , decodeErrTypeMismatch
+  , decodeFailTypeMismatch
   , decodeJson
   , decodeJson'
   , encode
@@ -96,6 +98,13 @@ data JsonDecodeErrorInt
   | AtKey String JsonDecodeErrorInt
   | Named String JsonDecodeErrorInt
   | MissingValue
+
+decodeErrTypeMismatch :: String -> JDE.JsonDecodeError
+decodeErrTypeMismatch = JDE.TypeMismatch
+
+decodeFailTypeMismatch
+  :: forall x. String -> Either.Either JDE.JsonDecodeError x
+decodeFailTypeMismatch = Either.Left <<< JDE.TypeMismatch
 
 instance showJsonDecodeError :: Show JsonDecodeError where
   show (JsonDecodeError jde) = show jde
