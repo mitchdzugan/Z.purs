@@ -22,4 +22,6 @@ import Options.Applicative
   , strArgument
   , strOption
   , eitherReader
+  , briefDesc
+  , footer
   ) as OptionsApplicative

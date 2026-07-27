@@ -5,6 +5,9 @@ import Z.SSBM.Slp.Port as Port
 import Z.Sys.Node.Module as Sys
 import Z.Z.Opt as O
 
+launchAndRecord :: forall x. REA RecordEnv Error x #> Unit
+launchAndRecord = pure unit
+
 addConfigs
   :: forall x
    . Boolean
@@ -50,6 +53,8 @@ run args = do
       , geckoCodes: Nil
       , geckoEnables: Nil
       , geckoDisables: Nil
+      , slippiPlaybackBin: "slippi-playback"
+      , ffmpegBin: "ffmpeg"
       }
   Sys.argParse (slpRecInfo wd) args \opts -> do
     let optConfigs = arrFromFoldable $ g_ @"!.configPaths" opts
@@ -59,6 +64,7 @@ run args = do
     envState <- xRunS envStateInit $ addConfigs noOptConfigs wd configs
     env <- finalizeEnv envState opts $ show $ wd Sys./ "output.mp4"
     xInfo env
+    xEvalR env launchAndRecord
 
 mergeListOps
   :: forall a f. Foldable f => List a -> f (ListOp a) -> List a
@@ -85,6 +91,8 @@ updateEnv cfg st =
   , geckoCodes: mergeMListOps st.geckoCodes cfg.geckoCodes
   , geckoEnables: mergeMListOps st.geckoEnables cfg.geckoEnables
   , geckoDisables: mergeMListOps st.geckoDisables cfg.geckoDisables
+  , slippiPlaybackBin: jOr st.slippiPlaybackBin cfg.slippiPlaybackBin
+  , ffmpegBin: jOr st.ffmpegBin cfg.ffmpegBin
   }
 
 finalizeEnv
@@ -105,8 +113,8 @@ finalizeEnv st (CliOpts opts) defaultOutputPath = do
     , geckoDisables: arrMergeListOpts st.geckoDisables opts.geckoDisables
     , colorOverrides: mapFromFoldable $ unwrap
         <$> mergeListOps Nil opts.colorOverrides
-    , slippiPlaybackBin: "slippi-playback"
-    , ffmpegBin: "ffmpeg"
+    , slippiPlaybackBin: jOr st.slippiPlaybackBin opts.slippiPlaybackBin
+    , ffmpegBin: jOr st.ffmpegBin opts.ffmpegBin
     }
 
 type LauncherSettings' =
@@ -121,6 +129,8 @@ type EnvBuildState =
   , geckoCodes :: List String
   , geckoEnables :: List String
   , geckoDisables :: List String
+  , slippiPlaybackBin :: String
+  , ffmpegBin :: String
   }
 
 type RecordEnv =
@@ -249,12 +259,12 @@ instance decodeListOp :: DecodeJson a => DecodeJson (ListOp a) where
   decodeJson x = do
     caseJsonString decodeCons onString x
     where
-    onString ":" = pure LReset
+    onString "=" = pure LReset
     onString _ = decodeCons
     decodeCons = baseDecodeJson x <#> LCons
 
 instance encodeListOp :: EncodeJson a => EncodeJson (ListOp a) where
-  encodeJson LReset = encodeJson ":"
+  encodeJson LReset = encodeJson "="
   encodeJson (LCons a) = encodeJson a
 
 optJson :: forall @a. DecodeJson a => O.ReadM a
@@ -274,15 +284,13 @@ cliOpts wd = map CliOpts $ optsProd
   <$> O.strArgument
     (O.metavar "SLP_FILE" <> O.help ".slp file to record")
   <*> optional
-    ( O.option O.int
-        $ (O.long "start-frame" <> O.short 's' <> O.metavar "INT")
+    ( O.option O.int $ (O.long "start-frame" <> O.short 's' <> O.metavar "INT")
         <> O.help
           "First frame to begin recording (default: `GAME_FRAME_START`)"
 
     )
   <*> optional
-    ( O.option O.int
-        $ (O.long "total-frames" <> O.short 't' <> O.metavar "INT")
+    ( O.option O.int $ (O.long "total-frames" <> O.short 't' <> O.metavar "INT")
         <> O.help "Total frames to record (default: `all remaining`)"
     )
   <*> optional
@@ -301,12 +309,12 @@ cliOpts wd = map CliOpts $ optsProd
     )
   <*> O.many
     ( O.option (optJsonListOp @String)
-        $ (O.long "texture-path" <> O.short 'x' <> O.metavar "DIR")
+        $ (O.long "texture-path" <> O.short 'x' <> O.metavar "DIR+")
         <> O.help "directory with texture overrides"
     )
   <*> O.many
     ( O.option (optJsonListOp @PortCostume)
-        $ (O.long "port-costume" <> O.short 'p' <> O.metavar "PORTC")
+        $ (O.long "port-costume" <> O.short 'p' <> O.metavar "PORTC+")
         <> O.help
           ( "port costume overrides. PORTC => `$port=$costime`"
               <> " => `[1|2|3|4]=[1|2|3|4|5|6]`"
@@ -314,7 +322,7 @@ cliOpts wd = map CliOpts $ optsProd
     )
   <*> O.many
     ( O.option (optJsonListOp @IniMod)
-        $ (O.long "ini-mod" <> O.short 'I' <> O.metavar "INI_MOD")
+        $ (O.long "ini-mod" <> O.short 'I' <> O.metavar "INI_MOD+")
         <> O.help
           ( "slippi ini overrides. INI_MOD => `$ini:$prop=$val`"
               <> " => `[Dolphin|GFX|Logger]:$prop=$val"
@@ -322,18 +330,18 @@ cliOpts wd = map CliOpts $ optsProd
     )
   <*> O.many
     ( O.option (optJsonListOp @String)
-        $ (O.long "gecko-code" <> O.short 'g' <> O.metavar "CODE")
+        $ (O.long "gecko-code" <> O.short 'g' <> O.metavar "CODE+")
         <> O.help
           "raw string containing code to directly include while recording"
     )
   <*> O.many
     ( O.option (optJsonListOp @String)
-        $ (O.long "gecko-enable" <> O.short '+' <> O.metavar "NAME")
+        $ (O.long "gecko-enable" <> O.short '+' <> O.metavar "NAME+")
         <> O.help "name of gecko codes to force enable"
     )
   <*> O.many
     ( O.option (optJsonListOp @String)
-        $ (O.long "gecko-disable" <> O.short '_' <> O.metavar "NAME")
+        $ (O.long "gecko-disable" <> O.short '_' <> O.metavar "NAME+")
         <> O.help "name of gecko codes to force disable"
     )
   <*> optional
@@ -343,7 +351,7 @@ cliOpts wd = map CliOpts $ optsProd
     )
   <*> O.many
     ( O.strOption
-        $ (O.long "config" <> O.short 'c' <> O.metavar "FILE")
+        $ (O.long "config" <> O.short 'c' <> O.metavar "FILE+")
         <> O.help "config files to source"
     )
   <*> optional
@@ -377,9 +385,18 @@ cliOpts wd = map CliOpts $ optsProd
 
 slpRecInfo :: Sys.Path -> O.ParserInfo CliOpts
 slpRecInfo wd = O.info (cliOpts wd O.<**> O.helper)
-  ( O.fullDesc
-      <> O.progDesc "record SLP to MP4"
-      <> O.header "slp-rec | @dz-ssbm | .slp recording"
+  ( O.fullDesc <> O.footer
+      ( "options with `+` can be repeated. ie:  ```slp-rec"
+          <> " -g rmCrowdChants.gk"
+          <> " -g rmCrowdNoises.gk"
+          <> " ...```  will add both gecko codes. List options are added on"
+          <> " top of ones found in configs. At any point supplying `=` to"
+          <> " one of these options will discard all previous entries and"
+          <> " begin a new list. ie:  ```slp-rec"
+          <> " -g rmCrowdChants.gk -g ="
+          <> " -g rmCrowdNoises.gk"
+          <> " ...```  will only add rmCrowdNoises.gk"
+      )
   )
 
 data Error = NoIso | ConfigNotFound String | ConfigDecodeErr JsonDecodeError
