@@ -43,7 +43,6 @@ module Z.Z.Ext
   , module Tup
   , module TupNested
   , module TypeEquals
-  , module TypeRow
   ) where
 
 import Control.Promise (Promise) as Promise
@@ -90,4 +89,3 @@ import Run (Run, extract, lift, run, send, on, expand) as Run
 import Run.State (execState) as RunS
 import Type.Equality (class TypeEquals) as TypeEquals
 import Type.Proxy (Proxy(..)) as Proxy
-import Type.Row (type (+)) as TypeRow

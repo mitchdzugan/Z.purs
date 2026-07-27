@@ -1,8 +1,9 @@
 module Z.Z.Shorthand
   ( (%)
-  , (>|>)
   , (<|<)
+  , (>|>)
   , (~)
+  , (~.)
   , TPlus
   , Xflipped
   , __
@@ -22,13 +23,13 @@ module Z.Z.Shorthand
   , jOrT
   , mfirst
   , mlast
+  , module ZExp
   , o_
   , over_
   , set_
   , type (#>)
   , type (+)
   , type (<#)
-  , module ZExp
   ) where
 
 import Prelude
@@ -40,6 +41,7 @@ import Z.Z.Barlow
   , barlow
   ) as Z
 import Z.Z.Defaultable (class Defaultable, orDefault) as Z
+import Z.Z.Core as ZCore
 import Z.Z.Ext
   ( class IsSymbol
   , First
@@ -56,13 +58,27 @@ import Z.Z.Ext ((/\)) as ZExp
 import Z.Z.X as X
 import Type.Row (type (+)) as TypeRow
 
-mfirst :: forall a. Z.Maybe a -> Z.Maybe a -> Z.Maybe a
-mfirst Z.Nothing b = b
-mfirst a _ = a
+mfirst
+  :: forall r1 r2 a
+   . ZCore.Resulting r1
+  => ZCore.Resulting r2
+  => r1 a
+  -> r2 a
+  -> r1 a
+mfirst r1 r2 = case ZCore.resultVal r1 ZExp./\ ZCore.resultVal r2 of
+  Z.Nothing ZExp./\ (Z.Just v2) -> pure v2
+  _ -> r1
 
-mlast :: forall a. Z.Maybe a -> Z.Maybe a -> Z.Maybe a
-mlast a Z.Nothing = a
-mlast _ b = b
+mlast
+  :: forall r1 r2 a
+   . ZCore.Resulting r1
+  => ZCore.Resulting r2
+  => r1 a
+  -> r2 a
+  -> r2 a
+mlast r1 r2 = case ZCore.resultVal r1 ZExp./\ ZCore.resultVal r2 of
+  (Z.Just v1) ZExp./\ Z.Nothing -> pure v1
+  _ -> r2
 
 infixr 0 mlast as <|<
 
@@ -114,6 +130,7 @@ set_
 set_ = flip (Z.set (Z.barlow @sym))
 
 infixr 0 set_ as ~
+infixr 0 set_ as ~.
 
 over_
   :: forall s t a b @sym lenses

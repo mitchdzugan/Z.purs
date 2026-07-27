@@ -1,31 +1,28 @@
 module Test.Scratch where
 
-import Prelude
-
-import Z as Z
-import Z.H2h.Node.Module as H2h
+import Node.Z.Prelude
+import Node.Z.H2h as H2h
 import Z.SSBM.Slp.Read.Impl as SlpRead
-import Z.Sys.Node.Module as Sys
 
 testCachePath :: String
 testCachePath = "/home/dz/Repo/PS-WS/.cache-path"
 
-main :: Z.Effect Unit
-main = Sys.xExecAndExit do
-  b <- Sys.readFile "/home/dz/Slippi/Game_20260709T183630.slp"
+main :: Effect Unit
+main = xExecAndExit do
+  b <- readFile "/home/dz/Slippi/Game_20260709T183630.slp"
   let game = SlpRead.game b
-  Z.xInfo $ SlpRead.stats game
-  _ <- Z.xFail $ Z.jsError "asdf" "adf"
-  Z.xInfo $ Z.key
-    [ Z.key (-1)
-    , Z.key (0 Z./\ 3)
-    , Z.key 1
-    , Z.key [ 1, 2, 3, 4 ]
-    , Z.key 3
-    , Z.key 98
-    , Z.key 99
-    , Z.key 100
-    , Z.key 101
+  xInfo $ SlpRead.stats game
+  _ <- xFail $ jsError "asdf" "adf"
+  xInfo $ key
+    [ key (-1)
+    , key (0 /\ 3)
+    , key 1
+    , key [ 1, 2, 3, 4 ]
+    , key 3
+    , key 98
+    , key 99
+    , key 100
+    , key 101
     ]
 {-}
 authToken <- Z.xMapE Z.Left $ Sys.xLookupEnv "CLM_STATS_GG_AUTH" >>=

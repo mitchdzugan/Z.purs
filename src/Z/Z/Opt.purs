@@ -1,11 +1,10 @@
 module Z.Z.Opt (module OptionsApplicative) where
 
-import Prelude
-
 import Options.Applicative
   ( (<**>)
   , Parser
   , ParserInfo
+  , ParserResult(..)
   , ReadM
   , fullDesc
   , header
@@ -24,4 +23,7 @@ import Options.Applicative
   , eitherReader
   , briefDesc
   , footer
+  , defaultPrefs
+  , execParserPure
+  , renderFailure
   ) as OptionsApplicative

@@ -10,6 +10,7 @@ module Z.Z.Core
   , arrFromFoldable
   , arrSize
   , arrSlice
+  , class Resulting
   , class RtError
   , dec
   , encodeOpts
@@ -46,6 +47,7 @@ module Z.Z.Core
   , pureF
   , reduce
   , reduceM
+  , resultVal
   , rtErrExtra
   , rtErrMessage
   , rtErrName
@@ -84,6 +86,15 @@ import Parsing as Parsing
 import Parsing.Combinators as Prc
 import Parsing.String as Prs
 import Parsing.String.Basic as Prsb
+
+class Applicative f <= Resulting f where
+  resultVal :: forall a. f a -> May.Maybe a
+
+instance maybeResulting :: Resulting May.Maybe where
+  resultVal m = m
+
+instance eitherResulting :: Resulting (Eor.Either e) where
+  resultVal = Eor.hush
 
 foreign import data JsAny :: Type
 
