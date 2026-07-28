@@ -31,5 +31,3 @@ export const js_propsFromPropWs = (getK) => (getV) => (kvs) => {
 };
 export const js_withState = (pure) => (renderEls) => (initialState) =>
   h(StateComponent, { renderEls, initialState, pure });
-
-export const js_strict = (el) => el;

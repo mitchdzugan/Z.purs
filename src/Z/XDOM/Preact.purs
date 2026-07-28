@@ -14,8 +14,6 @@ foreign import js_renderEl :: String -> Json -> Array ReactEl -> ReactEl
 foreign import js_propsFromPropWs
   :: (PropWF -> String) -> (PropWF -> JsAny) -> Array PropWF -> Json
 
-foreign import js_strict :: ReactEl -> ReactEl
-
 foreign import js_withState
   :: forall s
    . (Unit -> X () Unit)
@@ -66,9 +64,6 @@ xRender :: X (Wa ReactEl + XSELF ()) Unit -> ReactEl
 xRender m = js_renderFragment $ xEval $ R.runReaderAt _xSelf baseR $ xBuild m
   where
   baseR = fst <<< xEval <<< xListen
-
-xRenderStrict :: X (Wa ReactEl + XSELF ()) Unit -> ReactEl
-xRenderStrict = js_strict <<< xRender
 
 type XComp x a = X (Wa ReactEl (XSELF x)) a
 type XComp' x f a = X (f (Wa ReactEl (XSELF x))) a
@@ -127,7 +122,7 @@ modEnv fenv m = do
   fragment $ runner $ R.runReaderAt _xSelf irunner $ xEvalR env m
 
 type Reducer p a s r = RL.Cons p { state :: s, act :: a -> X () Unit } r
-type ReducerR a s = { state :: s, act :: a -> X () Unit }
+type ReducerR a s = { get :: s, act :: a -> X () Unit }
 
 withReducer
   :: forall x r' r @p a s
@@ -141,4 +136,11 @@ withReducer
 withReducer initState updateState m = do
   withState initState \state setState -> do
     let act = \a -> setState $ updateState state a
-    modEnv (Rec.insert (Proxy :: Proxy p) { act, state }) m
+    modEnv (Rec.insert (Proxy :: Proxy p) { act, get: state }) m
+
+askForReducer
+  :: forall x r' r @p a s
+   . IsSymbol p
+  => Cons p (ReducerR a s) r' r
+  => XComp (R { | r } x) (ReducerR a s)
+askForReducer = xAsk <#> Rec.get (Proxy :: Proxy p)
