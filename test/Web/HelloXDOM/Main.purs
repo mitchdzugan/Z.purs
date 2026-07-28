@@ -1,4 +1,4 @@
-module Test.Web.HelloXDOM where
+module Test.Web.HelloXDOM.Main where
 
 import Web.Z.Prelude hiding (div)
 
