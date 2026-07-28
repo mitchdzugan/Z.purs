@@ -1,4 +1,4 @@
-module Z.React.React where
+module Z.XDOM.Preact where
 
 import Z.Prelude
 import Run.Reader as R
@@ -7,16 +7,10 @@ import Prim.RowList as RL
 import Record as Rec
 
 foreign import data ReactEl :: Type
-foreign import data ReactChildren :: Type
-
-foreign import js_helloReact :: ReactEl
 
 foreign import js_textEl :: String -> ReactEl
 foreign import js_renderFragment :: Array ReactEl -> ReactEl
 foreign import js_renderEl :: String -> Json -> Array ReactEl -> ReactEl
-foreign import js_childrenNull :: ReactChildren
-foreign import js_childrenSingle :: ReactEl -> ReactChildren
-foreign import js_childrenArray :: Array ReactEl -> ReactChildren
 foreign import js_propsFromPropWs
   :: (PropWF -> String) -> (PropWF -> JsAny) -> Array PropWF -> Json
 

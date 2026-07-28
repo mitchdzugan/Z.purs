@@ -1,23 +1,22 @@
-module Test.Web.HelloReact where
+module Test.Web.HelloXDOM where
 
 import Web.Z.Prelude hiding (div)
 
--- import Web.Z.React.ReactDOM as ReactDOM
--- import Z.React.React
+import Web.Z.XDOM.Preact as XDOM
+import Z.XDOM.Preact
 
 hello :: forall x. x ##> Unit
 hello = do
   root <- xGetElementById "root"
-  xInfo { root }
+  xOut { root }
   pure unit
 
 main :: Effect Unit
-main = xExecAndExit @Void @Void do
+main = xExecAndExit do
   hello
-{-
   domEl <- xGetElementById "root" <#> jOrE (jsError "element not found" "#root")
     >>= xOk
-  flip ReactDOM.renderIn domEl $ xRenderStrict do
+  flip XDOM.renderIn domEl $ xRenderStrict do
     withEnv {} do
       withReducer @"red" 1 (\_ -> id) do
         div do
@@ -26,7 +25,7 @@ main = xExecAndExit @Void @Void do
             withEnv { setState } do
               r <- xAsk
               xOut { state }
-              text "div 1"
+              text "div with stuff"
               div do
                 button do
                   cn \c -> c "btn"
@@ -34,4 +33,3 @@ main = xExecAndExit @Void @Void do
                     *> c "btn-outline"
                   onClick $ (\_ -> r.setState $ state + 1)
                   text $ "Count: " <> show state
--}
