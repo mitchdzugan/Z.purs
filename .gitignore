@@ -11,5 +11,5 @@
 /.spago
 /.spec-results
 /target
-/dist
 /.cache-path
+dist
