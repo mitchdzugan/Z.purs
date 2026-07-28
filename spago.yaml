@@ -30,6 +30,8 @@ package:
     - typelevel-prelude
     - unsafe-coerce
     - variant
+    - web-dom
+    - web-html
     - barlow-lens: 1.0.0
   test:
     main: Test.Main

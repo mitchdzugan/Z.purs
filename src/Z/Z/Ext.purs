@@ -46,7 +46,7 @@ module Z.Z.Ext
   ) where
 
 import Control.Promise (Promise) as Promise
-import Data.Argonaut.Core (Json, caseJsonString, caseJsonNumber, fromString, jsonNull) as Arg
+import Data.Argonaut.Core (Json, caseJsonString, caseJsonNumber, fromString, jsonNull, jsonEmptyObject) as Arg
 import Data.Argonaut.Decode (class DecodeJson, fromJsonString) as Dec
 import Data.Argonaut.Decode.Generic (genericDecodeJson) as DecodeGeneric
 import Data.Argonaut.Encode (class EncodeJson, encodeJson) as Enc

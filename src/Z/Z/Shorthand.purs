@@ -6,6 +6,7 @@ module Z.Z.Shorthand
   , (~.)
   , TPlus
   , Xflipped
+  , _'
   , __
   , _o
   , _o_
@@ -40,7 +41,7 @@ import Z.Z.Barlow
   , Forget
   , barlow
   ) as Z
-import Z.Z.Defaultable (class Defaultable, orDefault) as Z
+import Z.Z.Defaultable (class Defaultable, orDefault, default) as Z
 import Z.Z.Core as ZCore
 import Z.Z.Ext
   ( class IsSymbol
@@ -94,6 +95,9 @@ infixr 0 type X.X as #>
 infixr 0 type Xflipped as <#
 
 infixr 1 type TPlus as +
+
+_' :: forall a. Z.Defaultable a => a
+_' = Z.default
 
 jOr :: forall a. a -> Z.Maybe a -> a
 jOr = Z.fromMaybe

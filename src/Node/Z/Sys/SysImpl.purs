@@ -38,9 +38,9 @@ module Node.Z.Sys.SysImpl
   ) where
 
 import Z.Prelude
-import Effect.Unsafe as Unsafe
 import Z.Sys.Module as Sys
 import Z.Z.Opt as O
+import Effect.Unsafe as Unsafe
 
 foreign import js_readTextFile
   :: String -> Effect $ Promise String

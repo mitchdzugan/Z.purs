@@ -44,10 +44,9 @@ requestGql
   -> String
   -> Json
   -> EA Gql.Error x #> Json
-requestGql apiUrl authToken query vars = do
-  xMapE GqlE.NetworkError
-    $ xEffectPromise
-    $ js_requestGql apiUrl authToken query vars
+requestGql apiUrl authToken query vars = xMapE GqlE.NetworkError
+  $ xEffectPromise
+  $ js_requestGql apiUrl authToken query vars
 
 operateUnknown
   :: forall x

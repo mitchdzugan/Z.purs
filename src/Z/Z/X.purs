@@ -113,6 +113,7 @@ module Z.Z.X
   , xSay
   , xSet
   , xSet_
+  , xTell
   , xTellMappedHush
   , xTellMappedMHush
   , xTimeout
@@ -263,6 +264,9 @@ xPreviewR l = xAsk <#> Lens.preview l
 
 xSay :: forall x m w. Monad.Monad m => w -> R.Run (W (m w) x) Unit
 xSay w = RunW.tell $ pure w
+
+xTell :: forall x w. Monoid.Monoid w => w -> R.Run (W w x) Unit
+xTell w = RunW.tell w
 
 xTellMappedHush
   :: forall x e m d w
