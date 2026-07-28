@@ -1,6 +1,6 @@
-module Test.Web.HelloXDOM.App where
+module Z.SSBM.Slp.DB.App where
 
-import Z.XDOM
+import Z.XDOM.Prelude
 
 app :: forall x. XComp x Unit
 app = do
@@ -14,5 +14,5 @@ app = do
             cn \c -> c "btn"
               *> when (red.get > 25) do c "btn-accent"
               *> c "btn-outline"
-            onClick $ (\_ -> red.act $ red.get + 1)
+            onClick $ (\_ -> red.act $ red.get + 2)
             text $ "Count: " <> show red.get

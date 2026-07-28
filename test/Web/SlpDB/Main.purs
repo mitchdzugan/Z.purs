@@ -1,8 +1,8 @@
-module Test.Web.HelloXDOM.Main where
+module Test.Web.SlpDB.Main where
 
 import Web.Z.Prelude
 import Web.Z.XDOM as XDOM
-import Test.Web.HelloXDOM.App (app)
+import Z.SSBM.Slp.DB.App (app)
 
 hello :: forall x. x ##> Unit
 hello = do
