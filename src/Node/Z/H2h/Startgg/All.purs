@@ -33,7 +33,7 @@ ggQueryAll op initVars pageSpecs client networkControl = do
   let r = { client, networkControl, op }
   initRes <- Gql.operate op initVars client networkControl
   let initS = { vars: initVars, res: initRes }
-  { res } <- xEvalR r $ xRunS initS $ forM_ pageSpecs ggPageSpecHandle
+  { res } <- xRespondWith r $ xRunS initS $ forM_ pageSpecs ggPageSpecHandle
   pure res
 
 type QAllR v r =

@@ -37,7 +37,9 @@ module Z.Z.Ext
   , module Record
   , module Row
   , module Run
+  , module RunR
   , module RunS
+  , module RunW
   , module Str
   , module Symbol
   , module Tup
@@ -83,9 +85,11 @@ import Effect.Aff (Aff, launchAff, launchAff_, runAff, runAff_) as Aff
 import Effect.Class (liftEffect) as EffectClass
 import Parsing (ParserT) as Parsing
 import Parsing.Combinators ((<|>)) as Prc
-import Prim.Row (class Cons, class Lacks) as Row
+import Prim.Row (class Cons, class Lacks, class Nub, class Union) as Row
 import Record (merge) as Record
 import Run (Run, extract, lift, run, send, on, expand) as Run
-import Run.State (execState) as RunS
+import Run.Reader (Reader) as RunR
+import Run.State (execState, State) as RunS
+import Run.Writer (Writer) as RunW
 import Type.Equality (class TypeEquals) as TypeEquals
 import Type.Proxy (Proxy(..)) as Proxy

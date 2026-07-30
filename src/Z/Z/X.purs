@@ -71,38 +71,45 @@ module Z.Z.X
   , xAEff
   , xAff
   , xAsk
+  , xAskAt
   , xBindE
   , xEffectPromise
   , xEval
   , xEvalAff
-  , xEvalR
   , xEvalS
+  , xEvalSAt
   , xExec
   , xExecAff
   , xExecS
   , xFail
   , xGet
+  , xGetAt
   , xHush
   , xInfo
   , xInvert
   , xListen
+  , xListen_
   , xLogError
   , xLogWarning
   , xMapE
   , xMapW
   , xMapWE
-  , xMergeS
   , xModify
   , xOk
   , xOrDefault
   , xOut
   , xOutErr
   , xOver
+  , xOverAt
+  , xOverAt_
   , xOver_
   , xParser
   , xPlusS
   , xPreview
   , xPreviewR
+  , xPutAt
+  , xRespondWithAt
+  , xRespondWith
   , xResult
   , xRetFail
   , xRetLift
@@ -112,6 +119,7 @@ module Z.Z.X
   , xRunS
   , xSay
   , xSet
+  , xSetAt_
   , xSet_
   , xTell
   , xTellMappedHush
@@ -125,6 +133,7 @@ module Z.Z.X
   , xUnwrap
   , xUnwrap'
   , xView
+  , xViewAt_
   , xViewR
   , xView_
   , xWithRet
@@ -149,7 +158,8 @@ import Effect.Aff as Aff
 import Effect.Class as EffC
 import Effect.Unsafe as Unsafe
 import Type.Proxy (Proxy(..))
-import Prim.Row (class Cons, class Lacks, class Union, class Nub)
+import Prim.Row (class Cons)
+import Prim.Row as Row
 import Record as Rec
 import Run as R
 import Run.Except as RunE
@@ -159,7 +169,6 @@ import Run.Writer as RunW
 import Type.Proxy as P
 import Type.Row (type (+))
 import Parsing as Parsing
-import Unsafe.Coerce as UnsCoer
 import Z.Z.Barlow as Bl
 import Z.Z.Defaultable as ZD
 import Z.Z.Core as Z
@@ -236,11 +245,24 @@ xTryUntil try1 tryRest = xInvert do
 
 --------------- R FNS -----------------------------------------------------
 
-xEvalR :: forall x r a. r -> R.Run (R r x) a -> R.Run x a
-xEvalR = RunR.runReader
+xRespondWith :: forall x r a. r -> R.Run (R r x) a -> R.Run x a
+xRespondWith = RunR.runReader
+
+xRespondWithAt
+  :: forall @p x' x r a
+   . IsSymbol p
+  => Cons p (RunR.Reader r) x' x
+  => r
+  -> R.Run x a
+  -> R.Run x' a
+xRespondWithAt = RunR.runReaderAt (P.Proxy :: P.Proxy p)
 
 xAsk :: forall x r. R.Run (R r x) r
 xAsk = RunR.ask
+
+xAskAt
+  :: forall @p x' x r. IsSymbol p => Cons p (RunR.Reader r) x' x => R.Run x r
+xAskAt = RunR.askAt (P.Proxy :: P.Proxy p)
 
 xViewR :: forall x s t a b. Lens.Lens s t a b -> R.Run (R s x) a
 xViewR l = xAsk <#> Lens.view l
@@ -309,10 +331,26 @@ xListen
   :: forall x @w a. Monoid.Monoid w => R.Run (W w x) a -> R.Run x (w TupN./\ a)
 xListen = RunW.runWriter
 
+xListen_
+  :: forall x @w. Monoid.Monoid w => R.Run (W w x) Unit -> R.Run x w
+xListen_ m = RunW.runWriter m <#> Tup.fst
+
 --------------- S FNS -----------------------------------------------------
 
 xGet :: forall x s. R.Run (S s x) s
 xGet = RunS.get
+
+xGetAt
+  :: forall @p x' x s. IsSymbol p => Cons p (RunS.State s) x' x => R.Run x s
+xGetAt = RunS.getAt (P.Proxy :: P.Proxy p)
+
+xPutAt
+  :: forall @p x' x s
+   . IsSymbol p
+  => Cons p (RunS.State s) x' x
+  => s
+  -> R.Run x Unit
+xPutAt v = RunS.putAt (P.Proxy :: P.Proxy p) v
 
 xModify :: forall x s. (s -> s) -> R.Run (S s x) Unit
 xModify f = RunS.modify f
@@ -327,6 +365,16 @@ xView_
   => Bl.IsSymbol sym
   => R.Run (S s x) a
 xView_ = xGet <#> Lens.view (Bl.barlow @sym)
+
+xViewAt_
+  :: forall @p @sym x x' lenses s t a b
+   . IsSymbol p
+  => Cons p (RunS.State s) x' x
+  => Bl.ParseSymbol sym lenses
+  => Bl.ConstructBarlow lenses (Bl.Forget a) s t a b
+  => Bl.IsSymbol sym
+  => R.Run x a
+xViewAt_ = (xGetAt @p) <#> Lens.view (Bl.barlow @sym)
 
 xToArrayOf
   :: forall x s t a b
@@ -346,6 +394,15 @@ xPreview l = xGet <#> Lens.preview l
 xOver :: forall x s a b. Lens.Setter s s a b -> (a -> b) -> R.Run (S s x) Unit
 xOver l f = RunS.get >>= RunS.put <<< Lens.over l f
 
+xOverAt
+  :: forall @p x' x s a b
+   . IsSymbol p
+  => Cons p (RunS.State s) x' x
+  => Lens.Setter s s a b
+  -> (a -> b)
+  -> R.Run x Unit
+xOverAt l f = (xGetAt @p) >>= (xPutAt @p) <<< Lens.over l f
+
 xSet :: forall x s a b. Lens.Setter s s a b -> b -> R.Run (S s x) Unit
 xSet l v = RunS.get >>= RunS.put <<< Lens.set l v
 
@@ -358,6 +415,17 @@ xSet_
   -> R.Run (S s x) Unit
 xSet_ v = RunS.get >>= RunS.put <<< Lens.set (Bl.barlow @sym) v
 
+xSetAt_
+  :: forall @p @sym x' x s a b lenses
+   . Bl.IsSymbol sym
+  => Bl.ParseSymbol sym lenses
+  => Bl.ConstructBarlow lenses Function s s a b
+  => IsSymbol p
+  => Cons p (RunS.State s) x' x
+  => b
+  -> R.Run x Unit
+xSetAt_ v = (xGetAt @p) >>= (xPutAt @p) <<< Lens.set (Bl.barlow @sym) v
+
 xOver_
   :: forall @sym x s a b lenses
    . Bl.IsSymbol sym
@@ -367,11 +435,31 @@ xOver_
   -> R.Run (S s x) Unit
 xOver_ f = RunS.get >>= RunS.put <<< Lens.over (Bl.barlow @sym) f
 
+xOverAt_
+  :: forall @p @sym x' x s a b lenses
+   . IsSymbol p
+  => Cons p (RunS.State s) x' x
+  => Bl.IsSymbol sym
+  => Bl.ParseSymbol sym lenses
+  => Bl.ConstructBarlow lenses Function s s a b
+  => (a -> b)
+  -> R.Run x Unit
+xOverAt_ f = (xGetAt @p) >>= (xPutAt @p) <<< Lens.over (Bl.barlow @sym) f
+
 xExecS :: forall x s a. s -> R.Run (S s x) a -> R.Run x (s TupN./\ a)
 xExecS = RunS.runState
 
 xEvalS :: forall x s a. s -> R.Run (S s x) a -> R.Run x a
 xEvalS i m = RunS.runState i m <#> Tup.snd
+
+xEvalSAt
+  :: forall @p x' x s a
+   . IsSymbol p
+  => Cons p (RunS.State s) x' x
+  => s
+  -> R.Run x a
+  -> R.Run x' a
+xEvalSAt i m = RunS.runStateAt (P.Proxy :: P.Proxy p) i m <#> Tup.snd
 
 xRunS :: forall x s a. s -> R.Run (S s x) a -> R.Run x s
 xRunS i m = RunS.runState i m <#> Tup.fst
@@ -379,7 +467,7 @@ xRunS i m = RunS.runState i m <#> Tup.fst
 xPlusS
   :: forall x r1 r2 @l a v
    . IsSymbol l
-  => Lacks l r1
+  => Row.Lacks l r1
   => Cons l a r1 r2
   => a
   -> R.Run (S { | r2 } + S { | r1 } + x) v
@@ -389,20 +477,6 @@ xPlusS v m = do
   let next = Rec.insert (Proxy :: Proxy l) v curr
   (s TupN./\ r) <- xExecS next m
   RunS.put (Rec.delete (Proxy :: Proxy l) s)
-  pure r
-
-xMergeS
-  :: forall x r1 r2 r3 v
-   . Union r1 r2 r3
-  => Nub r3 r3
-  => { | r2 }
-  -> R.Run (S { | r3 } + S { | r1 } + x) v
-  -> R.Run (S { | r1 } x) v
-xMergeS rNew m = do
-  curr <- xGet
-  let next = Rec.disjointUnion curr rNew
-  (s TupN./\ r) <- xExecS next m
-  RunS.put (UnsCoer.unsafeCoerce s)
   pure r
 
 --------------- E FNS -----------------------------------------------------

@@ -148,21 +148,22 @@ getEventDataImpl = do
         , gfEIds: setEmpty @SorN
         , nonGfEIds: setEmpty @SorN
         }
-    roundSets <- xMergeS setsLoopState $ do
+    roundSets <- xEvalSAt @"setsLoop" setsLoopState $ do
       roundSets' <- forM baseSetList $ \baseSet -> do
-        { prev, isDropRound } <- xGet
+        { prev, isDropRound } <- xGetAt @"setsLoop"
         let prevSet = prev <#> \p -> p.base
         let prevRound = prev <#> \p -> p.round
         let wasGrands = jOrF $ prevRound <#> Round.isGrands
         let wasLosers = jOrF $ prevRound <#> Round.isLosers
         let sameSlots = (slotsKey baseSet) == mSlotsKey prevSet
         let isGrands = isNothing prev && isDE || (wasGrands && sameSlots)
-        when (isGrands && wasGrands) $ xSet_ @"hasReset" true
+        when (isGrands && wasGrands) $ xSetAt_ @"setsLoop" @"hasReset" true
         forM_ (arrFromFoldable baseSet.slots) $ \slot -> do
           whenJust slot.entrantId $ \entrantId -> do
             setAdd entrantId #
-              xOver (if isGrands then __ @"gfEIds" else __ @"nonGfEIds")
-        { gfEIds, nonGfEIds } <- xGet
+              xOverAt @"setsLoop"
+                (if isGrands then __ @"gfEIds" else __ @"nonGfEIds")
+        { gfEIds, nonGfEIds } <- xGetAt @"setsLoop"
         seenAllGFEntrants <- xWithRet do
           forM_ (arrFromFoldable gfEIds) $ \id -> do
             when (not (setHas id nonGfEIds)) (xReturn false)
@@ -170,9 +171,9 @@ getEventDataImpl = do
         let nowLosers = (not isGrands) && (wasGrands || wasLosers)
         let isLosers = nowLosers && not seenAllGFEntrants
         when ((not isLosers && wasLosers) || (not isGrands && wasGrands)) do
-          xSet_ @"depth" 0
-          xSet_ @"roundInd" 0
-        setDepth <- xView_ @"depth"
+          xSetAt_ @"setsLoop" @"depth" 0
+          xSetAt_ @"setsLoop" @"roundInd" 0
+        setDepth <- xViewAt_ @"setsLoop" @"depth"
         let round = elimRound isDE setDepth isGrands isLosers isDropRound
         let slotA ~ slotB = baseSet.slots
         whenJust slotA.entrantId \eA -> whenJust slotB.entrantId \eB -> do
@@ -194,16 +195,16 @@ getEventDataImpl = do
             else if isDE then do
               setFinStanding lId $ inc $ p2 setDepth
             else pure unit
-        xOver_ @"roundInd" inc
-        { depth, roundInd } <- xGet
+        xOverAt_ @"setsLoop" @"roundInd" inc
+        { depth, roundInd } <- xGetAt @"setsLoop"
         when (p2 depth <= roundInd) do
-          xSet_ @"roundInd" 0
+          xSetAt_ @"setsLoop" @"roundInd" 0
           if (isDropRound && isLosers) then do
-            xSet_ @"isDropRound" false
+            xSetAt_ @"setsLoop" @"isDropRound" false
           else do
-            xSet_ @"isDropRound" true
-            xOver_ @"depth" inc
-        xSet_ @"prev" $ Just { base: baseSet, round }
+            xSetAt_ @"setsLoop" @"isDropRound" true
+            xOverAt_ @"setsLoop" @"depth" inc
+        xSetAt_ @"setsLoop" @"prev" $ Just { base: baseSet, round }
         pure $
           { round
           , set:
@@ -217,7 +218,7 @@ getEventDataImpl = do
               , slots: baseSet.slots
               }
           }
-      { hasReset } <- xGet
+      { hasReset } <- xGetAt @"setsLoop"
       if (not hasReset) then pure roundSets'
       else pure $ set (ix 0 # o_ @"round") (Round.Grands true) roundSets'
     let lSets = arrFilter (Round.isLosers <<< g_ @"round") roundSets

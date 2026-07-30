@@ -1,10 +1,112 @@
 module Z.XDOM.Preact where
 
 import Z.Prelude
-import Run.Reader as R
+
 import Run.Writer as RW
-import Prim.RowList as RL
-import Record as Rec
+
+type XSelf' x' = (Run x' (Array ReactEl) -> Array ReactEl)
+type XSelf x = (X x (Array ReactEl) -> Array ReactEl)
+
+type XDomFn' x fx a = X (fx (RWa (XSelf x) ReactEl x)) a
+type XDomFn x a = XDomFn' x IdT a
+type XDom x = XDomFn' x IdT Unit
+type XDom' x fx = XDomFn' x fx Unit
+
+type XPROPS x = (xProps :: Writer (Array PropWF) | x)
+
+xRender :: XDom () -> ReactEl
+xRender m = js_renderFragment $ xEval $ xRespondWith (baseR) $ xListen_ $ m
+  where
+  baseR mm = xEval mm
+
+type XCompX x =
+  { render :: X (Wa ReactEl x) Unit -> Array ReactEl
+  }
+
+newtype XAdaptF x z = XAdaptF
+  ( (X (Wa ReactEl z) Unit -> X (Wa ReactEl x) Unit)
+    -> X (Wa ReactEl z) Unit
+    -> Array ReactEl
+  )
+
+type XAdapt x = Exists (XAdaptF x)
+
+upRunner
+  :: forall @p x x' r
+   . Cons p (Reader r) x' x
+  => IsSymbol p
+  => r
+  -> XSelf' x'
+  -> XSelf' x
+upRunner env (fm) = fm <<< xRespondWithAt @p env
+
+xDIntroduceState
+  :: forall x s
+   . s
+  -> (s -> (s -> X () Unit) -> Run (RWa (XSelf' x) ReactEl x) Unit)
+  -> Run (RWa (XSelf' x) ReactEl x) Unit
+xDIntroduceState initalState fm = do
+  rn <- xAsk
+  xSay $ flip (js_withState pure) initalState (renderFn rn)
+  where
+  renderFn rn s ss = rn $ xListen_ $ xRespondWith rn $ fm s ss
+
+xDRespondWithAt
+  :: forall @p x x' r
+   . Cons p (Reader r) x' x
+  => IsSymbol p
+  => r
+  -> Run (RWa (XSelf' x) ReactEl x) Unit
+  -> Run (RWa (XSelf' x') ReactEl x') Unit
+xDRespondWithAt env m = do
+  runner <- xAsk
+  let irunner = upRunner @p env runner
+  xSay $ js_renderFragment $ irunner $ xListen_ $ xRespondWith irunner $ m
+
+xDRespondWithReducerAt
+  :: forall @p x' x a s
+   . IsSymbol p
+  => Cons p (XDReducer a s) x' x
+  => s
+  -> (s -> a -> s)
+  -> Run (RWa (XSelf' x) ReactEl x) Unit
+  -> Run (RWa (XSelf' x') ReactEl x') Unit
+xDRespondWithReducerAt initState updateState m = do
+  xDIntroduceState initState \state setState -> do
+    let act = \a -> setState $ updateState state a
+    let env = { act, get: state }
+    xDRespondWithAt @p env m
+
+type DReducer a s = { get :: s, act :: a -> X () Unit }
+type XDReducer a s = Reader (DReducer a s)
+
+type IdT :: forall k. k -> k
+type IdT a = a
+
+type XEl x = Wa ReactEl + XPROPS x
+_xProps = Proxy :: Proxy "xProps"
+
+el
+  :: forall x
+   . String
+  -> XDom' x XEl
+  -> XDom x
+el s m = do
+  (propWFs /\ (elBuild /\ _)) <- RW.runWriterAt _xProps $ xListen m
+  let props = js_propsFromPropWs propWFKey propWFVal propWFs
+  xSay $ js_renderEl s (jsonRmNils $ encodeJson props) elBuild
+
+div :: forall x. XDom' x XEl -> XDom x
+div = el "div"
+
+button :: forall x. XDom' x XEl -> XDom x
+button = el "button"
+
+text :: forall x. String -> XDom x
+text s = xSay $ js_textEl s
+
+fragment :: forall x. Array ReactEl -> XDom x
+fragment els = xSay $ js_renderFragment els
 
 foreign import data ReactEl :: Type
 
@@ -31,116 +133,16 @@ propWFVal :: PropWF -> JsAny
 propWFVal (ClassName s) = jsAny s
 propWFVal (OnClick s) = jsAny s
 
-cn_ :: forall x. String -> XComp' x XPROPS Unit
+cn_ :: forall x. String -> XDom' x XPROPS
 cn_ s = RW.tellAt _xProps $ pure (ClassName s)
 
 cn
   :: forall x
    . ((String -> X (Wa String ()) Unit) -> X (Wa String ()) Unit)
-  -> XComp' x XPROPS Unit
+  -> XDom' x XPROPS
 cn fm = do
   let (ss /\ _) = xEval $ xListen $ fm xSay
   RW.tellAt _xProps $ pure (ClassName $ strJoinWith " " ss)
 
-onClick :: forall x. (Int -> X () Unit) -> XComp' x XPROPS Unit
+onClick :: forall x. (Int -> X () Unit) -> XDom' x XPROPS
 onClick f = RW.tellAt _xProps $ pure (OnClick $ \e -> xEval $ f e)
-
-type XSelf x = X (Wa ReactEl x) Unit -> Array ReactEl
-
-type XSELF x = (xSelf :: R.Reader (XSelf x) | x)
-
-type XPROPS x = (xProps :: RW.Writer (Array PropWF) | x)
-
-_xSelf = Proxy :: Proxy "xSelf"
-_xProps = Proxy :: Proxy "xProps"
-
-xBuild
-  :: forall x
-   . X (Wa ReactEl + (XSELF x)) Unit
-  -> X ((XSELF x)) (Array ReactEl)
-xBuild m = xListen m <#> fst
-
-xRender :: X (Wa ReactEl + XSELF ()) Unit -> ReactEl
-xRender m = js_renderFragment $ xEval $ R.runReaderAt _xSelf baseR $ xBuild m
-  where
-  baseR = fst <<< xEval <<< xListen
-
-type XComp x a = X (Wa ReactEl (XSELF x)) a
-type XComp' x f a = X (f (Wa ReactEl (XSELF x))) a
-
-type XEl x = Wa ReactEl + XPROPS x
-
-el
-  :: forall x
-   . String
-  -> XComp' x XEl Unit
-  -> XComp x Unit
-el s m = do
-  (propWFs /\ (elBuild /\ _)) <- RW.runWriterAt _xProps $ xListen m
-  let props = js_propsFromPropWs propWFKey propWFVal propWFs
-  xSay $ js_renderEl s (jsonRmNils $ encodeJson props) elBuild
-
-div :: forall x. XComp' x (XEl) Unit -> XComp x Unit
-div = el "div"
-
-button :: forall x. XComp' x (XEl) Unit -> XComp x Unit
-button = el "button"
-
-text :: forall x. String -> XComp x Unit
-text s = xSay $ js_textEl s
-
-fragment :: forall x. Array ReactEl -> XComp x Unit
-fragment els = xSay $ js_renderFragment els
-
-withState
-  :: forall x s
-   . s
-  -> (s -> (s -> X () Unit) -> XComp x Unit)
-  -> XComp x Unit
-withState initalState fm = do
-  runner <- R.askAt _xSelf
-  xSay $ flip (js_withState pure) initalState $ \state setState -> runner
-    $ R.runReaderAt _xSelf runner
-    $ fm state setState
-
-withEnv :: forall x r. r -> XComp (R r x) Unit -> XComp x Unit
-withEnv env m = do
-  runner <- R.askAt _xSelf
-  let irunner = \mm -> runner $ xEvalR env mm
-  fragment $ runner $ R.runReaderAt _xSelf irunner $ xEvalR env m
-
-modEnv
-  :: forall x r1 r2
-   . (r1 -> r2)
-  -> XComp (R r2 + R r1 x) Unit
-  -> XComp (R r1 x) Unit
-modEnv fenv m = do
-  prevEnv <- xAsk
-  runner <- R.askAt _xSelf
-  let env = fenv prevEnv
-  let irunner = \mm -> runner $ xEvalR env mm
-  fragment $ runner $ R.runReaderAt _xSelf irunner $ xEvalR env m
-
-type Reducer p a s r = RL.Cons p { state :: s, act :: a -> X () Unit } r
-type ReducerR a s = { get :: s, act :: a -> X () Unit }
-
-withReducer
-  :: forall x r' r @p a s
-   . IsSymbol p
-  => Cons p (ReducerR a s) r' r
-  => Lacks p r'
-  => s
-  -> (s -> a -> s)
-  -> XComp (R { | r } + R { | r' } x) Unit
-  -> XComp (R { | r' } x) Unit
-withReducer initState updateState m = do
-  withState initState \state setState -> do
-    let act = \a -> setState $ updateState state a
-    modEnv (Rec.insert (Proxy :: Proxy p) { act, get: state }) m
-
-askForReducer
-  :: forall x r' r @p a s
-   . IsSymbol p
-  => Cons p (ReducerR a s) r' r
-  => XComp (R { | r } x) (ReducerR a s)
-askForReducer = xAsk <#> Rec.get (Proxy :: Proxy p)
