@@ -9,7 +9,7 @@ module Z.H2h.Module
   , PhaseGroup
   , Player
   , Score(..)
-  , Set
+  , Match
   , Slot
   , Standing
   , Tournament
@@ -20,7 +20,7 @@ module Z.H2h.Module
   , startggSource
   ) where
 
-import Z.Prelude hiding (Set)
+import Z.Prelude
 import Z.H2h.Error as H2hE
 import Z.H2h.Warning as H2hW
 
@@ -59,7 +59,7 @@ type Slot =
   , score :: Score
   }
 
-type Set =
+type Match =
   { id :: Int
   , isDQ :: Boolean
   , isBye :: Boolean
@@ -79,7 +79,7 @@ type Phase =
 type PhaseGroup =
   { id :: SorN
   , displayIdentifier :: String
-  , sets :: Map Int Set
+  , sets :: Map Int Match
   , phase :: Phase
   }
 

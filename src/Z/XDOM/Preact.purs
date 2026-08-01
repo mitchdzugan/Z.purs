@@ -15,7 +15,7 @@ type XDom' x fx = XDomFn' x fx Unit
 type XPROPS x = (xProps :: Writer (Array PropWF) | x)
 
 xRender :: XDom () -> ReactEl
-xRender m = js_renderFragment $ xEval $ x RunEnv (baseR) $ xListen_ $ m
+xRender m = js_renderFragment $ xEval $ x RunR (baseR) $ xListen_ $ m
   where
   baseR mm = xEval mm
 
@@ -38,7 +38,7 @@ upRunner
   => r
   -> XSelf' x'
   -> XSelf' x
-upRunner env (fm) = fm <<< xAt @p RunEnv env
+upRunner env (fm) = fm <<< xAt @p RunR env
 
 xDKeyed
   :: forall x
@@ -47,7 +47,7 @@ xDKeyed
   -> XDom x
 xDKeyed k m = do
   rn <- x AtR
-  xSay $ js_withKey k $ js_renderFragment $ rn $ xListen_ $ x RunEnv rn $ m
+  x Say $ js_withKey k $ js_renderFragment $ rn $ xListen_ $ x RunR rn $ m
 
 xDNewState
   :: forall x s
@@ -56,9 +56,9 @@ xDNewState
   -> Run (RWa (XSelf' x) ReactEl x) Unit
 xDNewState initalState fm = do
   rn <- x AtR
-  xSay $ flip (js_withState pure) initalState (renderFn rn)
+  x Say $ flip (js_withState pure) initalState (renderFn rn)
   where
-  renderFn rn s ss = rn $ xListen_ $ x RunEnv rn $ fm s ss
+  renderFn rn s ss = rn $ xListen_ $ x RunR rn $ fm s ss
 
 xDRespondWithAt
   :: forall @p x x' r
@@ -70,7 +70,7 @@ xDRespondWithAt
 xDRespondWithAt env m = do
   runner <- x AtR
   let irunner = upRunner @p env runner
-  xSay $ js_renderFragment $ irunner $ xListen_ $ x RunEnv irunner $ m
+  x Say $ js_renderFragment $ irunner $ xListen_ $ x RunR irunner $ m
 
 xDRespondWithNewStateReducerAt
   :: forall @p x' x a s
@@ -106,10 +106,10 @@ xDBoundError
 xDBoundError em m = do
   runner <- x AtR
   let irunner = \mm -> runner $ xTry mm >>= eOr
-  xSay $ js_withBoundedError (renderErr runner) (renderMain irunner)
+  x Say $ js_withBoundedError (renderErr runner) (renderMain irunner)
   where
-  renderMain rn _ = js_renderFragment $ rn $ xListen_ $ x RunEnv rn $ m
-  renderErr rn e = js_renderFragment $ rn $ xListen_ $ x RunEnv rn $ em e
+  renderMain rn _ = js_renderFragment $ rn $ xListen_ $ x RunR rn $ m
+  renderErr rn e = js_renderFragment $ rn $ xListen_ $ x RunR rn $ em e
   eOr (Left e) = js_throwBoundedError e
   eOr (Right v) = pure v
 
@@ -131,7 +131,7 @@ el
 el s m = do
   (propWFs /\ (elBuild /\ _)) <- RW.runWriterAt _xProps $ xListen m
   let props = js_propsFromPropWs propWFKey propWFVal propWFs
-  xSay $ js_renderEl s (encodeOpts props) elBuild
+  x Say $ js_renderEl s (encodeOpts props) elBuild
 
 div :: forall x. XDom' x XEl -> XDom x
 div = el "div"
@@ -140,10 +140,10 @@ button :: forall x. XDom' x XEl -> XDom x
 button = el "button"
 
 text :: forall x. String -> XDom x
-text s = xSay $ js_textEl s
+text s = x Say $ js_textEl s
 
 fragment :: forall x. Array ReactEl -> XDom x
-fragment els = xSay $ js_renderFragment els
+fragment els = x Say $ js_renderFragment els
 
 foreign import data ReactEl :: Type
 
@@ -187,7 +187,7 @@ cn
    . ((String -> X (Wa String ()) Unit) -> X (Wa String ()) Unit)
   -> XDom' x XPROPS
 cn fm = do
-  let (ss /\ _) = xEval $ xListen $ fm xSay
+  let (ss /\ _) = xEval $ xListen $ fm (x Say)
   RW.tellAt _xProps $ pure (ClassName $ strJoinWith " " ss)
 
 onClick :: forall x. (Int -> X () Unit) -> XDom' x XPROPS
@@ -197,4 +197,4 @@ pkey :: forall x. String -> XDom' x XPROPS
 pkey s = RW.tellAt _xProps $ pure (PKey s)
 
 xDOnMount :: forall x. X () Unit -> XDom x
-xDOnMount onMount = xSay $ js_didMountEl (\_ -> xEval onMount)
+xDOnMount onMount = x Say $ js_didMountEl (\_ -> xEval onMount)

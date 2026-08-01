@@ -8,13 +8,20 @@ module Z.Z.X
   , EA
   , EarlyReturn
   , Edit
+  , EvalS(..)
+  , ExecS(..)
   , Get(..)
+  , Modify(..)
+  , Over(..)
+  , Over_(..)
+  , PlusS(..)
   , Preview(..)
   , PreviewR(..)
   , PreviewR_(..)
   , PreviewS(..)
   , PreviewS_(..)
   , Preview_(..)
+  , Put(..)
   , R
   , RA
   , RE
@@ -43,16 +50,21 @@ module Z.Z.X
   , RetFail(..)
   , RetLift(..)
   , Return(..)
-  , RunEnv(..)
   , RunParser(..)
+  , RunR(..)
+  , RunS(..)
   , S
   , SA
   , SE
   , SEA
+  , Say(..)
+  , Set(..)
+  , Set_(..)
   , TEarlyResult
   , TEarlyReturn
   , TError
   , TResult
+  , Tell(..)
   , ToArrayOf(..)
   , ToArrayOfR(..)
   , ToArrayOfR_(..)
@@ -92,7 +104,6 @@ module Z.Z.X
   , XState
   , XWa
   , class RWSEFn
-  , class XPGetter
   , class XPSel
   , edit
   , rwseApply
@@ -100,6 +111,7 @@ module Z.Z.X
   , type (!)
   , type (-!$)
   , type (-!)
+  , x
   , xAEff
   , xAff
   , xAt
@@ -107,14 +119,9 @@ module Z.Z.X
   , xEffectPromise
   , xEval
   , xEvalAff
-  , xEvalS
-  , xEvalSAt
   , xExec
   , xExecAff
-  , xExecS
   , xFail
-  , x
-  , xGet
   , xHush
   , xInfo
   , xInvert
@@ -125,24 +132,10 @@ module Z.Z.X
   , xMapE
   , xMapW
   , xMapWE
-  , xModify
   , xOk
   , xOut
   , xOutErr
-  , xOver
-  , xOverAt
-  , xOverAt_
-  , xOver_
-  , xPlusS
-  , xPutAt
   , xResult
-  , xReview
-  , xRunS
-  , xSay
-  , xSet
-  , xSetAt_
-  , xSet_
-  , xTell
   , xTellMappedHush
   , xTellMappedMHush
   , xTimeout
@@ -150,7 +143,6 @@ module Z.Z.X
   , xUnresult
   , xUnwrap
   , xUnwrap'
-  , xpget
   ) where
 
 import Prelude
@@ -235,7 +227,9 @@ instance rwseApplyTryUntil ::
       -> Array (e -> R.Run (E e + E r + E e x) r)
       -> R.Run (E e x) r
     ) where
-  rwseApply _ _ _ _ _ = xTryUntil
+  rwseApply _ _ _ _ _ try1 tryRest = xInvert do
+    e1 <- xInvert try1
+    Z.reduceM (\e tryN -> xInvert $ tryN e) e1 tryRest
 
 data WithRet = WithRet
 
@@ -272,13 +266,13 @@ instance rwseApplyRetFail ::
     (e -> XShortCircuit x e r a) where
   rwseApply _ _ _ _ _ = xRetFail
 
-data RunEnv = RunEnv
+data RunR = RunR
 
 instance rwseApplyRunEnv ::
   ( IsSymbol rp
   , Cons rp (RunR.Reader r) x' x
   ) =>
-  RWSEFn RunEnv
+  RWSEFn RunR
     rp
     _w
     _s
@@ -513,6 +507,159 @@ instance rwseApplyToArrayOfS_ ::
   RWSEFn (ToArrayOfS_ b) rp wp sp ep f where
   rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ ToArrayOf_ @b XState
 
+data Put = Put
+
+instance rwseApplyPut ::
+  ( IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  ) =>
+  RWSEFn Put rp wp sp ep (s -> R.Run x Unit) where
+  rwseApply _ _ _ sp _ = RunS.putAt sp
+
+data Modify = Modify
+
+instance rwseApplyModify ::
+  ( IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  ) =>
+  RWSEFn Modify rp wp sp ep ((s -> s) -> R.Run x Unit) where
+  rwseApply _ _ _ sp _ = RunS.modifyAt sp
+
+data Set = Set
+
+instance rwseApplySet ::
+  ( IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  ) =>
+  RWSEFn Set rp wp sp ep (Lens.Optic Function s s a b -> b -> R.Run x Unit) where
+  rwseApply _ _ _ sp _ l v = do
+    s <- RunS.getAt sp
+    RunS.putAt sp $ Lens.set l v s
+
+data Set_ :: forall @k. k -> Type
+data Set_ b = Set_
+
+instance rwseApplySet_ ::
+  ( IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  , Bl.ParseSymbol sym lenses
+  , Bl.ConstructBarlow lenses Function s s a b
+  , Bl.IsSymbol sym
+  ) =>
+  RWSEFn (Set_ sym) rp wp sp ep (b -> R.Run x Unit) where
+  rwseApply _ _ _ sp _ v = do
+    s <- RunS.getAt sp
+    RunS.putAt sp $ Lens.set (Bl.barlow @sym) v s
+
+data ExecS = ExecS
+
+instance rwseApplyExecS ::
+  ( IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  ) =>
+  RWSEFn ExecS rp wp sp ep (s -> R.Run x f -> R.Run x' s) where
+  rwseApply _ _ _ sp _ initState m = RunS.execStateAt sp initState m
+
+data RunS = RunS
+
+instance rwseApplyRunS ::
+  ( IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  ) =>
+  RWSEFn RunS rp wp sp ep (s -> R.Run x f -> R.Run x' (s TupN./\ f)) where
+  rwseApply _ _ _ sp _ initState m = RunS.runStateAt sp initState m
+
+data EvalS = EvalS
+
+instance rwseApplyEvalS ::
+  ( IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  ) =>
+  RWSEFn EvalS rp wp sp ep (s -> R.Run x f -> R.Run x' f) where
+  rwseApply _ _ _ sp _ initState m = RunS.evalStateAt sp initState m
+
+data PlusS :: forall @k. k -> Type
+data PlusS sym = PlusS
+
+instance rwseApplyPlusS ::
+  ( IsSymbol sp
+  , IsSymbol sym
+  , Row.Lacks sym r1
+  , Cons sym a r1 r2
+  , Cons sp (RunS.State { | r1 }) x'' x'
+  , Cons sp (RunS.State { | r2 }) x' x
+  ) =>
+  RWSEFn (PlusS sym) rp wp sp ep (a -> R.Run x f -> R.Run x' f) where
+  rwseApply _ _ _ sp _ v m = do
+    curr <- RunS.getAt sp
+    let next = Rec.insert (Proxy :: Proxy sym) v curr
+    (s TupN./\ r) <- RunS.runStateAt sp next m
+    RunS.putAt sp (Rec.delete (Proxy :: Proxy sym) s)
+    pure r
+
+data Over = Over
+
+instance rwseApplyOver ::
+  ( IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  ) =>
+  RWSEFn Over
+    rp
+    wp
+    sp
+    ep
+    (Lens.Optic Function s s a b -> (a -> b) -> R.Run x Unit) where
+  rwseApply _ _ _ sp _ l f = do
+    s <- RunS.getAt sp
+    RunS.putAt sp $ Lens.over l f s
+
+data Over_ :: forall @k. k -> Type
+data Over_ b = Over_
+
+instance rwseApplyOver_ ::
+  ( IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  , Bl.ParseSymbol sym lenses
+  , Bl.ConstructBarlow lenses Function s s a b
+  , Bl.IsSymbol sym
+  ) =>
+  RWSEFn (Over_ sym) rp wp sp ep ((a -> b) -> R.Run x Unit) where
+  rwseApply _ _ _ sp _ f = do
+    s <- RunS.getAt sp
+    RunS.putAt sp $ Lens.over (Bl.barlow @sym) f s
+
+---------------------- W ------------------------
+
+data Say = Say
+
+instance rwseApplySay ::
+  ( IsSymbol wp
+  , Cons wp (RunW.Writer (m w)) x' x
+  , Monad.Monad m
+  ) =>
+  RWSEFn Say
+    _p
+    wp
+    _s
+    _e
+    (w -> R.Run x Unit) where
+  rwseApply _ _ wp _ _ = RunW.tellAt wp <<< pure
+
+data Tell = Tell
+
+instance rwseApplyTell ::
+  ( IsSymbol wp
+  , Cons wp (RunW.Writer w) x' x
+  , Monoid.Monoid w
+  ) =>
+  RWSEFn Tell
+    _p
+    wp
+    _s
+    _e
+    (w -> R.Run x Unit) where
+  rwseApply _ _ wp _ _ = RunW.tellAt wp
+
 --------------------- x -----------------------
 
 type XFnG :: forall k1 k2 k3 k4. k1 -> k2 -> k3 -> k4 -> Type
@@ -529,15 +676,6 @@ x = mkXFn @"reader" @"writer" @"state" @"error"
 xAt :: forall @p. XFnG p p p p
 xAt = mkXFn @p @p @p @p
 
-class XPGetter t m r p where
-  xpget
-    :: forall x' x
-     . IsSymbol p
-    => Cons p (m r) x' x
-    => t
-    -> P.Proxy p
-    -> R.Run x r
-
 class XPSel :: forall k1 k2 k3 k4. k1 -> k2 -> k3 -> k4 -> Constraint
 class XPSel a b c d | a b c -> d
 
@@ -545,14 +683,7 @@ instance envXPSel :: XPSel XEnv rs ss rs
 instance stateXPSel :: XPSel XState rs ss ss
 
 data XEnv = XEnv
-
-instance envXGPetter :: XPGetter XEnv RunR.Reader r p where
-  xpget _ _ = RunR.askAt (P.Proxy :: P.Proxy p)
-
 data XState = XState
-
-instance stateXGPetter :: XPGetter XState RunS.State r p where
-  xpget _ _ = RunS.getAt (P.Proxy :: P.Proxy p)
 
 ------------------------------------------------------------------
 
@@ -605,22 +736,7 @@ xWithRet m = RunE.runExcept m >>= handleRes
   handleRes (Eor.Left (EarlyReturn earlyRet)) = xOk earlyRet
   handleRes (Eor.Right ret) = pure ret
 
-xTryUntil
-  :: forall x e r
-   . R.Run (E e + E r + E e x) r
-  -> Array (e -> R.Run (E e + E r + E e x) r)
-  -> R.Run (E e x) r
-xTryUntil try1 tryRest = xInvert do
-  e1 <- xInvert try1
-  Z.reduceM (\e tryN -> xInvert $ tryN e) e1 tryRest
-
 --------------- W FNS -----------------------------------------------------
-
-xSay :: forall x m w. Monad.Monad m => w -> R.Run (W (m w) x) Unit
-xSay w = RunW.tell $ pure w
-
-xTell :: forall x w. Monoid.Monoid w => w -> R.Run (W w x) Unit
-xTell w = RunW.tell w
 
 xTellMappedHush
   :: forall x e m d w
@@ -631,7 +747,7 @@ xTellMappedHush
   -> R.Run (W (m w) x) d
 xTellMappedHush mapW m = xTry m >>= onDone
   where
-  onDone (Eor.Left e) = xSay (mapW e) <#> const ZD.default
+  onDone (Eor.Left e) = x Say (mapW e) <#> const ZD.default
   onDone (Eor.Right r) = pure $ r
 
 xTellMappedMHush
@@ -666,117 +782,6 @@ xListen = RunW.runWriter
 xListen_
   :: forall x @w. Monoid.Monoid w => R.Run (W w x) Unit -> R.Run x w
 xListen_ m = RunW.runWriter m <#> Tup.fst
-
---------------- S FNS -----------------------------------------------------
-
-xGet :: forall x s. R.Run (S s x) s
-xGet = RunS.get
-
-xGetAt
-  :: forall @p x' x s. IsSymbol p => Cons p (RunS.State s) x' x => R.Run x s
-xGetAt = RunS.getAt (P.Proxy :: P.Proxy p)
-
-xPutAt
-  :: forall @p x' x s
-   . IsSymbol p
-  => Cons p (RunS.State s) x' x
-  => s
-  -> R.Run x Unit
-xPutAt v = RunS.putAt (P.Proxy :: P.Proxy p) v
-
-xModify :: forall x s. (s -> s) -> R.Run (S s x) Unit
-xModify f = RunS.modify f
-
-xReview :: forall x s t a b. Lens.Review s t a b -> b -> R.Run (S t x) Unit
-xReview l b = RunS.put $ Lens.review l b
-
-xOver :: forall x s a b. Lens.Setter s s a b -> (a -> b) -> R.Run (S s x) Unit
-xOver l f = RunS.get >>= RunS.put <<< Lens.over l f
-
-xOverAt
-  :: forall @p x' x s a b
-   . IsSymbol p
-  => Cons p (RunS.State s) x' x
-  => Lens.Setter s s a b
-  -> (a -> b)
-  -> R.Run x Unit
-xOverAt l f = (xGetAt @p) >>= (xPutAt @p) <<< Lens.over l f
-
-xSet :: forall x s a b. Lens.Setter s s a b -> b -> R.Run (S s x) Unit
-xSet l v = RunS.get >>= RunS.put <<< Lens.set l v
-
-xSet_
-  :: forall @sym x s a b lenses
-   . Bl.IsSymbol sym
-  => Bl.ParseSymbol sym lenses
-  => Bl.ConstructBarlow lenses Function s s a b
-  => b
-  -> R.Run (S s x) Unit
-xSet_ v = RunS.get >>= RunS.put <<< Lens.set (Bl.barlow @sym) v
-
-xSetAt_
-  :: forall @p @sym x' x s a b lenses
-   . Bl.IsSymbol sym
-  => Bl.ParseSymbol sym lenses
-  => Bl.ConstructBarlow lenses Function s s a b
-  => IsSymbol p
-  => Cons p (RunS.State s) x' x
-  => b
-  -> R.Run x Unit
-xSetAt_ v = (xGetAt @p) >>= (xPutAt @p) <<< Lens.set (Bl.barlow @sym) v
-
-xOver_
-  :: forall @sym x s a b lenses
-   . Bl.IsSymbol sym
-  => Bl.ParseSymbol sym lenses
-  => Bl.ConstructBarlow lenses Function s s a b
-  => (a -> b)
-  -> R.Run (S s x) Unit
-xOver_ f = RunS.get >>= RunS.put <<< Lens.over (Bl.barlow @sym) f
-
-xOverAt_
-  :: forall @p @sym x' x s a b lenses
-   . IsSymbol p
-  => Cons p (RunS.State s) x' x
-  => Bl.IsSymbol sym
-  => Bl.ParseSymbol sym lenses
-  => Bl.ConstructBarlow lenses Function s s a b
-  => (a -> b)
-  -> R.Run x Unit
-xOverAt_ f = (xGetAt @p) >>= (xPutAt @p) <<< Lens.over (Bl.barlow @sym) f
-
-xExecS :: forall x s a. s -> R.Run (S s x) a -> R.Run x (s TupN./\ a)
-xExecS = RunS.runState
-
-xEvalS :: forall x s a. s -> R.Run (S s x) a -> R.Run x a
-xEvalS i m = RunS.runState i m <#> Tup.snd
-
-xEvalSAt
-  :: forall @p x' x s a
-   . IsSymbol p
-  => Cons p (RunS.State s) x' x
-  => s
-  -> R.Run x a
-  -> R.Run x' a
-xEvalSAt i m = RunS.runStateAt (P.Proxy :: P.Proxy p) i m <#> Tup.snd
-
-xRunS :: forall x s a. s -> R.Run (S s x) a -> R.Run x s
-xRunS i m = RunS.runState i m <#> Tup.fst
-
-xPlusS
-  :: forall x r1 r2 @l a v
-   . IsSymbol l
-  => Row.Lacks l r1
-  => Cons l a r1 r2
-  => a
-  -> R.Run (S { | r2 } + S { | r1 } + x) v
-  -> R.Run (S { | r1 } x) v
-xPlusS v m = do
-  curr <- xGet
-  let next = Rec.insert (Proxy :: Proxy l) v curr
-  (s TupN./\ r) <- xExecS next m
-  RunS.put (Rec.delete (Proxy :: Proxy l) s)
-  pure r
 
 --------------- E FNS -----------------------------------------------------
 

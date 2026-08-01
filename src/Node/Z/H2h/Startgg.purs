@@ -27,7 +27,7 @@ mapOfJsonElsWithFieldsTypeAnd_t = reduce reducer mapEmpty
   reducer m i = mapSet (g_ @ttype i) (g_ @t i) m
 
 getEventData :: forall x. B.GetDataFn x
-getEventData = B.adaptBuilder $ xEvalS initState do
+getEventData = B.adaptBuilder $ x EvalS initState do
   { slug } <- x AtR
   { event } <- fetchRawEventData
   let entrantNodes = event.entrants.nodes
@@ -57,14 +57,14 @@ getEventData = B.adaptBuilder $ xEvalS initState do
         , participants
         , standing: { placement: 0, isFinal: false }
         }
-    xOver_ @"entrants" (mapSet entrantId entrant)
+    x (Over_ @"entrants") $ mapSet entrantId entrant
   forM_ event.standings.nodes $ \standing -> do
     let entrantId = sOrN standing.entrant.id
-    xSet (_o_ @"entrants" @"standing" (ix entrantId))
+    x Set (_o_ @"entrants" @"standing" (ix entrantId))
       { placement: standing.placement, isFinal: standing.isFinal }
 
   let rawPgs = arrSortWith (g_ @"id") event.phaseGroups
-  pgs <- forM rawPgs $ \pg -> xPlusS @"sets" (mapEmpty @Int) do
+  pgs <- forM rawPgs $ \pg -> x (PlusS @"sets") (mapEmpty @Int) do
     { phaseGroup } <- fetchRawPhaseGroupData pg.id
     forM_ phaseGroup.sets.nodes $ \set -> do
       let
@@ -93,7 +93,7 @@ getEventData = B.adaptBuilder $ xEvalS initState do
         pure $ H2h.NoScore /\ H2h.NoScore
       let slotA = { entrantId: eIdA <#> sOrN, score: slotScoreA }
       let slotB = { entrantId: eIdB <#> sOrN, score: slotScoreB }
-      xSet (_o @"sets" $ at setId) $ Just
+      x Set (_o @"sets" $ at setId) $ Just
         { id: setId
         , roundText: set.fullRoundText
         , overrideScoreText: set.displayScore
@@ -103,7 +103,7 @@ getEventData = B.adaptBuilder $ xEvalS initState do
         , doesCount: (not isBye) && (not isDQ) && (isJust set.winnerId)
         , slots: slotA ~ slotB
         }
-    { sets } <- xGet
+    { sets } <- x AtS
     pure
       { id: sOrN pg.id
       , displayIdentifier: pg.displayIdentifier
@@ -114,7 +114,7 @@ getEventData = B.adaptBuilder $ xEvalS initState do
           , phaseOrder: pg.phase.phaseOrder
           }
       }
-  { entrants } <- xGet
+  { entrants } <- x AtS
   let { endAt } = event.tournament
   date <- xUnwrap (H2hE.InvalidInstant endAt) do
     instant (Milliseconds (toNumber endAt)) <#> toDateTime

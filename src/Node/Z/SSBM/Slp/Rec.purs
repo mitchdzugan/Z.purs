@@ -19,7 +19,7 @@ addConfigs allowFNF wd configPaths = do
     decodeAnyYamlExt @RecordConfig fullPath # xTry >>= onDecode fullPath
   where
   onDecode fullPath (Right c) = do
-    xModify $ updateEnv c
+    x Modify $ updateEnv c
     addConfigs false (dirname fullPath) (gmOr'_ @"includes?" c)
   onDecode fp (Left (ReadError _)) = do
     when (not allowFNF) $ xFail $ ConfigNotFound $ show fp
@@ -60,10 +60,10 @@ run args = do
     let noOptConfigs = arrSize optConfigs == 0
     let baseConfigPath = show $ cfgPath /./ "config"
     let configs = if noOptConfigs then [ baseConfigPath ] else optConfigs
-    envState <- xRunS envStateInit $ addConfigs noOptConfigs wd configs
+    envState <- x ExecS envStateInit $ addConfigs noOptConfigs wd configs
     env <- finalizeEnv envState opts $ show $ wd /./ "output.mp4"
     xInfo env
-    x RunEnv env launchAndRecord
+    x RunR env launchAndRecord
 
 mergeListOps
   :: forall a f. Foldable f => List a -> f (ListOp a) -> List a

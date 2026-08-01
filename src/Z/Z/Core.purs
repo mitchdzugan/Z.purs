@@ -4,7 +4,7 @@ module Z.Z.Core
   , JsError(..)
   , P
   , ParseError
-  , Set
+  , HashSet
   , antiUnit
   , arrDrop
   , arrEmpty
@@ -218,21 +218,22 @@ mapFromFoldable
   -> Map.Map k v
 mapFromFoldable = Map.fromFoldable
 
-type Set a = Set.Set a
+type HashSet a = Set.Set a
 
-setEmpty :: forall @a. Set a
+setEmpty :: forall @a. HashSet a
 setEmpty = Set.empty
 
-setHas :: forall a. Ord.Ord a => a -> Set a -> Boolean
+setHas :: forall a. Ord.Ord a => a -> HashSet a -> Boolean
 setHas = Set.member
 
-setAdd :: forall a. Ord.Ord a => a -> Set a -> Set a
+setAdd :: forall a. Ord.Ord a => a -> HashSet a -> HashSet a
 setAdd = Set.insert
 
-setSize :: forall a. Set a -> Int
+setSize :: forall a. HashSet a -> Int
 setSize = Set.size
 
-setFromFoldable :: forall a f. Foldable.Foldable f => Ord.Ord a => f a -> Set a
+setFromFoldable
+  :: forall a f. Foldable.Foldable f => Ord.Ord a => f a -> HashSet a
 setFromFoldable = Set.fromFoldable
 
 arrSlice :: forall a. Int -> Int -> Array a -> Array a
