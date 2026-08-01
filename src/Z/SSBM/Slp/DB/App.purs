@@ -5,7 +5,7 @@ import Z.XDOM.Prelude
 appImpl :: forall x. XDom (red :: XDomStateSetter Int | x)
 appImpl = do
   xDBoundError (\e -> text $ "Error thrown" <> e) do
-    red <- (xAt @"red").get XEnv
+    red <- xAt @"red" AtR
     div do
       pkey "asdf"
       text $ "div with stuff!!!"

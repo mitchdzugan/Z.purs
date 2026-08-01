@@ -33,7 +33,7 @@ ggQueryAll op initVars pageSpecs client networkControl = do
   let r = { client, networkControl, op }
   initRes <- Gql.operate op initVars client networkControl
   let initS = { vars: initVars, res: initRes }
-  { res } <- xRespondWith r $ xRunS initS $ forM_ pageSpecs ggPageSpecHandle
+  { res } <- x RunEnv r $ xRunS initS $ forM_ pageSpecs ggPageSpecHandle
   pure res
 
 type QAllR v r =
@@ -55,17 +55,17 @@ ggPageSpecHandleImpl
    . GGPageSpecF v r pnr
   -> XPageSpecHandle x v r
 ggPageSpecHandleImpl (GGPageSpecF pageL dataL) = do
-  { client, networkControl, op } <- x.get XEnv
+  { client, networkControl, op } <- x AtR
   xPlusS @"seenIds" setEmpty $ loop op client networkControl
   where
   loop op client networkControl = do
-    xToArrayOf (_o_ @"res" @"nodes+.id" dataL) >>= \ids -> do
+    x ToArrayOfS (_o_ @"res" @"nodes+.id" dataL) >>= \ids -> do
       (xSet_ @"seenIds" $ setFromFoldable ids)
-    seenIds <- xView_ @"seenIds"
-    total <- xView (_o_ @"res" @"pageInfo.total" dataL)
+    seenIds <- x $ ViewS_ @"seenIds"
+    total <- x ViewS (_o_ @"res" @"pageInfo.total" dataL)
     when (setSize seenIds < total) do
       xOver (_o @"vars" pageL) inc
-      vars <- xView_ @"vars"
+      vars <- x $ ViewS_ @"vars"
       res <- Gql.operate op vars client networkControl
       let nodes = view (dataL # o_ @"nodes") res
       xOver (_o_ @"res" @"nodes" dataL)

@@ -2,10 +2,19 @@ module Z.Z.X
   ( A
   , AFF
   , AffF
+  , AtR(..)
+  , AtS(..)
   , E
   , EA
   , EarlyReturn
   , Edit
+  , Get(..)
+  , Preview(..)
+  , PreviewR(..)
+  , PreviewR_(..)
+  , PreviewS(..)
+  , PreviewS_(..)
+  , Preview_(..)
   , R
   , RA
   , RE
@@ -31,6 +40,11 @@ module Z.Z.X
   , RWaSE
   , RWaSEA
   , Result
+  , RetFail(..)
+  , RetLift(..)
+  , Return(..)
+  , RunEnv(..)
+  , RunParser(..)
   , S
   , SA
   , SE
@@ -39,6 +53,19 @@ module Z.Z.X
   , TEarlyReturn
   , TError
   , TResult
+  , ToArrayOf(..)
+  , ToArrayOfR(..)
+  , ToArrayOfR_(..)
+  , ToArrayOfS(..)
+  , ToArrayOfS_(..)
+  , ToArrayOf_(..)
+  , TryUntil(..)
+  , View(..)
+  , ViewR(..)
+  , ViewR_(..)
+  , ViewS(..)
+  , ViewS_(..)
+  , View_(..)
   , W
   , WA
   , WE
@@ -54,29 +81,27 @@ module Z.Z.X
   , WaS
   , WaSA
   , WaSE
+  , WithRet(..)
   , X
   , X2
   , XBASE
   , XBaseF
-  , XEnv(..)
+  , XEnv
   , XRet
   , XShortCircuit
-  , XState(..)
+  , XState
   , XWa
+  , class RWSEFn
   , class XPGetter
   , class XPSel
   , edit
+  , rwseApply
   , type (!$)
   , type (!)
   , type (-!$)
   , type (-!)
-  , x
-  , x2EvalAff
-  , x2ExecAff
   , xAEff
   , xAff
-  , xAsk
-  , xAskAt
   , xAt
   , xBindE
   , xEffectPromise
@@ -88,8 +113,8 @@ module Z.Z.X
   , xExecAff
   , xExecS
   , xFail
+  , x
   , xGet
-  , xGetAt
   , xHush
   , xInfo
   , xInvert
@@ -102,26 +127,16 @@ module Z.Z.X
   , xMapWE
   , xModify
   , xOk
-  , xOrDefault
   , xOut
   , xOutErr
   , xOver
   , xOverAt
   , xOverAt_
   , xOver_
-  , xParser
   , xPlusS
-  , xPreview
-  , xPreviewR
   , xPutAt
-  , xRespondWith
-  , xRespondWithAt
   , xResult
-  , xRetFail
-  , xRetLift
-  , xReturn
   , xReview
-  , xReviewR
   , xRunS
   , xSay
   , xSet
@@ -131,18 +146,10 @@ module Z.Z.X
   , xTellMappedHush
   , xTellMappedMHush
   , xTimeout
-  , xToArrayOf
-  , xToArrayOfR
   , xTry
-  , xTryUntil
   , xUnresult
   , xUnwrap
   , xUnwrap'
-  , xView
-  , xViewAt_
-  , xViewR
-  , xView_
-  , xWithRet
   , xpget
   ) where
 
@@ -151,6 +158,7 @@ import Prelude
 import Control.Monad as Monad
 import Control.Promise as Promise
 import Data.Either as Eor
+import Data.Lens (Forget)
 import Data.Lens as Lens
 import Data.List.Types as ListT
 import Data.Maybe as May
@@ -158,6 +166,7 @@ import Data.Maybe.First as MayFirst
 import Data.Monoid as Monoid
 import Data.Monoid.Endo as Endo
 import Data.Newtype (wrap, unwrap, class Newtype) as NT
+import Data.Profunctor (class Profunctor)
 import Data.Symbol (class IsSymbol)
 import Data.Tuple as Tup
 import Data.Tuple.Nested as TupN
@@ -179,10 +188,346 @@ import Type.Proxy (Proxy(..))
 import Type.Proxy as P
 import Type.Row (type (+))
 import Unsafe.Coerce as UnsafeC
+import Z.Z.Barlow (class Strong)
 import Z.Z.Barlow as Bl
 import Z.Z.Core as Z
 import Z.Z.Defaultable as ZD
 import Z.Z.Ext as ZE
+
+class RWSEFn
+  :: forall k1 k2 k3 k4. Type -> k1 -> k2 -> k3 -> k4 -> Type -> Constraint
+class RWSEFn f rp wp sp ep o | f rp wp sp ep -> o where
+  rwseApply :: f -> P.Proxy rp -> P.Proxy wp -> P.Proxy sp -> P.Proxy ep -> o
+
+-------------------- OTHER ----------------------
+
+data RunParser = RunParser
+
+instance rwseApplyRunParser ::
+  RWSEFn RunParser
+    _r
+    _w
+    _s
+    _e
+    (s -> Parsing.Parser s a -> R.Run (E Z.ParseError x) a) where
+  rwseApply _ _ _ _ _ = xParser
+
+data Return = Return
+
+instance rwseApplyReturn ::
+  RWSEFn Return
+    _r
+    _w
+    _s
+    _e
+    (r -> XShortCircuit x e r Unit) where
+  rwseApply _ _ _ _ _ = xReturn
+
+data TryUntil = TryUntil
+
+instance rwseApplyTryUntil ::
+  RWSEFn TryUntil
+    _r
+    _w
+    _s
+    _e
+    ( R.Run (E e + E r + E e x) r
+      -> Array (e -> R.Run (E e + E r + E e x) r)
+      -> R.Run (E e x) r
+    ) where
+  rwseApply _ _ _ _ _ = xTryUntil
+
+data WithRet = WithRet
+
+instance rwseApplyWithRet ::
+  RWSEFn WithRet
+    _r
+    _w
+    _s
+    _e
+    (XShortCircuit (E e x) e r r -> R.Run (E e x) r) where
+  rwseApply _ _ _ _ _ = xWithRet
+
+data RetLift = RetLift
+
+instance rwseApplyRetLift ::
+  RWSEFn RetLift
+    _r
+    _w
+    _s
+    _e
+    ( R.Run (E e + E (EarlyReturn e r) + x) a
+      -> XShortCircuit x e r a
+    ) where
+  rwseApply _ _ _ _ _ = xRetLift
+
+data RetFail = RetFail
+
+instance rwseApplyRetFail ::
+  RWSEFn RetFail
+    _r
+    _w
+    _s
+    _e
+    (e -> XShortCircuit x e r a) where
+  rwseApply _ _ _ _ _ = xRetFail
+
+data RunEnv = RunEnv
+
+instance rwseApplyRunEnv ::
+  ( IsSymbol rp
+  , Cons rp (RunR.Reader r) x' x
+  ) =>
+  RWSEFn RunEnv
+    rp
+    _w
+    _s
+    _e
+    (r -> R.Run x a -> R.Run x' a) where
+  rwseApply _ _ _ _ _ = RunR.runReaderAt (P.Proxy :: P.Proxy rp)
+
+--------------------- R/S -----------------------
+
+data Get t = Get t
+
+instance rwseApplyGetR ::
+  ( IsSymbol rp
+  , Cons rp (RunR.Reader r) x' x
+  ) =>
+  RWSEFn (Get XEnv) rp _w _s _e (R.Run x r) where
+  rwseApply _ rp _ _ _ = RunR.askAt rp
+
+instance rwseApplyGetS ::
+  ( IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  ) =>
+  RWSEFn (Get XState) _r _w sp _e (R.Run x s) where
+  rwseApply _ _ _ sp _ = RunS.getAt sp
+
+data View g = View g
+
+instance rwseApplyView ::
+  ( RWSEFn (Get g) rp wp sp ep (R.Run x s)
+  ) =>
+  RWSEFn (View g) rp wp sp ep ((Lens.Optic (Forget a) s t a b) -> R.Run x a) where
+  rwseApply (View t) _ _ _ _ l = do
+    v <- mkXFn @rp @wp @sp @ep $ Get t
+    pure $ Lens.view l v
+
+data View_ :: forall @k. k -> Type -> Type
+data View_ b t = View_ t
+
+instance rwseApplyView_ ::
+  ( RWSEFn (Get g) rp wp sp ep (R.Run x s)
+  , Bl.ParseSymbol sym lenses
+  , Bl.ConstructBarlow lenses (Bl.Forget a) s t a b
+  , Bl.IsSymbol sym
+  ) =>
+  RWSEFn (View_ sym g) rp wp sp ep (R.Run x a) where
+  rwseApply (View_ t) _ _ _ _ = do
+    v <- mkXFn @rp @wp @sp @ep $ Get t
+    pure $ Lens.view (Bl.barlow @sym) v
+
+data Preview g = Preview g
+
+instance rwseApplyPreview ::
+  ( RWSEFn (Get g) rp wp sp ep (R.Run x s)
+  ) =>
+  RWSEFn (Preview g)
+    rp
+    wp
+    sp
+    ep
+    ((Lens.Optic (Forget (MayFirst.First a)) s t a b) -> R.Run x (May.Maybe a)) where
+  rwseApply (Preview t) _ _ _ _ l = do
+    v <- mkXFn @rp @wp @sp @ep $ Get t
+    pure $ Lens.preview l v
+
+data Preview_ :: forall @k. k -> Type -> Type
+data Preview_ b t = Preview_ t
+
+instance rwseApplyPreview_ ::
+  ( RWSEFn (Get g) rp wp sp ep (R.Run x s)
+  , Bl.ParseSymbol sym lenses
+  , Bl.ConstructBarlow lenses (Bl.Forget (MayFirst.First a)) s t a b
+  , Bl.IsSymbol sym
+  ) =>
+  RWSEFn (Preview_ sym g) rp wp sp ep (R.Run x (May.Maybe a)) where
+  rwseApply (Preview_ t) _ _ _ _ = do
+    v <- mkXFn @rp @wp @sp @ep $ Get t
+    pure $ Lens.preview (Bl.barlow @sym) v
+
+data ToArrayOf t = ToArrayOf t
+
+instance rwseApplyToArrayOf ::
+  ( RWSEFn (Get g) rp wp sp ep (R.Run x s)
+  ) =>
+  RWSEFn (ToArrayOf g)
+    rp
+    wp
+    sp
+    ep
+    ( (Lens.Optic (Forget (Endo.Endo Function (ListT.List a))) s t a b)
+      -> R.Run x (Array a)
+    ) where
+  rwseApply (ToArrayOf t) _ _ _ _ l = do
+    v <- mkXFn @rp @wp @sp @ep $ Get t
+    pure $ Lens.toArrayOf l v
+
+data ToArrayOf_ :: forall @k. k -> Type -> Type
+data ToArrayOf_ b t = ToArrayOf_ t
+
+instance rwseApplyToArrayOf_ ::
+  ( RWSEFn (Get g) rp wp sp ep (R.Run x s)
+  , Bl.ParseSymbol sym lenses
+  , Bl.ConstructBarlow lenses (Bl.Forget (Endo.Endo Function (ListT.List a))) s
+      t
+      a
+      b
+  , Bl.IsSymbol sym
+  ) =>
+  RWSEFn (ToArrayOf_ sym g) rp wp sp ep (R.Run x (Array a)) where
+  rwseApply (ToArrayOf_ t) _ _ _ _ = do
+    v <- mkXFn @rp @wp @sp @ep $ Get t
+    pure $ Lens.toArrayOf (Bl.barlow @sym) v
+
+---------------------- R ------------------------
+
+data AtR = AtR
+
+instance rwseApplyAtR ::
+  ( RWSEFn (Get XEnv) rp wp sp ep f
+  ) =>
+  RWSEFn AtR rp wp sp ep f where
+  rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ Get XEnv
+
+data ViewR = ViewR
+
+instance rwseApplyViewR ::
+  ( RWSEFn (View XEnv) rp wp sp ep f
+  ) =>
+  RWSEFn (ViewR) rp wp sp ep f where
+  rwseApply (ViewR) _ _ _ _ = mkXFn @rp @wp @sp @ep $ View XEnv
+
+data ViewR_ :: forall @k. k -> Type
+data ViewR_ b = ViewR_
+
+instance rwseApplyViewR_ ::
+  ( RWSEFn (View_ b XEnv) rp wp sp ep f
+  ) =>
+  RWSEFn (ViewR_ b) rp wp sp ep f where
+  rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ View_ @b XEnv
+
+data PreviewR = PreviewR
+
+instance rwseApplyPreviewR ::
+  ( RWSEFn (Preview XEnv) rp wp sp ep f
+  ) =>
+  RWSEFn (PreviewR) rp wp sp ep f where
+  rwseApply (PreviewR) _ _ _ _ = mkXFn @rp @wp @sp @ep $ Preview XEnv
+
+data PreviewR_ :: forall @k. k -> Type
+data PreviewR_ b = PreviewR_
+
+instance rwseApplyPreviewR_ ::
+  ( RWSEFn (Preview_ b XEnv) rp wp sp ep f
+  ) =>
+  RWSEFn (PreviewR_ b) rp wp sp ep f where
+  rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ Preview_ @b XEnv
+
+data ToArrayOfR = ToArrayOfR
+
+instance rwseApplyToArrayOfR ::
+  ( RWSEFn (ToArrayOf XEnv) rp wp sp ep f
+  ) =>
+  RWSEFn (ToArrayOfR) rp wp sp ep f where
+  rwseApply (ToArrayOfR) _ _ _ _ = mkXFn @rp @wp @sp @ep $ ToArrayOf XEnv
+
+data ToArrayOfR_ :: forall @k. k -> Type
+data ToArrayOfR_ b = ToArrayOfR_
+
+instance rwseApplyToArrayOfR_ ::
+  ( RWSEFn (ToArrayOf_ b XEnv) rp wp sp ep f
+  ) =>
+  RWSEFn (ToArrayOfR_ b) rp wp sp ep f where
+  rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ ToArrayOf_ @b XEnv
+
+---------------------- S ------------------------
+
+data AtS = AtS
+
+instance rwseApplyAtS ::
+  ( RWSEFn (Get XState) rp wp sp ep f
+  ) =>
+  RWSEFn AtS rp wp sp ep f where
+  rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ Get XState
+
+data ViewS = ViewS
+
+instance rwseApplyViewS ::
+  ( RWSEFn (View XState) rp wp sp ep f
+  ) =>
+  RWSEFn (ViewS) rp wp sp ep f where
+  rwseApply (ViewS) _ _ _ _ = mkXFn @rp @wp @sp @ep $ View XState
+
+data ViewS_ :: forall @k. k -> Type
+data ViewS_ b = ViewS_
+
+instance rwseApplyViewS_ ::
+  ( RWSEFn (View_ b XState) rp wp sp ep f
+  ) =>
+  RWSEFn (ViewS_ b) rp wp sp ep f where
+  rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ View_ @b XState
+
+data PreviewS = PreviewS
+
+instance rwseApplyPreviewS ::
+  ( RWSEFn (Preview XState) rp wp sp ep f
+  ) =>
+  RWSEFn (PreviewS) rp wp sp ep f where
+  rwseApply (PreviewS) _ _ _ _ = mkXFn @rp @wp @sp @ep $ Preview XState
+
+data PreviewS_ :: forall @k. k -> Type
+data PreviewS_ b = PreviewS_
+
+instance rwseApplyPreviewS_ ::
+  ( RWSEFn (Preview_ b XState) rp wp sp ep f
+  ) =>
+  RWSEFn (PreviewS_ b) rp wp sp ep f where
+  rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ Preview_ @b XState
+
+data ToArrayOfS = ToArrayOfS
+
+instance rwseApplyToArrayOfS ::
+  ( RWSEFn (ToArrayOf XState) rp wp sp ep f
+  ) =>
+  RWSEFn (ToArrayOfS) rp wp sp ep f where
+  rwseApply (ToArrayOfS) _ _ _ _ = mkXFn @rp @wp @sp @ep $ ToArrayOf XState
+
+data ToArrayOfS_ :: forall @k. k -> Type
+data ToArrayOfS_ b = ToArrayOfS_
+
+instance rwseApplyToArrayOfS_ ::
+  ( RWSEFn (ToArrayOf_ b XState) rp wp sp ep f
+  ) =>
+  RWSEFn (ToArrayOfS_ b) rp wp sp ep f where
+  rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ ToArrayOf_ @b XState
+
+--------------------- x -----------------------
+
+type XFnG :: forall k1 k2 k3 k4. k1 -> k2 -> k3 -> k4 -> Type
+type XFnG rp wp sp ep = forall f o. RWSEFn f rp wp sp ep o => f -> o
+
+mkXFn :: forall @rp @wp @sp @ep. XFnG rp wp sp ep
+mkXFn f = rwseApply f (P.Proxy :: P.Proxy rp) (P.Proxy :: P.Proxy wp)
+  (P.Proxy :: P.Proxy sp)
+  (P.Proxy :: P.Proxy ep)
+
+x :: XFnG "reader" "writer" "state" "error"
+x = mkXFn @"reader" @"writer" @"state" @"error"
+
+xAt :: forall @p. XFnG p p p p
+xAt = mkXFn @p @p @p @p
 
 class XPGetter t m r p where
   xpget
@@ -202,72 +547,31 @@ instance stateXPSel :: XPSel XState rs ss ss
 data XEnv = XEnv
 
 instance envXGPetter :: XPGetter XEnv RunR.Reader r p where
-  xpget _ _ = xAskAt @p
+  xpget _ _ = RunR.askAt (P.Proxy :: P.Proxy p)
 
 data XState = XState
 
 instance stateXGPetter :: XPGetter XState RunS.State r p where
-  xpget _ _ = xGetAt @p
-
-gget
-  :: forall @rp @sp p t m r x' x
-   . XPGetter t m r p
-  => XPSel t rp sp p
-  => IsSymbol p
-  => Cons p (m r) x' x
-  => t
-  -> R.Run x r
-gget t = xpget t (P.Proxy :: P.Proxy p)
-
-type XModuleBase :: forall k1 k2. k1 -> k2 -> Type
-type XModuleBase rp sp =
-  { get ::
-      forall p t m r x' x
-       . XPGetter t m r p
-      => XPSel t rp sp p
-      => IsSymbol p
-      => Cons p (m r) x' x
-      => t
-      -> R.Run x r
-  }
-
-mkXModule :: forall @rp @sp. XModuleBase rp sp
-mkXModule = { get: gget @rp @sp }
-
-x :: XModuleBase "reader" "state"
-x = mkXModule @"reader" @"state"
-
-xAt :: forall @p. XModuleBase p p
-xAt = mkXModule @p @p
+  xpget _ _ = RunS.getAt (P.Proxy :: P.Proxy p)
 
 ------------------------------------------------------------------
 
 xParser :: forall x s a. s -> Parsing.Parser s a -> R.Run (E Z.ParseError x) a
 xParser s pr = xOk $ Z.runParser s pr
 
-xOrDefault :: forall x d. ZD.Defaultable d => R.Run x (May.Maybe d) -> R.Run x d
-xOrDefault m = m <#> ZD.orDefault
-
 --------------- EVAL -------------------------------------------------------
 
 xEval :: forall a. X () a -> a
-xEval r = Unsafe.unsafePerformEffect $ R.runBaseEffect $ R.expand $ runXBase r
+xEval m = Unsafe.unsafePerformEffect $ R.runBaseEffect $ R.expand $ runXBase m
 
 xExec :: forall e a. X (E e ()) a -> Eor.Either e a
 xExec = xEval <<< xTry
 
 xEvalAff :: forall a. X (A ()) a -> Aff.Aff a
-xEvalAff x = R.match { aff: \(AffCmd a) -> a } # R.run $ runXBase x
+xEvalAff m = R.match { aff: \(AffCmd a) -> a } # R.run $ runXBase m
 
 xExecAff :: forall e a. X (EA e ()) a -> Aff.Aff (Eor.Either e a)
 xExecAff = xEvalAff <<< xTry
-
-x2EvalAff :: forall a. X2 () A a -> Aff.Aff a
-x2EvalAff x = R.match { aff: \(AffCmd a) -> a } # R.run $ runXBase do
-  RunW.runWriter (RunR.runReader {} $ RunS.evalState {} x) <#> Tup.snd
-
-x2ExecAff :: forall e a. X2 () (EA e) a -> Aff.Aff (Eor.Either e a)
-x2ExecAff = x2EvalAff <<< xTry
 
 --------------- EDIT ------------------------------------------------------
 
@@ -309,45 +613,6 @@ xTryUntil
 xTryUntil try1 tryRest = xInvert do
   e1 <- xInvert try1
   Z.reduceM (\e tryN -> xInvert $ tryN e) e1 tryRest
-
---------------- R FNS -----------------------------------------------------
-
-xRespondWith :: forall x r a. r -> R.Run (R r x) a -> R.Run x a
-xRespondWith = RunR.runReader
-
-xRespondWithAt
-  :: forall @p x' x r a
-   . IsSymbol p
-  => Cons p (RunR.Reader r) x' x
-  => r
-  -> R.Run x a
-  -> R.Run x' a
-xRespondWithAt = RunR.runReaderAt (P.Proxy :: P.Proxy p)
-
-xAsk :: forall x r. R.Run (R r x) r
-xAsk = RunR.ask
-
-xAskAt
-  :: forall @p x' x r. IsSymbol p => Cons p (RunR.Reader r) x' x => R.Run x r
-xAskAt = RunR.askAt (P.Proxy :: P.Proxy p)
-
-xViewR :: forall x s t a b. Lens.Lens s t a b -> R.Run (R s x) a
-xViewR l = xAsk <#> Lens.view l
-
-xReviewR :: forall x s t a b. Lens.Review s t a b -> R.Run (R b x) t
-xReviewR l = xAsk <#> Lens.review l
-
-xToArrayOfR
-  :: forall x s t a b
-   . Lens.Fold (Endo.Endo Function (ListT.List a)) s t a b
-  -> R.Run (R s x) (Array a)
-xToArrayOfR l = xAsk <#> Lens.toArrayOf l
-
-xPreviewR
-  :: forall x s t a b
-   . Lens.Fold (MayFirst.First a) s t a b
-  -> R.Run (R s x) (May.Maybe a)
-xPreviewR l = xAsk <#> Lens.preview l
 
 --------------- W FNS -----------------------------------------------------
 
@@ -422,41 +687,8 @@ xPutAt v = RunS.putAt (P.Proxy :: P.Proxy p) v
 xModify :: forall x s. (s -> s) -> R.Run (S s x) Unit
 xModify f = RunS.modify f
 
-xView :: forall x s t a b. Lens.Lens s t a b -> R.Run (S s x) a
-xView l = xGet <#> Lens.view l
-
-xView_
-  :: forall @sym x lenses s t a b
-   . Bl.ParseSymbol sym lenses
-  => Bl.ConstructBarlow lenses (Bl.Forget a) s t a b
-  => Bl.IsSymbol sym
-  => R.Run (S s x) a
-xView_ = xGet <#> Lens.view (Bl.barlow @sym)
-
-xViewAt_
-  :: forall @p @sym x x' lenses s t a b
-   . IsSymbol p
-  => Cons p (RunS.State s) x' x
-  => Bl.ParseSymbol sym lenses
-  => Bl.ConstructBarlow lenses (Bl.Forget a) s t a b
-  => Bl.IsSymbol sym
-  => R.Run x a
-xViewAt_ = (xGetAt @p) <#> Lens.view (Bl.barlow @sym)
-
-xToArrayOf
-  :: forall x s t a b
-   . Lens.Fold (Endo.Endo Function (ListT.List a)) s t a b
-  -> R.Run (S s x) (Array a)
-xToArrayOf l = xGet <#> Lens.toArrayOf l
-
 xReview :: forall x s t a b. Lens.Review s t a b -> b -> R.Run (S t x) Unit
 xReview l b = RunS.put $ Lens.review l b
-
-xPreview
-  :: forall x s t a b
-   . Lens.Fold (MayFirst.First a) s t a b
-  -> R.Run (S s x) (May.Maybe a)
-xPreview l = xGet <#> Lens.preview l
 
 xOver :: forall x s a b. Lens.Setter s s a b -> (a -> b) -> R.Run (S s x) Unit
 xOver l f = RunS.get >>= RunS.put <<< Lens.over l f
@@ -606,7 +838,7 @@ xUnwrap' :: forall x a. May.Maybe a -> X (E Z.JsError x) a
 xUnwrap' = xUnwrap $ Z.jsError' "Nothing#unwrap"
 
 xHush :: forall x e d. ZD.Defaultable d => R.Run (E e x) d -> R.Run x d
-xHush m = xOrDefault $ xTry m <#> Eor.hush
+xHush m = (<$>) ZD.orDefault $ xTry m <#> Eor.hush
 
 xInvert :: forall x e a. R.Run (E a + E e x) e -> R.Run (E e x) a
 xInvert r = xTry r <#> Z.invert >>= xOk

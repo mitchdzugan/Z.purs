@@ -119,7 +119,7 @@ decodeAnyYamlExt
   => p
   -> EA Sys.FSDataError x #> d
 decodeAnyYamlExt p = do
-  contents <- xTryUntil
+  contents <- x TryUntil
     (xMapE Sys.ReadError $ readTextFile $ (pathStr p) <> ".yaml")
     [ const $ xMapE Sys.ReadError $ readTextFile $ (pathStr p) <> ".json"
     , const $ xMapE Sys.ReadError $ readTextFile $ p

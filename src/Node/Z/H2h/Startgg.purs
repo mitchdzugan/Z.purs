@@ -28,7 +28,7 @@ mapOfJsonElsWithFieldsTypeAnd_t = reduce reducer mapEmpty
 
 getEventData :: forall x. B.GetDataFn x
 getEventData = B.adaptBuilder $ xEvalS initState do
-  { slug } <- x.get XEnv
+  { slug } <- x AtR
   { event } <- fetchRawEventData
   let entrantNodes = event.entrants.nodes
   forM_ entrantNodes $ \entrantNode -> do
@@ -78,17 +78,17 @@ getEventData = B.adaptBuilder $ xEvalS initState do
           if isNothing set.winnerId then Nothing
           else if isWinA then Just Pos
           else Just Neg
-      slotScoreA /\ slotScoreB <- xWithRet do
+      slotScoreA /\ slotScoreB <- x WithRet do
         let games = orDefault set.games
         let winnerIds = games <#> _.winnerId
         let doneGames = arrSize $ arrFilter isJust winnerIds
         when (arrSize games == doneGames && doneGames > 0) do
           let w1Games = arrSize $ arrFilter (eq eIdA) winnerIds
           let w2Games = doneGames - w1Games
-          xReturn $ H2h.mkScoreCount w1Games /\ H2h.mkScoreCount w2Games
+          x Return $ H2h.mkScoreCount w1Games /\ H2h.mkScoreCount w2Games
         whenJust set.displayScore $ \displayScore -> do
           when (displayScore == "DQ") do
-            xReturn $ H2h.mkScoreDQ isWinA /\ H2h.mkScoreDQ (not isWinA)
+            x Return $ H2h.mkScoreDQ isWinA /\ H2h.mkScoreDQ (not isWinA)
           xLogWarning { warn: "UNMADE SCORES", displayScore }
         pure $ H2h.NoScore /\ H2h.NoScore
       let slotA = { entrantId: eIdA <#> sOrN, score: slotScoreA }
@@ -136,12 +136,12 @@ getEventData = B.adaptBuilder $ xEvalS initState do
   where
   initState = { entrants: mapEmpty @SorN @H2h.Entrant }
   fetchRawPhaseGroupData phaseGroupId = do
-    { client, networkControl } <- x.get XEnv
+    { client, networkControl } <- x AtR
     let initVars = { page: 0, phaseGroupId }
     let pSpecs = [ All.ggPageSpec (__ @"page") (__ @"phaseGroup.sets") ]
     xMapWE H2hW.Gql H2hE.Gql do
       All.ggQueryAll Q.phaseGroup initVars pSpecs client networkControl
-  fetchRawEventData = xTryUntil
+  fetchRawEventData = x TryUntil
     (f' Q.eventMaxDataPerReq $ Just Gql.CacheOnly)
     [ const (f' Q.evenMinComplexityPerReq $ Just Gql.CacheOnly)
     , const (f' Q.eventMaxDataPerReq Nothing)
@@ -149,8 +149,8 @@ getEventData = B.adaptBuilder $ xEvalS initState do
     ]
     where
     f' q ncOverride = do
-      { client, slug } <- x.get XEnv
-      nc <- x.get XEnv <#> \r -> jOr r.networkControl ncOverride
+      { client, slug } <- x AtR
+      nc <- x AtR <#> \r -> jOr r.networkControl ncOverride
       let initVars = { pageE: 0, pageS: 0, slug }
       let eSpec = All.ggPageSpec (__ @"pageE") (__ @"event.entrants")
       let sSpec = All.ggPageSpec (__ @"pageS") (__ @"event.standings")

@@ -15,7 +15,7 @@ type XDom' x fx = XDomFn' x fx Unit
 type XPROPS x = (xProps :: Writer (Array PropWF) | x)
 
 xRender :: XDom () -> ReactEl
-xRender m = js_renderFragment $ xEval $ xRespondWith (baseR) $ xListen_ $ m
+xRender m = js_renderFragment $ xEval $ x RunEnv (baseR) $ xListen_ $ m
   where
   baseR mm = xEval mm
 
@@ -38,7 +38,7 @@ upRunner
   => r
   -> XSelf' x'
   -> XSelf' x
-upRunner env (fm) = fm <<< xRespondWithAt @p env
+upRunner env (fm) = fm <<< xAt @p RunEnv env
 
 xDKeyed
   :: forall x
@@ -46,8 +46,8 @@ xDKeyed
   -> XDom x
   -> XDom x
 xDKeyed k m = do
-  rn <- x.get XEnv
-  xSay $ js_withKey k $ js_renderFragment $ rn $ xListen_ $ xRespondWith rn $ m
+  rn <- x AtR
+  xSay $ js_withKey k $ js_renderFragment $ rn $ xListen_ $ x RunEnv rn $ m
 
 xDNewState
   :: forall x s
@@ -55,10 +55,10 @@ xDNewState
   -> (s -> (s -> X () Unit) -> Run (RWa (XSelf' x) ReactEl x) Unit)
   -> Run (RWa (XSelf' x) ReactEl x) Unit
 xDNewState initalState fm = do
-  rn <- x.get XEnv
+  rn <- x AtR
   xSay $ flip (js_withState pure) initalState (renderFn rn)
   where
-  renderFn rn s ss = rn $ xListen_ $ xRespondWith rn $ fm s ss
+  renderFn rn s ss = rn $ xListen_ $ x RunEnv rn $ fm s ss
 
 xDRespondWithAt
   :: forall @p x x' r
@@ -68,9 +68,9 @@ xDRespondWithAt
   -> Run (RWa (XSelf' x) ReactEl x) Unit
   -> Run (RWa (XSelf' x') ReactEl x') Unit
 xDRespondWithAt env m = do
-  runner <- x.get XEnv
+  runner <- x AtR
   let irunner = upRunner @p env runner
-  xSay $ js_renderFragment $ irunner $ xListen_ $ xRespondWith irunner $ m
+  xSay $ js_renderFragment $ irunner $ xListen_ $ x RunEnv irunner $ m
 
 xDRespondWithNewStateReducerAt
   :: forall @p x' x a s
@@ -104,12 +104,12 @@ xDBoundError
   -> Run (RWa (XSelf' (E e x)) ReactEl (E e x)) Unit
   -> Run (RWa (XSelf' x) ReactEl x) Unit
 xDBoundError em m = do
-  runner <- x.get XEnv
+  runner <- x AtR
   let irunner = \mm -> runner $ xTry mm >>= eOr
   xSay $ js_withBoundedError (renderErr runner) (renderMain irunner)
   where
-  renderMain rn _ = js_renderFragment $ rn $ xListen_ $ xRespondWith rn $ m
-  renderErr rn e = js_renderFragment $ rn $ xListen_ $ xRespondWith rn $ em e
+  renderMain rn _ = js_renderFragment $ rn $ xListen_ $ x RunEnv rn $ m
+  renderErr rn e = js_renderFragment $ rn $ xListen_ $ x RunEnv rn $ em e
   eOr (Left e) = js_throwBoundedError e
   eOr (Right v) = pure v
 

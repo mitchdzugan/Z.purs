@@ -63,7 +63,7 @@ run args = do
     envState <- xRunS envStateInit $ addConfigs noOptConfigs wd configs
     env <- finalizeEnv envState opts $ show $ wd /./ "output.mp4"
     xInfo env
-    xRespondWith env launchAndRecord
+    x RunEnv env launchAndRecord
 
 mergeListOps
   :: forall a f. Foldable f => List a -> f (ListOp a) -> List a
