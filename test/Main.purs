@@ -1,6 +1,6 @@
 module Test.Main where
 
-import Z.Test.Module as T
+import Z.Test.Prelude
 
-main :: T.TestMain
-main = T.discoverAndRunSpecs [ T.consoleReporter ] """Test\.Z\..*"""
+main :: TestMain
+main = discoverAndRunSpecs [ consoleReporter ] """Test\.Z\..*"""

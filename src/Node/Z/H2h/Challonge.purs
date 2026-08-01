@@ -15,7 +15,7 @@ import Node.Z.Puppeteer as P
 
 getEventData :: forall x. B.GetDataFn x
 getEventData = B.adaptBuilder $ xWithRet do
-  { client, networkControl, slug } <- xAsk
+  { client, networkControl, slug } <- x.get XEnv
   let { cachePath } = client
   let eCacheOnlyEmpty = H2hE.Gql GqlE.CacheOnlyEmpty
   cached <- getCached slug cachePath networkControl
@@ -46,7 +46,7 @@ getEventDataImpl = do
     page <- pDo "newPage" "" $ P.newPage browser
     xInfo { op: "setViewport" }
     pDo "setViewport" "1920x1080" $ P.setViewport page 1920 1080
-    { slug } <- xAsk
+    { slug } <- x.get XEnv
     let url = "https://challonge.com/" <> slug
     xInfo { op: "goto", url }
     pDo "goto" url $ P.goto page url $ xSet_ @"waitUntil" $ Just
@@ -65,7 +65,7 @@ getEventDataImpl = do
     }
 
   readPageData page = do
-    { slug } <- xAsk
+    { slug } <- x.get XEnv
     itemEls <- pEls page ".redesigned-meta-list .item"
     forM_ itemEls $ \el -> do
       itemLabel <- pEl el ".item-label" >>= pInnerText
@@ -150,7 +150,7 @@ getEventDataImpl = do
         }
     roundSets <- xEvalSAt @"setsLoop" setsLoopState $ do
       roundSets' <- forM baseSetList $ \baseSet -> do
-        { prev, isDropRound } <- xGetAt @"setsLoop"
+        { prev, isDropRound } <- (xAt @"setsLoop").get XState
         let prevSet = prev <#> \p -> p.base
         let prevRound = prev <#> \p -> p.round
         let wasGrands = jOrF $ prevRound <#> Round.isGrands

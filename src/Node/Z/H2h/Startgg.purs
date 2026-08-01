@@ -28,7 +28,7 @@ mapOfJsonElsWithFieldsTypeAnd_t = reduce reducer mapEmpty
 
 getEventData :: forall x. B.GetDataFn x
 getEventData = B.adaptBuilder $ xEvalS initState do
-  { slug } <- xAsk
+  { slug } <- x.get XEnv
   { event } <- fetchRawEventData
   let entrantNodes = event.entrants.nodes
   forM_ entrantNodes $ \entrantNode -> do
@@ -136,7 +136,7 @@ getEventData = B.adaptBuilder $ xEvalS initState do
   where
   initState = { entrants: mapEmpty @SorN @H2h.Entrant }
   fetchRawPhaseGroupData phaseGroupId = do
-    { client, networkControl } <- xAsk
+    { client, networkControl } <- x.get XEnv
     let initVars = { page: 0, phaseGroupId }
     let pSpecs = [ All.ggPageSpec (__ @"page") (__ @"phaseGroup.sets") ]
     xMapWE H2hW.Gql H2hE.Gql do
@@ -149,8 +149,8 @@ getEventData = B.adaptBuilder $ xEvalS initState do
     ]
     where
     f' q ncOverride = do
-      { client, slug } <- xAsk
-      nc <- xAsk <#> \r -> jOr r.networkControl ncOverride
+      { client, slug } <- x.get XEnv
+      nc <- x.get XEnv <#> \r -> jOr r.networkControl ncOverride
       let initVars = { pageE: 0, pageS: 0, slug }
       let eSpec = All.ggPageSpec (__ @"pageE") (__ @"event.entrants")
       let sSpec = All.ggPageSpec (__ @"pageS") (__ @"event.standings")

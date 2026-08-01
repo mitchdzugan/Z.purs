@@ -2,6 +2,7 @@ module Z.Z.Ext
   ( module Aff
   , module Arg
   , module Array
+  , module ByteString
   , module CA
   , module DC
   , module DateTime
@@ -17,6 +18,7 @@ module Z.Z.Ext
   , module Enum
   , module Exists
   , module Foldable
+  , module Foreign
   , module Generic
   , module Int
   , module Lens
@@ -54,6 +56,7 @@ import Data.Argonaut.Decode.Generic (genericDecodeJson) as DecodeGeneric
 import Data.Argonaut.Encode (class EncodeJson, encodeJson) as Enc
 import Data.Argonaut.Encode.Generic (genericEncodeJson) as EncodeGeneric
 import Data.Array (slice) as Array
+import Data.ByteString (Byte, byte, fromByte) as ByteString
 import Data.Codec (Codec, Codec') as DC
 import Data.Codec.Argonaut (JsonCodec) as CA
 import Data.DateTime (Month(..), Hour, Year, Day, Second, Minute, Millisecond, canonicalDate, Time(..), Date) as DateTime
@@ -83,6 +86,7 @@ import Data.Tuple.Nested ((/\), type (/\)) as TupNested
 import Effect (Effect) as Effect
 import Effect.Aff (Aff, launchAff, launchAff_, runAff, runAff_) as Aff
 import Effect.Class (liftEffect) as EffectClass
+import Foreign (Foreign) as Foreign
 import Parsing (ParserT) as Parsing
 import Parsing.Combinators ((<|>)) as Prc
 import Prim.Row (class Cons, class Lacks, class Nub, class Union) as Row

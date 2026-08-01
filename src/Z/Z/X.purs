@@ -58,20 +58,26 @@ module Z.Z.X
   , X2
   , XBASE
   , XBaseF
+  , XEnv(..)
   , XRet
   , XShortCircuit
+  , XState(..)
   , XWa
+  , class XPGetter
+  , class XPSel
   , edit
   , type (!$)
   , type (!)
   , type (-!$)
   , type (-!)
+  , x
   , x2EvalAff
   , x2ExecAff
   , xAEff
   , xAff
   , xAsk
   , xAskAt
+  , xAt
   , xBindE
   , xEffectPromise
   , xEval
@@ -108,8 +114,8 @@ module Z.Z.X
   , xPreview
   , xPreviewR
   , xPutAt
-  , xRespondWithAt
   , xRespondWith
+  , xRespondWithAt
   , xResult
   , xRetFail
   , xRetLift
@@ -137,6 +143,7 @@ module Z.Z.X
   , xViewR
   , xView_
   , xWithRet
+  , xpget
   ) where
 
 import Prelude
@@ -150,6 +157,7 @@ import Data.Maybe as May
 import Data.Maybe.First as MayFirst
 import Data.Monoid as Monoid
 import Data.Monoid.Endo as Endo
+import Data.Newtype (wrap, unwrap, class Newtype) as NT
 import Data.Symbol (class IsSymbol)
 import Data.Tuple as Tup
 import Data.Tuple.Nested as TupN
@@ -157,7 +165,7 @@ import Effect as Eff
 import Effect.Aff as Aff
 import Effect.Class as EffC
 import Effect.Unsafe as Unsafe
-import Type.Proxy (Proxy(..))
+import Parsing as Parsing
 import Prim.Row (class Cons)
 import Prim.Row as Row
 import Record as Rec
@@ -166,12 +174,71 @@ import Run.Except as RunE
 import Run.Reader as RunR
 import Run.State as RunS
 import Run.Writer as RunW
+import Type.Equality (class TypeEquals) as TypeEquals
+import Type.Proxy (Proxy(..))
 import Type.Proxy as P
 import Type.Row (type (+))
-import Parsing as Parsing
+import Unsafe.Coerce as UnsafeC
 import Z.Z.Barlow as Bl
-import Z.Z.Defaultable as ZD
 import Z.Z.Core as Z
+import Z.Z.Defaultable as ZD
+import Z.Z.Ext as ZE
+
+class XPGetter t m r p where
+  xpget
+    :: forall x' x
+     . IsSymbol p
+    => Cons p (m r) x' x
+    => t
+    -> P.Proxy p
+    -> R.Run x r
+
+class XPSel :: forall k1 k2 k3 k4. k1 -> k2 -> k3 -> k4 -> Constraint
+class XPSel a b c d | a b c -> d
+
+instance envXPSel :: XPSel XEnv rs ss rs
+instance stateXPSel :: XPSel XState rs ss ss
+
+data XEnv = XEnv
+
+instance envXGPetter :: XPGetter XEnv RunR.Reader r p where
+  xpget _ _ = xAskAt @p
+
+data XState = XState
+
+instance stateXGPetter :: XPGetter XState RunS.State r p where
+  xpget _ _ = xGetAt @p
+
+gget
+  :: forall @rp @sp p t m r x' x
+   . XPGetter t m r p
+  => XPSel t rp sp p
+  => IsSymbol p
+  => Cons p (m r) x' x
+  => t
+  -> R.Run x r
+gget t = xpget t (P.Proxy :: P.Proxy p)
+
+type XModuleBase :: forall k1 k2. k1 -> k2 -> Type
+type XModuleBase rp sp =
+  { get ::
+      forall p t m r x' x
+       . XPGetter t m r p
+      => XPSel t rp sp p
+      => IsSymbol p
+      => Cons p (m r) x' x
+      => t
+      -> R.Run x r
+  }
+
+mkXModule :: forall @rp @sp. XModuleBase rp sp
+mkXModule = { get: gget @rp @sp }
+
+x :: XModuleBase "reader" "state"
+x = mkXModule @"reader" @"state"
+
+xAt :: forall @p. XModuleBase p p
+xAt = mkXModule @p @p
 
 ------------------------------------------------------------------
 

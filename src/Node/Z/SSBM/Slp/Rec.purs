@@ -55,7 +55,7 @@ run args = do
       , slippiPlaybackBin: "slippi-playback"
       , ffmpegBin: "ffmpeg"
       }
-  argParse (slpRecInfo wd) args \opts -> do
+  argParse "slp-rec" (slpRecInfo wd) args \opts -> do
     let optConfigs = arrFromFoldable $ g_ @"!.configPaths" opts
     let noOptConfigs = arrSize optConfigs == 0
     let baseConfigPath = show $ cfgPath /./ "config"

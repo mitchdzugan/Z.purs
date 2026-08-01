@@ -285,7 +285,7 @@ handleXNode = case _ of
   FullArgvCmd f -> pure $ f (Unsafe.unsafePerformEffect js_argv)
   PlatformCmd f -> pure $ f (Unsafe.unsafePerformEffect js_platform)
   EnvPathsCmd appName suffix f -> pure $ f $ Unsafe.unsafePerformEffect $
-    js_envPaths appName (jsonRmNils $ encodeJson { suffix })
+    js_envPaths appName (encodeOpts { suffix })
 
 derive instance functorXBaseF :: Functor XNodeF
 
@@ -317,16 +317,17 @@ type XNode x a = X (xNode :: XNodeF | x) a
 
 argParse
   :: forall x a
-   . O.ParserInfo a
+   . String
+  -> O.ParserInfo a
   -> Array String
   -> (a -> XNode x Unit)
   -> XNode x Unit
-argParse opts args fm =
+argParse progName opts args fm =
   handleParse $ O.execParserPure O.defaultPrefs opts args
   where
   handleParse (O.Success a) = fm a
   handleParse (O.Failure f) = do
-    let msg /\ _exit = O.renderFailure f "slp-rec"
+    let msg /\ _exit = O.renderFailure f progName
     xOutErr msg
     pure unit
   handleParse _ = pure unit

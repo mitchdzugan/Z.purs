@@ -13,6 +13,7 @@
             {
               "barlow-lens": "1.0.0"
             },
+            "bytestrings",
             "codec",
             "codec-argonaut",
             "console",
@@ -874,6 +875,20 @@
         "newtype",
         "prelude",
         "tuples"
+      ]
+    },
+    "bytestrings": {
+      "type": "registry",
+      "version": "9.0.0",
+      "integrity": "sha256-STIzK8BNlOWbCzvgxenZsCzKHtT7iZedZw785y5XjSs=",
+      "dependencies": [
+        "arrays",
+        "integers",
+        "maybe",
+        "prelude",
+        "st",
+        "strings",
+        "unsafe-coerce"
       ]
     },
     "catenable-lists": {

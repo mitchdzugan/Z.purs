@@ -16,6 +16,8 @@ foreign import js_keyOfInt :: Int -> String
 
 foreign import js_keyOfAKeys :: Array String -> String
 
+foreign import js_keyOfBytes :: Array Int -> String
+
 newtype Key = Key String
 
 class Keyed a where
@@ -49,7 +51,10 @@ instance pairKeyed :: (Keyed a) => Keyed (ZP.Pair a) where
   key (a ZP.~ b) =
     let ka = keyStr a in Key $ "P" <> show (strLength ka) <> ka <> keyStr b
 
-instance arrayKeyed :: (Keyed a) => Keyed (Array a) where
+instance byteArrayKeyed :: Keyed (Array Z.Byte) where
+  key a = Key $ "X" <> js_keyOfBytes (a <#> Z.fromByte)
+
+else instance arrayKeyed :: (Keyed a) => Keyed (Array a) where
   key a = Key $ "A" <> js_keyOfAKeys (a <#> keyStr)
 
 keyStr :: forall k. Keyed k => k -> String

@@ -3,7 +3,7 @@ function withInd(arr) {
 }
 
 function quot(n, d) {
-  return Math.trunc(n, d);
+  return Math.trunc(n / d);
 }
 
 function chunkArr(a, n) {
@@ -135,4 +135,10 @@ export function js_keyOfInt(i) {
 
 export function js_keyOfAKeys(a) {
   return a.map((s) => `${s.length}${s}`).join("");
+}
+
+export function js_keyOfBytes(bytes) {
+  return b8sToB6s(...bytes)
+    .map((n) => b6Char(n))
+    .join("");
 }

@@ -55,7 +55,7 @@ ggPageSpecHandleImpl
    . GGPageSpecF v r pnr
   -> XPageSpecHandle x v r
 ggPageSpecHandleImpl (GGPageSpecF pageL dataL) = do
-  { client, networkControl, op } <- xAsk
+  { client, networkControl, op } <- x.get XEnv
   xPlusS @"seenIds" setEmpty $ loop op client networkControl
   where
   loop op client networkControl = do

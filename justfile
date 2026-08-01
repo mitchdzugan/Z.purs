@@ -10,5 +10,8 @@ slp-db-web-serve:
 slp-db *args:
     spago run -m Test.SlpDB -- {{args}}
 
+slp-id *args:
+    spago run -m Test.SlpID -- {{args}}
+
 slp-rec *args:
     spago run -m Test.SlpRec -- {{args}}

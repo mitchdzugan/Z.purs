@@ -1,9 +1,11 @@
 module Z.Z.Core
-  ( JsAny
+  ( AntiUnit
+  , JsAny
   , JsError(..)
   , P
   , ParseError
   , Set
+  , antiUnit
   , arrDrop
   , arrEmpty
   , arrFilter
@@ -13,6 +15,7 @@ module Z.Z.Core
   , class Resulting
   , class RtError
   , dec
+  , encodeForeign
   , encodeOpts
   , fDiscard
   , forM
@@ -81,6 +84,7 @@ import Data.Ring as Ring
 import Data.Semiring as Semiring
 import Data.Set as Set
 import Effect.Exception as Exc
+import Foreign as Foreign
 import Type.Proxy (Proxy(..)) as Proxy
 import Parsing as Parsing
 import Parsing.Combinators as Prc
@@ -100,14 +104,27 @@ foreign import data JsAny :: Type
 
 foreign import js_JsAny :: forall a. a -> JsAny
 
+foreign import js_JsAnyToForeign :: Arg.Json -> Foreign.Foreign
+
 foreign import js_simpleHash :: String -> Int
 
 foreign import js_jsonStr :: Arg.Json -> String
 
 foreign import js_removeNils :: Arg.Json -> Arg.Json
 
+newtype AntiUnit = AntiUnit Unit
+
+instance eqAntiUnit :: Eq AntiUnit where
+  eq _ _ = false
+
+antiUnit :: AntiUnit
+antiUnit = AntiUnit unit
+
 jsAny :: forall a. a -> JsAny
 jsAny = js_JsAny
+
+encodeForeign :: forall d. EncodeJson d => d -> Foreign.Foreign
+encodeForeign = js_JsAnyToForeign <<< encodeJson
 
 jsonStr :: Arg.Json -> String
 jsonStr = js_jsonStr

@@ -40,13 +40,22 @@ upRunner
   -> XSelf' x
 upRunner env (fm) = fm <<< xRespondWithAt @p env
 
-xDIntroduceState
+xDKeyed
+  :: forall x
+   . String
+  -> XDom x
+  -> XDom x
+xDKeyed k m = do
+  rn <- x.get XEnv
+  xSay $ js_withKey k $ js_renderFragment $ rn $ xListen_ $ xRespondWith rn $ m
+
+xDNewState
   :: forall x s
    . s
   -> (s -> (s -> X () Unit) -> Run (RWa (XSelf' x) ReactEl x) Unit)
   -> Run (RWa (XSelf' x) ReactEl x) Unit
-xDIntroduceState initalState fm = do
-  rn <- xAsk
+xDNewState initalState fm = do
+  rn <- x.get XEnv
   xSay $ flip (js_withState pure) initalState (renderFn rn)
   where
   renderFn rn s ss = rn $ xListen_ $ xRespondWith rn $ fm s ss
@@ -59,26 +68,54 @@ xDRespondWithAt
   -> Run (RWa (XSelf' x) ReactEl x) Unit
   -> Run (RWa (XSelf' x') ReactEl x') Unit
 xDRespondWithAt env m = do
-  runner <- xAsk
+  runner <- x.get XEnv
   let irunner = upRunner @p env runner
   xSay $ js_renderFragment $ irunner $ xListen_ $ xRespondWith irunner $ m
 
-xDRespondWithReducerAt
+xDRespondWithNewStateReducerAt
   :: forall @p x' x a s
    . IsSymbol p
-  => Cons p (XDReducer a s) x' x
+  => Cons p (XDomStateReducer a s) x' x
   => s
   -> (s -> a -> s)
   -> Run (RWa (XSelf' x) ReactEl x) Unit
   -> Run (RWa (XSelf' x') ReactEl x') Unit
-xDRespondWithReducerAt initState updateState m = do
-  xDIntroduceState initState \state setState -> do
+xDRespondWithNewStateReducerAt initState updateState m = do
+  xDNewState initState \state setState -> do
     let act = \a -> setState $ updateState state a
     let env = { act, get: state }
     xDRespondWithAt @p env m
 
-type DReducer a s = { get :: s, act :: a -> X () Unit }
-type XDReducer a s = Reader (DReducer a s)
+xDRespondWithNewStateSetterAt
+  :: forall @p x' x s
+   . IsSymbol p
+  => Cons p (XDomStateSetter s) x' x
+  => s
+  -> Run (RWa (XSelf' x) ReactEl x) Unit
+  -> Run (RWa (XSelf' x') ReactEl x') Unit
+xDRespondWithNewStateSetterAt initState m = do
+  xDNewState initState \state setState -> do
+    let env = { set: setState, get: state }
+    xDRespondWithAt @p env m
+
+xDBoundError
+  :: forall x e
+   . (e -> Run (RWa (XSelf' x) ReactEl x) Unit)
+  -> Run (RWa (XSelf' (E e x)) ReactEl (E e x)) Unit
+  -> Run (RWa (XSelf' x) ReactEl x) Unit
+xDBoundError em m = do
+  runner <- x.get XEnv
+  let irunner = \mm -> runner $ xTry mm >>= eOr
+  xSay $ js_withBoundedError (renderErr runner) (renderMain irunner)
+  where
+  renderMain rn _ = js_renderFragment $ rn $ xListen_ $ xRespondWith rn $ m
+  renderErr rn e = js_renderFragment $ rn $ xListen_ $ xRespondWith rn $ em e
+  eOr (Left e) = js_throwBoundedError e
+  eOr (Right v) = pure v
+
+type XDomStateReducer a s = Reader { get :: s, act :: a -> X () Unit }
+
+type XDomStateSetter s = Reader { get :: s, set :: s -> X () Unit }
 
 type IdT :: forall k. k -> k
 type IdT a = a
@@ -94,7 +131,7 @@ el
 el s m = do
   (propWFs /\ (elBuild /\ _)) <- RW.runWriterAt _xProps $ xListen m
   let props = js_propsFromPropWs propWFKey propWFVal propWFs
-  xSay $ js_renderEl s (jsonRmNils $ encodeJson props) elBuild
+  xSay $ js_renderEl s (encodeOpts props) elBuild
 
 div :: forall x. XDom' x XEl -> XDom x
 div = el "div"
@@ -123,15 +160,24 @@ foreign import js_withState
   -> s
   -> ReactEl
 
-data PropWF = ClassName String | OnClick (Int -> Unit)
+foreign import js_withKey :: String -> ReactEl -> ReactEl
+foreign import js_didMountEl :: (Unit -> Unit) -> ReactEl
+foreign import js_withBoundedError
+  :: forall e. (e -> ReactEl) -> (Unit -> ReactEl) -> ReactEl
+
+foreign import js_throwBoundedError :: forall e a. e -> a
+
+data PropWF = ClassName String | OnClick (Int -> Unit) | PKey String
 
 propWFKey :: PropWF -> String
 propWFKey (ClassName _) = "className"
 propWFKey (OnClick _) = "onClick"
+propWFKey (PKey _) = "key"
 
 propWFVal :: PropWF -> JsAny
 propWFVal (ClassName s) = jsAny s
 propWFVal (OnClick s) = jsAny s
+propWFVal (PKey s) = jsAny s
 
 cn_ :: forall x. String -> XDom' x XPROPS
 cn_ s = RW.tellAt _xProps $ pure (ClassName s)
@@ -146,3 +192,9 @@ cn fm = do
 
 onClick :: forall x. (Int -> X () Unit) -> XDom' x XPROPS
 onClick f = RW.tellAt _xProps $ pure (OnClick $ \e -> xEval $ f e)
+
+pkey :: forall x. String -> XDom' x XPROPS
+pkey s = RW.tellAt _xProps $ pure (PKey s)
+
+xDOnMount :: forall x. X () Unit -> XDom x
+xDOnMount onMount = xSay $ js_didMountEl (\_ -> xEval onMount)
