@@ -169,7 +169,7 @@ type XWebEA e x = EA e (XWEB x)
 xExecAndExit
   :: forall @w @e a. RtError e => XWa w (XWebEA e) a -> Effect Unit
 xExecAndExit m = execAndExit $ xExecAff $ do
-  w /\ res <- xListen $ expand $ runXWeb m
+  w /\ res <- x RunW $ expand $ runXWeb m
   when (arrSize w > 0) do
     xLogWarning "collected warnings ⌄"
     xLogWarning w

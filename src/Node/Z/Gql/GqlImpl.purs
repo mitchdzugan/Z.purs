@@ -55,15 +55,15 @@ operateUnknown
   -> Client
   -> NetworkControl
   -> WEA (Array GqlW.T) GqlE.T x #> Json
-operateUnknown opString vars client networkControl = x WithRet $ do
+operateUnknown opString vars client networkControl = x WithReturn \xReturn -> do
   (collisionCount /\ cached) <- getCached cachePath networkControl
-  whenJust cached (x Return)
-  when (networkControl == CacheOnly) $ x RetFail GqlE.CacheOnlyEmpty
+  whenJust cached xReturn
+  when (networkControl == CacheOnly) $ xFail GqlE.CacheOnlyEmpty
   xInfo { gql: "submitting operation", op: opHeader, vars }
   xTimeout 6000
-  res <- x RetLift $ requestGql url authTokenJson opString vars
+  res <- requestGql url authTokenJson opString vars
   let toCache = [ res, fromString opKeyStr ]
-  x RetLift $ writeToCache cachePath collisionCount toCache
+  writeToCache cachePath collisionCount toCache
   pure res
   where
   { cachePath, authToken, url } = client

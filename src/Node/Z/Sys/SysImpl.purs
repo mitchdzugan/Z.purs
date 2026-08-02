@@ -170,7 +170,7 @@ lookupEnv :: String -> Effect $ Maybe String
 lookupEnv = js_lookupEnv Just Nothing
 
 xLookupEnv :: forall x. String -> A x #> Maybe String
-xLookupEnv k = lookupEnv k # xAEff # xTry <#> getRes
+xLookupEnv k = lookupEnv k # xAEff # x Try <#> getRes
   where
   getRes (Right (Just v)) = Just v
   getRes _ = Nothing
@@ -196,7 +196,7 @@ type XNodeEA e x = EA e (XNODE x)
 xExecAndExit
   :: forall @w @e a. RtError e => XWa w (XNodeEA e) a -> Effect Unit
 xExecAndExit m = execAndExit $ xExecAff $ do
-  w /\ res <- xListen $ expand $ runXNode m
+  w /\ res <- x RunW $ expand $ runXNode m
   when (arrSize w > 0) do
     xLogWarning "collected warnings ⌄"
     xLogWarning w

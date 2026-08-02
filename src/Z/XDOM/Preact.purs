@@ -105,7 +105,7 @@ xDBoundError
   -> Run (RWa (XSelf' x) ReactEl x) Unit
 xDBoundError em m = do
   runner <- x AtR
-  let irunner = \mm -> runner $ xTry mm >>= eOr
+  let irunner = \mm -> runner $ x Try mm >>= eOr
   x Say $ js_withBoundedError (renderErr runner) (renderMain irunner)
   where
   renderMain rn _ = js_renderFragment $ rn $ xListen_ $ x RunR rn $ m
@@ -129,7 +129,7 @@ el
   -> XDom' x XEl
   -> XDom x
 el s m = do
-  (propWFs /\ (elBuild /\ _)) <- RW.runWriterAt _xProps $ xListen m
+  (propWFs /\ elBuild) <- xAt @"xProps" RunW $ x ExecW m
   let props = js_propsFromPropWs propWFKey propWFVal propWFs
   x Say $ js_renderEl s (encodeOpts props) elBuild
 
@@ -187,7 +187,7 @@ cn
    . ((String -> X (Wa String ()) Unit) -> X (Wa String ()) Unit)
   -> XDom' x XPROPS
 cn fm = do
-  let (ss /\ _) = xEval $ xListen $ fm (x Say)
+  let ss = xEval $ x ExecW $ fm (x Say)
   RW.tellAt _xProps $ pure (ClassName $ strJoinWith " " ss)
 
 onClick :: forall x. (Int -> X () Unit) -> XDom' x XPROPS

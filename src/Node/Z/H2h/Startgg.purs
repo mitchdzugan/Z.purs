@@ -78,17 +78,17 @@ getEventData = B.adaptBuilder $ x EvalS initState do
           if isNothing set.winnerId then Nothing
           else if isWinA then Just Pos
           else Just Neg
-      slotScoreA /\ slotScoreB <- x WithRet do
+      slotScoreA /\ slotScoreB <- x WithReturn \xReturn -> do
         let games = orDefault set.games
         let winnerIds = games <#> _.winnerId
         let doneGames = arrSize $ arrFilter isJust winnerIds
         when (arrSize games == doneGames && doneGames > 0) do
           let w1Games = arrSize $ arrFilter (eq eIdA) winnerIds
           let w2Games = doneGames - w1Games
-          x Return $ H2h.mkScoreCount w1Games /\ H2h.mkScoreCount w2Games
+          xReturn $ H2h.mkScoreCount w1Games /\ H2h.mkScoreCount w2Games
         whenJust set.displayScore $ \displayScore -> do
           when (displayScore == "DQ") do
-            x Return $ H2h.mkScoreDQ isWinA /\ H2h.mkScoreDQ (not isWinA)
+            xReturn $ H2h.mkScoreDQ isWinA /\ H2h.mkScoreDQ (not isWinA)
           xLogWarning { warn: "UNMADE SCORES", displayScore }
         pure $ H2h.NoScore /\ H2h.NoScore
       let slotA = { entrantId: eIdA <#> sOrN, score: slotScoreA }

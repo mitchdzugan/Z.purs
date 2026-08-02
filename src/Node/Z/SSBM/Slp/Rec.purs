@@ -16,7 +16,7 @@ addConfigs
 addConfigs allowFNF wd configPaths = do
   forM_ configPaths \configPath -> do
     let fullPath = wd /.|// configPath
-    decodeAnyYamlExt @RecordConfig fullPath # xTry >>= onDecode fullPath
+    decodeAnyYamlExt @RecordConfig fullPath # x Try >>= onDecode fullPath
   where
   onDecode fullPath (Right c) = do
     x Modify $ updateEnv c
@@ -40,7 +40,7 @@ run args = do
         /./ "Slippi Launcher"
         /./ "Settings"
   launcherSettings <-
-    decodeTextFile @LauncherSettings' launcherSettingsPath # xTry <#>
+    decodeTextFile @LauncherSettings' launcherSettingsPath # x Try <#>
       hush
   let isoPath = launcherSettings <#> g_ @"settings.isoPath"
   let

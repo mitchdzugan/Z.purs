@@ -6,10 +6,11 @@ module Z.Z.X
   , AtS(..)
   , E
   , EA
-  , EarlyReturn
   , Edit
   , EvalS(..)
+  , EvalW(..)
   , ExecS(..)
+  , ExecW(..)
   , Get(..)
   , Modify(..)
   , Over(..)
@@ -47,12 +48,10 @@ module Z.Z.X
   , RWaSE
   , RWaSEA
   , Result
-  , RetFail(..)
-  , RetLift(..)
-  , Return(..)
   , RunParser(..)
   , RunR(..)
   , RunS(..)
+  , RunW(..)
   , S
   , SA
   , SE
@@ -60,10 +59,6 @@ module Z.Z.X
   , Say(..)
   , Set(..)
   , Set_(..)
-  , TEarlyResult
-  , TEarlyReturn
-  , TError
-  , TResult
   , Tell(..)
   , ToArrayOf(..)
   , ToArrayOfR(..)
@@ -71,6 +66,7 @@ module Z.Z.X
   , ToArrayOfS(..)
   , ToArrayOfS_(..)
   , ToArrayOf_(..)
+  , Try(..)
   , TryUntil(..)
   , View(..)
   , ViewR(..)
@@ -93,24 +89,18 @@ module Z.Z.X
   , WaS
   , WaSA
   , WaSE
-  , WithRet(..)
+  , WithReturn(..)
   , X
-  , X2
   , XBASE
   , XBaseF
   , XEnv
-  , XRet
-  , XShortCircuit
   , XState
   , XWa
   , class RWSEFn
   , class XPSel
+  , class XReturnP
   , edit
   , rwseApply
-  , type (!$)
-  , type (!)
-  , type (-!$)
-  , type (-!)
   , x
   , xAEff
   , xAff
@@ -139,7 +129,6 @@ module Z.Z.X
   , xTellMappedHush
   , xTellMappedMHush
   , xTimeout
-  , xTry
   , xUnresult
   , xUnwrap
   , xUnwrap'
@@ -186,6 +175,9 @@ import Z.Z.Core as Z
 import Z.Z.Defaultable as ZD
 import Z.Z.Ext as ZE
 
+px :: forall @k. P.Proxy k
+px = P.Proxy
+
 class RWSEFn
   :: forall k1 k2 k3 k4. Type -> k1 -> k2 -> k3 -> k4 -> Type -> Constraint
 class RWSEFn f rp wp sp ep o | f rp wp sp ep -> o where
@@ -200,20 +192,9 @@ instance rwseApplyRunParser ::
     _r
     _w
     _s
-    _e
+    ep
     (s -> Parsing.Parser s a -> R.Run (E Z.ParseError x) a) where
   rwseApply _ _ _ _ _ = xParser
-
-data Return = Return
-
-instance rwseApplyReturn ::
-  RWSEFn Return
-    _r
-    _w
-    _s
-    _e
-    (r -> XShortCircuit x e r Unit) where
-  rwseApply _ _ _ _ _ = xReturn
 
 data TryUntil = TryUntil
 
@@ -231,40 +212,30 @@ instance rwseApplyTryUntil ::
     e1 <- xInvert try1
     Z.reduceM (\e tryN -> xInvert $ tryN e) e1 tryRest
 
-data WithRet = WithRet
+data WithReturn = WithReturn
 
-instance rwseApplyWithRet ::
-  RWSEFn WithRet
-    _r
-    _w
-    _s
-    _e
-    (XShortCircuit (E e x) e r r -> R.Run (E e x) r) where
-  rwseApply _ _ _ _ _ = xWithRet
+class XReturnP :: Symbol -> Symbol -> Symbol -> Symbol -> Symbol -> Constraint
+class XReturnP rp wp sp ep fp | rp wp sp ep -> fp
 
-data RetLift = RetLift
+instance XReturnP "reader" "writer" "state" "except" "earlyReturn"
+else instance XReturnP _r _w _s ep ep
 
-instance rwseApplyRetLift ::
-  RWSEFn RetLift
-    _r
-    _w
-    _s
-    _e
-    ( R.Run (E e + E (EarlyReturn e r) + x) a
-      -> XShortCircuit x e r a
-    ) where
-  rwseApply _ _ _ _ _ = xRetLift
-
-data RetFail = RetFail
-
-instance rwseApplyRetFail ::
-  RWSEFn RetFail
-    _r
-    _w
-    _s
-    _e
-    (e -> XShortCircuit x e r a) where
-  rwseApply _ _ _ _ _ = xRetFail
+instance
+  ( XReturnP rp wp sp ep p
+  , IsSymbol p
+  , Cons p (RunE.Except r) x' x
+  ) =>
+  RWSEFn WithReturn
+    rp
+    wp
+    sp
+    ep
+    (((r -> R.Run x Unit) -> R.Run x r) -> R.Run x' r) where
+  rwseApply _ _ _ _ _ m = RunE.runExceptAt (px @p) (m return) >>= onRes
+    where
+    return = RunE.throwAt (px @p)
+    onRes (Eor.Left ret) = pure ret
+    onRes (Eor.Right ret) = pure ret
 
 data RunR = RunR
 
@@ -551,13 +522,44 @@ instance rwseApplySet_ ::
     s <- RunS.getAt sp
     RunS.putAt sp $ Lens.set (Bl.barlow @sym) v s
 
+data Over = Over
+
+instance rwseApplyOver ::
+  ( IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  ) =>
+  RWSEFn Over
+    rp
+    wp
+    sp
+    ep
+    (Lens.Optic Function s s a b -> (a -> b) -> R.Run x Unit) where
+  rwseApply _ _ _ sp _ l f = do
+    s <- RunS.getAt sp
+    RunS.putAt sp $ Lens.over l f s
+
+data Over_ :: forall @k. k -> Type
+data Over_ b = Over_
+
+instance rwseApplyOver_ ::
+  ( IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  , Bl.ParseSymbol sym lenses
+  , Bl.ConstructBarlow lenses Function s s a b
+  , Bl.IsSymbol sym
+  ) =>
+  RWSEFn (Over_ sym) rp wp sp ep ((a -> b) -> R.Run x Unit) where
+  rwseApply _ _ _ sp _ f = do
+    s <- RunS.getAt sp
+    RunS.putAt sp $ Lens.over (Bl.barlow @sym) f s
+
 data ExecS = ExecS
 
 instance rwseApplyExecS ::
   ( IsSymbol sp
   , Cons sp (RunS.State s) x' x
   ) =>
-  RWSEFn ExecS rp wp sp ep (s -> R.Run x f -> R.Run x' s) where
+  RWSEFn ExecS rp wp sp ep (s -> R.Run x Unit -> R.Run x' s) where
   rwseApply _ _ _ sp _ initState m = RunS.execStateAt sp initState m
 
 data RunS = RunS
@@ -597,37 +599,6 @@ instance rwseApplyPlusS ::
     RunS.putAt sp (Rec.delete (Proxy :: Proxy sym) s)
     pure r
 
-data Over = Over
-
-instance rwseApplyOver ::
-  ( IsSymbol sp
-  , Cons sp (RunS.State s) x' x
-  ) =>
-  RWSEFn Over
-    rp
-    wp
-    sp
-    ep
-    (Lens.Optic Function s s a b -> (a -> b) -> R.Run x Unit) where
-  rwseApply _ _ _ sp _ l f = do
-    s <- RunS.getAt sp
-    RunS.putAt sp $ Lens.over l f s
-
-data Over_ :: forall @k. k -> Type
-data Over_ b = Over_
-
-instance rwseApplyOver_ ::
-  ( IsSymbol sp
-  , Cons sp (RunS.State s) x' x
-  , Bl.ParseSymbol sym lenses
-  , Bl.ConstructBarlow lenses Function s s a b
-  , Bl.IsSymbol sym
-  ) =>
-  RWSEFn (Over_ sym) rp wp sp ep ((a -> b) -> R.Run x Unit) where
-  rwseApply _ _ _ sp _ f = do
-    s <- RunS.getAt sp
-    RunS.putAt sp $ Lens.over (Bl.barlow @sym) f s
-
 ---------------------- W ------------------------
 
 data Say = Say
@@ -660,6 +631,47 @@ instance rwseApplyTell ::
     (w -> R.Run x Unit) where
   rwseApply _ _ wp _ _ = RunW.tellAt wp
 
+data ExecW = ExecW
+
+instance rwseApplyExecW ::
+  ( IsSymbol wp
+  , Cons wp (RunW.Writer w) x' x
+  , Monoid.Monoid w
+  ) =>
+  RWSEFn ExecW rp wp sp ep (R.Run x Unit -> R.Run x' w) where
+  rwseApply _ _ wp _ _ m = RunW.runWriterAt wp m <#> Tup.fst
+
+data RunW = RunW
+
+instance rwseApplyRunW ::
+  ( IsSymbol wp
+  , Cons wp (RunW.Writer w) x' x
+  , Monoid.Monoid w
+  ) =>
+  RWSEFn RunW rp wp sp ep (R.Run x f -> R.Run x' (w TupN./\ f)) where
+  rwseApply _ _ wp _ _ m = RunW.runWriterAt wp m
+
+data EvalW = EvalW
+
+instance rwseApplyEvalW ::
+  ( IsSymbol wp
+  , Cons wp (RunW.Writer w) x' x
+  , Monoid.Monoid w
+  ) =>
+  RWSEFn EvalW rp wp sp ep (R.Run x f -> R.Run x' f) where
+  rwseApply _ _ wp _ _ m = RunW.runWriterAt wp m <#> Tup.snd
+
+---------------------- E ------------------------
+
+data Try = Try
+
+instance rwseApplyTry ::
+  ( IsSymbol ep
+  , Cons ep (RunE.Except e) x' x
+  ) =>
+  RWSEFn Try rp wp sp ep (R.Run x a -> R.Run x' (Eor.Either e a)) where
+  rwseApply _ _ _ _ ep m = RunE.runExceptAt ep m
+
 --------------------- x -----------------------
 
 type XFnG :: forall k1 k2 k3 k4. k1 -> k2 -> k3 -> k4 -> Type
@@ -670,8 +682,8 @@ mkXFn f = rwseApply f (P.Proxy :: P.Proxy rp) (P.Proxy :: P.Proxy wp)
   (P.Proxy :: P.Proxy sp)
   (P.Proxy :: P.Proxy ep)
 
-x :: XFnG "reader" "writer" "state" "error"
-x = mkXFn @"reader" @"writer" @"state" @"error"
+x :: XFnG "reader" "writer" "state" "except"
+x = mkXFn @"reader" @"writer" @"state" @"except"
 
 xAt :: forall @p. XFnG p p p p
 xAt = mkXFn @p @p @p @p
@@ -711,30 +723,6 @@ type Edit s = X (S s ()) Unit
 edit :: forall a. a -> Edit a -> a
 edit init m = R.extract $ RunS.execState init $
   runXBase m
-
---------------- ShortCiruit ----------------------------------------------
-
-newtype EarlyReturn e a = EarlyReturn (Eor.Either e a)
-
-type XShortCircuit x e a r = R.Run (E (EarlyReturn e a) x) r
-
-xReturn :: forall x e r. r -> XShortCircuit x e r Unit
-xReturn r = xFail $ EarlyReturn $ Eor.Right r
-
-xRetFail :: forall x e r a. e -> XShortCircuit x e r a
-xRetFail e = xFail $ EarlyReturn $ Eor.Left e
-
-xRetLift
-  :: forall x e r a
-   . R.Run (E e + E (EarlyReturn e r) + x) a
-  -> XShortCircuit x e r a
-xRetLift = xMapE (EarlyReturn <<< Eor.Left)
-
-xWithRet :: forall x e r. XShortCircuit (E e x) e r r -> R.Run (E e x) r
-xWithRet m = RunE.runExcept m >>= handleRes
-  where
-  handleRes (Eor.Left (EarlyReturn earlyRet)) = xOk earlyRet
-  handleRes (Eor.Right ret) = pure ret
 
 --------------- W FNS -----------------------------------------------------
 
@@ -882,56 +870,8 @@ xTimeout ms = Z.fDiscard $ xTry $ xEffectPromise $ js_timeout ms
 --------------- CORE TYPE ---------------------------------------------------
 
 type X x a = R.Run (XBASE x) a
-type X2 x fx a = R.Run (fx + XBASE + Wa Void + R {} + S {} x) a
 
 type XWa w fx a = R.Run (XBASE + fx + Wa w ()) a
-
-type TEarlyReturn
-  :: forall k1 k2
-   . (Row (k1 -> Type) -> Type -> k2)
-  -> Row (k1 -> Type)
-  -> Type
-  -> Type
-  -> k2
-type TEarlyReturn m x e a = m (E (EarlyReturn e a) x) a
-
-type TEarlyResult
-  :: forall k
-   . (Row (Type -> Type) -> Type -> k)
-  -> Row (Type -> Type)
-  -> Type
-  -> Type
-  -> Type
-  -> k
-type TEarlyResult m x w e a = m (WE w (EarlyReturn e a) x) a
-
-type TError
-  :: forall k1 k2 k3
-   . (Row (k1 -> Type) -> k2 -> k3)
-  -> Row (k1 -> Type)
-  -> Type
-  -> k2
-  -> k3
-type TError m x e a = m (E e x) a
-
-type TResult
-  :: forall k1 k2
-   . (Row (Type -> Type) -> k1 -> k2)
-  -> Row (Type -> Type)
-  -> Type
-  -> Type
-  -> k1
-  -> k2
-type TResult m x w e a = m (WE w e x) a
-
-infixr 0 type TEarlyReturn as !$
-infixr 0 type TEarlyResult as -!$
-infixr 0 type TError as !
-infixr 0 type TResult as -!
-
-type XRet x e a = X (E (EarlyReturn e a) x) a
-
--- type Xclass x f a = R.Run (f x) a
 
 --------------- AFF -------------------------------------------------------
 

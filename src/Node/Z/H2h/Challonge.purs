@@ -15,15 +15,15 @@ import Node.Z.Puppeteer as P
 import Data.Lens.Iso as Iso
 
 getEventData :: forall x. B.GetDataFn x
-getEventData = B.adaptBuilder $ x WithRet do
+getEventData = B.adaptBuilder $ x WithReturn \xReturn -> do
   { client, networkControl, slug } <- x AtR
   let { cachePath } = client
   let eCacheOnlyEmpty = H2hE.Gql GqlE.CacheOnlyEmpty
   cached <- getCached slug cachePath networkControl
-  whenJust cached (x Return)
-  when (networkControl == Gql.CacheOnly) $ x RetFail eCacheOnlyEmpty
-  res <- x RetLift getEventDataImpl
-  x RetLift $ writeToCache slug cachePath res
+  whenJust cached xReturn
+  when (networkControl == Gql.CacheOnly) $ xFail eCacheOnlyEmpty
+  res <- getEventDataImpl
+  writeToCache slug cachePath res
   pure res
   where
   fullPath slug path = path /./ ("CHALLONGE-" <> slug <> ".json")
@@ -135,9 +135,9 @@ getEventDataImpl = do
       <#> arrReverse
       <<< arrSortWith (g_ @"id")
       <<< arrFromFoldable
-    isComplete <- x WithRet do
+    isComplete <- x WithReturn \xReturn -> do
       forM_ baseSetList $ \baseSet -> do
-        when (isNothing baseSet.winner) (x Return false)
+        when (isNothing baseSet.winner) (xReturn false)
       pure true
     let
       setsLoopState =
@@ -165,9 +165,9 @@ getEventDataImpl = do
               xAt @"setsLoop" Over
                 (if isGrands then __ @"gfEIds" else __ @"nonGfEIds")
         { gfEIds, nonGfEIds } <- xAt @"setsLoop" AtS
-        seenAllGFEntrants <- x WithRet do
+        seenAllGFEntrants <- x WithReturn \xReturn -> do
           forM_ (arrFromFoldable gfEIds) $ \id -> do
-            when (not (setHas id nonGfEIds)) (x Return false)
+            when (not (setHas id nonGfEIds)) (xReturn false)
           pure true
         let nowLosers = (not isGrands) && (wasGrands || wasLosers)
         let isLosers = nowLosers && not seenAllGFEntrants
