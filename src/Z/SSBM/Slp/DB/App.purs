@@ -9,7 +9,7 @@ appImpl = do
     div do
       pkey "asdf"
       text $ "div with stuff!!!"
-      when (red.get > 7) do xFail "NUMBER TOO BIG"
+      when (red.get > 7) do x Fail "NUMBER TOO BIG"
       xDKeyed "asdfasdf" $ div do
         button do
           cn \c -> c "btn"

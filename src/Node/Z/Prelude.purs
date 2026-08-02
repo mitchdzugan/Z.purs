@@ -8,7 +8,7 @@ module Node.Z.Prelude
   ) where
 
 import Z.Prelude as Prelude
-import Node.Z.Sys.SysImpl (class Pathlike, EnvPaths, Path, Platform(..), XNode, XNodeF, argParse, basename, decodeAnyYamlExt, decodeTextFile, decodeYamlFile, dirname, encodeTextFile, encodeTextFileP, envCfg, envData, envTmp, lookupEnv, mkdir, mkdirP, pathJoin, pathJoinAbs, pathStr, readFile, readTextFile, writeTextFile, writeTextFileP, xArgv, xEnvPaths, xExecAndExit, xExecAndExitArgv, xLookupEnv, xPlatform, xWd, (/./), (/.|//)) as SysImpl
+import Node.Z.Sys.SysImpl as SysImpl
 import Z.Sys.Module (FSDataError(..)) as Sys
 
 type NodeXflipped a x = SysImpl.XNode x a

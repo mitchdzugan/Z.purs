@@ -21,9 +21,9 @@ ofArrayBuffer :: Array Int -> Buffer
 ofArrayBuffer = js_ofArrayBuffer
 
 sha256OfBuffer :: forall x. Buffer -> X.X (X.EA Z.JsError x) String
-sha256OfBuffer = X.xEffectPromise <<< js_sha256OfBuffer
+sha256OfBuffer = X.x X.RunEffPromise <<< js_sha256OfBuffer
 
 sha256BytesOfBuffer :: forall x. Buffer -> X.X (X.EA Z.JsError x) (Array E.Byte)
 sha256BytesOfBuffer = (<$>) ((<$>) E.byte)
-  <<< X.xEffectPromise
+  <<< X.x X.RunEffPromise
   <<< js_sha256ArrOfBuffer

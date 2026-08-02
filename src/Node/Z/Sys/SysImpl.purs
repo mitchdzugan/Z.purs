@@ -6,35 +6,34 @@ module Node.Z.Sys.SysImpl
   , Platform(..)
   , XNode
   , XNodeF
-  , argParse
+  , xArgParse
   , basename
   , class Pathlike
-  , decodeAnyYamlExt
-  , decodeTextFile
-  , decodeYamlFile
   , dirname
-  , encodeTextFile
-  , encodeTextFileP
   , envCfg
   , envData
   , envTmp
-  , lookupEnv
-  , mkdir
-  , mkdirP
   , pathJoin
   , pathJoinAbs
   , pathStr
-  , readFile
-  , readTextFile
-  , writeTextFile
-  , writeTextFileP
   , xArgv
+  , xDecodeAnyYamlExt
+  , xDecodeTextFile
+  , xDecodeYamlFile
+  , xEncodeTextFile
+  , xEncodeTextFileP
   , xEnvPaths
-  , xExecAndExit
-  , xExecAndExitArgv
+  , runXThenExit
+  , runXWithArgvThenExit
   , xLookupEnv
+  , xMkdir
+  , xMkdirP
   , xPlatform
+  , xReadFile
+  , xReadTextFile
   , xWd
+  , xWriteTextFile
+  , xWriteTextFileP
   ) where
 
 import Z.Prelude
@@ -77,88 +76,88 @@ instance pathlikePath :: Pathlike Path where
 instance pathlikeString :: Pathlike String where
   pathStr s = s
 
-readFile :: forall x p. Pathlike p => p -> EA JsError x #> Buffer
-readFile = xEffectPromise <<< js_readFile <<< pathStr
+xReadFile :: forall x p. Pathlike p => p -> EA JsError x #> Buffer
+xReadFile = x RunEffPromise <<< js_readFile <<< pathStr
 
-readTextFile :: forall x p. Pathlike p => p -> EA JsError x #> String
-readTextFile = xEffectPromise <<< js_readTextFile <<< pathStr
+xReadTextFile :: forall x p. Pathlike p => p -> EA JsError x #> String
+xReadTextFile = x RunEffPromise <<< js_readTextFile <<< pathStr
 
-decodeTextFile
+xDecodeTextFile
   :: forall x p @d
    . Pathlike p
   => DecodeJson d
   => p
   -> EA Sys.FSDataError x #> d
-decodeTextFile p = do
-  contents <- xMapE Sys.ReadError $ readTextFile p
-  xOk $ mapL Sys.DecodeError $ decode contents
+xDecodeTextFile p = do
+  contents <- x MapE Sys.ReadError $ xReadTextFile p
+  x Ok $ mapL Sys.DecodeError $ decode contents
 
-decodeYamlString
+xDecodeYamlString
   :: forall x @d
    . DecodeJson d
   => String
   -> EA Sys.FSDataError x #> d
-decodeYamlString contents = do
-  json <- xOk $ mapL Sys.ReadError $ js_loadYaml contents Left Right
-  xOk $ mapL Sys.DecodeError $ decodeJson json
+xDecodeYamlString contents = do
+  json <- x Ok $ mapL Sys.ReadError $ js_loadYaml contents Left Right
+  x Ok $ mapL Sys.DecodeError $ decodeJson json
 
-decodeYamlFile
+xDecodeYamlFile
   :: forall x p @d
    . Pathlike p
   => DecodeJson d
   => p
   -> EA Sys.FSDataError x #> d
-decodeYamlFile p = do
-  contents <- xMapE Sys.ReadError $ readTextFile p
-  decodeYamlString contents
+xDecodeYamlFile p = do
+  contents <- x MapE Sys.ReadError $ xReadTextFile p
+  xDecodeYamlString contents
 
-decodeAnyYamlExt
+xDecodeAnyYamlExt
   :: forall x p @d
    . Pathlike p
   => DecodeJson d
   => p
   -> EA Sys.FSDataError x #> d
-decodeAnyYamlExt p = do
+xDecodeAnyYamlExt p = do
   contents <- x TryUntil
-    (xMapE Sys.ReadError $ readTextFile $ (pathStr p) <> ".yaml")
-    [ const $ xMapE Sys.ReadError $ readTextFile $ (pathStr p) <> ".json"
-    , const $ xMapE Sys.ReadError $ readTextFile $ p
+    (x MapE Sys.ReadError $ xReadTextFile $ (pathStr p) <> ".yaml")
+    [ const $ x MapE Sys.ReadError $ xReadTextFile $ (pathStr p) <> ".json"
+    , const $ x MapE Sys.ReadError $ xReadTextFile $ p
     ]
-  decodeYamlString contents
+  xDecodeYamlString contents
 
-mkdir :: forall x p. Pathlike p => p -> EA JsError x #> Unit
-mkdir = xEffectPromise <<< js_mkdir <<< pathStr
+xMkdir :: forall x p. Pathlike p => p -> EA JsError x #> Unit
+xMkdir = x RunEffPromise <<< js_mkdir <<< pathStr
 
-mkdirP :: forall x p. Pathlike p => p -> EA JsError x #> Unit
-mkdirP = xEffectPromise <<< js_mkdirp <<< pathStr
+xMkdirP :: forall x p. Pathlike p => p -> EA JsError x #> Unit
+xMkdirP = x RunEffPromise <<< js_mkdirp <<< pathStr
 
-writeTextFile
+xWriteTextFile
   :: forall x p. Pathlike p => p -> String -> EA JsError x #> Unit
-writeTextFile p = xEffectPromise <<< js_writeTextFile (pathStr p)
+xWriteTextFile p = x RunEffPromise <<< js_writeTextFile (pathStr p)
 
-writeTextFileP
+xWriteTextFileP
   :: forall x p. Pathlike p => p -> String -> EA JsError x #> Unit
-writeTextFileP p s = do
-  mkdirP $ dirname p
-  writeTextFile p s
+xWriteTextFileP p s = do
+  xMkdirP $ dirname p
+  xWriteTextFile p s
 
-encodeTextFile
+xEncodeTextFile
   :: forall x p d
    . Pathlike p
   => EncodeJson d
   => p
   -> d
   -> EA JsError x #> Unit
-encodeTextFile p d = writeTextFile p $ encode d
+xEncodeTextFile p d = xWriteTextFile p $ encode d
 
-encodeTextFileP
+xEncodeTextFileP
   :: forall x p d
    . Pathlike p
   => EncodeJson d
   => p
   -> d
   -> EA JsError x #> Unit
-encodeTextFileP p d = writeTextFileP p $ encode d
+xEncodeTextFileP p d = xWriteTextFileP p $ encode d
 
 foreign import js_lookupEnv
   :: (String -> Maybe String)
@@ -170,7 +169,7 @@ lookupEnv :: String -> Effect $ Maybe String
 lookupEnv = js_lookupEnv Just Nothing
 
 xLookupEnv :: forall x. String -> A x #> Maybe String
-xLookupEnv k = lookupEnv k # xAEff # x Try <#> getRes
+xLookupEnv k = lookupEnv k # x RunEffA # x Try <#> getRes
   where
   getRes (Right (Just v)) = Just v
   getRes _ = Nothing
@@ -193,21 +192,21 @@ execAndExit a = runAff_ onDone a
 
 type XNodeEA e x = EA e (XNODE x)
 
-xExecAndExit
+runXThenExit
   :: forall @w @e a. RtError e => XWa w (XNodeEA e) a -> Effect Unit
-xExecAndExit m = execAndExit $ xExecAff $ do
+runXThenExit m = execAndExit $ runXA $ do
   w /\ res <- x RunW $ expand $ runXNode m
   when (arrSize w > 0) do
     xLogWarning "collected warnings ⌄"
     xLogWarning w
   pure res
 
-xExecAndExitArgv
+runXWithArgvThenExit
   :: forall @w @e a
    . RtError e
   => (Array String -> XWa w (XNodeEA e) a)
   -> Effect Unit
-xExecAndExitArgv fm = xExecAndExit $ xArgv >>= fm
+runXWithArgvThenExit fm = runXThenExit $ xArgv >>= fm
 
 data Platform = Win32 | Darwin | Linux | Android | FreeBSD | OpenBSD | Unknown
 
@@ -315,14 +314,14 @@ infixr 0 pathJoinAbs as /.|//
 
 type XNode x a = X (xNode :: XNodeF | x) a
 
-argParse
+xArgParse
   :: forall x a
    . String
   -> O.ParserInfo a
   -> Array String
   -> (a -> XNode x Unit)
   -> XNode x Unit
-argParse progName opts args fm =
+xArgParse progName opts args fm =
   handleParse $ O.execParserPure O.defaultPrefs opts args
   where
   handleParse (O.Success a) = fm a

@@ -4,6 +4,7 @@ module Z.Z.X
   , AffF
   , AtR(..)
   , AtS(..)
+  , BindE(..)
   , E
   , EA
   , Edit
@@ -11,8 +12,14 @@ module Z.Z.X
   , EvalW(..)
   , ExecS(..)
   , ExecW(..)
+  , Fail(..)
   , Get(..)
+  , Invert(..)
+  , MapE(..)
+  , MapW(..)
+  , MapWE(..)
   , Modify(..)
+  , Ok(..)
   , Over(..)
   , Over_(..)
   , PlusS(..)
@@ -48,8 +55,12 @@ module Z.Z.X
   , RWaSE
   , RWaSEA
   , Result
+  , RunAff(..)
+  , RunEffA(..)
+  , RunEffPromise(..)
   , RunParser(..)
   , RunR(..)
+  , RunResult(..)
   , RunS(..)
   , RunW(..)
   , S
@@ -60,6 +71,8 @@ module Z.Z.X
   , Set(..)
   , Set_(..)
   , Tell(..)
+  , TellMappedHush(..)
+  , TellMappedMHush(..)
   , ToArrayOf(..)
   , ToArrayOfR(..)
   , ToArrayOfR_(..)
@@ -68,6 +81,7 @@ module Z.Z.X
   , ToArrayOf_(..)
   , Try(..)
   , TryUntil(..)
+  , Unwrap(..)
   , View(..)
   , ViewR(..)
   , ViewR_(..)
@@ -97,41 +111,24 @@ module Z.Z.X
   , XState
   , XWa
   , class RWSEFn
+  , class WpEpPickEp
   , class XPSel
   , class XReturnP
   , edit
   , rwseApply
   , x
-  , xAEff
-  , xAff
   , xAt
-  , xBindE
-  , xEffectPromise
-  , xEval
-  , xEvalAff
-  , xExec
-  , xExecAff
-  , xFail
-  , xHush
+  , xAtWE
+  , evalX
+  , evalXA
+  , runX
+  , runXA
   , xInfo
-  , xInvert
-  , xListen
-  , xListen_
   , xLogError
   , xLogWarning
-  , xMapE
-  , xMapW
-  , xMapWE
-  , xOk
   , xOut
   , xOutErr
-  , xResult
-  , xTellMappedHush
-  , xTellMappedMHush
   , xTimeout
-  , xUnresult
-  , xUnwrap
-  , xUnwrap'
   ) where
 
 import Prelude
@@ -154,6 +151,7 @@ import Data.Tuple.Nested as TupN
 import Effect as Eff
 import Effect.Aff as Aff
 import Effect.Class as EffC
+import Effect.Exception as Exc
 import Effect.Unsafe as Unsafe
 import Parsing as Parsing
 import Prim.Row (class Cons)
@@ -184,33 +182,6 @@ class RWSEFn f rp wp sp ep o | f rp wp sp ep -> o where
   rwseApply :: f -> P.Proxy rp -> P.Proxy wp -> P.Proxy sp -> P.Proxy ep -> o
 
 -------------------- OTHER ----------------------
-
-data RunParser = RunParser
-
-instance rwseApplyRunParser ::
-  RWSEFn RunParser
-    _r
-    _w
-    _s
-    ep
-    (s -> Parsing.Parser s a -> R.Run (E Z.ParseError x) a) where
-  rwseApply _ _ _ _ _ = xParser
-
-data TryUntil = TryUntil
-
-instance rwseApplyTryUntil ::
-  RWSEFn TryUntil
-    _r
-    _w
-    _s
-    _e
-    ( R.Run (E e + E r + E e x) r
-      -> Array (e -> R.Run (E e + E r + E e x) r)
-      -> R.Run (E e x) r
-    ) where
-  rwseApply _ _ _ _ _ try1 tryRest = xInvert do
-    e1 <- xInvert try1
-    Z.reduceM (\e tryN -> xInvert $ tryN e) e1 tryRest
 
 data WithReturn = WithReturn
 
@@ -618,7 +589,7 @@ instance rwseApplySay ::
 
 data Tell = Tell
 
-instance rwseApplyTell ::
+instance
   ( IsSymbol wp
   , Cons wp (RunW.Writer w) x' x
   , Monoid.Monoid w
@@ -633,7 +604,7 @@ instance rwseApplyTell ::
 
 data ExecW = ExecW
 
-instance rwseApplyExecW ::
+instance
   ( IsSymbol wp
   , Cons wp (RunW.Writer w) x' x
   , Monoid.Monoid w
@@ -643,7 +614,7 @@ instance rwseApplyExecW ::
 
 data RunW = RunW
 
-instance rwseApplyRunW ::
+instance
   ( IsSymbol wp
   , Cons wp (RunW.Writer w) x' x
   , Monoid.Monoid w
@@ -653,7 +624,7 @@ instance rwseApplyRunW ::
 
 data EvalW = EvalW
 
-instance rwseApplyEvalW ::
+instance
   ( IsSymbol wp
   , Cons wp (RunW.Writer w) x' x
   , Monoid.Monoid w
@@ -661,16 +632,307 @@ instance rwseApplyEvalW ::
   RWSEFn EvalW rp wp sp ep (R.Run x f -> R.Run x' f) where
   rwseApply _ _ wp _ _ m = RunW.runWriterAt wp m <#> Tup.snd
 
+data MapW = MapW
+
+instance
+  ( IsSymbol wp
+  , Cons wp (RunW.Writer (m w2)) x'' x'
+  , Cons wp (RunW.Writer (m w1)) x' x
+  , Monoid.Monoid (m w2)
+  , Monoid.Monoid (m w1)
+  , Monad.Monad m
+  ) =>
+  RWSEFn MapW rp wp sp ep ((w1 -> w2) -> R.Run x f -> R.Run x' f) where
+  rwseApply _ _ wp _ _ f m = do
+    (w TupN./\ res) <- RunW.runWriterAt wp m
+    RunW.tellAt wp $ map f w
+    pure res
+
 ---------------------- E ------------------------
 
 data Try = Try
 
-instance rwseApplyTry ::
+instance
   ( IsSymbol ep
   , Cons ep (RunE.Except e) x' x
   ) =>
   RWSEFn Try rp wp sp ep (R.Run x a -> R.Run x' (Eor.Either e a)) where
   rwseApply _ _ _ _ ep m = RunE.runExceptAt ep m
+
+data Fail = Fail
+
+instance
+  ( IsSymbol ep
+  , Cons ep (RunE.Except e) x' x
+  ) =>
+  RWSEFn Fail
+    _r
+    _w
+    _s
+    ep
+    (e -> R.Run x a) where
+  rwseApply _ _ _ _ _ e = RunE.throwAt (px @ep) e
+
+data Ok = Ok
+
+instance
+  ( IsSymbol ep
+  , Cons ep (RunE.Except e) x' x
+  ) =>
+  RWSEFn Ok
+    _r
+    _w
+    _s
+    ep
+    (Eor.Either e a -> R.Run x a) where
+  rwseApply _ _ _ _ _ (Eor.Left e) = RunE.throwAt (px @ep) e
+  rwseApply _ _ _ _ _ (Eor.Right a) = pure a
+
+data RunParser = RunParser
+
+instance
+  ( IsSymbol ep
+  , Cons ep (RunE.Except Z.ParseError) x' x
+  ) =>
+  RWSEFn RunParser
+    _r
+    _w
+    _s
+    ep
+    (s -> Parsing.Parser s a -> R.Run x a) where
+  rwseApply _ _ _ _ _ s pr = xAt @ep Ok $ Z.runParser s pr
+
+data BindE = BindE
+
+instance
+  ( IsSymbol ep
+  , Cons ep (RunE.Except e2) x'' x'
+  , Cons ep (RunE.Except e1) x' x
+  ) =>
+  RWSEFn BindE rp wp sp ep ((e1 -> R.Run x' f) -> R.Run x f -> R.Run x' f) where
+  rwseApply _ _ _ _ _ be m = xAt @ep Try m >>= onDone
+    where
+    onDone (Eor.Left e) = be e
+    onDone (Eor.Right v) = pure v
+
+data MapE = MapE
+
+instance
+  ( IsSymbol ep
+  , Cons ep (RunE.Except e2) x'' x'
+  , Cons ep (RunE.Except e1) x' x
+  ) =>
+  RWSEFn MapE rp wp sp ep ((e1 -> e2) -> R.Run x f -> R.Run x' f) where
+  rwseApply _ _ _ _ _ fe m = xAt @ep BindE (xAt @ep Fail <<< fe) m
+
+data Unwrap = Unwrap
+
+instance
+  ( IsSymbol ep
+  , Cons ep (RunE.Except e) x' x
+  ) =>
+  RWSEFn Unwrap
+    _r
+    _w
+    _s
+    ep
+    (e -> May.Maybe a -> R.Run x a) where
+  rwseApply _ _ _ _ _ _ (May.Just a) = pure a
+  rwseApply _ _ _ _ _ e _ = xAt @ep Fail e
+
+data Unwrap' = Unwrap'
+
+instance
+  ( IsSymbol ep
+  , Cons ep (RunE.Except Z.JsError) x' x
+  ) =>
+  RWSEFn Unwrap'
+    _r
+    _w
+    _s
+    ep
+    (May.Maybe a -> R.Run x a) where
+  rwseApply _ _ _ _ _ = xAt @ep Unwrap $ Z.jsError' "Nothing#unwrap"
+
+data Hush = Hush
+
+instance
+  ( IsSymbol ep
+  , Cons ep (RunE.Except Z.JsError) x' x
+  , ZD.Defaultable d
+  ) =>
+  RWSEFn Hush
+    _r
+    _w
+    _s
+    ep
+    (R.Run x d -> R.Run x' d) where
+  rwseApply _ _ _ _ _ m = (<$>) ZD.orDefault $ xAt @ep Try m <#> Eor.hush
+
+data Invert = Invert
+
+instance
+  ( IsSymbol ep
+  , Cons ep (RunE.Except e) x'' x'
+  , Cons ep (RunE.Except r) x' x
+  ) =>
+  RWSEFn Invert rp wp sp ep (R.Run x e -> R.Run x' r) where
+  rwseApply _ _ _ _ _ m = xAt @ep Try m <#> Z.invert >>= xAt @ep Ok
+
+data TryUntil = TryUntil
+
+instance
+  ( IsSymbol ep
+  , Cons ep (RunE.Except e) x''' x''
+  , Cons ep (RunE.Except r) x'' x'
+  , Cons ep (RunE.Except e) x' x
+  ) =>
+  RWSEFn TryUntil
+    _r
+    _w
+    _s
+    ep
+    ( R.Run x r
+      -> Array (e -> R.Run x r)
+      -> R.Run x'' r
+    ) where
+  rwseApply _ _ _ _ _ try1 tryRest = xAt @ep Invert do
+    e1 <- xAt @ep Invert try1
+    Z.reduceM (\e tryN -> xAt @ep Invert $ tryN e) e1 tryRest
+
+data RunAff = RunAff
+
+instance
+  ( IsSymbol ep
+  , Cons ep (RunE.Except Z.JsError) x' (A x)
+  ) =>
+  RWSEFn RunAff
+    _r
+    _w
+    _s
+    ep
+    (Aff.Aff f -> R.Run (A x) f) where
+  rwseApply _ _ _ _ _ a = do
+    res <- aff $ Aff.attempt a
+    onDone res
+    where
+    onDone (Eor.Left e) = xAt @ep Fail $ Z.JsError e
+    onDone (Eor.Right v) = pure v
+
+data RunEffA = RunEffA
+
+instance
+  ( IsSymbol ep
+  , Cons ep (RunE.Except Z.JsError) x' (A x)
+  ) =>
+  RWSEFn RunEffA
+    _r
+    _w
+    _s
+    ep
+    (Eff.Effect f -> R.Run (A x) f) where
+  rwseApply _ _ _ _ _ eff = do
+    res <- aff $ Aff.attempt $ EffC.liftEffect eff
+    onDone res
+    where
+    onDone (Eor.Left e) = xAt @ep Fail $ Z.JsError e
+    onDone (Eor.Right v) = pure v
+
+data RunEffPromise = RunEffPromise
+
+instance
+  ( IsSymbol ep
+  , Cons ep (RunE.Except Z.JsError) x' (A x)
+  ) =>
+  RWSEFn RunEffPromise
+    _r
+    _w
+    _s
+    ep
+    (Eff.Effect (Promise.Promise f) -> R.Run (A x) f) where
+  rwseApply _ _ _ _ _ = effectPromiseToAff >>> xAt @ep RunAff
+
+-------------------- W/E ----------------------
+
+data RunResult = RunResult
+
+class WpEpPickEp :: Symbol -> Symbol -> Symbol -> Constraint
+class WpEpPickEp wp ep fp | wp ep -> fp
+
+instance WpEpPickEp wp wp "except"
+else instance WpEpPickEp wp ep ep
+
+instance
+  ( IsSymbol wp
+  , IsSymbol ep'
+  , WpEpPickEp wp ep ep'
+  , Cons wp (RunW.Writer (Array w)) x'' x'
+  , Cons ep' (RunE.Except e) x' x
+  ) =>
+  RWSEFn RunResult rp wp sp ep (R.Run x a -> R.Run x'' (Result w e a)) where
+  rwseApply _ _ _ _ _ m = do
+    w <- RunW.runWriterAt (px @wp) $ RunE.runExceptAt (px @ep') m
+    pure $ { w: (Tup.fst w), v: (Tup.snd w) }
+
+data Unresult = Unresult
+
+instance
+  ( IsSymbol wp
+  , IsSymbol ep'
+  , WpEpPickEp wp ep ep'
+  , Cons wp (RunW.Writer (Array w)) x'' x
+  , Cons ep' (RunE.Except e) x' x
+  ) =>
+  RWSEFn Unresult rp wp sp ep (Result w e a -> R.Run x a) where
+  rwseApply _ _ _ _ _ { w, v } = do
+    xAt @wp Tell w
+    xAt @ep' Ok v
+
+data MapWE = MapWE
+
+instance
+  ( RWSEFn MapE rp wp sp ep' ((e1 -> e2) -> f'' -> f')
+  , RWSEFn MapW rp wp sp ep' ((w1 -> w2) -> f' -> f)
+  , WpEpPickEp wp ep ep'
+  ) =>
+  RWSEFn MapWE rp wp sp ep ((w1 -> w2) -> (e1 -> e2) -> f'' -> f) where
+  rwseApply _ _ _ _ _ fw fe m = mkXFn @rp @wp @sp @ep' MapW fw
+    $ mkXFn @rp @wp @sp @ep' MapE fe m
+
+data TellMappedHush = TellMappedHush
+
+instance
+  ( IsSymbol wp
+  , IsSymbol ep'
+  , WpEpPickEp wp ep ep'
+  , Cons wp (RunW.Writer (m w)) x'' x'
+  , Cons ep' (RunE.Except e) x' x
+  , Monad.Monad m
+  , ZD.Defaultable d
+  ) =>
+  RWSEFn TellMappedHush rp wp sp ep ((e -> w) -> R.Run x d -> R.Run x' d) where
+  rwseApply _ _ _ _ _ mapW m = xAt @ep' Try m >>= onDone
+    where
+    onDone (Eor.Left e) = xAt @wp Say (mapW e) <#> const ZD.default
+    onDone (Eor.Right r) = pure $ r
+
+data TellMappedMHush = TellMappedMHush
+
+instance
+  ( IsSymbol wp
+  , IsSymbol ep'
+  , WpEpPickEp wp ep ep'
+  , Cons wp (RunW.Writer (m w)) x'' x'
+  , Cons ep' (RunE.Except e) x' x
+  , Monad.Monad m
+  , Monoid.Monoid (m w)
+  , ZD.Defaultable d
+  ) =>
+  RWSEFn TellMappedMHush rp wp sp ep ((e -> m w) -> R.Run x d -> R.Run x' d) where
+  rwseApply _ _ _ _ _ mapW m = xAt @ep' Try m >>= onDone
+    where
+    onDone (Eor.Left e) = xAt @wp Tell (mapW e) <#> const ZD.default
+    onDone (Eor.Right r) = pure $ r
 
 --------------------- x -----------------------
 
@@ -678,15 +940,16 @@ type XFnG :: forall k1 k2 k3 k4. k1 -> k2 -> k3 -> k4 -> Type
 type XFnG rp wp sp ep = forall f o. RWSEFn f rp wp sp ep o => f -> o
 
 mkXFn :: forall @rp @wp @sp @ep. XFnG rp wp sp ep
-mkXFn f = rwseApply f (P.Proxy :: P.Proxy rp) (P.Proxy :: P.Proxy wp)
-  (P.Proxy :: P.Proxy sp)
-  (P.Proxy :: P.Proxy ep)
+mkXFn f = rwseApply f (px @rp) (px @wp) (px @sp) (px @ep)
 
 x :: XFnG "reader" "writer" "state" "except"
 x = mkXFn @"reader" @"writer" @"state" @"except"
 
 xAt :: forall @p. XFnG p p p p
 xAt = mkXFn @p @p @p @p
+
+xAtWE :: forall @wp @ep. XFnG wp wp ep ep
+xAtWE = mkXFn @wp @wp @ep @ep
 
 class XPSel :: forall k1 k2 k3 k4. k1 -> k2 -> k3 -> k4 -> Constraint
 class XPSel a b c d | a b c -> d
@@ -697,24 +960,19 @@ instance stateXPSel :: XPSel XState rs ss ss
 data XEnv = XEnv
 data XState = XState
 
-------------------------------------------------------------------
-
-xParser :: forall x s a. s -> Parsing.Parser s a -> R.Run (E Z.ParseError x) a
-xParser s pr = xOk $ Z.runParser s pr
-
 --------------- EVAL -------------------------------------------------------
 
-xEval :: forall a. X () a -> a
-xEval m = Unsafe.unsafePerformEffect $ R.runBaseEffect $ R.expand $ runXBase m
+evalX :: forall a. X () a -> a
+evalX m = Unsafe.unsafePerformEffect $ R.runBaseEffect $ R.expand $ runXBase m
 
-xExec :: forall e a. X (E e ()) a -> Eor.Either e a
-xExec = xEval <<< xTry
+runX :: forall e a. X (E e ()) a -> Eor.Either e a
+runX = evalX <<< x Try
 
-xEvalAff :: forall a. X (A ()) a -> Aff.Aff a
-xEvalAff m = R.match { aff: \(AffCmd a) -> a } # R.run $ runXBase m
+evalXA :: forall a. X (A ()) a -> Aff.Aff a
+evalXA m = R.match { aff: \(AffCmd a) -> a } # R.run $ runXBase m
 
-xExecAff :: forall e a. X (EA e ()) a -> Aff.Aff (Eor.Either e a)
-xExecAff = xEvalAff <<< xTry
+runXA :: forall e a. X (EA e ()) a -> Aff.Aff (Eor.Either e a)
+runXA = evalXA <<< x Try
 
 --------------- EDIT ------------------------------------------------------
 
@@ -724,133 +982,13 @@ edit :: forall a. a -> Edit a -> a
 edit init m = R.extract $ RunS.execState init $
   runXBase m
 
---------------- W FNS -----------------------------------------------------
-
-xTellMappedHush
-  :: forall x e m d w
-   . Monad.Monad m
-  => ZD.Defaultable d
-  => (e -> w)
-  -> R.Run (WE (m w) e x) d
-  -> R.Run (W (m w) x) d
-xTellMappedHush mapW m = xTry m >>= onDone
-  where
-  onDone (Eor.Left e) = x Say (mapW e) <#> const ZD.default
-  onDone (Eor.Right r) = pure $ r
-
-xTellMappedMHush
-  :: forall x e m d w
-   . Monad.Monad m
-  => ZD.Defaultable d
-  => (e -> m w)
-  -> R.Run (WE (m w) e x) d
-  -> R.Run (W (m w) x) d
-xTellMappedMHush mapW m = xTry m >>= onDone
-  where
-  onDone (Eor.Left e) = RunW.tell (mapW e) <#> const ZD.default
-  onDone (Eor.Right r) = pure $ r
-
-xMapW
-  :: forall x m w1 w2 a
-   . Monad.Monad m
-  => Monoid.Monoid (m w1)
-  => Monoid.Monoid (m w2)
-  => (w1 -> w2)
-  -> R.Run (W (m w1) + W (m w2) x) a
-  -> R.Run (W (m w2) x) a
-xMapW f m = do
-  (w TupN./\ res) <- RunW.runWriter m
-  RunW.tell $ map f w
-  pure res
-
-xListen
-  :: forall x @w a. Monoid.Monoid w => R.Run (W w x) a -> R.Run x (w TupN./\ a)
-xListen = RunW.runWriter
-
-xListen_
-  :: forall x @w. Monoid.Monoid w => R.Run (W w x) Unit -> R.Run x w
-xListen_ m = RunW.runWriter m <#> Tup.fst
-
 --------------- E FNS -----------------------------------------------------
 
 type Result w e a = { w :: (Array w), v :: (Eor.Either e a) }
 
-xResult :: forall x w e a. R.Run (WE (Array w) e x) a -> R.Run x (Result w e a)
-xResult m = do
-  w <- RunW.runWriter $ RunE.runExcept m
-  pure $ { w: (Tup.fst w), v: (Tup.snd w) }
-
-xUnresult :: forall x w e a. (Result w e a) -> R.Run (WE (Array w) e x) a
-xUnresult { w, v } = do
-  RunW.tell w
-  xOk v
-
-xBindE
-  :: forall x e1 e2 a
-   . (e1 -> R.Run (E e2 x) a)
-  -> R.Run (E e1 + E e2 x) a
-  -> R.Run (E e2 x) a
-xBindE h m = RunE.runExcept m >>= onDone
-  where
-  onDone (Eor.Left e1) = h e1
-  onDone (Eor.Right r) = pure r
-
-xMapE
-  :: forall x e1 e2 a
-   . (e1 -> e2)
-  -> R.Run (E e1 + E e2 x) a
-  -> R.Run (E e2 x) a
-xMapE f m = xBindE (xFail <<< f) m
-
-xMapWE
-  :: forall x m w1 w2 e1 e2 a
-   . Monad.Monad m
-  => Monoid.Monoid (m w1)
-  => Monoid.Monoid (m w2)
-  => (w1 -> w2)
-  -> (e1 -> e2)
-  -> R.Run (W (m w1) + W (m w2) + E e1 + E e2 x) a
-  -> R.Run (W (m w2) + E e2 x) a
-xMapWE fw fe m = xMapW fw $ xMapE fe m
-
-xOk :: forall x e a. Eor.Either e a -> R.Run (E e x) a
-xOk (Eor.Left e) = RunE.throw e
-xOk (Eor.Right a) = pure a
-
-xTry :: forall x e a. R.Run (E e x) a -> R.Run x (Eor.Either e a)
-xTry = RunE.runExcept
-
-xFail :: forall x e a. e -> R.Run (E e x) a
-xFail e = RunE.throw e
-
-xUnwrap :: forall x e a. e -> May.Maybe a -> X (E e x) a
-xUnwrap _ (May.Just a) = pure a
-xUnwrap e _ = xFail e
-
-xUnwrap' :: forall x a. May.Maybe a -> X (E Z.JsError x) a
-xUnwrap' = xUnwrap $ Z.jsError' "Nothing#unwrap"
-
-xHush :: forall x e d. ZD.Defaultable d => R.Run (E e x) d -> R.Run x d
-xHush m = (<$>) ZD.orDefault $ xTry m <#> Eor.hush
-
-xInvert :: forall x e a. R.Run (E a + E e x) e -> R.Run (E e x) a
-xInvert r = xTry r <#> Z.invert >>= xOk
-
 --------------- A FNS -----------------------------------------------------
 
 foreign import js_timeout :: Int -> Eff.Effect (Promise.Promise Unit)
-
-xAff
-  :: forall f x. (Aff.Aff f) -> R.Run (EA Z.JsError x) f
-xAff a = do
-  res <- aff $ Aff.attempt a
-  xMapE Z.JsError $ xOk res
-
-xAEff
-  :: forall f x. (Eff.Effect f) -> R.Run (EA Z.JsError x) f
-xAEff a = do
-  res <- aff $ Aff.attempt $ EffC.liftEffect a
-  xMapE Z.JsError $ xOk res
 
 promiseToAff :: forall a. Promise.Promise a -> Aff.Aff a
 promiseToAff = Promise.toAff
@@ -858,14 +996,8 @@ promiseToAff = Promise.toAff
 effectPromiseToAff :: forall a. Eff.Effect (Promise.Promise a) -> Aff.Aff a
 effectPromiseToAff e = EffC.liftEffect e >>= promiseToAff
 
-xEffectPromise
-  :: forall a x
-   . Eff.Effect (Promise.Promise a)
-  -> X (EA Z.JsError x) a
-xEffectPromise = effectPromiseToAff >>> xAff
-
 xTimeout :: forall x. Int -> X (A x) Unit
-xTimeout ms = Z.fDiscard $ xTry $ xEffectPromise $ js_timeout ms
+xTimeout ms = Z.fDiscard $ x Try $ x RunEffPromise $ js_timeout ms
 
 --------------- CORE TYPE ---------------------------------------------------
 

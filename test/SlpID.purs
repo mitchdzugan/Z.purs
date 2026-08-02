@@ -4,4 +4,4 @@ import Node.Z.Prelude
 import Node.Z.SSBM.Slp.ID as SlpID
 
 main ∷ Effect Unit
-main = xExecAndExitArgv SlpID.run
+main = runXWithArgvThenExit SlpID.xRun

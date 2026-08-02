@@ -44,8 +44,8 @@ requestGql
   -> String
   -> Json
   -> EA Gql.Error x #> Json
-requestGql apiUrl authToken query vars = xMapE GqlE.NetworkError
-  $ xEffectPromise
+requestGql apiUrl authToken query vars = x MapE GqlE.NetworkError
+  $ x RunEffPromise
   $ js_requestGql apiUrl authToken query vars
 
 operateUnknown
@@ -58,7 +58,7 @@ operateUnknown
 operateUnknown opString vars client networkControl = x WithReturn \xReturn -> do
   (collisionCount /\ cached) <- getCached cachePath networkControl
   whenJust cached xReturn
-  when (networkControl == CacheOnly) $ xFail GqlE.CacheOnlyEmpty
+  when (networkControl == CacheOnly) $ x Fail GqlE.CacheOnlyEmpty
   xInfo { gql: "submitting operation", op: opHeader, vars }
   xTimeout 6000
   res <- requestGql url authTokenJson opString vars
@@ -82,7 +82,7 @@ operateUnknown opString vars client networkControl = x WithReturn \xReturn -> do
     (/./) cachePath <<< strJoinWith "." <<< filenameParts
   getCachedRec cachePath collisionCount = do
     let filename = cacheFilename cachePath collisionCount
-    parsed <- xTellMappedMHush mapMDecodeErr $ decodeTextFile filename
+    parsed <- x TellMappedMHush mapMDecodeErr $ xDecodeTextFile filename
     handleParsed parsed
     where
     mapMDecodeErr e@(DecodeError _) = [ GqlW.CacheDecode e ]
@@ -101,7 +101,7 @@ operateUnknown opString vars client networkControl = x WithReturn \xReturn -> do
   writeToCache Nothing _ _ = default
   writeToCache (Just cachePath) collisionCount toCache = do
     let filename = cacheFilename cachePath collisionCount
-    xTellMappedHush GqlW.CacheWrite $ encodeTextFileP filename toCache
+    x TellMappedHush GqlW.CacheWrite $ xEncodeTextFileP filename toCache
 
 data Operation v r = Operation String (JsonEncodeFn v) (JsonDecodeFn r)
 
@@ -124,4 +124,4 @@ operate
   -> WEA (Array GqlW.T) GqlE.T x #> res
 operate (Operation opString encode decode) vars client networkControl = do
   json <- operateUnknown opString (encode vars) client networkControl
-  xMapE GqlE.ResponseTypeError $ xOk $ decode json
+  x MapE GqlE.ResponseTypeError $ x Ok $ decode json

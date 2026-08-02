@@ -7,7 +7,7 @@ module Web.Z.Web.DOM
   , toEventTarget
   , xAddEventListener
   , xDocument
-  , xExecAndExit
+  , runXThenExit
   , xGetElementById
   , xPushState
   , xSetDocumentTitle
@@ -68,7 +68,7 @@ xAddEventListener
 xAddEventListener eType target opts onE = do
   let o = edit defaultEventListenerOpts opts
   let tgt = toEventTarget target
-  el <- lift _xWeb $ AddEventListenerCmd (xEval <<< runXWeb) eType tgt o onE id
+  el <- lift _xWeb $ AddEventListenerCmd (evalX <<< runXWeb) eType tgt o onE id
   pure $ lift _xWeb $ RmEventListenerCmd eType tgt o.capture el unit
 
 xPushState
@@ -166,9 +166,9 @@ execAndExit a = runAff_ onDone a
 
 type XWebEA e x = EA e (XWEB x)
 
-xExecAndExit
+runXThenExit
   :: forall @w @e a. RtError e => XWa w (XWebEA e) a -> Effect Unit
-xExecAndExit m = execAndExit $ xExecAff $ do
+runXThenExit m = execAndExit $ runXA $ do
   w /\ res <- x RunW $ expand $ runXWeb m
   when (arrSize w > 0) do
     xLogWarning "collected warnings ⌄"

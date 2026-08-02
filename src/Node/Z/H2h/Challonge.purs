@@ -21,7 +21,7 @@ getEventData = B.adaptBuilder $ x WithReturn \xReturn -> do
   let eCacheOnlyEmpty = H2hE.Gql GqlE.CacheOnlyEmpty
   cached <- getCached slug cachePath networkControl
   whenJust cached xReturn
-  when (networkControl == Gql.CacheOnly) $ xFail eCacheOnlyEmpty
+  when (networkControl == Gql.CacheOnly) $ x Fail eCacheOnlyEmpty
   res <- getEventDataImpl
   writeToCache slug cachePath res
   pure res
@@ -29,13 +29,13 @@ getEventData = B.adaptBuilder $ x WithReturn \xReturn -> do
   fullPath slug path = path /./ ("CHALLONGE-" <> slug <> ".json")
   writeToCache _ Nothing _ = pure unit
   writeToCache slug (Just path) res =
-    xTellMappedHush (H2hW.Gql <<< GqlW.CacheWrite) $ encodeTextFileP
+    x TellMappedHush (H2hW.Gql <<< GqlW.CacheWrite) $ xEncodeTextFileP
       (fullPath slug path)
       res
   getCached _ Nothing _ = pure Nothing
   getCached _ _ Gql.ForceFetch = pure Nothing
-  getCached slug (Just path) _ = xTellMappedMHush mapMDecodeErr
-    $ decodeTextFile
+  getCached slug (Just path) _ = x TellMappedMHush mapMDecodeErr
+    $ xDecodeTextFile
     $ fullPath slug path
   mapMDecodeErr e@(DecodeError _) = [ H2hW.Gql $ GqlW.CacheDecode e ]
   mapMDecodeErr _ = []
@@ -72,22 +72,22 @@ getEventDataImpl = do
       itemLabel <- pEl el ".item-label" >>= pInnerText
       itemText <- pEl el ".text" >>= pInnerText
       when (itemLabel == "Start Time" || itemLabel == "Start") do
-        date <- xMapE H2hE.ParseTime $ x RunParser itemText parseDate
+        date <- x MapE H2hE.ParseTime $ x RunParser itemText parseDate
         x (Set_ @"eOrDate") $ Right date
         pure unit
       when (itemLabel == "Game") do
         x (Set_ @"eOrName") $ Right itemText
       when (itemLabel == "Format") do
         x (Set_ @"isDE") $ itemText == "Double Elimination"
-    name <- x (ViewS_ @"eOrName") >>= xOk
-    date <- x (ViewS_ @"eOrDate") >>= xOk
+    name <- x (ViewS_ @"eOrName") >>= x Ok
+    date <- x (ViewS_ @"eOrDate") >>= x Ok
     isDE <- x $ ViewS_ @"isDE"
     tournamentName <- pEl page ".title #title" >>= pInnerText
     bracketEls <- pEls page ".bracket-svg"
     forM_ bracketEls $ \bracketEl -> do
       matchEls <- pEls bracketEl ".match"
       forM_ matchEls $ \matchEl -> x (PlusS @"winnerId") Nothing do
-        setId <- pReadDataAttr matchEl "match" >>= \s -> xMapE H2hE.ParseTime
+        setId <- pReadDataAttr matchEl "match" >>= \s -> x MapE H2hE.ParseTime
           (x RunParser s parseInt)
         playerEls <- pEls matchEl ".match--player"
         slots <- forM playerEls $ \playerEl -> do
@@ -96,7 +96,7 @@ getEventDataImpl = do
           scoreEl <- pEl playerEl ".match--player-score"
           scoreClass <- pGetAttribute scoreEl "class"
           scoreS <- pInnerHtml scoreEl
-          score <- xMapE H2hE.ParseTime do
+          score <- x MapE H2hE.ParseTime do
             x RunParser scoreS parseInt <#> H2h.mkScoreCount
           forM_ (strSplit (Pattern " ") scoreClass) $ \cn -> do
             when (cn == "-winner") $ x (Set_ @"winnerId") $ Just entrantId
@@ -287,7 +287,7 @@ getEventDataImpl = do
     -> String
     -> E JsError + EA H2hE.T xx #> a
     -> EA H2hE.T xx #> a
-  pDo s1 s2 m = xMapE (H2hE.Puppeteer s1 s2) m
+  pDo s1 s2 m = x MapE (H2hE.Puppeteer s1 s2) m
 
   pDoPorE
     :: forall xx pOrE a
@@ -296,7 +296,7 @@ getEventDataImpl = do
     -> String
     -> E JsError + EA H2hE.T xx #> a
     -> EA H2hE.T xx #> a
-  pDoPorE pOrE s m = xMapE (H2hE.Puppeteer (P.context pOrE) s) m
+  pDoPorE pOrE s m = x MapE (H2hE.Puppeteer (P.context pOrE) s) m
 
   pEls
     :: forall xx pOrE

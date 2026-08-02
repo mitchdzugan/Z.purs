@@ -4,10 +4,10 @@ import Node.Z.Prelude
 import Z.SSBM.Slp.Port as Port
 import Z.Z.Opt as O
 
-run :: forall x. Array String -> EA JsError x ##> Unit
-run args = do
-  argParse "slp-id" cliInfo args \(CliOpts opts) -> do
-    buffer <- readFile opts.filename
+xRun :: forall x. Array String -> EA JsError x ##> Unit
+xRun args = do
+  xArgParse "slp-id" cliInfo args \(CliOpts opts) -> do
+    buffer <- xReadFile opts.filename
     sha <- sha256BytesOfBuffer buffer
     xOut $ key sha
     pure unit

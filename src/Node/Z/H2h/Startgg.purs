@@ -116,7 +116,7 @@ getEventData = B.adaptBuilder $ x EvalS initState do
       }
   { entrants } <- x AtS
   let { endAt } = event.tournament
-  date <- xUnwrap (H2hE.InvalidInstant endAt) do
+  date <- x Unwrap (H2hE.InvalidInstant endAt) do
     instant (Milliseconds (toNumber endAt)) <#> toDateTime
   pure
     { id: sOrN event.id
@@ -139,7 +139,7 @@ getEventData = B.adaptBuilder $ x EvalS initState do
     { client, networkControl } <- x AtR
     let initVars = { page: 0, phaseGroupId }
     let pSpecs = [ All.ggPageSpec (__ @"page") (__ @"phaseGroup.sets") ]
-    xMapWE H2hW.Gql H2hE.Gql do
+    x MapWE H2hW.Gql H2hE.Gql do
       All.ggQueryAll Q.phaseGroup initVars pSpecs client networkControl
   fetchRawEventData = x TryUntil
     (f' Q.eventMaxDataPerReq $ Just Gql.CacheOnly)
@@ -155,4 +155,4 @@ getEventData = B.adaptBuilder $ x EvalS initState do
       let eSpec = All.ggPageSpec (__ @"pageE") (__ @"event.entrants")
       let sSpec = All.ggPageSpec (__ @"pageS") (__ @"event.standings")
       let pSpecs = [ eSpec, sSpec ]
-      xMapWE H2hW.Gql H2hE.Gql do All.ggQueryAll q initVars pSpecs client nc
+      x MapWE H2hW.Gql H2hE.Gql do All.ggQueryAll q initVars pSpecs client nc

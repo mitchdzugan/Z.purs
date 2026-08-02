@@ -16,17 +16,17 @@ addConfigs
 addConfigs allowFNF wd configPaths = do
   forM_ configPaths \configPath -> do
     let fullPath = wd /.|// configPath
-    decodeAnyYamlExt @RecordConfig fullPath # x Try >>= onDecode fullPath
+    xDecodeAnyYamlExt @RecordConfig fullPath # x Try >>= onDecode fullPath
   where
   onDecode fullPath (Right c) = do
     x Modify $ updateEnv c
     addConfigs false (dirname fullPath) (gmOr'_ @"includes?" c)
   onDecode fp (Left (ReadError _)) = do
-    when (not allowFNF) $ xFail $ ConfigNotFound $ show fp
-  onDecode _ (Left (DecodeError e)) = xFail $ ConfigDecodeErr e
+    when (not allowFNF) $ x Fail $ ConfigNotFound $ show fp
+  onDecode _ (Left (DecodeError e)) = x Fail $ ConfigDecodeErr e
 
-run :: forall x. Array String -> EA Error x ##> Unit
-run args = do
+xRun :: forall x. Array String -> EA Error x ##> Unit
+xRun args = do
   wd <- xWd
   envPaths <- xEnvPaths "slp-rec" $ Just ""
   platform <- xPlatform
@@ -40,7 +40,7 @@ run args = do
         /./ "Slippi Launcher"
         /./ "Settings"
   launcherSettings <-
-    decodeTextFile @LauncherSettings' launcherSettingsPath # x Try <#>
+    xDecodeTextFile @LauncherSettings' launcherSettingsPath # x Try <#>
       hush
   let isoPath = launcherSettings <#> g_ @"settings.isoPath"
   let
@@ -55,7 +55,7 @@ run args = do
       , slippiPlaybackBin: "slippi-playback"
       , ffmpegBin: "ffmpeg"
       }
-  argParse "slp-rec" (slpRecInfo wd) args \opts -> do
+  xArgParse "slp-rec" (slpRecInfo wd) args \opts -> do
     let optConfigs = arrFromFoldable $ g_ @"!.configPaths" opts
     let noOptConfigs = arrSize optConfigs == 0
     let baseConfigPath = show $ cfgPath /./ "config"
@@ -97,7 +97,7 @@ updateEnv cfg st =
 finalizeEnv
   :: forall x. EnvBuildState -> CliOpts -> String -> E Error x #> RecordEnv
 finalizeEnv st (CliOpts opts) defaultOutputPath = do
-  isoPath <- xOk $ jOrE NoIso st.isoPath
+  isoPath <- x Ok $ jOrE NoIso st.isoPath
   pure
     { isoPath
     , outputPath: jOr defaultOutputPath opts.outputPath
