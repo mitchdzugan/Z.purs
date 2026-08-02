@@ -7,7 +7,7 @@ module Web.Z.Web.DOM
   , toEventTarget
   , xAddEventListener
   , xDocument
-  , runXThenExit
+  , runXAThenExit
   , xGetElementById
   , xPushState
   , xSetDocumentTitle
@@ -150,8 +150,8 @@ runXWeb = run (on _xWeb handleXWeb send)
 
 foreign import js_errorLog :: forall a. a -> Effect Unit
 
-execAndExit :: forall e a. RtError e => Aff (Either e a) -> Effect Unit
-execAndExit a = runAff_ onDone a
+effAffThenExit :: forall e a. RtError e => Aff (Either e a) -> Effect Unit
+effAffThenExit a = runAff_ onDone a
   where
   onDone (Left e) = do
     js_errorLog "process failed with UNHANDLED UNKNOWN error ⌄"
@@ -166,9 +166,9 @@ execAndExit a = runAff_ onDone a
 
 type XWebEA e x = EA e (XWEB x)
 
-runXThenExit
+runXAThenExit
   :: forall @w @e a. RtError e => XWa w (XWebEA e) a -> Effect Unit
-runXThenExit m = execAndExit $ runXA $ do
+runXAThenExit m = effAffThenExit $ runXA $ do
   w /\ res <- x RunW $ expand $ runXWeb m
   when (arrSize w > 0) do
     xLogWarning "collected warnings ⌄"

@@ -28,7 +28,7 @@ mapOfJsonElsWithFieldsTypeAnd_t = reduce reducer mapEmpty
 
 getEventData :: forall x. B.GetDataFn x
 getEventData = B.adaptBuilder $ x EvalS initState do
-  { slug } <- x AtR
+  { slug } <- x Ask
   { event } <- fetchRawEventData
   let entrantNodes = event.entrants.nodes
   forM_ entrantNodes $ \entrantNode -> do
@@ -103,7 +103,7 @@ getEventData = B.adaptBuilder $ x EvalS initState do
         , doesCount: (not isBye) && (not isDQ) && (isJust set.winnerId)
         , slots: slotA ~ slotB
         }
-    { sets } <- x AtS
+    { sets } <- x Get
     pure
       { id: sOrN pg.id
       , displayIdentifier: pg.displayIdentifier
@@ -114,7 +114,7 @@ getEventData = B.adaptBuilder $ x EvalS initState do
           , phaseOrder: pg.phase.phaseOrder
           }
       }
-  { entrants } <- x AtS
+  { entrants } <- x Get
   let { endAt } = event.tournament
   date <- x Unwrap (H2hE.InvalidInstant endAt) do
     instant (Milliseconds (toNumber endAt)) <#> toDateTime
@@ -136,7 +136,7 @@ getEventData = B.adaptBuilder $ x EvalS initState do
   where
   initState = { entrants: mapEmpty @SorN @H2h.Entrant }
   fetchRawPhaseGroupData phaseGroupId = do
-    { client, networkControl } <- x AtR
+    { client, networkControl } <- x Ask
     let initVars = { page: 0, phaseGroupId }
     let pSpecs = [ All.ggPageSpec (__ @"page") (__ @"phaseGroup.sets") ]
     x MapWE H2hW.Gql H2hE.Gql do
@@ -149,8 +149,8 @@ getEventData = B.adaptBuilder $ x EvalS initState do
     ]
     where
     f' q ncOverride = do
-      { client, slug } <- x AtR
-      nc <- x AtR <#> \r -> jOr r.networkControl ncOverride
+      { client, slug } <- x Ask
+      nc <- x Ask <#> \r -> jOr r.networkControl ncOverride
       let initVars = { pageE: 0, pageS: 0, slug }
       let eSpec = All.ggPageSpec (__ @"pageE") (__ @"event.entrants")
       let sSpec = All.ggPageSpec (__ @"pageS") (__ @"event.standings")

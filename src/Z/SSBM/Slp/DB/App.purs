@@ -2,24 +2,22 @@ module Z.SSBM.Slp.DB.App where
 
 import Z.XDOM.Prelude
 
-appImpl :: forall x. XDom (red :: XDomStateSetter Int | x)
-appImpl = do
-  xDBoundError (\e -> text $ "Error thrown" <> e) do
-    red <- xAt @"red" AtR
-    div do
-      pkey "asdf"
-      text $ "div with stuff!!!"
-      when (red.get > 7) do x Fail "NUMBER TOO BIG"
-      xDKeyed "asdfasdf" $ div do
-        button do
-          cn \c -> c "btn"
-            *> when (red.get > 25) do c "btn-accent"
-            *> c "btn-outline"
-          onClick $ (\_ -> red.set $ red.get + 2)
-          xDOnMount $ xOut { i: "btn-mount", c: red.get }
-          text $ "Count: " <> show red.get
+xAppImpl :: forall x. XDom (red :: XDomStateSetter Int | x)
+xAppImpl = do
+  x DomBindError (\e -> xText $ "Error thrown" <> e) do
+    red <- xAt @"red" Ask
+    xDiv do
+      xKey "asdf"
+      xText $ "div with stuff!!!"
+      xDomKeyed "asdfasdf" $ xDiv $ xButton do
+        xCnX \c -> c "btn"
+          *> when (red.get > 25) do c "btn-accent"
+          *> c "btn-outline"
+        xOnClick $ (\_ -> red.set $ red.get + 2)
+        xOnMount $ xOut { i: "btn-mount", c: red.get }
+        xText $ "Count: " <> show red.get
 
-app :: forall x. XDom x
-app = do
+xApp :: forall x. XDom x
+xApp = do
   let initialState = 1
-  xDRespondWithNewStateSetterAt @"red" initialState appImpl
+  xAt @"red" DomRunRWithNewStateSetter initialState xAppImpl

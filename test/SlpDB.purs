@@ -4,4 +4,4 @@ import Node.Z.Prelude
 import Node.Z.SSBM.Slp.DB as SlpDB
 
 main ∷ Effect Unit
-main = runXWithArgvThenExit SlpDB.run
+main = runXAThenExitWithArgv SlpDB.run

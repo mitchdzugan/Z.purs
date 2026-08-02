@@ -2,116 +2,126 @@ module Z.XDOM.Preact where
 
 import Z.Prelude
 
-import Run.Writer as RW
+type XSelf x = (Run (x) (Array ReactEl) -> Array ReactEl)
+type XSelf_ = "xDomSelf"
+type XSELF' x' x = (xDomSelf :: (Reader (XSelf x')) | x)
+type XSELF x = XSELF' x x
 
-type XSelf' x' = (Run x' (Array ReactEl) -> Array ReactEl)
-type XSelf x = (X x (Array ReactEl) -> Array ReactEl)
-
-type XDomFn' x fx a = X (fx (RWa (XSelf x) ReactEl x)) a
+type XDomFn' x fx a = X (fx (XSELF' (XBASE x) (Wa ReactEl x))) a
 type XDomFn x a = XDomFn' x IdT a
 type XDom x = XDomFn' x IdT Unit
 type XDom' x fx = XDomFn' x fx Unit
 
+type RDomFn' x fx a = Run (fx (XSELF' (x) (Wa ReactEl x))) a
+type RDomFn x a = RDomFn' x IdT a
+type RDom x = RDomFn' x IdT Unit
+type RDom' x fx = RDomFn' x fx Unit
+
 type XPROPS x = (xProps :: Writer (Array PropWF) | x)
 
-xRender :: XDom () -> ReactEl
-xRender m = js_renderFragment $ evalX $ x RunR (baseR) $ x ExecW $ m
+renderX :: XDom () -> ReactEl
+renderX m = js_renderFragment $ evalX $ xAt @XSelf_ RunR baseR $ x ExecW $ m
   where
   baseR mm = evalX mm
-
-type XCompX x =
-  { render :: X (Wa ReactEl x) Unit -> Array ReactEl
-  }
-
-newtype XAdaptF x z = XAdaptF
-  ( (X (Wa ReactEl z) Unit -> X (Wa ReactEl x) Unit)
-    -> X (Wa ReactEl z) Unit
-    -> Array ReactEl
-  )
-
-type XAdapt x = Exists (XAdaptF x)
 
 upRunner
   :: forall @p x x' r
    . Cons p (Reader r) x' x
   => IsSymbol p
   => r
-  -> XSelf' x'
-  -> XSelf' x
+  -> XSelf x'
+  -> XSelf x
 upRunner env (fm) = fm <<< xAt @p RunR env
 
-xDKeyed
+xDomKeyed
   :: forall x
    . String
   -> XDom x
   -> XDom x
-xDKeyed k m = do
-  rn <- x AtR
-  x Say $ js_withKey k $ js_renderFragment $ rn $ x ExecW $ x RunR rn $ m
+xDomKeyed k m = do
+  rn <- xAt @XSelf_ Ask
+  x Say $ js_withKey k $ js_renderFragment $ rn $ x ExecW $ xAt @XSelf_ RunR rn
+    $ m
 
-xDNewState
+xDomNewState
   :: forall x s
    . s
-  -> (s -> (s -> X () Unit) -> Run (RWa (XSelf' x) ReactEl x) Unit)
-  -> Run (RWa (XSelf' x) ReactEl x) Unit
-xDNewState initalState fm = do
-  rn <- x AtR
+  -> (s -> (s -> X () Unit) -> RDom x)
+  -> RDom x
+xDomNewState initalState fm = do
+  rn <- xAt @XSelf_ Ask
   x Say $ flip (js_withState pure) initalState (renderFn rn)
   where
-  renderFn rn s ss = rn $ x ExecW $ x RunR rn $ fm s ss
+  renderFn rn s ss = rn $ x ExecW $ xAt @XSelf_ RunR rn $ fm s ss
 
-xDRespondWithAt
-  :: forall @p x x' r
-   . Cons p (Reader r) x' x
-  => IsSymbol p
-  => r
-  -> Run (RWa (XSelf' x) ReactEl x) Unit
-  -> Run (RWa (XSelf' x') ReactEl x') Unit
-xDRespondWithAt env m = do
-  runner <- x AtR
-  let irunner = upRunner @p env runner
-  x Say $ js_renderFragment $ irunner $ x ExecW $ x RunR irunner $ m
+data DomRunR = DomRunR
 
-xDRespondWithNewStateReducerAt
-  :: forall @p x' x a s
-   . IsSymbol p
-  => Cons p (XDomStateReducer a s) x' x
-  => s
-  -> (s -> a -> s)
-  -> Run (RWa (XSelf' x) ReactEl x) Unit
-  -> Run (RWa (XSelf' x') ReactEl x') Unit
-xDRespondWithNewStateReducerAt initState updateState m = do
-  xDNewState initState \state setState -> do
-    let act = \a -> setState $ updateState state a
-    let env = { act, get: state }
-    xDRespondWithAt @p env m
+instance
+  ( Cons rp (Reader r) x' x
+  , IsSymbol rp
+  ) =>
+  RWSEFn DomRunR rp wp sp ep (r -> RDom x -> RDom x') where
+  rwseApply _ _ _ _ _ env m = do
+    runner <- xAt @XSelf_ Ask
+    let irunner = upRunner @rp env runner
+    x Say $ js_renderFragment $ irunner $ x ExecW $ xAt @XSelf_ RunR irunner $ m
 
-xDRespondWithNewStateSetterAt
-  :: forall @p x' x s
-   . IsSymbol p
-  => Cons p (XDomStateSetter s) x' x
-  => s
-  -> Run (RWa (XSelf' x) ReactEl x) Unit
-  -> Run (RWa (XSelf' x') ReactEl x') Unit
-xDRespondWithNewStateSetterAt initState m = do
-  xDNewState initState \state setState -> do
-    let env = { set: setState, get: state }
-    xDRespondWithAt @p env m
+data DomRunRWithNewStateSetter = DomRunRWithNewStateSetter
 
-xDBoundError
-  :: forall x e
-   . (e -> Run (RWa (XSelf' x) ReactEl x) Unit)
-  -> Run (RWa (XSelf' (E e x)) ReactEl (E e x)) Unit
-  -> Run (RWa (XSelf' x) ReactEl x) Unit
-xDBoundError em m = do
-  runner <- x AtR
-  let irunner = \mm -> runner $ x Try mm >>= eOr
-  x Say $ js_withBoundedError (renderErr runner) (renderMain irunner)
-  where
-  renderMain rn _ = js_renderFragment $ rn $ x ExecW $ x RunR rn $ m
-  renderErr rn e = js_renderFragment $ rn $ x ExecW $ x RunR rn $ em e
-  eOr (Left e) = js_throwBoundedError e
-  eOr (Right v) = pure v
+instance
+  ( Cons rp (XDomStateSetter s) x' x
+  , IsSymbol rp
+  ) =>
+  RWSEFn DomRunRWithNewStateSetter
+    rp
+    wp
+    sp
+    ep
+    (s -> RDom x -> RDom x') where
+  rwseApply _ _ _ _ _ initState m = do
+    xDomNewState initState \state setState -> do
+      let env = { set: setState, get: state }
+      xAt @rp DomRunR env m
+
+data DomRunRWithNewStateReducer = DomRunRWithNewStateReducer
+
+instance
+  ( Cons rp (XDomStateReducer a s) x' x
+  , IsSymbol rp
+  ) =>
+  RWSEFn DomRunRWithNewStateReducer
+    rp
+    wp
+    sp
+    ep
+    (s -> (s -> a -> s) -> RDom x -> RDom x') where
+  rwseApply _ _ _ _ _ initState updateState m = do
+    xDomNewState initState \state setState -> do
+      let act = \a -> setState $ updateState state a
+      let env = { act, get: state }
+      xAt @rp DomRunR env m
+
+data DomBindError = DomBindError
+
+instance
+  ( Cons ep (Except e) x' x
+  , IsSymbol ep
+  ) =>
+  RWSEFn DomBindError
+    rp
+    wp
+    sp
+    ep
+    ((e -> RDom x') -> RDom x -> RDom x') where
+  rwseApply _ _ _ _ _ em m = do
+    runner <- xAt @XSelf_ Ask
+    let irunner = \mm -> runner $ xAt @ep Try mm >>= eOr
+    x Say $ js_withBoundedError (rErr runner) (rMain irunner)
+    where
+    rMain rn _ = js_renderFragment $ rn $ x ExecW $ xAt @XSelf_ RunR rn $ m
+    rErr rn e = js_renderFragment $ rn $ x ExecW $ xAt @XSelf_ RunR rn $ em e
+    eOr (Left e) = js_throwBoundedError e
+    eOr (Right v) = pure v
 
 type XDomStateReducer a s = Reader { get :: s, act :: a -> X () Unit }
 
@@ -121,29 +131,30 @@ type IdT :: forall k. k -> k
 type IdT a = a
 
 type XEl x = Wa ReactEl + XPROPS x
-_xProps = Proxy :: Proxy "xProps"
+type XProps_ = "xProps"
+_xProps = Proxy :: Proxy XProps_
 
-el
+xEl
   :: forall x
    . String
   -> XDom' x XEl
   -> XDom x
-el s m = do
+xEl s m = do
   (propWFs /\ elBuild) <- xAt @"xProps" RunW $ x ExecW m
   let props = js_propsFromPropWs propWFKey propWFVal propWFs
   x Say $ js_renderEl s (encodeOpts props) elBuild
 
-div :: forall x. XDom' x XEl -> XDom x
-div = el "div"
+xDiv :: forall x. XDom' x XEl -> XDom x
+xDiv = xEl "div"
 
-button :: forall x. XDom' x XEl -> XDom x
-button = el "button"
+xButton :: forall x. XDom' x XEl -> XDom x
+xButton = xEl "button"
 
-text :: forall x. String -> XDom x
-text s = x Say $ js_textEl s
+xText :: forall x. String -> XDom x
+xText s = x Say $ js_textEl s
 
-fragment :: forall x. Array ReactEl -> XDom x
-fragment els = x Say $ js_renderFragment els
+xFragment :: forall x. Array ReactEl -> XDom x
+xFragment els = x Say $ js_renderFragment els
 
 foreign import data ReactEl :: Type
 
@@ -179,22 +190,22 @@ propWFVal (ClassName s) = jsAny s
 propWFVal (OnClick s) = jsAny s
 propWFVal (PKey s) = jsAny s
 
-cn_ :: forall x. String -> XDom' x XPROPS
-cn_ s = RW.tellAt _xProps $ pure (ClassName s)
+xCn :: forall x. String -> XDom' x XPROPS
+xCn s = xAt @XProps_ Tell $ pure (ClassName s)
 
-cn
+xCnX
   :: forall x
    . ((String -> X (Wa String ()) Unit) -> X (Wa String ()) Unit)
   -> XDom' x XPROPS
-cn fm = do
+xCnX fm = do
   let ss = evalX $ x ExecW $ fm (x Say)
-  RW.tellAt _xProps $ pure (ClassName $ strJoinWith " " ss)
+  xAt @XProps_ Tell $ pure (ClassName $ strJoinWith " " ss)
 
-onClick :: forall x. (Int -> X () Unit) -> XDom' x XPROPS
-onClick f = RW.tellAt _xProps $ pure (OnClick $ \e -> evalX $ f e)
+xOnClick :: forall x. (Int -> X () Unit) -> XDom' x XPROPS
+xOnClick f = xAt @XProps_ Tell $ pure (OnClick $ \e -> evalX $ f e)
 
-pkey :: forall x. String -> XDom' x XPROPS
-pkey s = RW.tellAt _xProps $ pure (PKey s)
+xKey :: forall x. String -> XDom' x XPROPS
+xKey s = xAt @XProps_ Tell $ pure (PKey s)
 
-xDOnMount :: forall x. X () Unit -> XDom x
-xDOnMount onMount = x Say $ js_didMountEl (\_ -> evalX onMount)
+xOnMount :: forall x. X () Unit -> XDom x
+xOnMount onMount = x Say $ js_didMountEl (\_ -> evalX onMount)

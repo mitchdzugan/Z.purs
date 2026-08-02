@@ -2,8 +2,8 @@ module Z.Z.X
   ( A
   , AFF
   , AffF
-  , AtR(..)
-  , AtS(..)
+  , Ask(..)
+  , Get(..)
   , BindE(..)
   , E
   , EA
@@ -13,7 +13,7 @@ module Z.Z.X
   , ExecS(..)
   , ExecW(..)
   , Fail(..)
-  , Get(..)
+  , GGet(..)
   , Invert(..)
   , MapE(..)
   , MapW(..)
@@ -224,50 +224,50 @@ instance rwseApplyRunEnv ::
 
 --------------------- R/S -----------------------
 
-data Get t = Get t
+data GGet t = GGet t
 
 instance rwseApplyGetR ::
   ( IsSymbol rp
   , Cons rp (RunR.Reader r) x' x
   ) =>
-  RWSEFn (Get XEnv) rp _w _s _e (R.Run x r) where
+  RWSEFn (GGet XEnv) rp _w _s _e (R.Run x r) where
   rwseApply _ rp _ _ _ = RunR.askAt rp
 
 instance rwseApplyGetS ::
   ( IsSymbol sp
   , Cons sp (RunS.State s) x' x
   ) =>
-  RWSEFn (Get XState) _r _w sp _e (R.Run x s) where
+  RWSEFn (GGet XState) _r _w sp _e (R.Run x s) where
   rwseApply _ _ _ sp _ = RunS.getAt sp
 
 data View g = View g
 
 instance rwseApplyView ::
-  ( RWSEFn (Get g) rp wp sp ep (R.Run x s)
+  ( RWSEFn (GGet g) rp wp sp ep (R.Run x s)
   ) =>
   RWSEFn (View g) rp wp sp ep ((Lens.Optic (Forget a) s t a b) -> R.Run x a) where
   rwseApply (View t) _ _ _ _ l = do
-    v <- mkXFn @rp @wp @sp @ep $ Get t
+    v <- mkXFn @rp @wp @sp @ep $ GGet t
     pure $ Lens.view l v
 
 data View_ :: forall @k. k -> Type -> Type
 data View_ b t = View_ t
 
 instance rwseApplyView_ ::
-  ( RWSEFn (Get g) rp wp sp ep (R.Run x s)
+  ( RWSEFn (GGet g) rp wp sp ep (R.Run x s)
   , Bl.ParseSymbol sym lenses
   , Bl.ConstructBarlow lenses (Bl.Forget a) s t a b
   , Bl.IsSymbol sym
   ) =>
   RWSEFn (View_ sym g) rp wp sp ep (R.Run x a) where
   rwseApply (View_ t) _ _ _ _ = do
-    v <- mkXFn @rp @wp @sp @ep $ Get t
+    v <- mkXFn @rp @wp @sp @ep $ GGet t
     pure $ Lens.view (Bl.barlow @sym) v
 
 data Preview g = Preview g
 
 instance rwseApplyPreview ::
-  ( RWSEFn (Get g) rp wp sp ep (R.Run x s)
+  ( RWSEFn (GGet g) rp wp sp ep (R.Run x s)
   ) =>
   RWSEFn (Preview g)
     rp
@@ -276,27 +276,27 @@ instance rwseApplyPreview ::
     ep
     ((Lens.Optic (Forget (MayFirst.First a)) s t a b) -> R.Run x (May.Maybe a)) where
   rwseApply (Preview t) _ _ _ _ l = do
-    v <- mkXFn @rp @wp @sp @ep $ Get t
+    v <- mkXFn @rp @wp @sp @ep $ GGet t
     pure $ Lens.preview l v
 
 data Preview_ :: forall @k. k -> Type -> Type
 data Preview_ b t = Preview_ t
 
 instance rwseApplyPreview_ ::
-  ( RWSEFn (Get g) rp wp sp ep (R.Run x s)
+  ( RWSEFn (GGet g) rp wp sp ep (R.Run x s)
   , Bl.ParseSymbol sym lenses
   , Bl.ConstructBarlow lenses (Bl.Forget (MayFirst.First a)) s t a b
   , Bl.IsSymbol sym
   ) =>
   RWSEFn (Preview_ sym g) rp wp sp ep (R.Run x (May.Maybe a)) where
   rwseApply (Preview_ t) _ _ _ _ = do
-    v <- mkXFn @rp @wp @sp @ep $ Get t
+    v <- mkXFn @rp @wp @sp @ep $ GGet t
     pure $ Lens.preview (Bl.barlow @sym) v
 
 data ToArrayOf t = ToArrayOf t
 
 instance rwseApplyToArrayOf ::
-  ( RWSEFn (Get g) rp wp sp ep (R.Run x s)
+  ( RWSEFn (GGet g) rp wp sp ep (R.Run x s)
   ) =>
   RWSEFn (ToArrayOf g)
     rp
@@ -307,14 +307,14 @@ instance rwseApplyToArrayOf ::
       -> R.Run x (Array a)
     ) where
   rwseApply (ToArrayOf t) _ _ _ _ l = do
-    v <- mkXFn @rp @wp @sp @ep $ Get t
+    v <- mkXFn @rp @wp @sp @ep $ GGet t
     pure $ Lens.toArrayOf l v
 
 data ToArrayOf_ :: forall @k. k -> Type -> Type
 data ToArrayOf_ b t = ToArrayOf_ t
 
 instance rwseApplyToArrayOf_ ::
-  ( RWSEFn (Get g) rp wp sp ep (R.Run x s)
+  ( RWSEFn (GGet g) rp wp sp ep (R.Run x s)
   , Bl.ParseSymbol sym lenses
   , Bl.ConstructBarlow lenses (Bl.Forget (Endo.Endo Function (ListT.List a))) s
       t
@@ -324,18 +324,18 @@ instance rwseApplyToArrayOf_ ::
   ) =>
   RWSEFn (ToArrayOf_ sym g) rp wp sp ep (R.Run x (Array a)) where
   rwseApply (ToArrayOf_ t) _ _ _ _ = do
-    v <- mkXFn @rp @wp @sp @ep $ Get t
+    v <- mkXFn @rp @wp @sp @ep $ GGet t
     pure $ Lens.toArrayOf (Bl.barlow @sym) v
 
 ---------------------- R ------------------------
 
-data AtR = AtR
+data Ask = Ask
 
 instance rwseApplyAtR ::
-  ( RWSEFn (Get XEnv) rp wp sp ep f
+  ( RWSEFn (GGet XEnv) rp wp sp ep f
   ) =>
-  RWSEFn AtR rp wp sp ep f where
-  rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ Get XEnv
+  RWSEFn Ask rp wp sp ep f where
+  rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ GGet XEnv
 
 data ViewR = ViewR
 
@@ -390,13 +390,13 @@ instance rwseApplyToArrayOfR_ ::
 
 ---------------------- S ------------------------
 
-data AtS = AtS
+data Get = Get
 
 instance rwseApplyAtS ::
-  ( RWSEFn (Get XState) rp wp sp ep f
+  ( RWSEFn (GGet XState) rp wp sp ep f
   ) =>
-  RWSEFn AtS rp wp sp ep f where
-  rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ Get XState
+  RWSEFn Get rp wp sp ep f where
+  rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ GGet XState
 
 data ViewS = ViewS
 

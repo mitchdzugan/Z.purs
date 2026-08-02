@@ -39,6 +39,7 @@ module Z.Z.Ext
   , module Record
   , module Row
   , module Run
+  , module RunE
   , module RunR
   , module RunS
   , module RunW
@@ -92,6 +93,7 @@ import Parsing.Combinators ((<|>)) as Prc
 import Prim.Row (class Cons, class Lacks, class Nub, class Union) as Row
 import Record (merge) as Record
 import Run (Run, extract, lift, run, send, on, expand) as Run
+import Run.Except (Except) as RunE
 import Run.Reader (Reader) as RunR
 import Run.State (execState, State) as RunS
 import Run.Writer (Writer) as RunW

@@ -16,7 +16,7 @@ import Data.Lens.Iso as Iso
 
 getEventData :: forall x. B.GetDataFn x
 getEventData = B.adaptBuilder $ x WithReturn \xReturn -> do
-  { client, networkControl, slug } <- x AtR
+  { client, networkControl, slug } <- x Ask
   let { cachePath } = client
   let eCacheOnlyEmpty = H2hE.Gql GqlE.CacheOnlyEmpty
   cached <- getCached slug cachePath networkControl
@@ -47,7 +47,7 @@ getEventDataImpl = do
     page <- pDo "newPage" "" $ P.newPage browser
     xInfo { op: "setViewport" }
     pDo "setViewport" "1920x1080" $ P.setViewport page 1920 1080
-    { slug } <- x AtR
+    { slug } <- x Ask
     let url = "https://challonge.com/" <> slug
     xInfo { op: "goto", url }
     pDo "goto" url $ P.goto page url $ x (Set_ @"waitUntil") $ Just
@@ -66,7 +66,7 @@ getEventDataImpl = do
     }
 
   readPageData page = do
-    { slug } <- x AtR
+    { slug } <- x Ask
     itemEls <- pEls page ".redesigned-meta-list .item"
     forM_ itemEls $ \el -> do
       itemLabel <- pEl el ".item-label" >>= pInnerText
@@ -151,7 +151,7 @@ getEventDataImpl = do
         }
     roundSets <- xAt @"setsLoop" EvalS setsLoopState $ do
       roundSets' <- forM baseSetList $ \baseSet -> do
-        { prev, isDropRound } <- xAt @"setsLoop" AtS
+        { prev, isDropRound } <- xAt @"setsLoop" Get
         let prevSet = prev <#> \p -> p.base
         let prevRound = prev <#> \p -> p.round
         let wasGrands = jOrF $ prevRound <#> Round.isGrands
@@ -164,7 +164,7 @@ getEventDataImpl = do
             setAdd entrantId #
               xAt @"setsLoop" Over
                 (if isGrands then __ @"gfEIds" else __ @"nonGfEIds")
-        { gfEIds, nonGfEIds } <- xAt @"setsLoop" AtS
+        { gfEIds, nonGfEIds } <- xAt @"setsLoop" Get
         seenAllGFEntrants <- x WithReturn \xReturn -> do
           forM_ (arrFromFoldable gfEIds) $ \id -> do
             when (not (setHas id nonGfEIds)) (xReturn false)
@@ -197,7 +197,7 @@ getEventDataImpl = do
               setFinStanding lId $ inc $ p2 setDepth
             else pure unit
         xAt @"setsLoop" (Over_ @"roundInd") inc
-        { depth, roundInd } <- xAt @"setsLoop" AtS
+        { depth, roundInd } <- xAt @"setsLoop" Get
         when (p2 depth <= roundInd) do
           xAt @"setsLoop" (Set_ @"roundInd") 0
           if (isDropRound && isLosers) then do
@@ -219,14 +219,14 @@ getEventDataImpl = do
               , slots: baseSet.slots
               }
           }
-      { hasReset } <- xAt @"setsLoop" AtS
+      { hasReset } <- xAt @"setsLoop" Get
       if (not hasReset) then pure roundSets'
       else pure $ set (ix 0 # o_ @"round") (Round.Grands true) roundSets'
     let lSets = arrFilter (Round.isLosers <<< g_ @"round") roundSets
     let wSets = arrFilter (Round.isWinners <<< g_ @"round") roundSets
     let maxWR = jOr0 $ maximum $ wSets <#> Round.roundTypeInd <<< g_ @"round"
     let maxLR = jOr0 $ maximum $ lSets <#> Round.roundTypeInd <<< g_ @"round"
-    { entrants } <- x AtS
+    { entrants } <- x Get
     let profileImageUrl = "https://i.imgur.com/7MsdKge.jpeg"
     let
       mkSet = \rs -> rs.set `(~.) @"roundText"` roundLabel rs.round maxWR maxLR
