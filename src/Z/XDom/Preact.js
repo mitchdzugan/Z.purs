@@ -14,27 +14,19 @@ class StateComponent extends Component {
   }
 }
 
-class DidMountComponent extends Component {
-  postRender() {}
-
-  componentDidMount() {
-    this.props.onMount();
-    this.postRender();
-  }
-
-  componentDidUpdate() {
-    this.postRender();
-  }
-}
-
 class EffComponent extends Component {
+  get lastFn() {
+    return !this.last ? () => {} : () => this.props.runLast(this.last[1]);
+  }
+
   postRender() {
+    console.log(this.props);
     const isNew = !this.last || !this.props.eq(this.last[0])(this.props.v);
+    console.log({ isNew });
     if (!isNew) {
       return;
     }
-    const lastFn = !this.last ? () => {} : this.last[1];
-    lastFn();
+    this.lastFn();
     this.last = [this.props.v, this.props.onNew()];
   }
 
@@ -44,6 +36,11 @@ class EffComponent extends Component {
 
   componentDidUpdate() {
     this.postRender();
+  }
+
+  componentWillUnmount() {
+    this.lastFn();
+    delete this.last;
   }
 }
 
@@ -65,7 +62,8 @@ export const js_propsFromPropWs = (getK) => (getV) => (kvs) => {
 export const js_withState = (pure) => (renderEls) => (initialState) =>
   h(StateComponent, { renderEls, initialState, pure });
 export const js_withKey = (key) => (el) => h(KeyComponent, { key, el });
-export const js_didMountEl = (onMount) => h(DidMountComponent, { onMount });
+export const js_effComponent = (eq) => (v) => (onNew) => (runLast) =>
+  h(EffComponent, { eq, v, onNew, runLast });
 
 class BoundedError {
   constructor(error) {

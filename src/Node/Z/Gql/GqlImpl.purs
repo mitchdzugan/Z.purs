@@ -4,8 +4,8 @@ module Node.Z.Gql.GqlImpl
   , Operation
   , defOperation
   , mkClient
-  , operate
-  , operateUnknown
+  , xOperate
+  , xOperateUnknown
   ) where
 
 import Node.Z.Prelude
@@ -48,23 +48,24 @@ requestGql apiUrl authToken query vars = x MapE GqlE.NetworkError
   $ x RunEffPromise
   $ js_requestGql apiUrl authToken query vars
 
-operateUnknown
+xOperateUnknown
   :: forall x
    . String
   -> Json
   -> Client
   -> NetworkControl
   -> WEA (Array GqlW.T) GqlE.T x #> Json
-operateUnknown opString vars client networkControl = x WithReturn \xReturn -> do
-  (collisionCount /\ cached) <- getCached cachePath networkControl
-  whenJust cached xReturn
-  when (networkControl == CacheOnly) $ x Fail GqlE.CacheOnlyEmpty
-  xInfo { gql: "submitting operation", op: opHeader, vars }
-  xTimeout 6000
-  res <- requestGql url authTokenJson opString vars
-  let toCache = [ res, fromString opKeyStr ]
-  writeToCache cachePath collisionCount toCache
-  pure res
+xOperateUnknown opString vars client networkControl = x WithReturn \xReturn ->
+  do
+    (collisionCount /\ cached) <- getCached cachePath networkControl
+    whenJust cached xReturn
+    when (networkControl == CacheOnly) $ x Fail GqlE.CacheOnlyEmpty
+    xInfo { gql: "submitting operation", op: opHeader, vars }
+    xTimeout 6000
+    res <- requestGql url authTokenJson opString vars
+    let toCache = [ res, fromString opKeyStr ]
+    writeToCache cachePath collisionCount toCache
+    pure res
   where
   { cachePath, authToken, url } = client
   authTokenJson = encodeJson authToken
@@ -115,13 +116,13 @@ defOperation
   -> Operation vars res
 defOperation opString _ _ = Operation opString encodeJson decodeJson
 
-operate
+xOperate
   :: forall vars res x
    . Operation vars res
   -> vars
   -> Client
   -> NetworkControl
   -> WEA (Array GqlW.T) GqlE.T x #> res
-operate (Operation opString encode decode) vars client networkControl = do
-  json <- operateUnknown opString (encode vars) client networkControl
+xOperate (Operation opString encode decode) vars client networkControl = do
+  json <- xOperateUnknown opString (encode vars) client networkControl
   x MapE GqlE.ResponseTypeError $ x Ok $ decode json

@@ -31,7 +31,7 @@ ggQueryAll
   -> WaEA Gql.Warning Gql.Error x #> { | r }
 ggQueryAll op initVars pageSpecs client networkControl = do
   let r = { client, networkControl, op }
-  initRes <- Gql.operate op initVars client networkControl
+  initRes <- Gql.xOperate op initVars client networkControl
   let initS = { vars: initVars, res: initRes }
   { res } <- x RunR r $ x ExecS initS $ forM_ pageSpecs ggPageSpecHandle
   pure res
@@ -66,7 +66,7 @@ ggPageSpecHandleImpl (GGPageSpecF pageL dataL) = do
     when (setSize seenIds < total) do
       x Over (_o @"vars" pageL) inc
       vars <- x $ ViewS_ @"vars"
-      res <- Gql.operate op vars client networkControl
+      res <- Gql.xOperate op vars client networkControl
       let nodes = view (dataL # o_ @"nodes") res
       x Over (_o_ @"res" @"nodes" dataL)
         (flip (<>) $ arrFilter (\{ id } -> not $ setHas id seenIds) nodes)

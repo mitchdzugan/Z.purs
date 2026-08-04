@@ -1,13 +1,18 @@
-const basePath = await (async () => {
+const basePath = await (async (nodeUrl, nodePath) => {
   try {
-    const { fileURLToPath } = await import("node:url");
-    const path = await import("node:path");
+    const isBrowser =
+      typeof window !== "undefined" && typeof window.document !== "undefined";
+    if (isBrowser) {
+      return undefined;
+    }
+    const { fileURLToPath } = await import(nodeUrl);
+    const path = await import(nodePath);
     const fullPath = fileURLToPath(import.meta.url);
     return path.dirname(path.dirname(path.dirname(fullPath)));
   } catch (_e) {
     return undefined;
   }
-})();
+})("node:url", "node:path");
 
 function replaceBasePath(s) {
   if (!basePath) {

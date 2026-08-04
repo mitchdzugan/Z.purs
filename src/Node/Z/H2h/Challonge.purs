@@ -42,15 +42,15 @@ getEventData = B.adaptBuilder $ x WithReturn \xReturn -> do
 
 getEventDataImpl :: forall x. H2h.Event <# B.BuildX x
 getEventDataImpl = do
-  P.useBrowser H2hE.PuppeteerBrowserResource browserOpts $ \browser -> do
+  P.xUseBrowser H2hE.PuppeteerBrowserResource browserOpts $ \browser -> do
     xInfo { op: "newPage" }
-    page <- pDo "newPage" "" $ P.newPage browser
-    xInfo { op: "setViewport" }
-    pDo "setViewport" "1920x1080" $ P.setViewport page 1920 1080
+    page <- pDo "newPage" "" $ P.xNewPage browser
+    xInfo { op: "xSetViewport" }
+    pDo "xSetViewport" "1920x1080" $ P.xSetViewport page 1920 1080
     { slug } <- x Ask
     let url = "https://challonge.com/" <> slug
-    xInfo { op: "goto", url }
-    pDo "goto" url $ P.goto page url $ x (Set_ @"waitUntil") $ Just
+    xInfo { op: "xGoto", url }
+    pDo "xGoto" url $ P.xGoto page url $ x (Set_ @"waitUntil") $ Just
       P.DOMContentLoaded
     pWaitFor page ".redesigned-meta-list .item .text"
     pWaitFor page ".title #title"
@@ -59,8 +59,8 @@ getEventDataImpl = do
   where
   initialState =
     { isDE: false
-    , eOrName: Left $ H2hE.MissingData "event.name"
-    , eOrDate: Left $ H2hE.MissingData "event.date"
+    , nameOrE: Left $ H2hE.MissingData "event.name"
+    , dateOrE: Left $ H2hE.MissingData "event.date"
     , baseSets: mapEmpty @Int @BaseSet
     , entrants: mapEmpty @SorN @H2h.Entrant
     }
@@ -73,14 +73,14 @@ getEventDataImpl = do
       itemText <- pEl el ".text" >>= pInnerText
       when (itemLabel == "Start Time" || itemLabel == "Start") do
         date <- x MapE H2hE.ParseTime $ x RunParser itemText parseDate
-        x (Set_ @"eOrDate") $ Right date
+        x (Set_ @"dateOrE") $ Right date
         pure unit
       when (itemLabel == "Game") do
-        x (Set_ @"eOrName") $ Right itemText
+        x (Set_ @"nameOrE") $ Right itemText
       when (itemLabel == "Format") do
         x (Set_ @"isDE") $ itemText == "Double Elimination"
-    name <- x (ViewS_ @"eOrName") >>= x Ok
-    date <- x (ViewS_ @"eOrDate") >>= x Ok
+    name <- x (ViewS_ @"nameOrE") >>= x Ok
+    date <- x (ViewS_ @"dateOrE") >>= x Ok
     isDE <- x $ ViewS_ @"isDE"
     tournamentName <- pEl page ".title #title" >>= pInnerText
     bracketEls <- pEls page ".bracket-svg"
@@ -304,7 +304,7 @@ getEventDataImpl = do
     => pOrE
     -> String
     -> EA H2hE.T xx #> Array P.Element
-  pEls pOrE sel = pDoPorE pOrE sel $ P.els pOrE sel
+  pEls pOrE sel = pDoPorE pOrE sel $ P.xEls pOrE sel
 
   pEl
     :: forall xx pOrE
@@ -312,17 +312,17 @@ getEventDataImpl = do
     => pOrE
     -> String
     -> EA H2hE.T xx #> P.Element
-  pEl pOrE sel = pDoPorE pOrE sel $ P.el pOrE sel
+  pEl pOrE sel = pDoPorE pOrE sel $ P.xEl pOrE sel
 
-  pInnerText pOrE = pDoPorE pOrE "innerText" $ P.innerText pOrE
-  pInnerHtml pOrE = pDoPorE pOrE "innerHtml" $ P.innerHtml pOrE
+  pInnerText pOrE = pDoPorE pOrE "innerText" $ P.xInnerText pOrE
+  pInnerHtml pOrE = pDoPorE pOrE "innerHtml" $ P.xInnerHtml pOrE
   pGetAttribute pOrE attr = pDoPorE pOrE ("getAttribute('" <> attr <> "')") $
-    P.getAttribute pOrE attr
+    P.xGetAttribute pOrE attr
   pReadDataAttr e n = pGetAttribute e ("data-" <> n <> "-id")
   pReadIdDataAttr e n = pReadDataAttr e n <#> sOrN
   pWaitFor page sel = pDo "waitFor" sel do
     xInfo { op: "waitFor", sel }
-    P.waitForSelector page sel $ x (Set_ @"timeout") $ Just 120000
+    P.xWaitForSelector page sel $ x (Set_ @"timeout") $ Just 120000
 
 userAgent :: String
 userAgent =

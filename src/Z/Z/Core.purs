@@ -1,10 +1,11 @@
 module Z.Z.Core
   ( AntiUnit
+  , HashSet
+  , IdT
   , JsAny
   , JsError(..)
   , P
   , ParseError
-  , HashSet
   , antiUnit
   , arrDrop
   , arrEmpty
@@ -14,6 +15,7 @@ module Z.Z.Core
   , arrSlice
   , class Resulting
   , class RtError
+  , class SText
   , dec
   , encodeForeign
   , encodeOpts
@@ -61,6 +63,7 @@ module Z.Z.Core
   , setHas
   , setSize
   , simpleHash
+  , stext
   ) where
 
 import Prelude
@@ -90,6 +93,19 @@ import Parsing as Parsing
 import Parsing.Combinators as Prc
 import Parsing.String as Prs
 import Parsing.String.Basic as Prsb
+
+type IdT :: forall k. k -> k
+type IdT a = a
+
+class SText a where
+  stext :: a -> String
+
+instance SText String where
+  stext s = s
+else instance SText Unit where
+  stext _ = ""
+else instance Show s => SText s where
+  stext = show
 
 class Applicative f <= Resulting f where
   resultVal :: forall a. f a -> May.Maybe a

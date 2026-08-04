@@ -13,7 +13,7 @@ import Node.Z.Gql.GqlImpl
   , Operation
   , defOperation
   , mkClient
-  , operate
-  , operateUnknown
+  , xOperate
+  , xOperateUnknown
   ) as NodeGql
 

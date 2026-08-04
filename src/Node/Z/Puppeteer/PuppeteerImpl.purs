@@ -8,32 +8,32 @@ module Node.Z.Puppeteer.PuppeteerImpl
   , asPageOrElement
   , class IsPageOrElement
   , context
-  , el
-  , els
-  , getAttribute
-  , goto
-  , goto'
-  , innerHtml
-  , innerText
-  , newPage
-  , setViewport
-  , useBrowser
-  , useBrowser'
-  , waitForSelector
-  , waitForSelector'
+  , xEl
+  , xEls
+  , xGetAttribute
+  , xGoto
+  , xGoto'
+  , xInnerHtml
+  , xInnerText
+  , xNewPage
+  , xSetViewport
+  , xUseBrowser
+  , xUseBrowser'
+  , xWaitForSelector
+  , xWaitForSelector'
   ) where
 
 import Z.Prelude
 
 ---------- public api ------------------------------------------------
 
-useBrowser
+xUseBrowser
   :: forall x e a
    . (ResourceStage -> JsError -> e)
   -> Edit BrowserOpts
   -> (Browser -> EA e + E e x #> a)
   -> EA e x #> a
-useBrowser mapE optsEdit fm = do
+xUseBrowser mapE optsEdit fm = do
   let baseOpts = { exe: Nothing, args: [] }
   let opts = encodeOpts $ edit baseOpts optsEdit
   browser <- x MapE (mapE Acquire) $ launch opts
@@ -41,93 +41,93 @@ useBrowser mapE optsEdit fm = do
   x MapE (mapE Release) $ close browser
   x Ok res
 
-useBrowser'
+xUseBrowser'
   :: forall x e a
    . (ResourceStage -> JsError -> e)
   -> (Browser -> EA e + E e x #> a)
   -> EA e x #> a
-useBrowser' = arg2' default useBrowser
+xUseBrowser' = arg2' default xUseBrowser
 
-newPage :: forall x. Browser -> EA JsError x #> Page
-newPage = x RunEffPromise <<< js_newPage
+xNewPage :: forall x. Browser -> EA JsError x #> Page
+xNewPage = x RunEffPromise <<< js_newPage
 
-goto
+xGoto
   :: forall x. Page -> String -> Edit GotoOpts -> EA JsError x #> Unit
-goto page url optsEdit = do
+xGoto page url optsEdit = do
   let baseOpts = { waitUntil: Nothing }
   let opts = encodeOpts $ edit baseOpts optsEdit
   x RunEffPromise $ js_goto url opts page
 
-goto' :: forall x. Page -> String -> EA JsError x #> Unit
-goto' = arg3' default goto
+xGoto' :: forall x. Page -> String -> EA JsError x #> Unit
+xGoto' = arg3' default xGoto
 
-setViewport
+xSetViewport
   :: forall x
    . Page
   -> Int
   -> Int
   -> EA JsError x #> Unit
-setViewport page width height = do
+xSetViewport page width height = do
   x RunEffPromise $ js_setViewport width height page
 
-waitForSelector
+xWaitForSelector
   :: forall x
    . Page
   -> String
   -> Edit WaitForOpts
   -> EA JsError x #> Unit
-waitForSelector page sel optsEdit = do
+xWaitForSelector page sel optsEdit = do
   let baseOpts = { timeout: Nothing }
   let opts = encodeOpts $ edit baseOpts optsEdit
   x RunEffPromise $ js_waitForSelector sel opts page
 
-waitForSelector'
+xWaitForSelector'
   :: forall x
    . Page
   -> String
   -> EA JsError x #> Unit
-waitForSelector' = arg3' default waitForSelector
+xWaitForSelector' = arg3' default xWaitForSelector
 
-els
+xEls
   :: forall x o
    . IsPageOrElement o
   => o
   -> String
   -> EA JsError x #> Array Element
-els pOrE sel = do
+xEls pOrE sel = do
   els_ <- x RunEffPromise $ js_els sel (asPageOrElement pOrE)
   pure $ els_ <#> \el_ -> Element ("(" <> context pOrE <> ")[]") el_
 
-el
+xEl
   :: forall x o
    . IsPageOrElement o
   => o
   -> String
   -> EA JsError x #> Element
-el pOrE sel = do
+xEl pOrE sel = do
   el_ <- x RunEffPromise $ js_el sel (asPageOrElement pOrE)
   pure $ Element (context pOrE <> " |> ") el_
 
-innerText
+xInnerText
   :: forall x o
    . IsPageOrElement o
   => o
   -> EA JsError x #> String
-innerText pOrE = x RunEffPromise $ js_innerText (asPageOrElement pOrE)
+xInnerText pOrE = x RunEffPromise $ js_innerText (asPageOrElement pOrE)
 
-innerHtml
+xInnerHtml
   :: forall x o
    . IsPageOrElement o
   => o
   -> EA JsError x #> String
-innerHtml pOrE = x RunEffPromise $ js_innerHtml (asPageOrElement pOrE)
+xInnerHtml pOrE = x RunEffPromise $ js_innerHtml (asPageOrElement pOrE)
 
-getAttribute
+xGetAttribute
   :: forall x
    . Element
   -> String
   -> EA JsError x #> String
-getAttribute (Element _ e) attr = x RunEffPromise $ js_getAttribute e attr
+xGetAttribute (Element _ e) attr = x RunEffPromise $ js_getAttribute e attr
 
 -------------- foreign data imports -----------------------------------
 

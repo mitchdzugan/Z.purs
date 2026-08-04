@@ -4,5 +4,5 @@ import Node.Z.Prelude
 import Z.SSBM.Slp.Port as Port
 import Z.Z.Opt as O
 
-run :: forall x. Array String -> EA JsError x ##> Unit
-run args = pure unit
+xRun :: forall x. Array String -> EA JsError x ##> Unit
+xRun args = pure unit

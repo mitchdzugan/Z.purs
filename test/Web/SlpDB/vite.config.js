@@ -7,6 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default defineConfig({
+  build: { watch: { buildDelay: 1000 } },
   plugins: [tailwindcss()],
   publicDir: path.join(__dirname, "public"),
 });

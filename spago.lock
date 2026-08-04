@@ -32,6 +32,7 @@
             "profunctor",
             "profunctor-lenses",
             "record",
+            "routing-duplex",
             "run",
             "spec",
             "spec-discovery",
@@ -1284,6 +1285,16 @@
         "prelude"
       ]
     },
+    "js-uri": {
+      "type": "registry",
+      "version": "3.1.0",
+      "integrity": "sha256-7waHOctAfqhhw540FNJ7C/YsDMQW9TmA+SpHhduH6Uw=",
+      "dependencies": [
+        "functions",
+        "maybe",
+        "prelude"
+      ]
+    },
     "json": {
       "type": "registry",
       "version": "1.1.0",
@@ -1758,6 +1769,27 @@
       "dependencies": [
         "effect",
         "prelude"
+      ]
+    },
+    "routing-duplex": {
+      "type": "registry",
+      "version": "0.7.0",
+      "integrity": "sha256-rQw9yC01qE/LS134zucIhLD6GFcVUzHX5HyzwosdGXM=",
+      "dependencies": [
+        "arrays",
+        "control",
+        "either",
+        "foldable-traversable",
+        "integers",
+        "js-uri",
+        "lazy",
+        "maybe",
+        "newtype",
+        "prelude",
+        "profunctor",
+        "record",
+        "strings",
+        "tuples"
       ]
     },
     "run": {

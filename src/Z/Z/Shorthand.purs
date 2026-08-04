@@ -1,10 +1,15 @@
 module Z.Z.Shorthand
   ( (%)
+  , (<->)
+  , (<:>)
   , (<|<)
   , (>|>)
   , (~)
   , (~.)
+  , E'
+  , R'
   , TPlus
+  , W'
   , Xflipped
   , _'
   , __
@@ -28,6 +33,8 @@ module Z.Z.Shorthand
   , o_
   , over_
   , set_
+  , stextConcat
+  , stextConcatSp
   , type (#>)
   , type (+)
   , type (<#)
@@ -54,10 +61,30 @@ import Z.Z.Ext
   , over
   , view
   , set
+  , Reader
+  , Writer
+  , Except
   ) as Z
 import Z.Z.Ext ((/\)) as ZExp
 import Z.Z.X as X
 import Type.Row (type (+)) as TypeRow
+
+stextConcat
+  :: forall t1 t2. ZCore.SText t1 => ZCore.SText t2 => t1 -> t2 -> String
+stextConcat t1 t2 = ZCore.stext t1 <> ZCore.stext t2
+
+stextConcatSp
+  :: forall t1 t2. ZCore.SText t1 => ZCore.SText t2 => t1 -> t2 -> String
+stextConcatSp t1 t2 = ZCore.stext t1 <> " " <> ZCore.stext t2
+
+infixr 5 stextConcat as <:>
+infixr 5 stextConcatSp as <->
+
+type R' r = Z.Reader r
+type W' w = Z.Writer w
+
+type E' :: forall k. Type -> k -> Type
+type E' e = Z.Except e
 
 mfirst
   :: forall r1 r2 a

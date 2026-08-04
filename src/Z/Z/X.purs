@@ -3,7 +3,6 @@ module Z.Z.X
   , AFF
   , AffF
   , Ask(..)
-  , Get(..)
   , BindE(..)
   , E
   , EA
@@ -13,7 +12,10 @@ module Z.Z.X
   , ExecS(..)
   , ExecW(..)
   , Fail(..)
+  , FromE(..)
   , GGet(..)
+  , Get(..)
+  , Hush(..)
   , Invert(..)
   , MapE(..)
   , MapW(..)
@@ -55,6 +57,7 @@ module Z.Z.X
   , RWaSE
   , RWaSEA
   , Result
+  , Run'
   , RunAff(..)
   , RunEffA(..)
   , RunEffPromise(..)
@@ -63,6 +66,7 @@ module Z.Z.X
   , RunResult(..)
   , RunS(..)
   , RunW(..)
+  , Run_
   , S
   , SA
   , SE
@@ -70,6 +74,7 @@ module Z.Z.X
   , Say(..)
   , Set(..)
   , Set_(..)
+  , StrW
   , Tell(..)
   , TellMappedHush(..)
   , TellMappedMHush(..)
@@ -105,24 +110,31 @@ module Z.Z.X
   , WaSE
   , WithReturn(..)
   , X
+  , X'
   , XBASE
   , XBaseF
+  , XBase_
   , XEnv
+  , XPure(..)
   , XState
   , XWa
+  , X_
   , class RWSEFn
   , class WpEpPickEp
   , class XPSel
   , class XReturnP
   , edit
+  , evalX
+  , evalXA
+  , joinStrW
+  , pureFnX
+  , runX
+  , runXA
+  , runXBase
   , rwseApply
   , x
   , xAt
   , xAtWE
-  , evalX
-  , evalXA
-  , runX
-  , runXA
   , xInfo
   , xLogError
   , xLogWarning
@@ -145,6 +157,7 @@ import Data.Monoid as Monoid
 import Data.Monoid.Endo as Endo
 import Data.Newtype (wrap, unwrap, class Newtype) as NT
 import Data.Profunctor (class Profunctor)
+import Data.String.Common as StrCommon
 import Data.Symbol (class IsSymbol)
 import Data.Tuple as Tup
 import Data.Tuple.Nested as TupN
@@ -208,19 +221,14 @@ instance
     onRes (Eor.Left ret) = pure ret
     onRes (Eor.Right ret) = pure ret
 
-data RunR = RunR
+newtype XPure a = XPure (R.Run () a)
 
-instance rwseApplyRunEnv ::
-  ( IsSymbol rp
-  , Cons rp (RunR.Reader r) x' x
-  ) =>
-  RWSEFn RunR
-    rp
-    _w
-    _s
-    _e
-    (r -> R.Run x a -> R.Run x' a) where
-  rwseApply _ _ _ _ _ = RunR.runReaderAt (P.Proxy :: P.Proxy rp)
+instance
+  RWSEFn (XPure a) _r _w _s _e (R.Run x a) where
+  rwseApply (XPure m) _ _ _ _ = R.expand $ m
+
+pureFnX :: forall i a. (i -> R.Run () a) -> i -> XPure a
+pureFnX f i = XPure $ f i
 
 --------------------- R/S -----------------------
 
@@ -328,6 +336,20 @@ instance rwseApplyToArrayOf_ ::
     pure $ Lens.toArrayOf (Bl.barlow @sym) v
 
 ---------------------- R ------------------------
+
+data RunR = RunR
+
+instance rwseApplyRunEnv ::
+  ( IsSymbol rp
+  , Cons rp (RunR.Reader r) x' x
+  ) =>
+  RWSEFn RunR
+    rp
+    _w
+    _s
+    _e
+    (r -> R.Run x a -> R.Run x' a) where
+  rwseApply _ _ _ _ _ = RunR.runReaderAt (P.Proxy :: P.Proxy rp)
 
 data Ask = Ask
 
@@ -572,6 +594,22 @@ instance rwseApplyPlusS ::
 
 ---------------------- W ------------------------
 
+data FromW = FromW
+
+instance
+  ( IsSymbol wp
+  , IsSymbol baseW
+  , Cons wp (RunE.Except e) x'' x'
+  , Cons baseW (RunE.Except e) x' x
+  , TypeEquals.TypeEquals baseW "writer"
+  ) =>
+  RWSEFn FromW rp wp sp ep (R.Run x a -> R.Run x' a) where
+  rwseApply _ _ _ _ _ m = do
+    RunE.runExceptAt (px @baseW) m >>= onDone
+    where
+    onDone (Eor.Left e) = RunE.throwAt (px @wp) e
+    onDone (Eor.Right v) = pure v
+
 data Say = Say
 
 instance rwseApplySay ::
@@ -649,6 +687,22 @@ instance
     pure res
 
 ---------------------- E ------------------------
+
+data FromE = FromE
+
+instance
+  ( IsSymbol ep
+  , IsSymbol baseE
+  , Cons ep (RunE.Except e) x'' x'
+  , Cons baseE (RunE.Except e) x' x
+  , TypeEquals.TypeEquals baseE "except"
+  ) =>
+  RWSEFn FromE rp wp sp ep (R.Run x a -> R.Run x' a) where
+  rwseApply _ _ _ _ _ m = do
+    RunE.runExceptAt (px @baseE) m >>= onDone
+    where
+    onDone (Eor.Left e) = RunE.throwAt (px @ep) e
+    onDone (Eor.Right v) = pure v
 
 data Try = Try
 
@@ -854,13 +908,17 @@ instance
 
 -------------------- W/E ----------------------
 
-data RunResult = RunResult
+-- run E at default "except" if only 1 symbol provided
+-- use that symbol for the W dimension. this typeclass
+-- constraint handles that case
 
 class WpEpPickEp :: Symbol -> Symbol -> Symbol -> Constraint
-class WpEpPickEp wp ep fp | wp ep -> fp
+class WpEpPickEp wp ep ep' | wp ep -> ep'
 
 instance WpEpPickEp wp wp "except"
 else instance WpEpPickEp wp ep ep
+
+data RunResult = RunResult
 
 instance
   ( IsSymbol wp
@@ -942,12 +1000,17 @@ type XFnG rp wp sp ep = forall f o. RWSEFn f rp wp sp ep o => f -> o
 mkXFn :: forall @rp @wp @sp @ep. XFnG rp wp sp ep
 mkXFn f = rwseApply f (px @rp) (px @wp) (px @sp) (px @ep)
 
+-- | Runs `class RWSEFn` implementers at the default variant keys:
+-- |   "reader" "writer" "state" "except"
 x :: XFnG "reader" "writer" "state" "except"
 x = mkXFn @"reader" @"writer" @"state" @"except"
 
+-- | Runs `class RWSEFn` implementers primarily at the specified variant key
 xAt :: forall @p. XFnG p p p p
 xAt = mkXFn @p @p @p @p
 
+-- | Runs `class RWSEFn` implementers with Writer variant key `@wp` and
+-- | Except variant key `@ep`
 xAtWE :: forall @wp @ep. XFnG wp wp ep ep
 xAtWE = mkXFn @wp @wp @ep @ep
 
@@ -974,13 +1037,18 @@ evalXA m = R.match { aff: \(AffCmd a) -> a } # R.run $ runXBase m
 runXA :: forall e a. X (EA e ()) a -> Aff.Aff (Eor.Either e a)
 runXA = evalXA <<< x Try
 
---------------- EDIT ------------------------------------------------------
+--------------- OTHER ------------------------------------------------------
 
 type Edit s = X (S s ()) Unit
 
 edit :: forall a. a -> Edit a -> a
 edit init m = R.extract $ RunS.execState init $
   runXBase m
+
+type StrW = X (Wa String ()) Unit
+
+joinStrW :: String -> StrW -> String
+joinStrW s m = StrCommon.joinWith s $ evalX $ x ExecW m
 
 --------------- E FNS -----------------------------------------------------
 
@@ -1002,6 +1070,14 @@ xTimeout ms = Z.fDiscard $ x Try $ x RunEffPromise $ js_timeout ms
 --------------- CORE TYPE ---------------------------------------------------
 
 type X x a = R.Run (XBASE x) a
+
+type X' x = X x Unit
+
+type X_ a = X () a
+
+type Run' x = R.Run x Unit
+
+type Run_ a = R.Run () a
 
 type XWa w fx a = R.Run (XBASE + fx + Wa w ()) a
 
@@ -1034,7 +1110,9 @@ derive instance functorXBaseF :: Functor XBaseF
 
 type XBASE x = (xBase :: XBaseF | x)
 
-_eff = P.Proxy :: P.Proxy "xBase"
+type XBase_ = "xBase"
+
+_eff = P.Proxy :: P.Proxy XBase_
 
 handleXBase :: forall r. XBaseF ~> R.Run r
 handleXBase = case _ of

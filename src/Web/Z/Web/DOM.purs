@@ -1,30 +1,42 @@
 module Web.Z.Web.DOM
-  ( XWeb
+  ( XWEB
+  , XWeb
   , XWebF
   , class IsEventTarget
+  , evTarget
   , eventType
+  , runXAThenExit
   , runXWeb
   , toEventTarget
   , xAddEventListener
+  , xClosest
   , xDocument
-  , runXAThenExit
+  , xGetAttribute
   , xGetElementById
+  , xPreventDefault
   , xPushState
   , xSetDocumentTitle
+  , xStopPropagation
   , xWindow
   ) where
 
 import Z.Prelude
 
+import Effect.Unsafe as Unsafe
+import Web.DOM.Element as Element
 import Web.DOM.Internal.Types as T
 import Web.DOM.NonElementParentNode as NEPN
+import Web.DOM.ParentNode as PN
 import Web.Event.Event as WebEvent
 import Web.Event.EventTarget as WebEventT
-import Web.HTML.History as History
+import Web.Event.Internal.Types as WET
 import Web.HTML as HTML
 import Web.HTML.HTMLDocument as HTMLDoc
+import Web.HTML.History as History
 import Web.HTML.Window as Window
-import Effect.Unsafe as Unsafe
+
+evTarget :: WET.Event -> Maybe WET.EventTarget
+evTarget = WebEvent.target
 
 class IsEventTarget a where
   toEventTarget :: a -> WebEventT.EventTarget
@@ -47,8 +59,22 @@ xDocument = lift _xWeb (DocumentCmd id)
 xGetElementById :: forall x. String -> XWeb x (Maybe T.Element)
 xGetElementById s = lift _xWeb (GetElementByIdCmd s id)
 
-eventType :: { click :: WebEvent.EventType }
-eventType = { click: WebEvent.EventType "click" }
+xClosest :: forall x. WET.EventTarget -> String -> XWeb x (Maybe T.Element)
+xClosest et qs = lift _xWeb (ClosestCmd qs et id)
+
+xGetAttribute :: forall x. T.Element -> String -> XWeb x (Maybe String)
+xGetAttribute el attr = lift _xWeb (GetAttributeCmd attr el id)
+
+eventType
+  :: { click :: WebEvent.EventType
+     , pushState :: WebEvent.EventType
+     , popState :: WebEvent.EventType
+     }
+eventType =
+  { click: WebEvent.EventType "click"
+  , pushState: WebEvent.EventType "pushstate"
+  , popState: WebEvent.EventType "popstate"
+  }
 
 type EventListenerOpts =
   { capture :: Boolean, once :: Boolean, passive :: Boolean }
@@ -76,10 +102,11 @@ xPushState
    . String
   -> Maybe String
   -> XWeb x Unit
-xPushState url mt = do
-  let title = jOr' mt
-  let f = if isJust mt then (encodeForeign { title }) else (encodeForeign {})
-  lift _xWeb $ PushStateCmd f title url unit
+xPushState url titleOr_ = do
+  let title = jOr' titleOr_
+  let hasTitle = isJust titleOr_
+  let opts = if hasTitle then (encodeForeign { title }) else (encodeForeign {})
+  lift _xWeb $ PushStateCmd opts title url unit
 
 xSetDocumentTitle
   :: forall x
@@ -87,6 +114,12 @@ xSetDocumentTitle
   -> XWeb x Unit
 xSetDocumentTitle title = do
   lift _xWeb $ SetDocumentTitle title unit
+
+xPreventDefault :: forall x. WET.Event -> XWeb x Unit
+xPreventDefault e = lift _xWeb $ PreventDefaultCmd e unit
+
+xStopPropagation :: forall x. WET.Event -> XWeb x Unit
+xStopPropagation e = lift _xWeb $ StopPropagationCmd e unit
 
 type XWeb x a = X (xWeb :: XWebF | x) a
 
@@ -96,6 +129,10 @@ data XWebF a
   = WindowCmd (Window.Window -> a)
   | DocumentCmd (HTMLDoc.HTMLDocument -> a)
   | GetElementByIdCmd String (Maybe T.Element -> a)
+  | ClosestCmd String WET.EventTarget (Maybe T.Element -> a)
+  | GetAttributeCmd String T.Element (Maybe String -> a)
+  | PreventDefaultCmd WET.Event a
+  | StopPropagationCmd WET.Event a
   | AddEventListenerCmd
       XWebRunner
       WebEvent.EventType
@@ -121,6 +158,11 @@ handleXWeb = case _ of
     ( Unsafe.unsafePerformEffect $ HTML.window >>= Window.document >>=
         getElementById id
     )
+  ClosestCmd qs et f -> pure $ f $ Unsafe.unsafePerformEffect do
+    let orEl = Element.fromEventTarget et
+    whenJust orEl $ Element.closest (PN.QuerySelector qs)
+  GetAttributeCmd attr el f -> pure $ f $ Unsafe.unsafePerformEffect do
+    Element.getAttribute attr el
   AddEventListenerCmd wr et t o h f -> pure $ f $ Unsafe.unsafePerformEffect do
     el <- WebEventT.eventListener \e -> pure $ wr $ h e
     WebEventT.addEventListenerWithOptions et el o t
@@ -137,6 +179,12 @@ handleXWeb = case _ of
     w <- HTML.window
     d <- Window.document w
     HTMLDoc.setTitle t d
+    pure r
+  PreventDefaultCmd e r -> pure $ Unsafe.unsafePerformEffect do
+    WebEvent.preventDefault e
+    pure r
+  StopPropagationCmd e r -> pure $ Unsafe.unsafePerformEffect do
+    WebEvent.stopPropagation e
     pure r
 
 derive instance functorXBaseF :: Functor XWebF
