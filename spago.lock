@@ -10,9 +10,6 @@
             "argonaut-codecs",
             "argonaut-core",
             "argonaut-generic",
-            {
-              "barlow-lens": "1.0.0"
-            },
             "bytestrings",
             "codec",
             "codec-argonaut",
@@ -23,6 +20,7 @@
             "either",
             "exceptions",
             "exists",
+            "filterable",
             "json",
             "maybe",
             "node-process",
@@ -36,6 +34,7 @@
             "run",
             "spec",
             "spec-discovery",
+            "stringutils",
             "typelevel-prelude",
             "unsafe-coerce",
             "variant",
@@ -697,12 +696,7 @@
         "zipperarray": "2.0.0"
       }
     },
-    "extra_packages": {
-      "barlow-lens": {
-        "git": "https://github.com/sigma-andex/purescript-barlow-lens.git",
-        "ref": "a5c00a84aff00d15d21d55a39accd59a4f78e1bb"
-      }
-    }
+    "extra_packages": {}
   },
   "packages": {
     "aff": {
@@ -847,23 +841,6 @@
         "functions",
         "maybe",
         "prelude"
-      ]
-    },
-    "barlow-lens": {
-      "type": "git",
-      "url": "https://github.com/sigma-andex/purescript-barlow-lens.git",
-      "rev": "a5c00a84aff00d15d21d55a39accd59a4f78e1bb",
-      "dependencies": [
-        "either",
-        "foldable-traversable",
-        "lists",
-        "maybe",
-        "newtype",
-        "prelude",
-        "profunctor",
-        "profunctor-lenses",
-        "tuples",
-        "typelevel-prelude"
       ]
     },
     "bifunctors": {
@@ -1108,6 +1085,25 @@
         "enums",
         "maybe",
         "prelude"
+      ]
+    },
+    "filterable": {
+      "type": "registry",
+      "version": "5.0.0",
+      "integrity": "sha256-be7ci1Bzwud2waqoCtNGsTBZbt7fi+gCLvGddQQRJ3A=",
+      "dependencies": [
+        "arrays",
+        "control",
+        "either",
+        "foldable-traversable",
+        "identity",
+        "lists",
+        "maybe",
+        "newtype",
+        "ordered-collections",
+        "prelude",
+        "st",
+        "tuples"
       ]
     },
     "foldable-traversable": {
@@ -1933,6 +1929,20 @@
         "tailrec",
         "tuples",
         "unfoldable",
+        "unsafe-coerce"
+      ]
+    },
+    "stringutils": {
+      "type": "registry",
+      "version": "0.0.13",
+      "integrity": "sha256-dWtlJqMC2RK9jNupbLLOmZJYWejRk+cGqgs1In76QJk=",
+      "dependencies": [
+        "arrays",
+        "functions",
+        "integers",
+        "maybe",
+        "prelude",
+        "strings",
         "unsafe-coerce"
       ]
     },

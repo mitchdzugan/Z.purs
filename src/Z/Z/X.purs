@@ -16,6 +16,7 @@ module Z.Z.X
   , GGet(..)
   , Get(..)
   , Hush(..)
+  , Impure(..)
   , Invert(..)
   , MapE(..)
   , MapW(..)
@@ -140,6 +141,7 @@ module Z.Z.X
   , xLogWarning
   , xOut
   , xOutErr
+  , xPass
   , xTimeout
   ) where
 
@@ -229,6 +231,15 @@ instance
 
 pureFnX :: forall i a. (i -> R.Run () a) -> i -> XPure a
 pureFnX f i = XPure $ f i
+
+data Impure = Impure
+
+instance
+  RWSEFn Impure _r _w _s _e (XPure (X x a) -> X x a) where
+  rwseApply Impure _ _ _ _ (XPure m) = do
+    xPass
+    mm <- R.expand m
+    mm
 
 --------------------- R/S -----------------------
 
@@ -1104,7 +1115,10 @@ foreign import js_consoleDirectFn
 
 foreign import js_getStack :: Eff.Effect String
 
-data XBaseF a = LogCmd String String Z.JsAny a | LogDirectCmd String Z.JsAny a
+data XBaseF a
+  = PassCmd a
+  | LogCmd String String Z.JsAny a
+  | LogDirectCmd String Z.JsAny a
 
 derive instance functorXBaseF :: Functor XBaseF
 
@@ -1116,6 +1130,7 @@ _eff = P.Proxy :: P.Proxy XBase_
 
 handleXBase :: forall r. XBaseF ~> R.Run r
 handleXBase = case _ of
+  PassCmd a -> pure a
   LogCmd k src v e -> do
     pure $ Unsafe.unsafePerformEffect $ js_consoleFn k src [ v ]
     pure e
@@ -1125,6 +1140,9 @@ handleXBase = case _ of
 
 runXBase :: forall r. R.Run (XBASE + r) ~> R.Run r
 runXBase = R.run (R.on _eff handleXBase R.send)
+
+xPass :: forall x. X x Unit
+xPass = R.lift _eff (PassCmd unit)
 
 xOut :: forall l x. l -> X x Unit
 xOut v = Z.fDiscard $ R.lift _eff (LogDirectCmd "log" (Z.jsAny v) unit)

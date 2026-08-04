@@ -64,6 +64,7 @@ module Z.Z.Core
   , setSize
   , simpleHash
   , stext
+  , tryParseInt
   ) where
 
 import Prelude
@@ -375,6 +376,9 @@ parseInt = do
   when (not (n == ni)) do
     parseFail "Integer Number Expected"
   pure i
+
+tryParseInt :: String -> May.Maybe Int
+tryParseInt s = Eor.hush $ runParser s parseInt
 
 p2 :: Int -> Int
 p2 = Int.pow 2

@@ -13,6 +13,7 @@ module Web.Z.Web.DOM
   , xDocument
   , xGetAttribute
   , xGetElementById
+  , xLocationUrl
   , xPreventDefault
   , xPushState
   , xSetDocumentTitle
@@ -22,6 +23,7 @@ module Web.Z.Web.DOM
 
 import Z.Prelude
 
+import Debug (traceM)
 import Effect.Unsafe as Unsafe
 import Web.DOM.Element as Element
 import Web.DOM.Internal.Types as T
@@ -33,6 +35,7 @@ import Web.Event.Internal.Types as WET
 import Web.HTML as HTML
 import Web.HTML.HTMLDocument as HTMLDoc
 import Web.HTML.History as History
+import Web.HTML.Location as Loc
 import Web.HTML.Window as Window
 
 evTarget :: WET.Event -> Maybe WET.EventTarget
@@ -52,6 +55,9 @@ getElementById s = NEPN.getElementById s <<< HTMLDoc.toNonElementParentNode
 
 xWindow :: forall x. XWeb x Window.Window
 xWindow = lift _xWeb (WindowCmd id)
+
+xLocationUrl :: forall x. XWeb x URL
+xLocationUrl = lift _xWeb (LocationUrlCmd id)
 
 xDocument :: forall x. XWeb x HTMLDoc.HTMLDocument
 xDocument = lift _xWeb (DocumentCmd id)
@@ -90,12 +96,13 @@ xAddEventListener
   -> t
   -> Edit EventListenerOpts
   -> (WebEvent.Event -> XWeb () Unit)
-  -> XWeb x (XWeb () Unit)
+  -> XWeb x (XPure (XWeb x Unit))
 xAddEventListener eType target opts onE = do
   let o = edit defaultEventListenerOpts opts
   let tgt = toEventTarget target
   el <- lift _xWeb $ AddEventListenerCmd (evalX <<< runXWeb) eType tgt o onE id
-  pure $ lift _xWeb $ RmEventListenerCmd eType tgt o.capture el unit
+  pure $ XPure $ pure $ lift _xWeb $ RmEventListenerCmd eType tgt o.capture el
+    unit
 
 xPushState
   :: forall x
@@ -128,6 +135,7 @@ type XWebRunner = forall a. XWeb () a -> a
 data XWebF a
   = WindowCmd (Window.Window -> a)
   | DocumentCmd (HTMLDoc.HTMLDocument -> a)
+  | LocationUrlCmd (URL -> a)
   | GetElementByIdCmd String (Maybe T.Element -> a)
   | ClosestCmd String WET.EventTarget (Maybe T.Element -> a)
   | GetAttributeCmd String T.Element (Maybe String -> a)
@@ -154,6 +162,25 @@ handleXWeb = case _ of
   WindowCmd f -> pure $ f (Unsafe.unsafePerformEffect HTML.window)
   DocumentCmd f -> pure $ f
     (Unsafe.unsafePerformEffect $ HTML.window >>= Window.document)
+  LocationUrlCmd f -> pure $ f $ Unsafe.unsafePerformEffect do
+    win <- HTML.window
+    loc <- Window.location win
+    hashs <- Loc.hash loc
+    pathname <- Loc.pathname loc
+    host <- Loc.hostname loc
+    protocol <- Loc.protocol loc
+    ports <- Loc.port loc
+    let port = tryParseInt ports
+    pure $ urlFromParts
+      { hash: if (eq hashs "") then Nothing else Just hashs
+      , port
+      , username: Nothing
+      , password: Nothing
+      , protocol
+      , host
+      , query: mapEmpty
+      , path: urlPathFromString pathname
+      }
   GetElementByIdCmd id f -> pure $ f
     ( Unsafe.unsafePerformEffect $ HTML.window >>= Window.document >>=
         getElementById id

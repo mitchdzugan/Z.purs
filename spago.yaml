@@ -16,6 +16,7 @@ package:
     - either
     - exceptions
     - exists
+    - filterable
     - json
     - maybe
     - node-process
@@ -29,19 +30,15 @@ package:
     - run
     - spec
     - spec-discovery
+    - stringutils
     - typelevel-prelude
     - unsafe-coerce
     - variant
     - web-dom
     - web-html
-    - barlow-lens: 1.0.0
   test:
     main: Test.Main
     dependencies: []
 workspace:
   packageSet:
     registry: 77.13.1
-  extraPackages:
-    barlow-lens:
-      git: https://github.com/sigma-andex/purescript-barlow-lens.git
-      ref: a5c00a84aff00d15d21d55a39accd59a4f78e1bb

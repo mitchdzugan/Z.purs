@@ -33,6 +33,12 @@ module Z.Z.Util
   , sOrN
   , type (#)
   , type ($)
+  , urlFromParts
+  , urlFromString
+  , urlOrigin
+  , urlPathFromString
+  , urlQuery
+  , urlToString
   ) where
 
 import Prelude
@@ -49,12 +55,35 @@ import Data.Array as Array
 import Data.Either as Either
 import Data.Generic.Rep (class Generic) as Generic
 import Data.Maybe as Maybe
+import Data.Map as Map
 import Data.Ord as Ord
 import Data.Ordering as Ordering
 import Data.Tuple as Tup
 import Foreign.Object as FO
 import Type.Proxy as Proxy
+import Z.Z.Url as Url
 import Z.Z.Core as Z
+
+urlFromParts :: Url.Parts -> Url.URL
+urlFromParts = Url.fromParts
+
+urlFromString :: String -> Maybe.Maybe Url.URL
+urlFromString = Url.fromString
+
+urlQuery :: Url.URL -> Map.Map String (Array String)
+urlQuery = Url.query
+
+urlPathFromString :: String -> Url.Path
+urlPathFromString = Url.pathFromString
+
+urlToString :: Url.URL -> String
+urlToString = Url.toString
+
+urlOrigin :: Url.URL -> String
+urlOrigin url = Url.protocol url <> "://" <> rest (Url.port url)
+  where
+  rest Maybe.Nothing = Url.host url
+  rest (Maybe.Just n) = Url.host url <> ":" <> show n
 
 nth :: forall a. Array a -> Int -> Maybe.Maybe a
 nth = Array.index

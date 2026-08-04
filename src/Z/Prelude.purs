@@ -10,6 +10,7 @@ module Z.Prelude
   , module ZPair
   , module ZPairKey
   , module ZString
+  , module ZUrl
   , module ZUtil
   , module ZShorthand
   , module ZX
@@ -23,9 +24,10 @@ import Z.Z.Defaultable (class Defaultable, auto, default, default', orDefault, w
 import Z.Z.DateTime (DateTime(..), adjustDateTime, toDateTime) as ZDateTime
 import Z.Z.Ext as ZExt
 import Z.Z.Key (class Keyed, Key, key, keyStr) as ZKey
-import Z.Z.String (strJoinWith, strSplit) as ZString
+import Z.Z.String as ZString
 import Z.Z.Pair (Pair(..), (~)) as ZPair
 import Z.Z.PairKey (PairKey(..)) as ZPairKey
-import Z.Z.Util (class IsStringOrNum, type (#), type ($), JsonDecodeError(..), JsonDecodeFn, JsonEncodeFn, ResourceStage(..), SorN(..), Type_Ap, Type_Ap_R, arg2', arg3', arg4', arrReverse, arrSort, arrSortBy, arrSortWith, baseDecodeJson, decode, decode', decodeErrTypeMismatch, decodeFailTypeMismatch, decodeJson, decodeJson', encode, id, jsonDecode, jsonKeys, jsonLookup, jsonPairs, jsonSortedPairs, jsonVals, nth, sOrN) as ZUtil
+import Z.Z.Url (URL) as ZUrl
+import Z.Z.Util as ZUtil
 import Z.Z.X as ZX
 import Z.Z.Shorthand hiding ((~)) as ZShorthand

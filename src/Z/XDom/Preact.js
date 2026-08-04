@@ -20,9 +20,7 @@ class EffComponent extends Component {
   }
 
   postRender() {
-    console.log(this.props);
     const isNew = !this.last || !this.props.eq(this.last[0])(this.props.v);
-    console.log({ isNew });
     if (!isNew) {
       return;
     }

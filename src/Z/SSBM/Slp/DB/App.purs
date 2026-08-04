@@ -26,7 +26,7 @@ xAppImpl = do
     da.key "asdfasdfasdfasdf..."
     when (count < 0) do x Fail "negative number invalid"
     d.a do
-      da.href "#23145"
+      da.href "/#23145"
       d.text "link"
     d.span %%-& \t -> t "div with stuff" *> t unit *> t "!"
     d.button do
