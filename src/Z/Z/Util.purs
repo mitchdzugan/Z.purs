@@ -38,6 +38,7 @@ module Z.Z.Util
   , urlOrigin
   , urlPathFromString
   , urlQuery
+  , urlRelative
   , urlToString
   ) where
 
@@ -75,6 +76,9 @@ urlQuery = Url.query
 
 urlPathFromString :: String -> Url.Path
 urlPathFromString = Url.pathFromString
+
+urlRelative :: Url.URL -> String
+urlRelative = Url.relative
 
 urlToString :: Url.URL -> String
 urlToString = Url.toString

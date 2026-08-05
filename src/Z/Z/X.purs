@@ -1,38 +1,45 @@
 module Z.Z.X
-  ( A
+  ( (-*@)
+  , (-?@)
+  , (-@)
+  , (@%)
+  , (@~)
+  , (^*@)
+  , (^?@)
+  , (^@)
+  , A
   , AFF
   , AffF
-  , Ask(..)
-  , BindE(..)
+  , Ask
+  , BindE
   , E
   , EA
   , Edit
-  , EvalS(..)
-  , EvalW(..)
-  , ExecS(..)
-  , ExecW(..)
-  , Fail(..)
-  , FromE(..)
-  , GGet(..)
-  , Get(..)
-  , Hush(..)
-  , Impure(..)
-  , Invert(..)
-  , MapE(..)
-  , MapW(..)
-  , MapWE(..)
-  , Modify(..)
-  , Ok(..)
-  , Over(..)
-  , Over_(..)
-  , PlusS(..)
-  , Preview(..)
-  , PreviewR(..)
-  , PreviewR_(..)
-  , PreviewS(..)
-  , PreviewS_(..)
-  , Preview_(..)
-  , Put(..)
+  , EvalS
+  , EvalW
+  , ExecS
+  , ExecW
+  , Fail
+  , FromE
+  , GGet
+  , Get
+  , Hush
+  , Invert
+  , MapE
+  , MapW
+  , MapWE
+  , Modify
+  , Ok
+  , Over
+  , Over_
+  , PlusS
+  , Preview
+  , PreviewR
+  , PreviewR_
+  , PreviewS
+  , PreviewS_
+  , Preview_
+  , Put
   , R
   , RA
   , RE
@@ -59,41 +66,41 @@ module Z.Z.X
   , RWaSEA
   , Result
   , Run'
-  , RunAff(..)
-  , RunEffA(..)
-  , RunEffPromise(..)
-  , RunParser(..)
-  , RunR(..)
-  , RunResult(..)
-  , RunS(..)
-  , RunW(..)
+  , RunAff
+  , RunEffA
+  , RunEffPromise
+  , RunParser
+  , RunR
+  , RunResult
+  , RunS
+  , RunW
   , Run_
   , S
   , SA
   , SE
   , SEA
-  , Say(..)
-  , Set(..)
-  , Set_(..)
+  , Say
+  , Set
+  , Set_
   , StrW
-  , Tell(..)
-  , TellMappedHush(..)
-  , TellMappedMHush(..)
-  , ToArrayOf(..)
-  , ToArrayOfR(..)
-  , ToArrayOfR_(..)
-  , ToArrayOfS(..)
-  , ToArrayOfS_(..)
-  , ToArrayOf_(..)
-  , Try(..)
-  , TryUntil(..)
-  , Unwrap(..)
-  , View(..)
-  , ViewR(..)
-  , ViewR_(..)
-  , ViewS(..)
-  , ViewS_(..)
-  , View_(..)
+  , Tell
+  , TellMappedHush
+  , TellMappedMHush
+  , ToArrayOf
+  , ToArrayOfR
+  , ToArrayOfR_
+  , ToArrayOfS
+  , ToArrayOfS_
+  , ToArrayOf_
+  , Try
+  , TryUntil
+  , Unwrap
+  , View
+  , ViewR
+  , ViewR_
+  , ViewS
+  , ViewS_
+  , View_
   , W
   , WA
   , WE
@@ -109,33 +116,59 @@ module Z.Z.X
   , WaS
   , WaSA
   , WaSE
-  , WithReturn(..)
+  , WithReturn
   , X
   , X'
+  , XApply
   , XBASE
   , XBaseF
   , XBase_
+  , XD'(..)
+  , XD1(..)
   , XEnv
   , XPure(..)
   , XState
   , XWa
   , X_
+  , class Cons0
+  , class E_
   , class RWSEFn
+  , class R_
+  , class RevSym
+  , class S_
+  , class SplitSp1
+  , class UpCat
+  , class UpCf
+  , class UpCt
+  , class W_
   , class WpEpPickEp
   , class XPSel
   , class XReturnP
+  , class XTLS
+  , class XTLSFull
+  , class XTLSRFull
+  , class XTLSSFull
+  , class XTLSunAt
+  , cons0
   , edit
   , evalX
   , evalXA
   , joinStrW
+  , opOver_
+  , opPreviewR_
+  , opPreviewS_
+  , opSet_
+  , opToArrayOfR_
+  , opToArrayOfS_
+  , opViewR_
+  , opViewS_
   , pureFnX
   , runX
   , runXA
   , runXBase
   , rwseApply
-  , x
-  , xAt
   , xAtWE
+  , xImpure
   , xInfo
   , xLogError
   , xLogWarning
@@ -143,6 +176,8 @@ module Z.Z.X
   , xOutErr
   , xPass
   , xTimeout
+  , xtls
+  , x
   ) where
 
 import Prelude
@@ -171,6 +206,7 @@ import Effect.Unsafe as Unsafe
 import Parsing as Parsing
 import Prim.Row (class Cons)
 import Prim.Row as Row
+import Prim.Symbol as Symbol
 import Record as Rec
 import Run as R
 import Run.Except as RunE
@@ -188,6 +224,409 @@ import Z.Z.Core as Z
 import Z.Z.Defaultable as ZD
 import Z.Z.Ext as ZE
 
+data XD1 t = XD1
+data XD' = XD'
+data XDwe w e = XDwe
+
+class R_ i o | i -> o
+class W_ i o | i -> o
+class S_ i o | i -> o
+class E_ i o | i -> o
+
+class Cons0 t where
+  cons0 :: t
+
+instance Cons0 BindE where
+  cons0 = BindE
+
+instance Cons0 EvalS where
+  cons0 = EvalS
+
+instance Cons0 EvalW where
+  cons0 = EvalW
+
+instance Cons0 ExecS where
+  cons0 = ExecS
+
+instance Cons0 ExecW where
+  cons0 = ExecW
+
+instance Cons0 Fail where
+  cons0 = Fail
+
+instance Cons0 FromE where
+  cons0 = FromE
+
+instance Cons0 Hush where
+  cons0 = Hush
+
+instance Cons0 Invert where
+  cons0 = Invert
+
+instance Cons0 MapE where
+  cons0 = MapE
+
+instance Cons0 MapW where
+  cons0 = MapW
+
+instance Cons0 MapWE where
+  cons0 = MapWE
+
+instance Cons0 Say where
+  cons0 = Say
+
+instance Cons0 RunW where
+  cons0 = RunW
+
+instance Cons0 RunS where
+  cons0 = RunS
+
+instance Cons0 RunResult where
+  cons0 = RunResult
+
+instance Cons0 RunR where
+  cons0 = RunR
+
+instance Cons0 RunParser where
+  cons0 = RunParser
+
+instance Cons0 RunEffPromise where
+  cons0 = RunEffPromise
+
+instance Cons0 RunEffA where
+  cons0 = RunEffA
+
+instance Cons0 RunAff where
+  cons0 = RunAff
+
+instance Cons0 Put where
+  cons0 = Put
+
+instance Cons0 (PlusS t) where
+  cons0 = PlusS
+
+instance Cons0 Ok where
+  cons0 = Ok
+
+instance Cons0 Modify where
+  cons0 = Modify
+
+instance Cons0 Get where
+  cons0 = Get
+
+instance Cons0 Set where
+  cons0 = Set
+
+instance Cons0 Ask where
+  cons0 = Ask
+
+instance Cons0 Over where
+  cons0 = Over
+
+instance Cons0 ViewR where
+  cons0 = ViewR
+
+instance Cons0 ViewS where
+  cons0 = ViewS
+
+instance Cons0 PreviewR where
+  cons0 = PreviewR
+
+instance Cons0 PreviewS where
+  cons0 = PreviewS
+
+instance Cons0 ToArrayOfR where
+  cons0 = ToArrayOfR
+
+instance Cons0 ToArrayOfS where
+  cons0 = ToArrayOfS
+
+instance Cons0 Try where
+  cons0 = Try
+
+instance Cons0 TryUntil where
+  cons0 = TryUntil
+
+instance Cons0 WithReturn where
+  cons0 = WithReturn
+
+instance Cons0 Tell where
+  cons0 = Tell
+
+instance Cons0 TellMappedHush where
+  cons0 = TellMappedHush
+
+instance Cons0 TellMappedMHush where
+  cons0 = TellMappedMHush
+
+instance Cons0 Unwrap where
+  cons0 = Unwrap
+
+instance Cons0 (ViewR_ t) where
+  cons0 = ViewR_
+
+instance Cons0 (ViewS_ t) where
+  cons0 = ViewS_
+
+instance Cons0 (PreviewR_ t) where
+  cons0 = PreviewR_
+
+instance Cons0 (PreviewS_ t) where
+  cons0 = PreviewS_
+
+instance Cons0 (ToArrayOfR_ t) where
+  cons0 = ToArrayOfR_
+
+instance Cons0 (ToArrayOfS_ t) where
+  cons0 = ToArrayOfS_
+
+instance Cons0 (Over_ t) where
+  cons0 = Over_
+
+instance Cons0 (Set_ t) where
+  cons0 = Set_
+
+instance Cons0 XApply where
+  cons0 = XApply
+
+class XTLS
+  :: forall k1
+   . Symbol
+  -> k1
+  -> Constraint
+class XTLS sym f | sym -> f
+
+instance XTLS "get" Get
+else instance XTLS "$" XApply
+else instance XTLS "set" Set
+else instance XTLS "evalS" EvalS
+else instance XTLS "evalW" EvalW
+else instance XTLS "execS" ExecS
+else instance XTLS "execW" ExecW
+else instance XTLS "fail" Fail
+else instance XTLS "fromE" FromE
+else instance XTLS "hush" Hush
+else instance XTLS "invert" Invert
+else instance XTLS "mapE" MapE
+else instance XTLS "mapW" MapW
+else instance XTLS "mapWE" MapWE
+else instance XTLS "set" Set
+else instance XTLS "modify" Modify
+else instance XTLS "ok" Ok
+else instance XTLS "put" Put
+else instance XTLS "runAff" RunAff
+else instance XTLS "runEffA" RunEffA
+else instance XTLS "runEffPromise" RunEffPromise
+else instance XTLS "runParser" RunParser
+else instance XTLS "runR" RunR
+else instance XTLS "runResult" RunResult
+else instance XTLS "runS" RunS
+else instance XTLS "runW" RunW
+else instance XTLS "say" Say
+else instance XTLS "over" Over
+else instance XTLS "ask" Ask
+else instance XTLS "viewR" ViewR
+else instance XTLS "viewS" ViewS
+else instance XTLS "previewR" PreviewR
+else instance XTLS "previewS" PreviewS
+else instance XTLS "toArrayOfR" ToArrayOfR
+else instance XTLS "toArrayOfS" ToArrayOfS
+else instance XTLS "try" Try
+else instance XTLS "tryUntil" TryUntil
+else instance XTLS "withReturn" WithReturn
+else instance XTLS "tell" Tell
+else instance XTLS "tellMappedHush" TellMappedHush
+else instance XTLS "unwrap" Unwrap
+else instance XTLS "tellMappedMHush" TellMappedMHush
+else instance
+  ( Symbol.Cons sh stail s
+  , XTLSFull sh stail f
+  ) =>
+  XTLS s f
+
+xtls
+  :: forall @sym o f
+   . Cons0 f
+  => XTLS sym f
+  => RWSEFn f "reader" "writer" "state" "except" o
+  => o
+xtls = rwseApply (cons0 :: f) (px @"reader") (px @"writer") (px @"state")
+  (px @"except")
+
+x
+  :: forall @pp @sym f o
+   . Cons0 f
+  => XTLS sym f
+  => RWSEFn f pp pp pp pp o
+  => o
+x = rwseApply (cons0 :: f) (px @pp) (px @pp) (px @pp) (px @pp)
+
+class XTLSFull sh stail f | sh stail -> f
+
+instance
+  XTLSFull "%" rest (Over_ rest)
+else instance
+  XTLSFull "~" rest (Set_ rest)
+else instance
+  ( Symbol.Cons rest1 rest' rest
+  , XTLSRFull rest1 rest' f
+  ) =>
+  XTLSFull "^" rest f
+else instance
+  ( Symbol.Cons rest1 rest' rest
+  , XTLSSFull rest1 rest' f
+  ) =>
+  XTLSFull "-" rest f
+
+class XTLSRFull sh stail f | sh stail -> f
+
+instance XTLSRFull "." rest (ViewR_ rest)
+else instance XTLSRFull "?" rest (PreviewR_ rest)
+else instance XTLSRFull "*" rest (ToArrayOfR_ rest)
+
+class XTLSSFull sh stail f | sh stail -> f
+
+instance XTLSSFull "." rest (ViewS_ rest)
+else instance XTLSSFull "?" rest (PreviewS_ rest)
+else instance XTLSSFull "*" rest (ToArrayOfS_ rest)
+else instance XTLSSFull "+" rest (PlusS rest)
+
+class SplitSp1 i o1 o2 | i -> o1 o2
+
+instance (XTLSunAt i "" "" "f" o1 o2) => SplitSp1 i o1 o2
+
+class XTLSunAt sym cat cf ct tat tf | sym cat cf ct -> tat tf
+
+class UpCat c cat ct cat' | c cat ct -> cat'
+
+instance UpCat " " cat ct cat
+else instance UpCat c cat "t" cat
+else instance (Symbol.Cons c cat cat') => UpCat c cat "f" cat'
+
+class UpCf c cf ct cf' | c cf ct -> cf'
+
+instance UpCf c cf "f" cf
+else instance (Symbol.Cons c cf cf') => UpCf c cf "t" cf'
+
+class UpCt c ct ct' | c ct -> ct'
+
+instance UpCt " " ct "t"
+else instance UpCt c ct ct
+
+class RevSym s c s' | s c -> s'
+
+instance RevSym "" c c
+else instance
+  ( Symbol.Cons c1 s' s
+  , Symbol.Cons c1 c c'
+  , RevSym s' c' f
+  ) =>
+  RevSym s c f
+
+instance
+  ( RevSym cf "" tf
+  , RevSym cat "" tat
+  ) =>
+  XTLSunAt "" cat cf "t" tat tf
+else instance
+  ( Symbol.Cons c s' s
+  , UpCat c cat ct cat'
+  , UpCf c cf ct cf'
+  , UpCt c ct ct'
+  , XTLSunAt s' cat' cf' ct' tat tf
+  ) =>
+  XTLSunAt s cat cf ct tat tf
+
+instance R_ XD' "reader"
+instance R_ (XDwe w e) "reader"
+instance R_ (XD1 t) t
+
+instance W_ XD' "writer"
+instance W_ (XDwe w e) w
+instance W_ (XD1 t) t
+
+instance S_ XD' "state"
+instance S_ (XDwe w e) "state"
+instance S_ (XD1 t) t
+
+instance E_ XD' "except"
+instance E_ (XDwe w e) e
+instance E_ (XD1 t) t
+
+opViewR_
+  :: forall @sym lhsI o
+   . IsSymbol sym
+  => ((lhsI -> ViewR_ sym) -> o)
+  -> o
+opViewR_ f = f (\_ -> ViewR_ @sym)
+
+infixr 0 opViewR_ as ^@
+
+opPreviewR_
+  :: forall @sym lhsI o
+   . IsSymbol sym
+  => ((lhsI -> PreviewR_ sym) -> o)
+  -> o
+opPreviewR_ f = f (\_ -> PreviewR_ @sym)
+
+infixr 0 opPreviewR_ as ^?@
+
+opToArrayOfR_
+  :: forall @sym lhsI o
+   . IsSymbol sym
+  => ((lhsI -> ToArrayOfR_ sym) -> o)
+  -> o
+opToArrayOfR_ f = f (\_ -> ToArrayOfR_ @sym)
+
+infixr 0 opToArrayOfR_ as ^*@
+
+opViewS_
+  :: forall @sym lhsI o
+   . IsSymbol sym
+  => ((lhsI -> ViewS_ sym) -> o)
+  -> o
+opViewS_ f = f (\_ -> ViewS_ @sym)
+
+infixr 0 opViewS_ as -@
+
+opPreviewS_
+  :: forall @sym lhsI o
+   . IsSymbol sym
+  => ((lhsI -> PreviewS_ sym) -> o)
+  -> o
+opPreviewS_ f = f (\_ -> PreviewS_ @sym)
+
+infixr 0 opPreviewS_ as -?@
+
+opToArrayOfS_
+  :: forall @sym lhsI o
+   . IsSymbol sym
+  => ((lhsI -> ToArrayOfS_ sym) -> o)
+  -> o
+opToArrayOfS_ f = f (\_ -> ToArrayOfS_ @sym)
+
+infixr 0 opToArrayOfS_ as -*@
+
+opOver_
+  :: forall @sym lhsI rhs o
+   . IsSymbol sym
+  => ((lhsI -> Over_ sym) -> rhs -> o)
+  -> rhs
+  -> o
+opOver_ f rhs = f (\_ -> Over_ @sym) rhs
+
+infixr 0 opOver_ as @%
+
+opSet_
+  :: forall @sym lhsI rhs o
+   . IsSymbol sym
+  => ((lhsI -> Set_ sym) -> rhs -> o)
+  -> rhs
+  -> o
+opSet_ f rhs = f (\_ -> Set_ @sym) rhs
+
+infixr 0 opSet_ as @~
+
 px :: forall @k. P.Proxy k
 px = P.Proxy
 
@@ -200,10 +639,9 @@ class RWSEFn f rp wp sp ep o | f rp wp sp ep -> o where
 
 data WithReturn = WithReturn
 
-class XReturnP :: Symbol -> Symbol -> Symbol -> Symbol -> Symbol -> Constraint
 class XReturnP rp wp sp ep fp | rp wp sp ep -> fp
 
-instance XReturnP "reader" "writer" "state" "except" "earlyReturn"
+instance XReturnP rp wp sp ep "earlyReturn"
 else instance XReturnP _r _w _s ep ep
 
 instance
@@ -223,23 +661,25 @@ instance
     onRes (Eor.Left ret) = pure ret
     onRes (Eor.Right ret) = pure ret
 
-newtype XPure a = XPure (R.Run () a)
+newtype XPure a = XPure (X () a)
 
 instance
   RWSEFn (XPure a) _r _w _s _e (R.Run x a) where
-  rwseApply (XPure m) _ _ _ _ = R.expand $ m
+  rwseApply (XPure m) _ _ _ _ = pure $ evalX $ xPass *> m
 
-pureFnX :: forall i a. (i -> R.Run () a) -> i -> XPure a
+pureFnX :: forall i a. (i -> X () a) -> i -> XPure a
 pureFnX f i = XPure $ f i
 
-data Impure = Impure
+xImpure :: forall x a. XPure (X x a) -> X x a
+xImpure (XPure m) = xPass *> R.expand m >>= identity
+
+data XApply = XApply
 
 instance
-  RWSEFn Impure _r _w _s _e (XPure (X x a) -> X x a) where
-  rwseApply Impure _ _ _ _ (XPure m) = do
-    xPass
-    mm <- R.expand m
-    mm
+  ( RWSEFn i rp wp sp ep o
+  ) =>
+  RWSEFn XApply rp wp sp ep (i -> o) where
+  rwseApply _ rp wp sp ep i = rwseApply i rp wp sp ep
 
 --------------------- R/S -----------------------
 
@@ -1011,11 +1451,6 @@ type XFnG rp wp sp ep = forall f o. RWSEFn f rp wp sp ep o => f -> o
 mkXFn :: forall @rp @wp @sp @ep. XFnG rp wp sp ep
 mkXFn f = rwseApply f (px @rp) (px @wp) (px @sp) (px @ep)
 
--- | Runs `class RWSEFn` implementers at the default variant keys:
--- |   "reader" "writer" "state" "except"
-x :: XFnG "reader" "writer" "state" "except"
-x = mkXFn @"reader" @"writer" @"state" @"except"
-
 -- | Runs `class RWSEFn` implementers primarily at the specified variant key
 xAt :: forall @p. XFnG p p p p
 xAt = mkXFn @p @p @p @p
@@ -1040,13 +1475,13 @@ evalX :: forall a. X () a -> a
 evalX m = Unsafe.unsafePerformEffect $ R.runBaseEffect $ R.expand $ runXBase m
 
 runX :: forall e a. X (E e ()) a -> Eor.Either e a
-runX = evalX <<< x Try
+runX = evalX <<< xtls @"try"
 
 evalXA :: forall a. X (A ()) a -> Aff.Aff a
 evalXA m = R.match { aff: \(AffCmd a) -> a } # R.run $ runXBase m
 
 runXA :: forall e a. X (EA e ()) a -> Aff.Aff (Eor.Either e a)
-runXA = evalXA <<< x Try
+runXA = evalXA <<< xtls @"try"
 
 --------------- OTHER ------------------------------------------------------
 
@@ -1059,7 +1494,7 @@ edit init m = R.extract $ RunS.execState init $
 type StrW = X (Wa String ()) Unit
 
 joinStrW :: String -> StrW -> String
-joinStrW s m = StrCommon.joinWith s $ evalX $ x ExecW m
+joinStrW s m = StrCommon.joinWith s $ evalX $ xtls @"execW" m
 
 --------------- E FNS -----------------------------------------------------
 
@@ -1076,7 +1511,7 @@ effectPromiseToAff :: forall a. Eff.Effect (Promise.Promise a) -> Aff.Aff a
 effectPromiseToAff e = EffC.liftEffect e >>= promiseToAff
 
 xTimeout :: forall x. Int -> X (A x) Unit
-xTimeout ms = Z.fDiscard $ x Try $ x RunEffPromise $ js_timeout ms
+xTimeout ms = Z.fDiscard $ xtls @"try" $ xtls @"runEffPromise" $ js_timeout ms
 
 --------------- CORE TYPE ---------------------------------------------------
 

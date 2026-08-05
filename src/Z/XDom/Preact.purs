@@ -123,7 +123,10 @@ type RDom' x fx = GDomFn' IdT x fx Unit
 type XPROPS x = (xProps :: Writer (Array PropWF) | x)
 
 renderX :: XDom () -> ReactEl
-renderX m = js_renderFragment $ evalX $ xAt @XSelf_ RunR baseR $ x ExecW $ m
+renderX m = js_renderFragment $ evalX $ x @XSelf_ @"runR" baseR
+  $ xtls @"execW"
+  $
+    m
   where
   runDisposable mm = let res = evalX mm in \_ -> evalX res
   baseR = { runEls: evalX, runUnit: evalX, runDisposable }
@@ -132,24 +135,26 @@ type DwithKey = forall x. String -> RDom x -> RDom x
 
 dwithKey :: DwithKey
 dwithKey k m = do
-  rn <- xAt @XSelf_ Ask
-  x Say $ js_withKey k $ js_renderFragment $ rn.runEls $ x ExecW
-    $ xAt @XSelf_ RunR rn
+  rn <- x @XSelf_ @"ask"
+  xtls @"say" $ js_withKey k $ js_renderFragment $ rn.runEls $ xtls @"execW"
+    $ x @XSelf_ @"runR" rn
     $ m
 
 infixr 3 dwithKey as <!&
 
-type SetStateFn s = s -> Run () Unit
+type SetStateFn s = s -> X () Unit
 
 type DwithNewState =
   forall x s. s -> (s -> (s -> XPure Unit) -> RDom x) -> RDom x
 
 dwithNewState :: DwithNewState
 dwithNewState initalState fm = do
-  rn <- xAt @XSelf_ Ask
-  x Say $ flip (js_withState pure) initalState (renderFn rn)
+  rn <- x @XSelf_ @"ask"
+  xtls @"say" $ flip (js_withState pure) initalState (renderFn rn)
   where
-  renderFn rn s ss = rn.runEls $ x ExecW $ xAt @XSelf_ RunR rn $ fm s (w ss)
+  renderFn rn s ss = rn.runEls $ xtls @"execW" $ x @XSelf_ @"runR" rn $ fm
+    s
+    (w ss)
   w ss s = XPure $ ss s
 
 type D2withNewState =
@@ -158,9 +163,12 @@ type D2withNewState =
 infixr 3 dwithNewState as <*#
 
 xRawFragment :: forall x. Array ReactEl -> RDom x
-xRawFragment = x Say <<< js_renderFragment
+xRawFragment = xtls @"say" <<< js_renderFragment
 
 data DomRunR = DomRunR
+
+instance Cons0 DomRunR where
+  cons0 = DomRunR
 
 instance
   ( Cons rp (R' r) x' x
@@ -168,18 +176,21 @@ instance
   ) =>
   RWSEFn DomRunR rp wp sp ep (r -> RDom x -> RDom x') where
   rwseApply _ _ _ _ _ env m = do
-    r <- xAt @XSelf_ Ask
-    let runEls = \mm -> r.runEls $ xAt @rp RunR env mm
-    let runUnit = \mm -> r.runUnit $ xAt @rp RunR env mm
+    r <- x @XSelf_ @"ask"
+    let runEls = \mm -> r.runEls $ x @rp @"runR" env mm
+    let runUnit = \mm -> r.runUnit $ x @rp @"runR" env mm
     let
       runDisposable = \mm -> r.runDisposable do
-        mmm <- xAt @rp RunR env mm
-        pure $ xAt @rp RunR env mmm
+        mmm <- x @rp @"runR" env mm
+        pure $ x @rp @"runR" env mmm
 
     let ir = { runEls, runUnit, runDisposable }
-    xRawFragment $ runEls $ x ExecW $ xAt @XSelf_ RunR ir $ m
+    xRawFragment $ runEls $ xtls @"execW" $ x @XSelf_ @"runR" ir $ m
 
 data DomBindE = DomBindE
+
+instance Cons0 DomBindE where
+  cons0 = DomBindE
 
 instance
   ( Cons ep (E' e) x' x
@@ -192,25 +203,29 @@ instance
     ep
     ((e -> RDom x') -> RDom x -> RDom x') where
   rwseApply _ _ _ _ _ em m = do
-    r <- xAt @XSelf_ Ask
-    let runEls = \mm -> r.runEls $ xAt @ep Try mm >>= runEOrEls
-    let runUnit = \mm -> r.runUnit $ fDiscard $ xAt @ep Try mm
+    r <- x @XSelf_ @"ask"
+    let runEls = \mm -> r.runEls $ x @ep @"try" mm >>= runEOrEls
+    let runUnit = \mm -> r.runUnit $ fDiscard $ x @ep @"try" mm
     let runDisposable = \mm -> r.runDisposable $ rd mm
     let ir = { runEls, runUnit, runDisposable }
-    x Say $ js_withBoundedError (rErr r) (rMain ir)
+    xtls @"say" $ js_withBoundedError (rErr r) (rMain ir)
     where
-    rMain rn _ = js_renderFragment $ rn.runEls $ x ExecW $ xAt @XSelf_ RunR rn $
-      m
-    rErr rn e = js_renderFragment $ rn.runEls $ x ExecW $ xAt @XSelf_ RunR rn $
-      em e
+    rMain rn _ = js_renderFragment $ rn.runEls $ xtls @"execW"
+      $ x @XSelf_ @"runR" rn
+      $
+        m
+    rErr rn e = js_renderFragment $ rn.runEls $ xtls @"execW"
+      $ x @XSelf_ @"runR" rn
+      $
+        em e
     runEOrEls (Left e) = js_throwBoundedError e
     runEOrEls (Right v) = pure v
     rd mm = do
-      res <- xAt @ep Try mm
+      res <- x @ep @"try" mm
       case res of
         Left _ -> pure $ pure unit
         Right v -> pure do
-          res' <- xAt @ep Try v
+          res' <- x @ep @"try" v
           case res' of
             Left _ -> pure unit
             Right v' -> pure v'
@@ -238,8 +253,8 @@ type DuseEveryEff' = forall x. Run' x -> RDom x
 
 duseEff :: DuseEff
 duseEff v m = do
-  r <- xAt @XSelf_ Ask
-  x Say $ js_effComponent eq v (\_ -> r.runDisposable $ m) ((#) unit)
+  r <- x @XSelf_ @"ask"
+  xtls @"say" $ js_effComponent eq v (\_ -> r.runDisposable $ m) ((#) unit)
 
 duse1Eff :: Duse1Eff
 duse1Eff = duseEff unit
@@ -332,14 +347,14 @@ del
   -> RDom' x XEl
   -> RDom x
 del s m = do
-  (propWFs /\ elBuild) <- xAt @"xProps" RunW $ x ExecW m
+  (propWFs /\ elBuild) <- x @"xProps" @"runW" $ xtls @"execW" m
   let props = js_propsFromPropWs propWFKey propWFVal propWFs
-  x Say $ js_renderEl s (encodeOpts props) elBuild
+  xtls @"say" $ js_renderEl s (encodeOpts props) elBuild
 
 infixr 3 del as <&
 
 dtext :: forall t x. SText t => t -> RDom x
-dtext t = x Say $ js_textEl $ stext t
+dtext t = xtls @"say" $ js_textEl $ stext t
 
 type DTextW_' x = ((forall t. (SText t) => (t -> StrW)) -> StrW) -> RDom x
 type DTextW_ = forall x. DTextW_' x
@@ -353,7 +368,7 @@ dtextW :: DTextW_
 dtextW = dtextWsep ""
 
 xSayText :: forall t. (SText t) => t -> StrW
-xSayText = x Say <<< stext
+xSayText = xtls @"say" <<< stext
 
 dtextWsp :: DTextW_
 dtextWsp = dtextWsep " "
@@ -362,7 +377,7 @@ dtextWnl :: DTextW_
 dtextWnl = dtextWsep "\n"
 
 dpureText :: forall x. (RDom' x XEl -> RDom x) -> String -> RDom x
-dpureText fm m = fm $ x Say $ js_textEl m
+dpureText fm m = fm $ xtls @"say" $ js_textEl m
 
 dpureTextW :: forall x. (RDom' x XEl -> RDom x) -> DTextW_' x
 dpureTextW fm m = fm $ dtextW m
@@ -455,11 +470,12 @@ da
      , onClick :: forall x. (Int -> Run' x) -> RDom' x XPROPS
      }
 da =
-  { key: xAt @XProps_ Tell <<< pure <<< PKey
-  , cn: xAt @XProps_ Tell <<< pure <<< ClassName
-  , cnW: \fm -> xAt @XProps_ Tell $ pure $ ClassName $ joinStrW " " $ fm $ x Say
-  , href: xAt @XProps_ Tell <<< pure <<< Href
+  { key: x @XProps_ @"tell" <<< pure <<< PKey
+  , cn: x @XProps_ @"tell" <<< pure <<< ClassName
+  , cnW: \fm -> x @XProps_ @"tell" $ pure $ ClassName $ joinStrW " " $ fm $
+      xtls @"say"
+  , href: x @XProps_ @"tell" <<< pure <<< Href
   , onClick: \f -> do
-      r <- xAt @XSelf_ Ask
-      xAt @XProps_ Tell $ pure $ OnClick $ \e -> r.runUnit $ f e
+      r <- x @XSelf_ @"ask"
+      x @XProps_ @"tell" $ pure $ OnClick $ \e -> r.runUnit $ f e
   }

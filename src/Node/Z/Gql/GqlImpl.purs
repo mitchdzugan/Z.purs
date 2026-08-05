@@ -44,8 +44,8 @@ requestGql
   -> String
   -> Json
   -> EA Gql.Error x #> Json
-requestGql apiUrl authToken query vars = x MapE GqlE.NetworkError
-  $ x RunEffPromise
+requestGql apiUrl authToken query vars = xtls @"mapE" GqlE.NetworkError
+  $ xtls @"runEffPromise"
   $ js_requestGql apiUrl authToken query vars
 
 xOperateUnknown
@@ -55,17 +55,18 @@ xOperateUnknown
   -> Client
   -> NetworkControl
   -> WEA (Array GqlW.T) GqlE.T x #> Json
-xOperateUnknown opString vars client networkControl = x WithReturn \xReturn ->
-  do
-    (collisionCount /\ cached) <- getCached cachePath networkControl
-    whenJust cached xReturn
-    when (networkControl == CacheOnly) $ x Fail GqlE.CacheOnlyEmpty
-    xInfo { gql: "submitting operation", op: opHeader, vars }
-    xTimeout 6000
-    res <- requestGql url authTokenJson opString vars
-    let toCache = [ res, fromString opKeyStr ]
-    writeToCache cachePath collisionCount toCache
-    pure res
+xOperateUnknown opString vars client networkControl = xtls @"withReturn"
+  \xReturn ->
+    do
+      (collisionCount /\ cached) <- getCached cachePath networkControl
+      whenJust cached xReturn
+      when (networkControl == CacheOnly) $ xtls @"fail" GqlE.CacheOnlyEmpty
+      xInfo { gql: "submitting operation", op: opHeader, vars }
+      xTimeout 6000
+      res <- requestGql url authTokenJson opString vars
+      let toCache = [ res, fromString opKeyStr ]
+      writeToCache cachePath collisionCount toCache
+      pure res
   where
   { cachePath, authToken, url } = client
   authTokenJson = encodeJson authToken
@@ -83,7 +84,7 @@ xOperateUnknown opString vars client networkControl = x WithReturn \xReturn ->
     (/./) cachePath <<< strJoinWith "." <<< filenameParts
   getCachedRec cachePath collisionCount = do
     let filename = cacheFilename cachePath collisionCount
-    parsed <- x TellMappedMHush mapMDecodeErr $ xDecodeTextFile filename
+    parsed <- xtls @"tellMappedMHush" mapMDecodeErr $ xDecodeTextFile filename
     handleParsed parsed
     where
     mapMDecodeErr e@(DecodeError _) = [ GqlW.CacheDecode e ]
@@ -102,7 +103,7 @@ xOperateUnknown opString vars client networkControl = x WithReturn \xReturn ->
   writeToCache Nothing _ _ = default
   writeToCache (Just cachePath) collisionCount toCache = do
     let filename = cacheFilename cachePath collisionCount
-    x TellMappedHush GqlW.CacheWrite $ xEncodeTextFileP filename toCache
+    xtls @"tellMappedHush" GqlW.CacheWrite $ xEncodeTextFileP filename toCache
 
 data Operation v r = Operation String (JsonEncodeFn v) (JsonDecodeFn r)
 
@@ -125,4 +126,4 @@ xOperate
   -> WEA (Array GqlW.T) GqlE.T x #> res
 xOperate (Operation opString encode decode) vars client networkControl = do
   json <- xOperateUnknown opString (encode vars) client networkControl
-  x MapE GqlE.ResponseTypeError $ x Ok $ decode json
+  xtls @"mapE" GqlE.ResponseTypeError $ xtls @"ok" $ decode json

@@ -18,7 +18,6 @@
               pkgs.entr
               pkgs.esbuild
               pkgs.just
-              pkgs.python3
             ];
             shellHook = ''
               export NODE_OPTIONS="--enable-source-maps"

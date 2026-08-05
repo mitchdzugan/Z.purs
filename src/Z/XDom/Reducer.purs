@@ -19,6 +19,9 @@ type R a s = R' (Tg () a s)
 
 data Dispatch = Dispatch
 
+instance Cons0 Dispatch where
+  cons0 = Dispatch
+
 instance
   ( Cons rp (R' (Tg r a s)) x' x
   , IsSymbol rp
@@ -30,10 +33,13 @@ instance
     ep
     (a -> Z.Run' x) where
   rwseApply _ _ _ _ _ a = do
-    r <- xAt @rp Ask
-    x $ r.set $ r.update r.get a
+    r <- x @rp @"ask"
+    xtls @"$" $ r.set $ r.update r.get a
 
 data Run = Run
+
+instance Cons0 Run where
+  cons0 = Run
 
 instance
   ( Cons rp (R' (T a s)) x' x
@@ -48,4 +54,4 @@ instance
   rwseApply _ _ _ _ _ initState update m = do
     XDom.(<*#) initState \state set -> do
       let env = { set, get: state, update }
-      xAt @rp XDom.DomRunR env m
+      x @rp @"$" XDom.DomRunR env m

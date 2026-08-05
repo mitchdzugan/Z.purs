@@ -37,6 +37,9 @@ export const protocolImpl = (u) => u.protocol;
 /** @type {(u: URL) => string | null} */
 export const searchImpl = (u) => u.search;
 
+export const relativeImpl = (u) =>
+  `${u.pathname || ""}${u.search || ""}${u.hash || ""}`;
+
 /** @type {(u: URL) => URLSearchParams} */
 export const searchParamsImpl = (u) => u.searchParams;
 

@@ -36,10 +36,10 @@ xUseBrowser
 xUseBrowser mapE optsEdit fm = do
   let baseOpts = { exe: Nothing, args: [] }
   let opts = encodeOpts $ edit baseOpts optsEdit
-  browser <- x MapE (mapE Acquire) $ launch opts
-  res <- x Try $ fm browser
-  x MapE (mapE Release) $ close browser
-  x Ok res
+  browser <- xtls @"mapE" (mapE Acquire) $ launch opts
+  res <- xtls @"try" (fm browser)
+  xtls @"mapE" (mapE Release) $ close browser
+  xtls @"ok" res
 
 xUseBrowser'
   :: forall x e a
@@ -49,14 +49,14 @@ xUseBrowser'
 xUseBrowser' = arg2' default xUseBrowser
 
 xNewPage :: forall x. Browser -> EA JsError x #> Page
-xNewPage = x RunEffPromise <<< js_newPage
+xNewPage = xtls @"runEffPromise" <<< js_newPage
 
 xGoto
   :: forall x. Page -> String -> Edit GotoOpts -> EA JsError x #> Unit
 xGoto page url optsEdit = do
   let baseOpts = { waitUntil: Nothing }
   let opts = encodeOpts $ edit baseOpts optsEdit
-  x RunEffPromise $ js_goto url opts page
+  xtls @"runEffPromise" $ js_goto url opts page
 
 xGoto' :: forall x. Page -> String -> EA JsError x #> Unit
 xGoto' = arg3' default xGoto
@@ -68,7 +68,7 @@ xSetViewport
   -> Int
   -> EA JsError x #> Unit
 xSetViewport page width height = do
-  x RunEffPromise $ js_setViewport width height page
+  xtls @"runEffPromise" $ js_setViewport width height page
 
 xWaitForSelector
   :: forall x
@@ -79,7 +79,7 @@ xWaitForSelector
 xWaitForSelector page sel optsEdit = do
   let baseOpts = { timeout: Nothing }
   let opts = encodeOpts $ edit baseOpts optsEdit
-  x RunEffPromise $ js_waitForSelector sel opts page
+  xtls @"runEffPromise" $ js_waitForSelector sel opts page
 
 xWaitForSelector'
   :: forall x
@@ -95,7 +95,7 @@ xEls
   -> String
   -> EA JsError x #> Array Element
 xEls pOrE sel = do
-  els_ <- x RunEffPromise $ js_els sel (asPageOrElement pOrE)
+  els_ <- xtls @"runEffPromise" $ js_els sel (asPageOrElement pOrE)
   pure $ els_ <#> \el_ -> Element ("(" <> context pOrE <> ")[]") el_
 
 xEl
@@ -105,7 +105,7 @@ xEl
   -> String
   -> EA JsError x #> Element
 xEl pOrE sel = do
-  el_ <- x RunEffPromise $ js_el sel (asPageOrElement pOrE)
+  el_ <- xtls @"runEffPromise" $ js_el sel (asPageOrElement pOrE)
   pure $ Element (context pOrE <> " |> ") el_
 
 xInnerText
@@ -113,21 +113,22 @@ xInnerText
    . IsPageOrElement o
   => o
   -> EA JsError x #> String
-xInnerText pOrE = x RunEffPromise $ js_innerText (asPageOrElement pOrE)
+xInnerText pOrE = xtls @"runEffPromise" $ js_innerText (asPageOrElement pOrE)
 
 xInnerHtml
   :: forall x o
    . IsPageOrElement o
   => o
   -> EA JsError x #> String
-xInnerHtml pOrE = x RunEffPromise $ js_innerHtml (asPageOrElement pOrE)
+xInnerHtml pOrE = xtls @"runEffPromise" $ js_innerHtml (asPageOrElement pOrE)
 
 xGetAttribute
   :: forall x
    . Element
   -> String
   -> EA JsError x #> String
-xGetAttribute (Element _ e) attr = x RunEffPromise $ js_getAttribute e attr
+xGetAttribute (Element _ e) attr = xtls @"runEffPromise" $ js_getAttribute e
+  attr
 
 -------------- foreign data imports -----------------------------------
 
@@ -173,10 +174,10 @@ foreign import js_PageOrElement_E :: Element_ -> PageOrElement
 -------------- internal impls -----------------------------------------
 
 launch :: forall x. Json -> EA JsError x #> Browser
-launch = x RunEffPromise <<< js_launchPuppeteer
+launch = xtls @"runEffPromise" <<< js_launchPuppeteer
 
 close :: forall x. Browser -> EA JsError x #> Unit
-close = x RunEffPromise <<< js_browserClose
+close = xtls @"runEffPromise" <<< js_browserClose
 
 -------------- internal types -----------------------------------------
 

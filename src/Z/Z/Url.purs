@@ -5,7 +5,6 @@ module Z.Z.Url
   , (?)
   , Parts
   , Path(..)
-  , pathFromString
   , URL
   , addHash
   , addQuery
@@ -18,18 +17,20 @@ module Z.Z.Url
   , parts
   , password
   , path
+  , pathFromString
   , pathOrURLFromString
   , port
-  , query
-  , setQuery
   , protocol
+  , query
   , queryParamTuple
+  , relative
   , resolve
   , resolveString
   , setHost
   , setPassword
   , setPort
   , setProtocol
+  , setQuery
   , setUsername
   , toString
   , username
@@ -128,6 +129,10 @@ foreign import setPathnameImpl :: String -> URL -> URL
 foreign import setPortImpl :: String -> URL -> URL
 foreign import setProtocolImpl :: String -> URL -> URL
 foreign import setUsernameImpl :: String -> URL -> URL
+foreign import relativeImpl :: URL -> String
+
+relative :: URL -> String
+relative = relativeImpl
 
 fromString :: String -> Maybe URL
 fromString = Nullable.toMaybe <<< fromStringImpl

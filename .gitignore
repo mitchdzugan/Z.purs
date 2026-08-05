@@ -13,3 +13,4 @@
 /target
 /.cache-path
 dist
+/stats.html

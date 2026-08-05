@@ -10,6 +10,8 @@ module Z.Z.Ext
   , module DateTimeInst
   , module Dec
   , module DecodeGeneric
+  , module Dup
+  , module DupP
   , module Effect
   , module EffectClass
   , module Either
@@ -43,6 +45,7 @@ module Z.Z.Ext
   , module RunR
   , module RunS
   , module RunW
+  , module ShowGeneric
   , module Str
   , module Symbol
   , module Tup
@@ -79,6 +82,7 @@ import Data.Maybe (Maybe(..), fromMaybe, fromMaybe', isJust, isNothing, optional
 import Data.Maybe.First (First) as MaybeFirst
 import Data.Monoid (class Monoid) as Monoid
 import Data.Newtype (wrap, unwrap, class Newtype) as Newtype
+import Data.Show.Generic (genericShow) as ShowGeneric
 import Data.String (Pattern(..)) as Str
 import Data.Symbol (class IsSymbol, reifySymbol, reflectSymbol) as Symbol
 import Data.Time.Duration (Milliseconds(..), Hours(..)) as DateTimeDuration
@@ -92,6 +96,8 @@ import Parsing (ParserT) as Parsing
 import Parsing.Combinators ((<|>)) as Prc
 import Prim.Row (class Cons, class Lacks, class Nub, class Union) as Row
 import Record (merge) as Record
+import Routing.Duplex (RouteDuplex, RouteDuplex') as Dup
+import Routing.Duplex.Parser (RouteError) as DupP
 import Run (Run, extract, lift, run, send, on, expand) as Run
 import Run.Except (Except) as RunE
 import Run.Reader (Reader) as RunR

@@ -53,6 +53,8 @@ module Z.Z.Core
   , reduce
   , reduceM
   , resultVal
+  , routeParse
+  , routePrint
   , rtErrExtra
   , rtErrMessage
   , rtErrName
@@ -94,6 +96,15 @@ import Parsing as Parsing
 import Parsing.Combinators as Prc
 import Parsing.String as Prs
 import Parsing.String.Basic as Prsb
+import Routing.Duplex as Dup
+import Routing.Duplex.Parser as DupP
+
+routePrint :: forall i o. Dup.RouteDuplex i o -> i -> String
+routePrint = Dup.print
+
+routeParse
+  :: forall i o. Dup.RouteDuplex i o -> String -> Eor.Either DupP.RouteError o
+routeParse = Dup.parse
 
 type IdT :: forall k. k -> k
 type IdT a = a

@@ -16,14 +16,14 @@ addConfigs
 addConfigs allowFNF wd configPaths = do
   forM_ configPaths \configPath -> do
     let fullPath = wd /.|// configPath
-    xDecodeAnyYamlExt @RecordConfig fullPath # x Try >>= onDecode fullPath
+    xtls @"try" (xDecodeAnyYamlExt @RecordConfig fullPath) >>= onDecode fullPath
   where
   onDecode fullPath (Right c) = do
-    x Modify $ updateEnv c
+    xtls @"modify" $ updateEnv c
     addConfigs false (dirname fullPath) (gmOr'_ @"includes?" c)
   onDecode fp (Left (ReadError _)) = do
-    when (not allowFNF) $ x Fail $ ConfigNotFound $ show fp
-  onDecode _ (Left (DecodeError e)) = x Fail $ ConfigDecodeErr e
+    when (not allowFNF) $ xtls @"fail" $ ConfigNotFound $ show fp
+  onDecode _ (Left (DecodeError e)) = xtls @"fail" $ ConfigDecodeErr e
 
 xRun :: forall x. Array String -> EA Error x ##> Unit
 xRun args = do
@@ -40,7 +40,7 @@ xRun args = do
         /./ "Slippi Launcher"
         /./ "Settings"
   launcherSettings <-
-    xDecodeTextFile @LauncherSettings' launcherSettingsPath # x Try <#>
+    xtls @"try" (xDecodeTextFile @LauncherSettings' launcherSettingsPath) <#>
       hush
   let isoPath = launcherSettings <#> g_ @"settings.isoPath"
   let
@@ -60,10 +60,10 @@ xRun args = do
     let noOptConfigs = arrSize optConfigs == 0
     let baseConfigPath = show $ cfgPath /./ "config"
     let configs = if noOptConfigs then [ baseConfigPath ] else optConfigs
-    envState <- x ExecS envStateInit $ addConfigs noOptConfigs wd configs
+    envState <- xtls @"execS" envStateInit $ addConfigs noOptConfigs wd configs
     env <- finalizeEnv envState opts $ show $ wd /./ "output.mp4"
     xInfo env
-    x RunR env launchAndRecord
+    xtls @"runR" env launchAndRecord
 
 mergeListOps
   :: forall a f. Foldable f => List a -> f (ListOp a) -> List a
@@ -97,7 +97,7 @@ updateEnv cfg st =
 finalizeEnv
   :: forall x. EnvBuildState -> CliOpts -> String -> E Error x #> RecordEnv
 finalizeEnv st (CliOpts opts) defaultOutputPath = do
-  isoPath <- x Ok $ jOrE NoIso st.isoPath
+  isoPath <- xtls @"ok" $ jOrE NoIso st.isoPath
   pure
     { isoPath
     , outputPath: jOr defaultOutputPath opts.outputPath
