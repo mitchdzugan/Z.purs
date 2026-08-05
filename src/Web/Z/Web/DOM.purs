@@ -244,7 +244,7 @@ type XWebEA e x = EA e (XWEB x)
 runXAThenExit
   :: forall @w @e a. RtError e => XWa w (XWebEA e) a -> Effect Unit
 runXAThenExit m = effAffThenExit $ runXA $ do
-  w /\ res <- xtls @"runW" $ expand $ runXWeb m
+  w /\ res <- x' @"runW" $ expand $ runXWeb m
   when (arrSize w > 0) do
     xLogWarning "collected warnings ⌄"
     xLogWarning w

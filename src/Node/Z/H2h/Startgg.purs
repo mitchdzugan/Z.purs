@@ -27,8 +27,8 @@ mapOfJsonElsWithFieldsTypeAnd_t = reduce reducer mapEmpty
   reducer m i = mapSet (g_ @ttype i) (g_ @t i) m
 
 getEventData :: forall x. B.GetDataFn x
-getEventData = B.adaptBuilder $ xtls @"evalS" initState do
-  { slug } <- xtls @"ask"
+getEventData = B.adaptBuilder $ x' @"evalS" initState do
+  { slug } <- x' @"ask"
   { event } <- fetchRawEventData
   let entrantNodes = event.entrants.nodes
   forM_ entrantNodes $ \entrantNode -> do
@@ -57,14 +57,14 @@ getEventData = B.adaptBuilder $ xtls @"evalS" initState do
         , participants
         , standing: { placement: 0, isFinal: false }
         }
-    xtls @"%entrants" $ mapSet entrantId entrant
+    x' @"%entrants" $ mapSet entrantId entrant
   forM_ event.standings.nodes $ \standing -> do
     let entrantId = sOrN standing.entrant.id
-    xtls @"set" (_o_ @"entrants" @"standing" (ix entrantId))
+    x' @"set" (_o_ @"entrants" @"standing" (ix entrantId))
       { placement: standing.placement, isFinal: standing.isFinal }
 
   let rawPgs = arrSortWith (g_ @"id") event.phaseGroups
-  pgs <- forM rawPgs $ \pg -> xtls @"-+sets" (mapEmpty @Int) do
+  pgs <- forM rawPgs $ \pg -> x' @"-+sets" (mapEmpty @Int) do
     { phaseGroup } <- fetchRawPhaseGroupData pg.id
     forM_ phaseGroup.sets.nodes $ \set -> do
       let
@@ -78,7 +78,7 @@ getEventData = B.adaptBuilder $ xtls @"evalS" initState do
           if isNothing set.winnerId then Nothing
           else if isWinA then Just Pos
           else Just Neg
-      slotScoreA /\ slotScoreB <- xtls @"withReturn" \xReturn -> do
+      slotScoreA /\ slotScoreB <- x' @"withReturn" \xReturn -> do
         let games = orDefault set.games
         let winnerIds = games <#> _.winnerId
         let doneGames = arrSize $ arrFilter isJust winnerIds
@@ -93,7 +93,7 @@ getEventData = B.adaptBuilder $ xtls @"evalS" initState do
         pure $ H2h.NoScore /\ H2h.NoScore
       let slotA = { entrantId: eIdA <#> sOrN, score: slotScoreA }
       let slotB = { entrantId: eIdB <#> sOrN, score: slotScoreB }
-      xtls @"set" (_o @"sets" $ at setId) $ Just
+      x' @"set" (_o @"sets" $ at setId) $ Just
         { id: setId
         , roundText: set.fullRoundText
         , overrideScoreText: set.displayScore
@@ -103,7 +103,7 @@ getEventData = B.adaptBuilder $ xtls @"evalS" initState do
         , doesCount: (not isBye) && (not isDQ) && (isJust set.winnerId)
         , slots: slotA ~ slotB
         }
-    { sets } <- xtls @"get"
+    { sets } <- x' @"get"
     pure
       { id: sOrN pg.id
       , displayIdentifier: pg.displayIdentifier
@@ -114,9 +114,9 @@ getEventData = B.adaptBuilder $ xtls @"evalS" initState do
           , phaseOrder: pg.phase.phaseOrder
           }
       }
-  { entrants } <- xtls @"get"
+  { entrants } <- x' @"get"
   let { endAt } = event.tournament
-  date <- xtls @"unwrap" (H2hE.InvalidInstant endAt) do
+  date <- x' @"unwrap" (H2hE.InvalidInstant endAt) do
     instant (Milliseconds (toNumber endAt)) <#> toDateTime
   pure
     { id: sOrN event.id
@@ -136,12 +136,12 @@ getEventData = B.adaptBuilder $ xtls @"evalS" initState do
   where
   initState = { entrants: mapEmpty @SorN @H2h.Entrant }
   fetchRawPhaseGroupData phaseGroupId = do
-    { client, networkControl } <- xtls @"ask"
+    { client, networkControl } <- x' @"ask"
     let initVars = { page: 0, phaseGroupId }
     let pSpecs = [ All.ggPageSpec (__ @"page") (__ @"phaseGroup.sets") ]
-    xtls @"mapWE" H2hW.Gql H2hE.Gql do
+    x' @"mapWE" H2hW.Gql H2hE.Gql do
       All.ggQueryAll Q.phaseGroup initVars pSpecs client networkControl
-  fetchRawEventData = xtls @"tryUntil"
+  fetchRawEventData = x' @"tryUntil"
     (f' Q.eventMaxDataPerReq $ Just Gql.CacheOnly)
     [ const (f' Q.evenMinComplexityPerReq $ Just Gql.CacheOnly)
     , const (f' Q.eventMaxDataPerReq Nothing)
@@ -149,11 +149,11 @@ getEventData = B.adaptBuilder $ xtls @"evalS" initState do
     ]
     where
     f' q ncOverride = do
-      { client, slug } <- xtls @"ask"
-      nc <- xtls @"ask" <#> \r -> jOr r.networkControl ncOverride
+      { client, slug } <- x' @"ask"
+      nc <- x' @"ask" <#> \r -> jOr r.networkControl ncOverride
       let initVars = { pageE: 0, pageS: 0, slug }
       let eSpec = All.ggPageSpec (__ @"pageE") (__ @"event.entrants")
       let sSpec = All.ggPageSpec (__ @"pageS") (__ @"event.standings")
       let pSpecs = [ eSpec, sSpec ]
-      xtls @"mapWE" H2hW.Gql H2hE.Gql do
+      x' @"mapWE" H2hW.Gql H2hE.Gql do
         All.ggQueryAll q initVars pSpecs client nc

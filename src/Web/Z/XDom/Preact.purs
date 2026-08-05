@@ -12,7 +12,7 @@ import Web.Z.Prelude
 foreign import js_renderIn :: XD.ReactEl -> Element -> Effect (Promise Unit)
 
 xPreactHydrate :: forall x. Element -> XD.ReactEl -> EA JsError x #> Unit
-xPreactHydrate d r = xtls @"runEffPromise" $ js_renderIn r d
+xPreactHydrate d r = x' @"runEffPromise" $ js_renderIn r d
 
 xDomRunWeb :: forall x. XD.RDom (DOM.XWEB x) -> XD.RDom x
 xDomRunWeb m = do
@@ -24,7 +24,7 @@ xDomRunWeb m = do
       mmm <- DOM.runXWeb mm
       pure $ DOM.runXWeb mmm
   let ir = { runEls, runUnit, runDisposable }
-  XD.xRawFragment $ runEls $ xtls @"execW" $ x @XD.XSelf_ @"runR" ir m
+  XD.xRawFragment $ runEls $ x' @"execW" $ x @XD.XSelf_ @"runR" ir m
 
 xProvideHistoryX
   :: forall x
@@ -39,7 +39,7 @@ xProvideHistoryX toTitleOr_ fx = do
     XD.d.use1Eff do
       doc <- xDocument
       win <- xWindow
-      let xUpUrl = xLocationUrl >>= xtls @"$" <<< setSt <<< UrlSt.mk toTitleOr_
+      let xUpUrl = xLocationUrl >>= x' @"$" <<< setSt <<< UrlSt.mk toTitleOr_
       let { pushState, popState } = eventType
       iPopOff <- xAddEventListener popState win default \_ -> xUpUrl
       iPushOff <- xAddEventListener pushState win default \_ -> xUpUrl
@@ -59,6 +59,6 @@ xProvideHistoryX toTitleOr_ fx = do
                   xPushState href newUrl.titleOr_
                   xOut newUrl.titleOr_
                   whenJust newUrl.titleOr_ xSetDocumentTitle
-                  xtls @"$" $ setSt newUrl
+                  x' @"$" $ setSt newUrl
       pure $ xImpure iPopOff *> xImpure iPushOff *> xImpure iClickOff
     fx st

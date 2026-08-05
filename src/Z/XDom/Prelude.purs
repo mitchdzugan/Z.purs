@@ -21,13 +21,13 @@ class XDomTLS sym f | sym -> f
 
 instance XDomTLS "bindE" XDom.DomBindE
 else instance XDomTLS "runR" XDom.DomRunR
-else instance XDomTLS "routeOrE" Rt.RouteOrE
-else instance XDomTLS "routeHref" Rt.HrefAttr
-else instance XDomTLS "runRouter" Rt.Run
+else instance XDomTLS "Router.routeOrE" Rt.RouteOrE
+else instance XDomTLS "Router.href" Rt.HrefAttr
+else instance XDomTLS "Router.run" Rt.Run
 else instance XDomTLS "get" St.Get
 else instance XDomTLS "set" St.Set
-else instance XDomTLS "runState" St.Run
-else instance XDomTLS "runReducer" Rdc.Run
+else instance XDomTLS "State.run" St.Run
+else instance XDomTLS "Reducer.run" Rdc.Run
 else instance XDomTLS "dispatch" Rdc.Dispatch
 
 xdom'

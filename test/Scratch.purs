@@ -11,7 +11,7 @@ main = runXAThenExit do
   -- b <- xReadFile "/home/dz/Slippi/Game_20260709T183630.slp"
   -- let game = SlpRead.game b
   -- xInfo $ SlpRead.stats game
-  _ <- xtls @"fail" $ jsError "asdf" "adf"
+  _ <- x' @"fail" $ jsError "asdf" "adf"
   xInfo $ key
     [ key (-1)
     , key (0 /\ 3)

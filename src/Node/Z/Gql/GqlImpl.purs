@@ -44,8 +44,8 @@ requestGql
   -> String
   -> Json
   -> EA Gql.Error x #> Json
-requestGql apiUrl authToken query vars = xtls @"mapE" GqlE.NetworkError
-  $ xtls @"runEffPromise"
+requestGql apiUrl authToken query vars = x' @"mapE" GqlE.NetworkError
+  $ x' @"runEffPromise"
   $ js_requestGql apiUrl authToken query vars
 
 xOperateUnknown
@@ -55,12 +55,12 @@ xOperateUnknown
   -> Client
   -> NetworkControl
   -> WEA (Array GqlW.T) GqlE.T x #> Json
-xOperateUnknown opString vars client networkControl = xtls @"withReturn"
+xOperateUnknown opString vars client networkControl = x' @"withReturn"
   \xReturn ->
     do
       (collisionCount /\ cached) <- getCached cachePath networkControl
       whenJust cached xReturn
-      when (networkControl == CacheOnly) $ xtls @"fail" GqlE.CacheOnlyEmpty
+      when (networkControl == CacheOnly) $ x' @"fail" GqlE.CacheOnlyEmpty
       xInfo { gql: "submitting operation", op: opHeader, vars }
       xTimeout 6000
       res <- requestGql url authTokenJson opString vars
@@ -84,7 +84,7 @@ xOperateUnknown opString vars client networkControl = xtls @"withReturn"
     (/./) cachePath <<< strJoinWith "." <<< filenameParts
   getCachedRec cachePath collisionCount = do
     let filename = cacheFilename cachePath collisionCount
-    parsed <- xtls @"tellMappedMHush" mapMDecodeErr $ xDecodeTextFile filename
+    parsed <- x' @"tellMappedMHush" mapMDecodeErr $ xDecodeTextFile filename
     handleParsed parsed
     where
     mapMDecodeErr e@(DecodeError _) = [ GqlW.CacheDecode e ]
@@ -103,7 +103,7 @@ xOperateUnknown opString vars client networkControl = xtls @"withReturn"
   writeToCache Nothing _ _ = default
   writeToCache (Just cachePath) collisionCount toCache = do
     let filename = cacheFilename cachePath collisionCount
-    xtls @"tellMappedHush" GqlW.CacheWrite $ xEncodeTextFileP filename toCache
+    x' @"tellMappedHush" GqlW.CacheWrite $ xEncodeTextFileP filename toCache
 
 data Operation v r = Operation String (JsonEncodeFn v) (JsonDecodeFn r)
 
@@ -126,4 +126,4 @@ xOperate
   -> WEA (Array GqlW.T) GqlE.T x #> res
 xOperate (Operation opString encode decode) vars client networkControl = do
   json <- xOperateUnknown opString (encode vars) client networkControl
-  xtls @"mapE" GqlE.ResponseTypeError $ xtls @"ok" $ decode json
+  x' @"mapE" GqlE.ResponseTypeError $ x' @"ok" $ decode json

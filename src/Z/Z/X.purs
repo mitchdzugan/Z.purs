@@ -176,7 +176,7 @@ module Z.Z.X
   , xOutErr
   , xPass
   , xTimeout
-  , xtls
+  , x'
   , x
   ) where
 
@@ -444,13 +444,13 @@ else instance
   ) =>
   XTLS s f
 
-xtls
+x'
   :: forall @sym o f
    . Cons0 f
   => XTLS sym f
   => RWSEFn f "reader" "writer" "state" "except" o
   => o
-xtls = rwseApply (cons0 :: f) (px @"reader") (px @"writer") (px @"state")
+x' = rwseApply (cons0 :: f) (px @"reader") (px @"writer") (px @"state")
   (px @"except")
 
 x
@@ -1475,13 +1475,13 @@ evalX :: forall a. X () a -> a
 evalX m = Unsafe.unsafePerformEffect $ R.runBaseEffect $ R.expand $ runXBase m
 
 runX :: forall e a. X (E e ()) a -> Eor.Either e a
-runX = evalX <<< xtls @"try"
+runX = evalX <<< x' @"try"
 
 evalXA :: forall a. X (A ()) a -> Aff.Aff a
 evalXA m = R.match { aff: \(AffCmd a) -> a } # R.run $ runXBase m
 
 runXA :: forall e a. X (EA e ()) a -> Aff.Aff (Eor.Either e a)
-runXA = evalXA <<< xtls @"try"
+runXA = evalXA <<< x' @"try"
 
 --------------- OTHER ------------------------------------------------------
 
@@ -1494,7 +1494,7 @@ edit init m = R.extract $ RunS.execState init $
 type StrW = X (Wa String ()) Unit
 
 joinStrW :: String -> StrW -> String
-joinStrW s m = StrCommon.joinWith s $ evalX $ xtls @"execW" m
+joinStrW s m = StrCommon.joinWith s $ evalX $ x' @"execW" m
 
 --------------- E FNS -----------------------------------------------------
 
@@ -1511,7 +1511,7 @@ effectPromiseToAff :: forall a. Eff.Effect (Promise.Promise a) -> Aff.Aff a
 effectPromiseToAff e = EffC.liftEffect e >>= promiseToAff
 
 xTimeout :: forall x. Int -> X (A x) Unit
-xTimeout ms = Z.fDiscard $ xtls @"try" $ xtls @"runEffPromise" $ js_timeout ms
+xTimeout ms = Z.fDiscard $ x' @"try" $ x' @"runEffPromise" $ js_timeout ms
 
 --------------- CORE TYPE ---------------------------------------------------
 

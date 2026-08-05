@@ -14,13 +14,13 @@ import Node.Z.H2h.Builder as B
 import Node.Z.Puppeteer as P
 
 getEventData :: forall x. B.GetDataFn x
-getEventData = B.adaptBuilder $ xtls @"withReturn" \xReturn -> do
-  { client, networkControl, slug } <- xtls @"ask"
+getEventData = B.adaptBuilder $ x' @"withReturn" \xReturn -> do
+  { client, networkControl, slug } <- x' @"ask"
   let { cachePath } = client
   let eCacheOnlyEmpty = H2hE.Gql GqlE.CacheOnlyEmpty
   cached <- getCached slug cachePath networkControl
   whenJust cached xReturn
-  when (networkControl == Gql.CacheOnly) $ xtls @"fail" eCacheOnlyEmpty
+  when (networkControl == Gql.CacheOnly) $ x' @"fail" eCacheOnlyEmpty
   res <- getEventDataImpl
   writeToCache slug cachePath res
   pure res
@@ -28,12 +28,12 @@ getEventData = B.adaptBuilder $ xtls @"withReturn" \xReturn -> do
   fullPath slug path = path /./ ("CHALLONGE-" <> slug <> ".json")
   writeToCache _ Nothing _ = pure unit
   writeToCache slug (Just path) res =
-    xtls @"tellMappedHush" (H2hW.Gql <<< GqlW.CacheWrite) $ xEncodeTextFileP
+    x' @"tellMappedHush" (H2hW.Gql <<< GqlW.CacheWrite) $ xEncodeTextFileP
       (fullPath slug path)
       res
   getCached _ Nothing _ = pure Nothing
   getCached _ _ Gql.ForceFetch = pure Nothing
-  getCached slug (Just path) _ = xtls @"tellMappedMHush" mapMDecodeErr
+  getCached slug (Just path) _ = x' @"tellMappedMHush" mapMDecodeErr
     $ xDecodeTextFile
     $ fullPath slug path
   mapMDecodeErr e@(DecodeError _) = [ H2hW.Gql $ GqlW.CacheDecode e ]
@@ -46,15 +46,15 @@ getEventDataImpl = do
     page <- pDo "newPage" "" $ P.xNewPage browser
     xInfo { op: "xSetViewport" }
     pDo "xSetViewport" "1920x1080" $ P.xSetViewport page 1920 1080
-    { slug } <- xtls @"ask"
+    { slug } <- x' @"ask"
     let url = "https://challonge.com/" <> slug
     xInfo { op: "xGoto", url }
-    pDo "xGoto" url $ P.xGoto page url $ xtls @"~waitUntil" $ Just
+    pDo "xGoto" url $ P.xGoto page url $ x' @"~waitUntil" $ Just
       P.DOMContentLoaded
     pWaitFor page ".redesigned-meta-list .item .text"
     pWaitFor page ".title #title"
     pWaitFor page ".bracket-svg .match .match--player"
-    xtls @"evalS" initialState $ readPageData page
+    x' @"evalS" initialState $ readPageData page
   where
   initialState =
     { isDE: false
@@ -65,31 +65,31 @@ getEventDataImpl = do
     }
 
   readPageData page = do
-    { slug } <- xtls @"ask"
+    { slug } <- x' @"ask"
     itemEls <- pEls page ".redesigned-meta-list .item"
     forM_ itemEls $ \el -> do
       itemLabel <- pEl el ".item-label" >>= pInnerText
       itemText <- pEl el ".text" >>= pInnerText
       when (itemLabel == "Start Time" || itemLabel == "Start") do
-        date <- xtls @"mapE" H2hE.ParseTime $ xtls @"runParser" itemText
+        date <- x' @"mapE" H2hE.ParseTime $ x' @"runParser" itemText
           parseDate
-        xtls @"~dateOrE" $ Right date
+        x' @"~dateOrE" $ Right date
         pure unit
       when (itemLabel == "Game") do
-        xtls @"~nameOrE" $ Right itemText
+        x' @"~nameOrE" $ Right itemText
       when (itemLabel == "Format") do
-        xtls @"~isDE" $ itemText == "Double Elimination"
-    name <- xtls @"-.nameOrE" >>= xtls @"ok"
-    date <- xtls @"-.dateOrE" >>= xtls @"ok"
-    isDE <- xtls @"-.isDE"
+        x' @"~isDE" $ itemText == "Double Elimination"
+    name <- x' @"-.nameOrE" >>= x' @"ok"
+    date <- x' @"-.dateOrE" >>= x' @"ok"
+    isDE <- x' @"-.isDE"
     tournamentName <- pEl page ".title #title" >>= pInnerText
     bracketEls <- pEls page ".bracket-svg"
     forM_ bracketEls $ \bracketEl -> do
       matchEls <- pEls bracketEl ".match"
-      forM_ matchEls $ \matchEl -> xtls @"-+winnerId" Nothing do
-        setId <- pReadDataAttr matchEl "match" >>= \s -> xtls @"mapE"
+      forM_ matchEls $ \matchEl -> x' @"-+winnerId" Nothing do
+        setId <- pReadDataAttr matchEl "match" >>= \s -> x' @"mapE"
           H2hE.ParseTime
-          (xtls @"runParser" s parseInt)
+          (x' @"runParser" s parseInt)
         playerEls <- pEls matchEl ".match--player"
         slots <- forM playerEls $ \playerEl -> do
           entrantId <- pReadIdDataAttr playerEl "participant"
@@ -97,11 +97,11 @@ getEventDataImpl = do
           scoreEl <- pEl playerEl ".match--player-score"
           scoreClass <- pGetAttribute scoreEl "class"
           scoreS <- pInnerHtml scoreEl
-          score <- xtls @"mapE" H2hE.ParseTime do
-            xtls @"runParser" scoreS parseInt <#> H2h.mkScoreCount
+          score <- x' @"mapE" H2hE.ParseTime do
+            x' @"runParser" scoreS parseInt <#> H2h.mkScoreCount
           forM_ (strSplit (Pattern " ") scoreClass) $ \cn -> do
-            when (cn == "-winner") $ xtls @"~winnerId" $ Just entrantId
-          xtls @"set" (_o @"entrants" $ at entrantId) $ Just
+            when (cn == "-winner") $ x' @"~winnerId" $ Just entrantId
+          x' @"set" (_o @"entrants" $ at entrantId) $ Just
             { id: entrantId
             , standing: { placement: 0, isFinal: false }
             , participants:
@@ -124,19 +124,19 @@ getEventDataImpl = do
         let emptySlot = { entrantId: Nothing, score: H2h.NoScore }
         let slotA = jOr emptySlot (nth slots 0)
         let slotB = jOr emptySlot (nth slots 1)
-        winnerId <- xtls @"-.winnerId"
+        winnerId <- x' @"-.winnerId"
         let
           winner =
             if isNothing winnerId then Nothing
             else if winnerId == slotA.entrantId then Just Pos
             else Just Neg
         let baseSet = { winner, id: setId, slots: slotA ~ slotB }
-        xtls @"%baseSets" (mapSet setId baseSet)
-    baseSetList <- xtls @"-.baseSets"
+        x' @"%baseSets" (mapSet setId baseSet)
+    baseSetList <- x' @"-.baseSets"
       <#> arrReverse
       <<< arrSortWith (g_ @"id")
       <<< arrFromFoldable
-    isComplete <- xtls @"withReturn" \xReturn -> do
+    isComplete <- x' @"withReturn" \xReturn -> do
       forM_ baseSetList $ \baseSet -> do
         when (isNothing baseSet.winner) (xReturn false)
       pure true
@@ -166,7 +166,7 @@ getEventDataImpl = do
               x @"setsLoop" @"over"
                 (if isGrands then __ @"gfEIds" else __ @"nonGfEIds")
         { gfEIds, nonGfEIds } <- x @"setsLoop" @"get"
-        seenAllGFEntrants <- xtls @"withReturn" \xReturn -> do
+        seenAllGFEntrants <- x' @"withReturn" \xReturn -> do
           forM_ (arrFromFoldable gfEIds) $ \id -> do
             when (not (setHas id nonGfEIds)) (xReturn false)
           pure true
@@ -181,7 +181,7 @@ getEventDataImpl = do
         whenJust slotA.entrantId \eA -> whenJust slotB.entrantId \eB -> do
           whenJust baseSet.winner \w -> when isComplete do
             let
-              setFinStanding = \id placement -> xtls @"set"
+              setFinStanding = \id placement -> x' @"set"
                 (_o_ @"entrants" @"standing" $ ix id)
                 { placement, isFinal: true }
             let wId ~ lId = if w == Pos then eA ~ eB else eB ~ eA
@@ -227,7 +227,7 @@ getEventDataImpl = do
     let wSets = arrFilter (Round.isWinners <<< g_ @"round") roundSets
     let maxWR = jOr0 $ maximum $ wSets <#> Round.roundTypeInd <<< g_ @"round"
     let maxLR = jOr0 $ maximum $ lSets <#> Round.roundTypeInd <<< g_ @"round"
-    { entrants } <- xtls @"get"
+    { entrants } <- x' @"get"
     let profileImageUrl = "https://i.imgur.com/7MsdKge.jpeg"
     let
       mkSet = \rs -> rs.set `(~.) @"roundText"` roundLabel rs.round maxWR maxLR
@@ -256,7 +256,7 @@ getEventDataImpl = do
       }
   browserOpts = do
     let uaOpt = "--user-agent=" <> userAgent
-    xtls @"~args" [ uaOpt, "--no-sandbox", "--disable-setuid-sandbox" ]
+    x' @"~args" [ uaOpt, "--no-sandbox", "--disable-setuid-sandbox" ]
   mSlotsKey (Just { slots: (eA ~ eB) }) =
     strJoinWith "|" $ arrSort
       [ mEntrantIdKey eA.entrantId, mEntrantIdKey eB.entrantId ]
@@ -288,7 +288,7 @@ getEventDataImpl = do
     -> String
     -> E JsError + EA H2hE.T xx #> a
     -> EA H2hE.T xx #> a
-  pDo s1 s2 m = xtls @"mapE" (H2hE.Puppeteer s1 s2) m
+  pDo s1 s2 m = x' @"mapE" (H2hE.Puppeteer s1 s2) m
 
   pDoPorE
     :: forall xx pOrE a
@@ -297,7 +297,7 @@ getEventDataImpl = do
     -> String
     -> E JsError + EA H2hE.T xx #> a
     -> EA H2hE.T xx #> a
-  pDoPorE pOrE s m = xtls @"mapE" (H2hE.Puppeteer (P.context pOrE) s) m
+  pDoPorE pOrE s m = x' @"mapE" (H2hE.Puppeteer (P.context pOrE) s) m
 
   pEls
     :: forall xx pOrE
@@ -323,7 +323,7 @@ getEventDataImpl = do
   pReadIdDataAttr e n = pReadDataAttr e n <#> sOrN
   pWaitFor page sel = pDo "waitFor" sel do
     xInfo { op: "waitFor", sel }
-    P.xWaitForSelector page sel $ xtls @"~timeout" $ Just 120000
+    P.xWaitForSelector page sel $ x' @"~timeout" $ Just 120000
 
 userAgent :: String
 userAgent =

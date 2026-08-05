@@ -51,7 +51,7 @@ instance
     (s -> Z.Run' x) where
   rwseApply _ _ _ _ _ s = do
     r <- x @rp @"ask"
-    xtls @"$" $ r.set s
+    x' @"$" $ r.set s
 
 data Run = Run
 

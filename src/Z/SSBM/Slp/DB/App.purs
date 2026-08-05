@@ -24,20 +24,20 @@ xOnE message = do
       d.text "reset"
 
 xApp :: forall x. UrlSt.XProvider x -> XDom x
-xApp = xdom' @"runRouter" route (\{ url } -> Just $ urlToString url) do
-  r <- xdom' @"routeOrE"
+xApp = xdom' @"Router.run" route (\{ url } -> Just $ urlToString url) do
+  r <- xdom' @"Router.routeOrE"
   xOut $ show r
   d.div do
     da.cn "flex flex-col gap-4"
     d.div $ d.a do
       da.cn "btn link btn-primary"
-      xdom' @"routeHref" $ Profile "Jimmy"
+      xdom' @"Router.href" $ Profile "Jimmy"
       d.text "profile link"
-    d.div $ xdom @"count" @"runReducer" 3 countAct $ xdom' @"bindE" xOnE do
+    d.div $ xdom @"count" @"Reducer.run" 3 countAct $ xdom' @"bindE" xOnE do
       count <- xdom @"count" @"get"
       d.div do
         da.key "asdfasdfasdfasdf..."
-        when (count < 0) do xtls @"fail" "negative number invalid"
+        when (count < 0) do x' @"fail" "negative number invalid"
         d.a do
           da.href "/#23145"
           d.text "link"
