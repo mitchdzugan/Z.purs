@@ -36,10 +36,10 @@ xUseBrowser
 xUseBrowser mapE optsEdit fm = do
   let baseOpts = { exe: Nothing, args: [] }
   let opts = encodeOpts $ edit baseOpts optsEdit
-  browser <- x' @"mapE" (mapE Acquire) $ launch opts
-  res <- x' @"try" (fm browser)
-  x' @"mapE" (mapE Release) $ close browser
-  x' @"ok" res
+  browser <- mkDim @MapE (mapE Acquire) $ launch opts
+  res <- mkDim @Try (fm browser)
+  mkDim @MapE (mapE Release) $ close browser
+  mkDim @Ok res
 
 xUseBrowser'
   :: forall x e a

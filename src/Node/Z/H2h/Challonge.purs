@@ -20,7 +20,7 @@ getEventData = B.adaptBuilder $ x' @"withReturn" \xReturn -> do
   let eCacheOnlyEmpty = H2hE.Gql GqlE.CacheOnlyEmpty
   cached <- getCached slug cachePath networkControl
   whenJust cached xReturn
-  when (networkControl == Gql.CacheOnly) $ x' @"fail" eCacheOnlyEmpty
+  when (networkControl == Gql.CacheOnly) $ mkDim @Fail eCacheOnlyEmpty
   res <- getEventDataImpl
   writeToCache slug cachePath res
   pure res
@@ -71,7 +71,7 @@ getEventDataImpl = do
       itemLabel <- pEl el ".item-label" >>= pInnerText
       itemText <- pEl el ".text" >>= pInnerText
       when (itemLabel == "Start Time" || itemLabel == "Start") do
-        date <- x' @"mapE" H2hE.ParseTime $ x' @"runParser" itemText
+        date <- mkDim @MapE H2hE.ParseTime $ mkDim @RunParser itemText
           parseDate
         x' @"~dateOrE" $ Right date
         pure unit
@@ -87,9 +87,9 @@ getEventDataImpl = do
     forM_ bracketEls $ \bracketEl -> do
       matchEls <- pEls bracketEl ".match"
       forM_ matchEls $ \matchEl -> x' @"-+winnerId" Nothing do
-        setId <- pReadDataAttr matchEl "match" >>= \s -> x' @"mapE"
+        setId <- pReadDataAttr matchEl "match" >>= \s -> mkDim @MapE
           H2hE.ParseTime
-          (x' @"runParser" s parseInt)
+          (mkDim @RunParser s parseInt)
         playerEls <- pEls matchEl ".match--player"
         slots <- forM playerEls $ \playerEl -> do
           entrantId <- pReadIdDataAttr playerEl "participant"
@@ -97,8 +97,8 @@ getEventDataImpl = do
           scoreEl <- pEl playerEl ".match--player-score"
           scoreClass <- pGetAttribute scoreEl "class"
           scoreS <- pInnerHtml scoreEl
-          score <- x' @"mapE" H2hE.ParseTime do
-            x' @"runParser" scoreS parseInt <#> H2h.mkScoreCount
+          score <- mkDim @MapE H2hE.ParseTime do
+            mkDim @RunParser scoreS parseInt <#> H2h.mkScoreCount
           forM_ (strSplit (Pattern " ") scoreClass) $ \cn -> do
             when (cn == "-winner") $ x' @"~winnerId" $ Just entrantId
           x' @"set" (_o @"entrants" $ at entrantId) $ Just
@@ -150,7 +150,7 @@ getEventDataImpl = do
         , gfEIds: setEmpty @SorN
         , nonGfEIds: setEmpty @SorN
         }
-    roundSets <- x @"setsLoop" @"evalS" setsLoopState $ do
+    roundSets <- mkDimAt @"setsLoop" @EvalS setsLoopState $ do
       roundSets' <- forM baseSetList $ \baseSet -> do
         { prev, isDropRound } <- x @"setsLoop" @"get"
         let prevSet = prev <#> \p -> p.base
@@ -288,7 +288,7 @@ getEventDataImpl = do
     -> String
     -> E JsError + EA H2hE.T xx #> a
     -> EA H2hE.T xx #> a
-  pDo s1 s2 m = x' @"mapE" (H2hE.Puppeteer s1 s2) m
+  pDo s1 s2 m = mkDim @MapE (H2hE.Puppeteer s1 s2) m
 
   pDoPorE
     :: forall xx pOrE a
@@ -297,7 +297,7 @@ getEventDataImpl = do
     -> String
     -> E JsError + EA H2hE.T xx #> a
     -> EA H2hE.T xx #> a
-  pDoPorE pOrE s m = x' @"mapE" (H2hE.Puppeteer (P.context pOrE) s) m
+  pDoPorE pOrE s m = mkDim @MapE (H2hE.Puppeteer (P.context pOrE) s) m
 
   pEls
     :: forall xx pOrE

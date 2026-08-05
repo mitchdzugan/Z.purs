@@ -136,7 +136,7 @@ type DwithKey = forall x. String -> RDom x -> RDom x
 dwithKey :: DwithKey
 dwithKey k m = do
   rn <- x @XSelf_ @"ask"
-  x' @"say" $ js_withKey k $ js_renderFragment $ rn.runEls $ x' @"execW"
+  mkDim @Say $ js_withKey k $ js_renderFragment $ rn.runEls $ x' @"execW"
     $ x @XSelf_ @"runR" rn
     $ m
 
@@ -150,9 +150,9 @@ type DwithNewState =
 dwithNewState :: DwithNewState
 dwithNewState initalState fm = do
   rn <- x @XSelf_ @"ask"
-  x' @"say" $ flip (js_withState pure) initalState (renderFn rn)
+  mkDim @Say $ flip (js_withState pure) initalState (renderFn rn)
   where
-  renderFn rn s ss = rn.runEls $ x' @"execW" $ x @XSelf_ @"runR" rn $ fm
+  renderFn rn s ss = rn.runEls $ mkDim @ExecW $ x @XSelf_ @"runR" rn $ fm
     s
     (w ss)
   w ss s = XPure $ ss s
@@ -163,7 +163,7 @@ type D2withNewState =
 infixr 3 dwithNewState as <*#
 
 xRawFragment :: forall x. Array ReactEl -> RDom x
-xRawFragment = x' @"say" <<< js_renderFragment
+xRawFragment = mkDim @Say <<< js_renderFragment
 
 data DomRunR = DomRunR
 
@@ -208,7 +208,7 @@ instance
     let runUnit = \mm -> r.runUnit $ fDiscard $ x @ep @"try" mm
     let runDisposable = \mm -> r.runDisposable $ rd mm
     let ir = { runEls, runUnit, runDisposable }
-    x' @"say" $ js_withBoundedError (rErr r) (rMain ir)
+    mkDim @Say $ js_withBoundedError (rErr r) (rMain ir)
     where
     rMain rn _ = js_renderFragment $ rn.runEls $ x' @"execW"
       $ x @XSelf_ @"runR" rn
@@ -254,7 +254,7 @@ type DuseEveryEff' = forall x. Run' x -> RDom x
 duseEff :: DuseEff
 duseEff v m = do
   r <- x @XSelf_ @"ask"
-  x' @"say" $ js_effComponent eq v (\_ -> r.runDisposable $ m) ((#) unit)
+  mkDim @Say $ js_effComponent eq v (\_ -> r.runDisposable $ m) ((#) unit)
 
 duse1Eff :: Duse1Eff
 duse1Eff = duseEff unit
@@ -349,12 +349,12 @@ del
 del s m = do
   (propWFs /\ elBuild) <- x @"xProps" @"runW" $ x' @"execW" m
   let props = js_propsFromPropWs propWFKey propWFVal propWFs
-  x' @"say" $ js_renderEl s (encodeOpts props) elBuild
+  mkDim @Say $ js_renderEl s (encodeOpts props) elBuild
 
 infixr 3 del as <&
 
 dtext :: forall t x. SText t => t -> RDom x
-dtext t = x' @"say" $ js_textEl $ stext t
+dtext t = mkDim @Say $ js_textEl $ stext t
 
 type DTextW_' x = ((forall t. (SText t) => (t -> StrW)) -> StrW) -> RDom x
 type DTextW_ = forall x. DTextW_' x
@@ -368,7 +368,7 @@ dtextW :: DTextW_
 dtextW = dtextWsep ""
 
 xSayText :: forall t. (SText t) => t -> StrW
-xSayText = x' @"say" <<< stext
+xSayText = mkDim @Say <<< stext
 
 dtextWsp :: DTextW_
 dtextWsp = dtextWsep " "
@@ -377,7 +377,7 @@ dtextWnl :: DTextW_
 dtextWnl = dtextWsep "\n"
 
 dpureText :: forall x. (RDom' x XEl -> RDom x) -> String -> RDom x
-dpureText fm m = fm $ x' @"say" $ js_textEl m
+dpureText fm m = fm $ mkDim @Say $ js_textEl m
 
 dpureTextW :: forall x. (RDom' x XEl -> RDom x) -> DTextW_' x
 dpureTextW fm m = fm $ dtextW m
@@ -470,12 +470,12 @@ da
      , onClick :: forall x. (Int -> Run' x) -> RDom' x XPROPS
      }
 da =
-  { key: x @XProps_ @"tell" <<< pure <<< PKey
-  , cn: x @XProps_ @"tell" <<< pure <<< ClassName
-  , cnW: \fm -> x @XProps_ @"tell" $ pure $ ClassName $ joinStrW " " $ fm $
-      x' @"say"
-  , href: x @XProps_ @"tell" <<< pure <<< Href
+  { key: mkDimAt @XProps_ @Tell <<< pure <<< PKey
+  , cn: mkDimAt @XProps_ @Tell <<< pure <<< ClassName
+  , cnW: \fm -> mkDimAt @XProps_ @Tell $ pure $ ClassName $ joinStrW " " $ fm $
+      mkDim @Say
+  , href: mkDimAt @XProps_ @Tell <<< pure <<< Href
   , onClick: \f -> do
       r <- x @XSelf_ @"ask"
-      x @XProps_ @"tell" $ pure $ OnClick $ \e -> r.runUnit $ f e
+      mkDimAt @XProps_ @Tell $ pure $ OnClick $ \e -> r.runUnit $ f e
   }

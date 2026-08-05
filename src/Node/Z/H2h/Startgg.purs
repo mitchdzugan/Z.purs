@@ -116,7 +116,7 @@ getEventData = B.adaptBuilder $ x' @"evalS" initState do
       }
   { entrants } <- x' @"get"
   let { endAt } = event.tournament
-  date <- x' @"unwrap" (H2hE.InvalidInstant endAt) do
+  date <- mkDim @Unwrap (H2hE.InvalidInstant endAt) do
     instant (Milliseconds (toNumber endAt)) <#> toDateTime
   pure
     { id: sOrN event.id

@@ -4,6 +4,7 @@ module Z.XDom.Reducer
   , Run(..)
   , T
   , Tg
+  , X
   , module StExp
   ) where
 
@@ -16,6 +17,7 @@ import Z.XDom.State (Get(..)) as StExp
 type Tg r a s = St.Tg (update :: s -> a -> s | r) s
 type T a s = Tg () a s
 type R a s = R' (Tg () a s)
+type X a s x = Z.R (Tg () a s) x
 
 data Dispatch = Dispatch
 

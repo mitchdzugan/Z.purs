@@ -52,6 +52,28 @@ instance
     toTitleOr_ url = finTitle url $ routeParse routeSpec $ urlRelative url
     finTitle url routeOrE = mkTitle { url, routeOrE }
 
+instance DimensionedValTag Run Run
+
+instance
+  ( R_ pdesc p
+  , Cons p (R r) x' x
+  , IsSymbol p
+  ) =>
+  DimensionedVal Run
+    pdesc
+    ( RouteDuplex' r
+      -> ({ url :: URL, routeOrE :: Either RouteError r } -> Maybe String)
+      -> XDom.RDom x
+      -> UrlSt.RProvider x'
+      -> XDom.RDom x'
+    ) where
+  mkDimensional _ _ routeSpec mkTitle m provider = do
+    provider toTitleOr_ \urlState -> do
+      x @p @"$" XDom.DomRunR { routeSpec, urlState } m
+    where
+    toTitleOr_ url = finTitle url $ routeParse routeSpec $ urlRelative url
+    finTitle url routeOrE = mkTitle { url, routeOrE }
+
 data RouteOrE = RouteOrE
 
 instance Cons0 RouteOrE where
@@ -83,4 +105,4 @@ instance
   RWSEFn HrefAttr ep wp sp rp (r -> Run' x) where
   rwseApply _ _ _ _ _ route = do
     r <- x @p @"ask"
-    x @pp @"tell" $ pure $ XDom.Href $ routePrint r.routeSpec route
+    mkDimAt @pp @Tell $ pure $ XDom.Href $ routePrint r.routeSpec route

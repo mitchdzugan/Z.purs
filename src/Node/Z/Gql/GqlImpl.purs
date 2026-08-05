@@ -44,7 +44,7 @@ requestGql
   -> String
   -> Json
   -> EA Gql.Error x #> Json
-requestGql apiUrl authToken query vars = x' @"mapE" GqlE.NetworkError
+requestGql apiUrl authToken query vars = mkDim @MapE GqlE.NetworkError
   $ x' @"runEffPromise"
   $ js_requestGql apiUrl authToken query vars
 
@@ -126,4 +126,4 @@ xOperate
   -> WEA (Array GqlW.T) GqlE.T x #> res
 xOperate (Operation opString encode decode) vars client networkControl = do
   json <- xOperateUnknown opString (encode vars) client networkControl
-  x' @"mapE" GqlE.ResponseTypeError $ x' @"ok" $ decode json
+  mkDim @MapE GqlE.ResponseTypeError $ mkDim @Ok $ decode json

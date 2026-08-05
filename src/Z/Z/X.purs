@@ -120,21 +120,23 @@ module Z.Z.X
   , X
   , X'
   , XApply
+  , XAt(..)
   , XBASE
   , XBaseF
   , XBase_
-  , XD'(..)
-  , XD1(..)
   , XEnv
   , XPure(..)
   , XState
   , XWa
   , X_
   , class Cons0
+  , class DimensionedVal
+  , class DimensionedValTag
   , class E_
   , class RWSEFn
   , class R_
   , class RevSym
+  , class RootDimensionedValueTag
   , class S_
   , class SplitSp1
   , class UpCat
@@ -154,6 +156,9 @@ module Z.Z.X
   , evalX
   , evalXA
   , joinStrW
+  , mkDim
+  , mkDimAt
+  , mkDimensional
   , opOver_
   , opPreviewR_
   , opPreviewS_
@@ -167,6 +172,8 @@ module Z.Z.X
   , runXA
   , runXBase
   , rwseApply
+  , x
+  , x'
   , xAtWE
   , xImpure
   , xInfo
@@ -176,8 +183,6 @@ module Z.Z.X
   , xOutErr
   , xPass
   , xTimeout
-  , x'
-  , x
   ) where
 
 import Prelude
@@ -224,14 +229,55 @@ import Z.Z.Core as Z
 import Z.Z.Defaultable as ZD
 import Z.Z.Ext as ZE
 
-data XD1 t = XD1
-data XD' = XD'
-data XDwe w e = XDwe
+class DimensionedValTag tagIn tagOut | tagIn -> tagOut
+
+class RootDimensionedValueTag tagIn tagOut | tagIn -> tagOut
+
+instance RootDimensionedValueTag "fail" Fail
+else instance (DimensionedValTag ti to) => RootDimensionedValueTag ti to
+
+class
+  DimensionedValTag tag tag <=
+  DimensionedVal tag dspec t
+  | dspec -> t where
+  mkDimensional :: P.Proxy tag -> P.Proxy dspec -> t
+
+mkDim
+  :: forall @tt tag t
+   . DimensionedVal tag Void t
+  => RootDimensionedValueTag tt tag
+  => t
+mkDim = mkDimensional (P.Proxy :: P.Proxy tag) (P.Proxy :: P.Proxy Void)
+
+mkDimAt
+  :: forall @at @tt tag t
+   . DimensionedVal tag (XAt at) t
+  => RootDimensionedValueTag tt tag
+  => t
+mkDimAt = mkDimensional (P.Proxy :: P.Proxy tag)
+  (P.Proxy :: P.Proxy (XAt at))
+
+data XAt at = XAt
+data Xwe atw ate = Xwe
 
 class R_ i o | i -> o
 class W_ i o | i -> o
 class S_ i o | i -> o
 class E_ i o | i -> o
+
+instance R_ (XAt t) t
+else instance R_ t "reader"
+
+instance W_ (Xwe w e) w
+else instance W_ (XAt t) t
+else instance W_ t "writer"
+
+instance S_ (XAt t) t
+else instance S_ t "state"
+
+instance E_ (Xwe w e) e
+else instance E_ (XAt t) t
+else instance E_ t "except"
 
 class Cons0 t where
   cons0 :: t
@@ -537,22 +583,6 @@ else instance
   ) =>
   XTLSunAt s cat cf ct tat tf
 
-instance R_ XD' "reader"
-instance R_ (XDwe w e) "reader"
-instance R_ (XD1 t) t
-
-instance W_ XD' "writer"
-instance W_ (XDwe w e) w
-instance W_ (XD1 t) t
-
-instance S_ XD' "state"
-instance S_ (XDwe w e) "state"
-instance S_ (XD1 t) t
-
-instance E_ XD' "except"
-instance E_ (XDwe w e) e
-instance E_ (XD1 t) t
-
 opViewR_
   :: forall @sym lhsI o
    . IsSymbol sym
@@ -665,7 +695,7 @@ newtype XPure a = XPure (X () a)
 
 instance
   RWSEFn (XPure a) _r _w _s _e (R.Run x a) where
-  rwseApply (XPure m) _ _ _ _ = pure $ evalX $ xPass *> m
+  rwseApply (XPure m) _ _ _ _ = pure $ evalX m
 
 pureFnX :: forall i a. (i -> X () a) -> i -> XPure a
 pureFnX f i = XPure $ f i
@@ -1017,6 +1047,16 @@ instance rwseApplyRunS ::
 
 data EvalS = EvalS
 
+instance DimensionedValTag EvalS EvalS
+
+instance mkdEvalS ::
+  ( S_ dspec sp
+  , IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  ) =>
+  DimensionedVal EvalS dspec (s -> R.Run x f -> R.Run x' f) where
+  mkDimensional _ _ initState m = RunS.evalStateAt (px @sp) initState m
+
 instance rwseApplyEvalS ::
   ( IsSymbol sp
   , Cons sp (RunS.State s) x' x
@@ -1026,6 +1066,25 @@ instance rwseApplyEvalS ::
 
 data PlusS :: forall @k. k -> Type
 data PlusS sym = PlusS
+
+instance DimensionedValTag (PlusS sym) (PlusS sym)
+
+instance
+  ( S_ dspec sp
+  , IsSymbol sp
+  , IsSymbol sym
+  , Row.Lacks sym r1
+  , Cons sym a r1 r2
+  , Cons sp (RunS.State { | r1 }) x'' x'
+  , Cons sp (RunS.State { | r2 }) x' x
+  ) =>
+  DimensionedVal (PlusS sym) dspec (a -> R.Run x f -> R.Run x' f) where
+  mkDimensional _ _ v m = do
+    curr <- RunS.getAt (px @sp)
+    let next = Rec.insert (Proxy :: Proxy sym) v curr
+    (s TupN./\ r) <- RunS.runStateAt (px @sp) next m
+    RunS.putAt (px @sp) (Rec.delete (Proxy :: Proxy sym) s)
+    pure r
 
 instance rwseApplyPlusS ::
   ( IsSymbol sp
@@ -1045,6 +1104,7 @@ instance rwseApplyPlusS ::
 
 ---------------------- W ------------------------
 
+{-
 data FromW = FromW
 
 instance
@@ -1060,8 +1120,20 @@ instance
     where
     onDone (Eor.Left e) = RunE.throwAt (px @wp) e
     onDone (Eor.Right v) = pure v
+-}
 
 data Say = Say
+
+instance DimensionedValTag Say Say
+
+instance
+  ( W_ dspec wp
+  , IsSymbol wp
+  , Cons wp (RunW.Writer (m w)) x' x
+  , Monad.Monad m
+  ) =>
+  DimensionedVal Say dspec (w -> R.Run x Unit) where
+  mkDimensional _ _ = RunW.tellAt (px @wp) <<< pure
 
 instance rwseApplySay ::
   ( IsSymbol wp
@@ -1078,6 +1150,17 @@ instance rwseApplySay ::
 
 data Tell = Tell
 
+instance DimensionedValTag Tell Tell
+
+instance
+  ( W_ dspec wp
+  , IsSymbol wp
+  , Cons wp (RunW.Writer w) x' x
+  , Monoid.Monoid w
+  ) =>
+  DimensionedVal Tell dspec (w -> R.Run x Unit) where
+  mkDimensional _ _ = RunW.tellAt (px @wp)
+
 instance
   ( IsSymbol wp
   , Cons wp (RunW.Writer w) x' x
@@ -1093,6 +1176,17 @@ instance
 
 data ExecW = ExecW
 
+instance DimensionedValTag ExecW ExecW
+
+instance
+  ( W_ dspec wp
+  , IsSymbol wp
+  , Cons wp (RunW.Writer w) x' x
+  , Monoid.Monoid w
+  ) =>
+  DimensionedVal ExecW dspec (R.Run x Unit -> R.Run x' w) where
+  mkDimensional _ _ m = RunW.runWriterAt (px @wp) m <#> Tup.fst
+
 instance
   ( IsSymbol wp
   , Cons wp (RunW.Writer w) x' x
@@ -1102,6 +1196,17 @@ instance
   rwseApply _ _ wp _ _ m = RunW.runWriterAt wp m <#> Tup.fst
 
 data RunW = RunW
+
+instance DimensionedValTag RunW RunW
+
+instance
+  ( W_ dspec wp
+  , IsSymbol wp
+  , Cons wp (RunW.Writer w) x' x
+  , Monoid.Monoid w
+  ) =>
+  DimensionedVal RunW dspec (R.Run x f -> R.Run x' (w TupN./\ f)) where
+  mkDimensional _ _ m = RunW.runWriterAt (px @wp) m
 
 instance
   ( IsSymbol wp
@@ -1113,6 +1218,17 @@ instance
 
 data EvalW = EvalW
 
+instance DimensionedValTag EvalW EvalW
+
+instance
+  ( W_ dspec wp
+  , IsSymbol wp
+  , Cons wp (RunW.Writer w) x' x
+  , Monoid.Monoid w
+  ) =>
+  DimensionedVal EvalW dspec (R.Run x f -> R.Run x' f) where
+  mkDimensional _ _ m = RunW.runWriterAt (px @wp) m <#> Tup.snd
+
 instance
   ( IsSymbol wp
   , Cons wp (RunW.Writer w) x' x
@@ -1122,6 +1238,23 @@ instance
   rwseApply _ _ wp _ _ m = RunW.runWriterAt wp m <#> Tup.snd
 
 data MapW = MapW
+
+instance DimensionedValTag MapW MapW
+
+instance
+  ( W_ dspec wp
+  , IsSymbol wp
+  , Cons wp (RunW.Writer (m w2)) x'' x'
+  , Cons wp (RunW.Writer (m w1)) x' x
+  , Monoid.Monoid (m w2)
+  , Monoid.Monoid (m w1)
+  , Monad.Monad m
+  ) =>
+  DimensionedVal MapW dspec ((w1 -> w2) -> R.Run x f -> R.Run x' f) where
+  mkDimensional _ _ f m = do
+    (w TupN./\ res) <- RunW.runWriterAt (px @wp) m
+    RunW.tellAt (px @wp) $ map f w
+    pure res
 
 instance
   ( IsSymbol wp
@@ -1155,7 +1288,34 @@ instance
     onDone (Eor.Left e) = RunE.throwAt (px @ep) e
     onDone (Eor.Right v) = pure v
 
+instance DimensionedValTag FromE FromE
+
+instance
+  ( E_ dspec ep
+  , IsSymbol ep
+  , IsSymbol baseE
+  , Cons ep (RunE.Except e) x'' x'
+  , Cons baseE (RunE.Except e) x' x
+  , TypeEquals.TypeEquals baseE "except"
+  ) =>
+  DimensionedVal FromE dspec (R.Run x a -> R.Run x' a) where
+  mkDimensional _ _ m = do
+    RunE.runExceptAt (px @baseE) m >>= onDone
+    where
+    onDone (Eor.Left e) = RunE.throwAt (px @ep) e
+    onDone (Eor.Right v) = pure v
+
 data Try = Try
+
+instance DimensionedValTag Try Try
+
+instance
+  ( E_ dspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except e) x' x
+  ) =>
+  DimensionedVal Try dspec (R.Run x a -> R.Run x' (Eor.Either e a)) where
+  mkDimensional _ _ m = RunE.runExceptAt (px @ep) m
 
 instance
   ( IsSymbol ep
@@ -1165,6 +1325,16 @@ instance
   rwseApply _ _ _ _ ep m = RunE.runExceptAt ep m
 
 data Fail = Fail
+
+instance DimensionedValTag Fail Fail
+
+instance
+  ( E_ dspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except e) x' x
+  ) =>
+  DimensionedVal Fail dspec (e -> R.Run x a) where
+  mkDimensional _ _ e = RunE.throwAt (px @ep) e
 
 instance
   ( IsSymbol ep
@@ -1179,6 +1349,17 @@ instance
   rwseApply _ _ _ _ _ e = RunE.throwAt (px @ep) e
 
 data Ok = Ok
+
+instance DimensionedValTag Ok Ok
+
+instance
+  ( E_ dspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except e) x' x
+  ) =>
+  DimensionedVal Ok dspec (Eor.Either e a -> R.Run x a) where
+  mkDimensional _ _ (Eor.Left e) = RunE.throwAt (px @ep) e
+  mkDimensional _ _ (Eor.Right a) = pure a
 
 instance
   ( IsSymbol ep
@@ -1195,6 +1376,16 @@ instance
 
 data RunParser = RunParser
 
+instance DimensionedValTag RunParser RunParser
+
+instance
+  ( E_ dspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except Z.ParseError) x' x
+  ) =>
+  DimensionedVal RunParser dspec (s -> Parsing.Parser s a -> R.Run x a) where
+  mkDimensional _ _ s pr = xAt @ep Ok $ Z.runParser s pr
+
 instance
   ( IsSymbol ep
   , Cons ep (RunE.Except Z.ParseError) x' x
@@ -1209,6 +1400,20 @@ instance
 
 data BindE = BindE
 
+instance DimensionedValTag BindE BindE
+
+instance
+  ( E_ dspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except e2) x'' x'
+  , Cons ep (RunE.Except e1) x' x
+  ) =>
+  DimensionedVal BindE dspec ((e1 -> R.Run x' f) -> R.Run x f -> R.Run x' f) where
+  mkDimensional _ _ be m = xAt @ep Try m >>= onDone
+    where
+    onDone (Eor.Left e) = be e
+    onDone (Eor.Right v) = pure v
+
 instance
   ( IsSymbol ep
   , Cons ep (RunE.Except e2) x'' x'
@@ -1222,6 +1427,17 @@ instance
 
 data MapE = MapE
 
+instance DimensionedValTag MapE MapE
+
+instance
+  ( E_ dspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except e2) x'' x'
+  , Cons ep (RunE.Except e1) x' x
+  ) =>
+  DimensionedVal MapE dspec ((e1 -> e2) -> R.Run x f -> R.Run x' f) where
+  mkDimensional _ _ fe m = xAt @ep BindE (xAt @ep Fail <<< fe) m
+
 instance
   ( IsSymbol ep
   , Cons ep (RunE.Except e2) x'' x'
@@ -1231,6 +1447,17 @@ instance
   rwseApply _ _ _ _ _ fe m = xAt @ep BindE (xAt @ep Fail <<< fe) m
 
 data Unwrap = Unwrap
+
+instance DimensionedValTag Unwrap Unwrap
+
+instance
+  ( E_ dspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except e) x' x
+  ) =>
+  DimensionedVal Unwrap dspec (e -> May.Maybe a -> R.Run x a) where
+  mkDimensional _ _ _ (May.Just a) = pure a
+  mkDimensional _ _ e _ = xAt @ep Fail e
 
 instance
   ( IsSymbol ep
@@ -1247,6 +1474,16 @@ instance
 
 data Unwrap' = Unwrap'
 
+instance DimensionedValTag Unwrap' Unwrap'
+
+instance
+  ( E_ dspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except Z.JsError) x' x
+  ) =>
+  DimensionedVal Unwrap' dspec (May.Maybe a -> R.Run x a) where
+  mkDimensional _ _ = xAt @ep Unwrap $ Z.jsError' "Nothing#unwrap"
+
 instance
   ( IsSymbol ep
   , Cons ep (RunE.Except Z.JsError) x' x
@@ -1260,6 +1497,17 @@ instance
   rwseApply _ _ _ _ _ = xAt @ep Unwrap $ Z.jsError' "Nothing#unwrap"
 
 data Hush = Hush
+
+instance DimensionedValTag Hush Hush
+
+instance
+  ( E_ dspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except Z.JsError) x' x
+  , ZD.Defaultable d
+  ) =>
+  DimensionedVal Hush dspec (R.Run x d -> R.Run x' d) where
+  mkDimensional _ _ m = (<$>) ZD.orDefault $ xAt @ep Try m <#> Eor.hush
 
 instance
   ( IsSymbol ep

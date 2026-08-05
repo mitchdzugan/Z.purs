@@ -1,16 +1,27 @@
 module Z.XDom.Prelude
-  ( class XDomTLS
+  ( DomX
+  , Reducer
+  , XReducer
+  , XurlStProviderX
+  , class XDomTLS
   , module XDom
   , module ZP
   , xdom
   , xdom'
   ) where
 
+import Z.Prelude (class DimensionedValTag)
 import Z.Prelude hiding (div) as ZP
 import Z.XDom.Preact as XDom
 import Z.XDom.Reducer as Rdc
 import Z.XDom.Router as Rt
 import Z.XDom.State as St
+import Z.XDom.UrlState as UrlSt
+
+type Reducer a s = Rdc.R a s
+type XReducer a s x = Rdc.X a s x
+
+type XurlStProviderX x = UrlSt.XProvider x
 
 class XDomTLS
   :: forall k1
@@ -29,6 +40,10 @@ else instance XDomTLS "set" St.Set
 else instance XDomTLS "State.run" St.Run
 else instance XDomTLS "Reducer.run" Rdc.Run
 else instance XDomTLS "dispatch" Rdc.Dispatch
+
+data DomX s = DomX
+
+instance DimensionedValTag (DomX "runRouter") Rt.Run
 
 xdom'
   :: forall @sym o f

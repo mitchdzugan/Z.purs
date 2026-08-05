@@ -57,7 +57,7 @@ ggPageSpecHandleImpl
   -> XPageSpecHandle x v r
 ggPageSpecHandleImpl (GGPageSpecF pageL dataL) = do
   { client, networkControl, op } <- x' @"ask"
-  x' @"-+seenIds" setEmpty $ loop op client networkControl
+  mkDim @(PlusS "seenIds") setEmpty $ loop op client networkControl
   where
   loop op client networkControl = do
     x' @"toArrayOfS" (_o_ @"res" @"nodes+.id" dataL) >>= \ids -> do
