@@ -61,5 +61,5 @@ xProvideHistoryX toTitleOr_ fx = do
                   whenJust newUrl.titleOr_ xSetDocumentTitle
                   x' @"$" $ setSt newUrl
       pure $ do
-        iPopOff *> iPushOff *> iClickOff
+        xPass *> iPopOff *> iPushOff *> iClickOff
     fx st

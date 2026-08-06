@@ -51,7 +51,7 @@ instance
     (s -> Z.Run' x) where
   rwseApply _ _ _ _ _ s = do
     r <- mkDimAt @rp @Ask
-    x' @"$" $ r.set s
+    xPure $ r.set s
 
 data Run = Run
 

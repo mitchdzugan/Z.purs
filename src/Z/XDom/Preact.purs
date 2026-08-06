@@ -91,6 +91,93 @@ module Z.XDom.Preact
 
 import Z.Prelude
 
+data IdS a = IdS a
+
+unId :: forall a. IdS a -> a
+unId (IdS a) = a
+
+newtype XSelf2F x m = XSelf2F
+  { run :: forall a. Run x a -> Run () (m a)
+  , unEls :: m (Array ReactEl) -> Array ReactEl
+  , unUnit :: m Unit -> Unit
+  , unDisposable :: m (Run x Unit) -> Run x Unit
+  }
+
+type XSelf2 x = Exists (XSelf2F x)
+
+runEls :: forall x. XSelf2 x -> Run x (Array ReactEl) -> Array ReactEl
+runEls self m = runExists useSelf self
+  where
+  useSelf :: forall m. XSelf2F x m -> Array ReactEl
+  useSelf (XSelf2F { run, unEls }) = unEls $ eval_ $ run m
+
+runUnit :: forall x. XSelf2 x -> Run x Unit -> Unit
+runUnit self m = runExists useSelf self
+  where
+  useSelf :: forall m. XSelf2F x m -> Unit
+  useSelf (XSelf2F { run, unUnit }) = unUnit $ eval_ $ run m
+
+data MComp m' m x = MComp (m' (m x))
+
+unCompF
+  :: forall m' m t
+   . Functor m'
+  => (m' t -> t)
+  -> (m t -> t)
+  -> MComp m' m t
+  -> t
+unCompF f' f (MComp m) = f' (m <#> f)
+
+unCompDisposable
+  :: forall x x' m' m t
+   . Functor m'
+  => Functor m
+  => (forall a. Run x' a -> Run () (m' a))
+  -> (forall a. Run x a -> Run x' (m a))
+  -> (m' Unit -> Unit)
+  -> (m Unit -> Unit)
+  -> (m' (Run x' Unit) -> (Run x' Unit))
+  -> (m (Run x Unit) -> (Run x Unit))
+  -> MComp m' m (Run x Unit)
+  -> (Run x Unit)
+unCompDisposable run adapt unUnit' unUnit f' f (MComp m) = do
+  let xOff = f' $ m <#> \m' -> unUnit <$> adapt (f m')
+  pure $ unUnit' $ eval_ $ run xOff
+
+extXSelf
+  :: forall x' x m' m
+   . Functor m'
+  => Functor m
+  => XSelf2F x' m'
+  -> (forall a. Run x a -> Run x' (m a))
+  -> (m (Array ReactEl) -> Array ReactEl)
+  -> (m Unit -> Unit)
+  -> (m (Run x Unit) -> Run x Unit)
+  -> XSelf2 x
+extXSelf (XSelf2F s') adapt unEls unUnit unDisposable = mkExists $ mkMTXSelf2
+  @(MComp m' m)
+  (\m -> (s'.run (adapt m)) <#> MComp)
+  (unCompF s'.unEls unEls)
+  (unCompF s'.unUnit unUnit)
+  (unCompDisposable s'.run adapt s'.unUnit unUnit s'.unDisposable unDisposable)
+
+mkMTXSelf2
+  :: forall @m x
+   . (forall a. Run x a -> Run () (m a))
+  -> (m (Array ReactEl) -> Array ReactEl)
+  -> (m Unit -> Unit)
+  -> (m (Run x Unit) -> Run x Unit)
+  -> XSelf2F x m
+mkMTXSelf2 run unEls unUnit unDisposable = XSelf2F
+  { run
+  , unEls
+  , unUnit
+  , unDisposable
+  }
+
+baseSelf :: XSelf2 (XBASE ())
+baseSelf = mkExists $ mkMTXSelf2 (\m -> runXBase m <#> IdS) unId unId unId
+
 type XSelf x =
   { runEls :: Run x (Array ReactEl) -> Array ReactEl
   , runUnit :: Run x Unit -> Unit
@@ -166,6 +253,26 @@ xRawFragment :: forall x. Array ReactEl -> RDom x
 xRawFragment = mkDim @Say <<< js_renderFragment
 
 data DomRunR = DomRunR
+
+instance DimensionedValTag DomRunR DomRunR
+
+instance
+  ( R_ dspec rp
+  , IsSymbol rp
+  , Cons rp (R' r) x' x
+  ) =>
+  DimensionedVal DomRunR dspec (r -> RDom x -> RDom x') where
+  mkDimensional _ _ env m = do
+    r <- mkDimAt @XSelf_ @Ask
+    let runEls = \mm -> r.runEls $ x @rp @"runR" env mm
+    let runUnit = \mm -> r.runUnit $ x @rp @"runR" env mm
+    let
+      runDisposable = \mm -> r.runDisposable do
+        mmm <- x @rp @"runR" env mm
+        pure $ x @rp @"runR" env mmm
+
+    let ir = { runEls, runUnit, runDisposable }
+    xRawFragment $ runEls $ x' @"execW" $ x @XSelf_ @"runR" ir $ m
 
 instance Cons0 DomRunR where
   cons0 = DomRunR

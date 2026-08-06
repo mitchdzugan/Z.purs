@@ -31,7 +31,7 @@ instance
   DimensionedVal Dispatch dspec (a -> Z.Run' x) where
   mkDimensional _ _ a = do
     r <- mkDimAt @rp @Ask
-    x' @"$" $ r.set $ r.update r.get a
+    xPure $ r.set $ r.update r.get a
 
 instance Cons0 Dispatch where
   cons0 = Dispatch
@@ -48,7 +48,7 @@ instance
     (a -> Z.Run' x) where
   rwseApply _ _ _ _ _ a = do
     r <- mkDimAt @rp @Ask
-    x' @"$" $ r.set $ r.update r.get a
+    xPure $ r.set $ r.update r.get a
 
 data Run = Run
 

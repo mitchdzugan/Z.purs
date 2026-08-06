@@ -151,6 +151,7 @@ module Z.Z.X
   , edit
   , evalX
   , evalXA
+  , eval_
   , joinStrW
   , mkDim
   , mkDimAt
@@ -171,6 +172,7 @@ module Z.Z.X
   , xOut
   , xOutErr
   , xPass
+  , xPure
   , xTimeout
   ) where
 
@@ -731,14 +733,17 @@ instance
 newtype XPure a = XPure (X () a)
 
 instance
-  RWSEFn (XPure a) _r _w _s _e (R.Run x a) where
-  rwseApply (XPure m) _ _ _ _ = pure $ evalX m
+  RWSEFn (XPure a) _r _w _s _e (X x a) where
+  rwseApply (XPure m) _ _ _ _ = xPass *> (pure $ evalX m)
 
 pureFnX :: forall i a. (i -> X () a) -> i -> XPure a
 pureFnX f i = XPure $ f i
 
 xImpure :: forall x a. XPure (X x a) -> X x a
 xImpure (XPure m) = xPass *> R.expand m >>= identity
+
+xPure :: forall x a. XPure a -> R.Run x a
+xPure (XPure m) = runXBase $ xPass *> R.expand m
 
 data XApply = XApply
 
@@ -2138,6 +2143,9 @@ data XEnv = XEnv
 data XState = XState
 
 --------------- EVAL -------------------------------------------------------
+
+eval_ :: forall a. R.Run () a -> a
+eval_ m = Unsafe.unsafePerformEffect $ R.runBaseEffect $ R.expand m
 
 evalX :: forall a. X () a -> a
 evalX m = Unsafe.unsafePerformEffect $ R.runBaseEffect $ R.expand $ runXBase m
