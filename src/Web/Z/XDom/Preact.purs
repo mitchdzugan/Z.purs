@@ -39,9 +39,9 @@ xProvideHistoryX toTitleOr_ fx = do
       win <- xWindow
       let xUpUrl = xLocationUrl >>= x' @"$" <<< setSt <<< UrlSt.mk toTitleOr_
       let { pushState, popState } = eventType
-      iPopOff <- xAddEventListener popState win default \_ -> xUpUrl
-      iPushOff <- xAddEventListener pushState win default \_ -> xUpUrl
-      iClickOff <- xAddEventListener eventType.click doc default \e -> do
+      d'pop <- xAddEventListener popState win default \_ -> xUpUrl
+      d'push <- xAddEventListener pushState win default \_ -> xUpUrl
+      d'click <- xAddEventListener eventType.click doc default \e -> do
         let orTarget = evTarget e
         whenJust orTarget \target -> do
           orClosest <- xClosest target "a"
@@ -58,12 +58,5 @@ xProvideHistoryX toTitleOr_ fx = do
                   xOut newUrl.titleOr_
                   whenJust newUrl.titleOr_ xSetDocumentTitle
                   x' @"$" $ setSt newUrl
-      xOut "xout A"
-      let
-        res = pure $ do
-          traceM "IN PURE RETURN"
-          xOut "xout C"
-          xPass *> iPopOff *> iPushOff *> iClickOff
-      xOut "xout B"
-      res
+      pure $ d'pop *> d'push *> d'click
     fx st
