@@ -6,13 +6,13 @@ module Z.XDom.Preact
   , ($+&)
   , ($+&-)
   , (%%&)
+  , (%%)
   , (%%-&)
   , (%%^&)
-  , (%%)
   , (%^&)
+  , (%^)
   , (%^-&)
   , (%^^&)
-  , (%^)
   , (-$&)
   , (-$*&)
   , (-$+&)
@@ -39,6 +39,7 @@ module Z.XDom.Preact
   , DwithNewState
   , GDomFn'
   , ISet
+  , IdS(..)
   , PropWF(..)
   , RDom
   , RDom'
@@ -58,6 +59,8 @@ module Z.XDom.Preact
   , XSELF
   , XSELF'
   , XSelf
+  , XSelf2
+  , XSelf2F(..)
   , XSelf_
   , _xProps
   , d
@@ -83,21 +86,30 @@ module Z.XDom.Preact
   , duseEveryEff_
   , dwithKey
   , dwithNewState
+  , extXSelf
   , propWFKey
   , propWFVal
   , renderX
+  , runEls
+  , unId
   , xRawFragment
   ) where
 
 import Z.Prelude
 
+import Debug (trace)
+
 data IdS a = IdS a
+
+instance Functor IdS where
+  map f (IdS a) = IdS (f a)
 
 unId :: forall a. IdS a -> a
 unId (IdS a) = a
 
 newtype XSelf2F x m = XSelf2F
   { run :: forall a. Run x a -> Run () (m a)
+  , fmap :: forall a1 a2. (a1 -> a2) -> m a1 -> m a2
   , unEls :: m (Array ReactEl) -> Array ReactEl
   , unUnit :: m Unit -> Unit
   , unDisposable :: m (Run x Unit) -> Run x Unit
@@ -117,22 +129,36 @@ runUnit self m = runExists useSelf self
   useSelf :: forall m. XSelf2F x m -> Unit
   useSelf (XSelf2F { run, unUnit }) = unUnit $ eval_ $ run m
 
+runDisposable :: forall x. XSelf2 x -> Run x (Run x Unit) -> Unit -> Run x Unit
+runDisposable self m = runExists useSelf self
+  where
+  useSelf :: forall m. XSelf2F x m -> Unit -> Run x Unit
+  useSelf (XSelf2F { run, unDisposable }) =
+    let d' = eval_ $ run m in \_ -> unDisposable d'
+
 data MComp m' m x = MComp (m' (m x))
+
+instance
+  ( Functor m'
+  , Functor m
+  ) =>
+  Functor (MComp m' m) where
+  map f (MComp m) = MComp (m <#> \i -> i <#> f)
 
 unCompF
   :: forall m' m t
-   . Functor m'
-  => (m' t -> t)
+   . (forall a1 a2. (a1 -> a2) -> m' a1 -> m' a2)
+  -> (m' t -> t)
   -> (m t -> t)
   -> MComp m' m t
   -> t
-unCompF f' f (MComp m) = f' (m <#> f)
+unCompF fmap' f' f (MComp m) = f' (fmap' f m)
 
 unCompDisposable
-  :: forall x x' m' m t
-   . Functor m'
-  => Functor m
-  => (forall a. Run x' a -> Run () (m' a))
+  :: forall x x' m' m
+   . Functor m
+  => (forall a1 a2. (a1 -> a2) -> m' a1 -> m' a2)
+  -> (forall a. Run x' a -> Run () (m' a))
   -> (forall a. Run x a -> Run x' (m a))
   -> (m' Unit -> Unit)
   -> (m Unit -> Unit)
@@ -140,43 +166,62 @@ unCompDisposable
   -> (m (Run x Unit) -> (Run x Unit))
   -> MComp m' m (Run x Unit)
   -> (Run x Unit)
-unCompDisposable run adapt unUnit' unUnit f' f (MComp m) = do
-  let xOff = f' $ m <#> \m' -> unUnit <$> adapt (f m')
+unCompDisposable fmap' run adapt unUnit' unUnit f' f (MComp m) = do
+  let xOff = f' $ flip fmap' m \m' -> unUnit <$> adapt (f m')
   pure $ unUnit' $ eval_ $ run xOff
 
+extXSelfImpl
+  :: forall x' x @m' m
+   . Functor m
+  => (forall a. Run x a -> Run x' (m a))
+  -> (m (Array ReactEl) -> Array ReactEl)
+  -> (m Unit -> Unit)
+  -> (m (Run x Unit) -> Run x Unit)
+  -> XSelf2F x' m'
+  -> XSelf2 x
+extXSelfImpl adapt unEls unUnit unDisposable (XSelf2F s') = mkExists $
+  mkMTXSelf2
+    @(MComp m' m)
+    (\m -> (s'.run (adapt m)) <#> MComp)
+    ( ( \f (MComp m) -> MComp (s'.fmap (\i -> i <#> f) m)
+      )
+    )
+    (unCompF s'.fmap s'.unEls unEls)
+    (unCompF s'.fmap s'.unUnit unUnit)
+    ( unCompDisposable s'.fmap s'.run adapt s'.unUnit unUnit s'.unDisposable
+        unDisposable
+    )
+
 extXSelf
-  :: forall x' x m' m
-   . Functor m'
-  => Functor m
-  => XSelf2F x' m'
+  :: forall x' x @m
+   . Functor m
+  => XSelf2 x'
   -> (forall a. Run x a -> Run x' (m a))
   -> (m (Array ReactEl) -> Array ReactEl)
   -> (m Unit -> Unit)
   -> (m (Run x Unit) -> Run x Unit)
   -> XSelf2 x
-extXSelf (XSelf2F s') adapt unEls unUnit unDisposable = mkExists $ mkMTXSelf2
-  @(MComp m' m)
-  (\m -> (s'.run (adapt m)) <#> MComp)
-  (unCompF s'.unEls unEls)
-  (unCompF s'.unUnit unUnit)
-  (unCompDisposable s'.run adapt s'.unUnit unUnit s'.unDisposable unDisposable)
+extXSelf xSelf' adapt unEls unUnit unDisposable =
+  runExists (extXSelfImpl adapt unEls unUnit unDisposable) xSelf'
 
 mkMTXSelf2
   :: forall @m x
    . (forall a. Run x a -> Run () (m a))
+  -> (forall a1 a2. (a1 -> a2) -> m a1 -> m a2)
   -> (m (Array ReactEl) -> Array ReactEl)
   -> (m Unit -> Unit)
   -> (m (Run x Unit) -> Run x Unit)
   -> XSelf2F x m
-mkMTXSelf2 run unEls unUnit unDisposable = XSelf2F
+mkMTXSelf2 run fmap unEls unUnit unDisposable = XSelf2F
   { run
+  , fmap
   , unEls
   , unUnit
   , unDisposable
   }
 
 baseSelf :: XSelf2 (XBASE ())
-baseSelf = mkExists $ mkMTXSelf2 (\m -> runXBase m <#> IdS) unId unId unId
+baseSelf = mkExists $ mkMTXSelf2 (\m -> runXBase m <#> IdS) map unId unId unId
 
 type XSelf x =
   { runEls :: Run x (Array ReactEl) -> Array ReactEl
@@ -185,7 +230,7 @@ type XSelf x =
   }
 
 type XSelf_ = "xDomSelf"
-type XSELF' x' x = (xDomSelf :: (R' (XSelf x')) | x)
+type XSELF' x' x = (xDomSelf :: (R' (XSelf2 x')) | x)
 type XSELF x = XSELF' x x
 
 type GDomFn'
@@ -210,20 +255,15 @@ type RDom' x fx = GDomFn' IdT x fx Unit
 type XPROPS x = (xProps :: Writer (Array PropWF) | x)
 
 renderX :: XDom () -> ReactEl
-renderX m = js_renderFragment $ evalX $ x @XSelf_ @"runR" baseR
-  $ x' @"execW"
-  $
-    m
-  where
-  runDisposable mm = let res = evalX mm in \_ -> evalX res
-  baseR = { runEls: evalX, runUnit: evalX, runDisposable }
+renderX m = js_renderFragment $ evalX $ x @XSelf_ @"runR" baseSelf $ x' @"execW"
+  $ m
 
 type DwithKey = forall x. String -> RDom x -> RDom x
 
 dwithKey :: DwithKey
 dwithKey k m = do
   rn <- mkDimAt @XSelf_ @Ask
-  mkDim @Say $ js_withKey k $ js_renderFragment $ rn.runEls $ x' @"execW"
+  mkDim @Say $ js_withKey k $ js_renderFragment $ runEls rn $ x' @"execW"
     $ x @XSelf_ @"runR" rn
     $ m
 
@@ -239,7 +279,7 @@ dwithNewState initalState fm = do
   rn <- mkDimAt @XSelf_ @Ask
   mkDim @Say $ flip (js_withState pure) initalState (renderFn rn)
   where
-  renderFn rn s ss = rn.runEls $ mkDim @ExecW $ x @XSelf_ @"runR" rn $ fm
+  renderFn rn s ss = runEls rn $ mkDim @ExecW $ x @XSelf_ @"runR" rn $ fm
     s
     (w ss)
   w ss s = XPure $ ss s
@@ -255,7 +295,6 @@ xRawFragment = mkDim @Say <<< js_renderFragment
 data DomRunR = DomRunR
 
 instance DimensionedValTag DomRunR DomRunR
-
 instance
   ( R_ dspec rp
   , IsSymbol rp
@@ -264,15 +303,8 @@ instance
   DimensionedVal DomRunR dspec (r -> RDom x -> RDom x') where
   mkDimensional _ _ env m = do
     r <- mkDimAt @XSelf_ @Ask
-    let runEls = \mm -> r.runEls $ x @rp @"runR" env mm
-    let runUnit = \mm -> r.runUnit $ x @rp @"runR" env mm
-    let
-      runDisposable = \mm -> r.runDisposable do
-        mmm <- x @rp @"runR" env mm
-        pure $ x @rp @"runR" env mmm
-
-    let ir = { runEls, runUnit, runDisposable }
-    xRawFragment $ runEls $ x' @"execW" $ x @XSelf_ @"runR" ir $ m
+    let ir = extXSelf @(IdS) r ((<$>) IdS <<< x @rp @"runR" env) unId unId unId
+    xRawFragment $ runEls ir $ x' @"execW" $ x @XSelf_ @"runR" ir $ m
 
 instance Cons0 DomRunR where
   cons0 = DomRunR
@@ -284,15 +316,8 @@ instance
   RWSEFn DomRunR rp wp sp ep (r -> RDom x -> RDom x') where
   rwseApply _ _ _ _ _ env m = do
     r <- mkDimAt @XSelf_ @Ask
-    let runEls = \mm -> r.runEls $ x @rp @"runR" env mm
-    let runUnit = \mm -> r.runUnit $ x @rp @"runR" env mm
-    let
-      runDisposable = \mm -> r.runDisposable do
-        mmm <- x @rp @"runR" env mm
-        pure $ x @rp @"runR" env mmm
-
-    let ir = { runEls, runUnit, runDisposable }
-    xRawFragment $ runEls $ x' @"execW" $ x @XSelf_ @"runR" ir $ m
+    let ir = extXSelf @(IdS) r ((<$>) IdS <<< x @rp @"runR" env) unId unId unId
+    xRawFragment $ runEls ir $ x' @"execW" $ x @XSelf_ @"runR" ir $ m
 
 data DomBindE = DomBindE
 
@@ -311,31 +336,29 @@ instance
     ((e -> RDom x') -> RDom x -> RDom x') where
   rwseApply _ _ _ _ _ em m = do
     r <- mkDimAt @XSelf_ @Ask
-    let runEls = \mm -> r.runEls $ mkDimAt @ep @Try mm >>= runEOrEls
-    let runUnit = \mm -> r.runUnit $ fDiscard $ mkDimAt @ep @Try mm
-    let runDisposable = \mm -> r.runDisposable $ rd mm
-    let ir = { runEls, runUnit, runDisposable }
+    let
+      ir = extXSelf @(Either e) r
+        (mkDimAt @ep @Try)
+        ( \eOr -> case eOr of
+            (Left e) -> js_throwBoundedError e
+            (Right v) -> v
+        )
+        ( \eOr -> case eOr of
+            (Left _) -> unit
+            (Right v) -> v
+        )
+        ( \eOr -> case eOr of
+            (Left _) -> pure unit
+            (Right v) -> v
+        )
     mkDim @Say $ js_withBoundedError (rErr r) (rMain ir)
     where
-    rMain rn _ = js_renderFragment $ rn.runEls $ x' @"execW"
+    rMain rn _ = js_renderFragment $ runEls rn $ x' @"execW"
       $ x @XSelf_ @"runR" rn
-      $
-        m
-    rErr rn e = js_renderFragment $ rn.runEls $ x' @"execW"
+      $ m
+    rErr rn e = js_renderFragment $ runEls rn $ x' @"execW"
       $ x @XSelf_ @"runR" rn
-      $
-        em e
-    runEOrEls (Left e) = js_throwBoundedError e
-    runEOrEls (Right v) = pure v
-    rd mm = do
-      res <- x @ep @"try" mm
-      case res of
-        Left _ -> pure $ pure unit
-        Right v -> pure do
-          res' <- x @ep @"try" v
-          case res' of
-            Left _ -> pure unit
-            Right v' -> pure v'
+      $ em e
 
 type DomS a s = { get :: s, act :: a -> XPure Unit }
 
@@ -361,7 +384,9 @@ type DuseEveryEff' = forall x. Run' x -> RDom x
 duseEff :: DuseEff
 duseEff v m = do
   r <- mkDimAt @XSelf_ @Ask
-  mkDim @Say $ js_effComponent eq v (\_ -> r.runDisposable $ m) ((#) unit)
+  mkDim @Say $ js_effComponent eq v
+    (\_ -> let runD' = runDisposable r m in \_ -> runUnit r (runD' unit))
+    ((#) unit)
 
 duse1Eff :: Duse1Eff
 duse1Eff = duseEff unit
@@ -584,5 +609,5 @@ da =
   , href: mkDimAt @XProps_ @Tell <<< pure <<< Href
   , onClick: \f -> do
       r <- mkDimAt @XSelf_ @Ask
-      mkDimAt @XProps_ @Tell $ pure $ OnClick $ \e -> r.runUnit $ f e
+      mkDimAt @XProps_ @Tell $ pure $ OnClick $ \e -> runUnit r $ f e
   }
