@@ -31,7 +31,7 @@ instance
     ep
     (Z.Run x s) where
   rwseApply _ _ _ _ _ = do
-    r <- x @rp @"ask"
+    r <- mkDimAt @rp @Ask
     pure r.get
 
 data Set = Set
@@ -50,7 +50,7 @@ instance
     ep
     (s -> Z.Run' x) where
   rwseApply _ _ _ _ _ s = do
-    r <- x @rp @"ask"
+    r <- mkDimAt @rp @Ask
     x' @"$" $ r.set s
 
 data Run = Run

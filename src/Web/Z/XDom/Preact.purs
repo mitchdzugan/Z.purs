@@ -16,7 +16,7 @@ xPreactHydrate d r = x' @"runEffPromise" $ js_renderIn r d
 
 xDomRunWeb :: forall x. XD.RDom (DOM.XWEB x) -> XD.RDom x
 xDomRunWeb m = do
-  r <- x @XD.XSelf_ @"ask"
+  r <- mkDimAt @XD.XSelf_ @Ask
   let runEls = \mm -> r.runEls $ DOM.runXWeb mm
   let runUnit = \mm -> r.runUnit $ DOM.runXWeb mm
   let
@@ -60,5 +60,6 @@ xProvideHistoryX toTitleOr_ fx = do
                   xOut newUrl.titleOr_
                   whenJust newUrl.titleOr_ xSetDocumentTitle
                   x' @"$" $ setSt newUrl
-      pure $ xImpure iPopOff *> xImpure iPushOff *> xImpure iClickOff
+      pure $ do
+        iPopOff *> iPushOff *> iClickOff
     fx st

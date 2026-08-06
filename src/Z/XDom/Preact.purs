@@ -135,7 +135,7 @@ type DwithKey = forall x. String -> RDom x -> RDom x
 
 dwithKey :: DwithKey
 dwithKey k m = do
-  rn <- x @XSelf_ @"ask"
+  rn <- mkDimAt @XSelf_ @Ask
   mkDim @Say $ js_withKey k $ js_renderFragment $ rn.runEls $ x' @"execW"
     $ x @XSelf_ @"runR" rn
     $ m
@@ -149,7 +149,7 @@ type DwithNewState =
 
 dwithNewState :: DwithNewState
 dwithNewState initalState fm = do
-  rn <- x @XSelf_ @"ask"
+  rn <- mkDimAt @XSelf_ @Ask
   mkDim @Say $ flip (js_withState pure) initalState (renderFn rn)
   where
   renderFn rn s ss = rn.runEls $ mkDim @ExecW $ x @XSelf_ @"runR" rn $ fm
@@ -176,7 +176,7 @@ instance
   ) =>
   RWSEFn DomRunR rp wp sp ep (r -> RDom x -> RDom x') where
   rwseApply _ _ _ _ _ env m = do
-    r <- x @XSelf_ @"ask"
+    r <- mkDimAt @XSelf_ @Ask
     let runEls = \mm -> r.runEls $ x @rp @"runR" env mm
     let runUnit = \mm -> r.runUnit $ x @rp @"runR" env mm
     let
@@ -203,9 +203,9 @@ instance
     ep
     ((e -> RDom x') -> RDom x -> RDom x') where
   rwseApply _ _ _ _ _ em m = do
-    r <- x @XSelf_ @"ask"
-    let runEls = \mm -> r.runEls $ x @ep @"try" mm >>= runEOrEls
-    let runUnit = \mm -> r.runUnit $ fDiscard $ x @ep @"try" mm
+    r <- mkDimAt @XSelf_ @Ask
+    let runEls = \mm -> r.runEls $ mkDimAt @ep @Try mm >>= runEOrEls
+    let runUnit = \mm -> r.runUnit $ fDiscard $ mkDimAt @ep @Try mm
     let runDisposable = \mm -> r.runDisposable $ rd mm
     let ir = { runEls, runUnit, runDisposable }
     mkDim @Say $ js_withBoundedError (rErr r) (rMain ir)
@@ -253,7 +253,7 @@ type DuseEveryEff' = forall x. Run' x -> RDom x
 
 duseEff :: DuseEff
 duseEff v m = do
-  r <- x @XSelf_ @"ask"
+  r <- mkDimAt @XSelf_ @Ask
   mkDim @Say $ js_effComponent eq v (\_ -> r.runDisposable $ m) ((#) unit)
 
 duse1Eff :: Duse1Eff
@@ -476,6 +476,6 @@ da =
       mkDim @Say
   , href: mkDimAt @XProps_ @Tell <<< pure <<< Href
   , onClick: \f -> do
-      r <- x @XSelf_ @"ask"
+      r <- mkDimAt @XSelf_ @Ask
       mkDimAt @XProps_ @Tell $ pure $ OnClick $ \e -> r.runUnit $ f e
   }

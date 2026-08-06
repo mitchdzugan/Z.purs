@@ -1,13 +1,5 @@
 module Z.Z.X
-  ( (-*@)
-  , (-?@)
-  , (-@)
-  , (@%)
-  , (@~)
-  , (^*@)
-  , (^?@)
-  , (^@)
-  , A
+  ( A
   , AFF
   , AffF
   , Ask
@@ -129,12 +121,16 @@ module Z.Z.X
   , XState
   , XWa
   , X_
+  , Xwe(..)
   , class Cons0
   , class DimensionedVal
   , class DimensionedValTag
   , class E_
+  , class ParseRootTagParts
+  , class ParseRootTagPartsImpl
   , class RWSEFn
   , class R_
+  , class ReturnP_
   , class RevSym
   , class RootDimensionedValueTag
   , class S_
@@ -158,15 +154,8 @@ module Z.Z.X
   , joinStrW
   , mkDim
   , mkDimAt
+  , mkDimWE
   , mkDimensional
-  , opOver_
-  , opPreviewR_
-  , opPreviewS_
-  , opSet_
-  , opToArrayOfR_
-  , opToArrayOfS_
-  , opViewR_
-  , opViewS_
   , pureFnX
   , runX
   , runXA
@@ -233,7 +222,26 @@ class DimensionedValTag tagIn tagOut | tagIn -> tagOut
 
 class RootDimensionedValueTag tagIn tagOut | tagIn -> tagOut
 
+class ParseRootTagPartsImpl w1 w2 tagOut | w1 w2 -> tagOut
+
+instance ParseRootTagPartsImpl "~" t (Over_ t)
+
+class ParseRootTagParts tagIn tagOut | tagIn -> tagOut
+
+instance
+  ( SplitSp1 tagIn w1 w2
+  , ParseRootTagPartsImpl w1 w2 tagOut
+  , IsSymbol tagIn
+  ) =>
+  ParseRootTagParts tagIn tagOut
+else instance ParseRootTagParts ti to
+
 instance RootDimensionedValueTag "fail" Fail
+else instance RootDimensionedValueTag "^" (GGet XEnv)
+else instance RootDimensionedValueTag "-" (GGet XState)
+else instance RootDimensionedValueTag "-~" Set
+else instance RootDimensionedValueTag "-%" Over
+else instance RootDimensionedValueTag "-" (GGet XState)
 else instance (DimensionedValTag ti to) => RootDimensionedValueTag ti to
 
 class
@@ -256,6 +264,14 @@ mkDimAt
   => t
 mkDimAt = mkDimensional (P.Proxy :: P.Proxy tag)
   (P.Proxy :: P.Proxy (XAt at))
+
+mkDimWE
+  :: forall @wp @ep @tt tag t
+   . DimensionedVal tag (Xwe wp ep) t
+  => RootDimensionedValueTag tt tag
+  => t
+mkDimWE = mkDimensional (P.Proxy :: P.Proxy tag)
+  (P.Proxy :: P.Proxy (Xwe wp ep))
 
 data XAt at = XAt
 data Xwe atw ate = Xwe
@@ -669,10 +685,31 @@ class RWSEFn f rp wp sp ep o | f rp wp sp ep -> o where
 
 data WithReturn = WithReturn
 
+class ReturnP_ pdesc p | pdesc -> p
+
+instance ReturnP_ (XAt t) t
+else instance ReturnP_ t "(x)::earlyReturn"
+
 class XReturnP rp wp sp ep fp | rp wp sp ep -> fp
 
 instance XReturnP rp wp sp ep "earlyReturn"
 else instance XReturnP _r _w _s ep ep
+
+instance DimensionedValTag WithReturn WithReturn
+
+instance
+  ( ReturnP_ dspec pp
+  , IsSymbol pp
+  , Cons pp (RunE.Except r) x' x
+  ) =>
+  DimensionedVal WithReturn
+    dspec
+    (((r -> R.Run x Unit) -> R.Run x r) -> R.Run x' r) where
+  mkDimensional _ _ m = RunE.runExceptAt (px @pp) (m return) >>= onRes
+    where
+    return = RunE.throwAt (px @pp)
+    onRes (Eor.Left ret) = pure ret
+    onRes (Eor.Right ret) = pure ret
 
 instance
   ( XReturnP rp wp sp ep p
@@ -715,6 +752,24 @@ instance
 
 data GGet t = GGet t
 
+instance DimensionedValTag (GGet t) (GGet t)
+
+instance
+  ( R_ dspec rp
+  , IsSymbol rp
+  , Cons rp (RunR.Reader r) x' x
+  ) =>
+  DimensionedVal (GGet XEnv) dspec (R.Run x r) where
+  mkDimensional _ _ = RunR.askAt (px @rp)
+
+instance
+  ( S_ dspec sp
+  , IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  ) =>
+  DimensionedVal (GGet XState) dspec (R.Run x s) where
+  mkDimensional _ _ = RunS.getAt (px @sp)
+
 instance rwseApplyGetR ::
   ( IsSymbol rp
   , Cons rp (RunR.Reader r) x' x
@@ -731,6 +786,16 @@ instance rwseApplyGetS ::
 
 data View g = View g
 
+instance DimensionedValTag (View g) (View g)
+
+instance
+  ( DimensionedVal (GGet g) dspec (R.Run x s)
+  ) =>
+  DimensionedVal (View g) dspec ((Lens.Optic (Forget a) s t a b) -> R.Run x a) where
+  mkDimensional _ _ l = do
+    v <- mkDimensional (px @(GGet g)) (px @dspec)
+    pure $ Lens.view l v
+
 instance rwseApplyView ::
   ( RWSEFn (GGet g) rp wp sp ep (R.Run x s)
   ) =>
@@ -740,7 +805,20 @@ instance rwseApplyView ::
     pure $ Lens.view l v
 
 data View_ :: forall @k. k -> Type -> Type
-data View_ b t = View_ t
+data View_ sym g = View_ g
+
+instance DimensionedValTag (View_ sym g) (View_ sym g)
+
+instance
+  ( DimensionedVal (GGet g) dspec (R.Run x s)
+  , Bl.ParseSymbol sym lenses
+  , Bl.ConstructBarlow lenses (Bl.Forget a) s t a b
+  , Bl.IsSymbol sym
+  ) =>
+  DimensionedVal (View_ sym g) dspec (R.Run x a) where
+  mkDimensional _ _ = do
+    v <- mkDimensional (px @(GGet g)) (px @dspec)
+    pure $ Lens.view (Bl.barlow @sym) v
 
 instance rwseApplyView_ ::
   ( RWSEFn (GGet g) rp wp sp ep (R.Run x s)
@@ -754,6 +832,18 @@ instance rwseApplyView_ ::
     pure $ Lens.view (Bl.barlow @sym) v
 
 data Preview g = Preview g
+
+instance DimensionedValTag (Preview g) (Preview g)
+
+instance
+  ( DimensionedVal (GGet g) dspec (R.Run x s)
+  ) =>
+  DimensionedVal (Preview g)
+    dspec
+    ((Lens.Optic (Forget (MayFirst.First a)) s t a b) -> R.Run x (May.Maybe a)) where
+  mkDimensional _ _ l = do
+    v <- mkDimensional (px @(GGet g)) (px @dspec)
+    pure $ Lens.preview l v
 
 instance rwseApplyPreview ::
   ( RWSEFn (GGet g) rp wp sp ep (R.Run x s)
@@ -771,6 +861,19 @@ instance rwseApplyPreview ::
 data Preview_ :: forall @k. k -> Type -> Type
 data Preview_ b t = Preview_ t
 
+instance DimensionedValTag (Preview_ sym g) (Preview_ sym g)
+
+instance
+  ( DimensionedVal (GGet g) dspec (R.Run x s)
+  , Bl.ParseSymbol sym lenses
+  , Bl.ConstructBarlow lenses (Bl.Forget (MayFirst.First a)) s t a b
+  , Bl.IsSymbol sym
+  ) =>
+  DimensionedVal (Preview_ sym g) dspec (R.Run x (May.Maybe a)) where
+  mkDimensional _ _ = do
+    v <- mkDimensional (px @(GGet g)) (px @dspec)
+    pure $ Lens.preview (Bl.barlow @sym) v
+
 instance rwseApplyPreview_ ::
   ( RWSEFn (GGet g) rp wp sp ep (R.Run x s)
   , Bl.ParseSymbol sym lenses
@@ -783,6 +886,20 @@ instance rwseApplyPreview_ ::
     pure $ Lens.preview (Bl.barlow @sym) v
 
 data ToArrayOf t = ToArrayOf t
+
+instance DimensionedValTag (ToArrayOf g) (ToArrayOf g)
+
+instance
+  ( DimensionedVal (GGet g) dspec (R.Run x s)
+  ) =>
+  DimensionedVal (ToArrayOf g)
+    dspec
+    ( (Lens.Optic (Forget (Endo.Endo Function (ListT.List a))) s t a b)
+      -> R.Run x (Array a)
+    ) where
+  mkDimensional _ _ l = do
+    v <- mkDimensional (px @(GGet g)) (px @dspec)
+    pure $ Lens.toArrayOf l v
 
 instance rwseApplyToArrayOf ::
   ( RWSEFn (GGet g) rp wp sp ep (R.Run x s)
@@ -802,6 +919,22 @@ instance rwseApplyToArrayOf ::
 data ToArrayOf_ :: forall @k. k -> Type -> Type
 data ToArrayOf_ b t = ToArrayOf_ t
 
+instance DimensionedValTag (ToArrayOf_ sym g) (ToArrayOf_ sym g)
+
+instance
+  ( DimensionedVal (GGet g) dspec (R.Run x s)
+  , Bl.ParseSymbol sym lenses
+  , Bl.ConstructBarlow lenses (Bl.Forget (Endo.Endo Function (ListT.List a))) s
+      t
+      a
+      b
+  , Bl.IsSymbol sym
+  ) =>
+  DimensionedVal (ToArrayOf_ sym g) dspec (R.Run x (Array a)) where
+  mkDimensional _ _ = do
+    v <- mkDimensional (px @(GGet g)) (px @dspec)
+    pure $ Lens.toArrayOf (Bl.barlow @sym) v
+
 instance rwseApplyToArrayOf_ ::
   ( RWSEFn (GGet g) rp wp sp ep (R.Run x s)
   , Bl.ParseSymbol sym lenses
@@ -820,6 +953,16 @@ instance rwseApplyToArrayOf_ ::
 
 data RunR = RunR
 
+instance DimensionedValTag RunR RunR
+
+instance
+  ( R_ dspec rp
+  , IsSymbol rp
+  , Cons rp (RunR.Reader r) x' x
+  ) =>
+  DimensionedVal RunR dspec (r -> R.Run x a -> R.Run x' a) where
+  mkDimensional _ _ = RunR.runReaderAt (P.Proxy :: P.Proxy rp)
+
 instance rwseApplyRunEnv ::
   ( IsSymbol rp
   , Cons rp (RunR.Reader r) x' x
@@ -834,6 +977,8 @@ instance rwseApplyRunEnv ::
 
 data Ask = Ask
 
+instance DimensionedValTag Ask (GGet XEnv)
+
 instance rwseApplyAtR ::
   ( RWSEFn (GGet XEnv) rp wp sp ep f
   ) =>
@@ -841,6 +986,8 @@ instance rwseApplyAtR ::
   rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ GGet XEnv
 
 data ViewR = ViewR
+
+instance DimensionedValTag ViewR (View XEnv)
 
 instance rwseApplyViewR ::
   ( RWSEFn (View XEnv) rp wp sp ep f
@@ -851,6 +998,8 @@ instance rwseApplyViewR ::
 data ViewR_ :: forall @k. k -> Type
 data ViewR_ b = ViewR_
 
+instance DimensionedValTag (ViewR_ b) (View_ b XEnv)
+
 instance rwseApplyViewR_ ::
   ( RWSEFn (View_ b XEnv) rp wp sp ep f
   ) =>
@@ -858,6 +1007,8 @@ instance rwseApplyViewR_ ::
   rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ View_ @b XEnv
 
 data PreviewR = PreviewR
+
+instance DimensionedValTag PreviewR (Preview XEnv)
 
 instance rwseApplyPreviewR ::
   ( RWSEFn (Preview XEnv) rp wp sp ep f
@@ -868,6 +1019,8 @@ instance rwseApplyPreviewR ::
 data PreviewR_ :: forall @k. k -> Type
 data PreviewR_ b = PreviewR_
 
+instance DimensionedValTag (PreviewR_ b) (Preview_ b XEnv)
+
 instance rwseApplyPreviewR_ ::
   ( RWSEFn (Preview_ b XEnv) rp wp sp ep f
   ) =>
@@ -875,6 +1028,8 @@ instance rwseApplyPreviewR_ ::
   rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ Preview_ @b XEnv
 
 data ToArrayOfR = ToArrayOfR
+
+instance DimensionedValTag ToArrayOfR (ToArrayOf XEnv)
 
 instance rwseApplyToArrayOfR ::
   ( RWSEFn (ToArrayOf XEnv) rp wp sp ep f
@@ -884,6 +1039,8 @@ instance rwseApplyToArrayOfR ::
 
 data ToArrayOfR_ :: forall @k. k -> Type
 data ToArrayOfR_ b = ToArrayOfR_
+
+instance DimensionedValTag (ToArrayOfR_ b) (ToArrayOf_ b XEnv)
 
 instance rwseApplyToArrayOfR_ ::
   ( RWSEFn (ToArrayOf_ b XEnv) rp wp sp ep f
@@ -895,6 +1052,8 @@ instance rwseApplyToArrayOfR_ ::
 
 data Get = Get
 
+instance DimensionedValTag Get (GGet XState)
+
 instance rwseApplyAtS ::
   ( RWSEFn (GGet XState) rp wp sp ep f
   ) =>
@@ -902,6 +1061,8 @@ instance rwseApplyAtS ::
   rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ GGet XState
 
 data ViewS = ViewS
+
+instance DimensionedValTag ViewS (View XState)
 
 instance rwseApplyViewS ::
   ( RWSEFn (View XState) rp wp sp ep f
@@ -912,6 +1073,8 @@ instance rwseApplyViewS ::
 data ViewS_ :: forall @k. k -> Type
 data ViewS_ b = ViewS_
 
+instance DimensionedValTag (ViewS_ b) (View_ b XState)
+
 instance rwseApplyViewS_ ::
   ( RWSEFn (View_ b XState) rp wp sp ep f
   ) =>
@@ -919,6 +1082,8 @@ instance rwseApplyViewS_ ::
   rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ View_ @b XState
 
 data PreviewS = PreviewS
+
+instance DimensionedValTag PreviewS (Preview XState)
 
 instance rwseApplyPreviewS ::
   ( RWSEFn (Preview XState) rp wp sp ep f
@@ -929,6 +1094,8 @@ instance rwseApplyPreviewS ::
 data PreviewS_ :: forall @k. k -> Type
 data PreviewS_ b = PreviewS_
 
+instance DimensionedValTag (PreviewS_ b) (Preview_ b XState)
+
 instance rwseApplyPreviewS_ ::
   ( RWSEFn (Preview_ b XState) rp wp sp ep f
   ) =>
@@ -936,6 +1103,8 @@ instance rwseApplyPreviewS_ ::
   rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ Preview_ @b XState
 
 data ToArrayOfS = ToArrayOfS
+
+instance DimensionedValTag ToArrayOfS (ToArrayOf XState)
 
 instance rwseApplyToArrayOfS ::
   ( RWSEFn (ToArrayOf XState) rp wp sp ep f
@@ -946,6 +1115,8 @@ instance rwseApplyToArrayOfS ::
 data ToArrayOfS_ :: forall @k. k -> Type
 data ToArrayOfS_ b = ToArrayOfS_
 
+instance DimensionedValTag (ToArrayOfS_ b) (ToArrayOf_ b XState)
+
 instance rwseApplyToArrayOfS_ ::
   ( RWSEFn (ToArrayOf_ b XState) rp wp sp ep f
   ) =>
@@ -953,6 +1124,16 @@ instance rwseApplyToArrayOfS_ ::
   rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ ToArrayOf_ @b XState
 
 data Put = Put
+
+instance DimensionedValTag Put Put
+
+instance
+  ( S_ dspec sp
+  , IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  ) =>
+  DimensionedVal Put dspec (s -> R.Run x Unit) where
+  mkDimensional _ _ = RunS.putAt (px @sp)
 
 instance rwseApplyPut ::
   ( IsSymbol sp
@@ -963,6 +1144,16 @@ instance rwseApplyPut ::
 
 data Modify = Modify
 
+instance DimensionedValTag Modify Modify
+
+instance
+  ( S_ dspec sp
+  , IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  ) =>
+  DimensionedVal Modify dspec ((s -> s) -> R.Run x Unit) where
+  mkDimensional _ _ = RunS.modifyAt (px @sp)
+
 instance rwseApplyModify ::
   ( IsSymbol sp
   , Cons sp (RunS.State s) x' x
@@ -971,6 +1162,20 @@ instance rwseApplyModify ::
   rwseApply _ _ _ sp _ = RunS.modifyAt sp
 
 data Set = Set
+
+instance DimensionedValTag Set Set
+
+instance
+  ( S_ dspec sp
+  , IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  ) =>
+  DimensionedVal Set
+    dspec
+    (Lens.Optic Function s s a b -> b -> R.Run x Unit) where
+  mkDimensional _ _ l v = do
+    s <- RunS.getAt (px @sp)
+    RunS.putAt (px @sp) $ Lens.set l v s
 
 instance rwseApplySet ::
   ( IsSymbol sp
@@ -983,6 +1188,21 @@ instance rwseApplySet ::
 
 data Set_ :: forall @k. k -> Type
 data Set_ b = Set_
+
+instance DimensionedValTag (Set_ sym) (Set_ sym)
+
+instance
+  ( S_ dspec sp
+  , IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  , Bl.ParseSymbol sym lenses
+  , Bl.ConstructBarlow lenses Function s s a b
+  , Bl.IsSymbol sym
+  ) =>
+  DimensionedVal (Set_ sym) dspec (b -> R.Run x Unit) where
+  mkDimensional _ _ v = do
+    s <- RunS.getAt (px @sp)
+    RunS.putAt (px @sp) $ Lens.set (Bl.barlow @sym) v s
 
 instance rwseApplySet_ ::
   ( IsSymbol sp
@@ -997,6 +1217,20 @@ instance rwseApplySet_ ::
     RunS.putAt sp $ Lens.set (Bl.barlow @sym) v s
 
 data Over = Over
+
+instance DimensionedValTag Over Over
+
+instance
+  ( S_ dspec sp
+  , IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  ) =>
+  DimensionedVal Over
+    dspec
+    (Lens.Optic Function s s a b -> (a -> b) -> R.Run x Unit) where
+  mkDimensional _ _ l f = do
+    s <- RunS.getAt (px @sp)
+    RunS.putAt (px @sp) $ Lens.over l f s
 
 instance rwseApplyOver ::
   ( IsSymbol sp
@@ -1013,7 +1247,22 @@ instance rwseApplyOver ::
     RunS.putAt sp $ Lens.over l f s
 
 data Over_ :: forall @k. k -> Type
-data Over_ b = Over_
+data Over_ sym = Over_
+
+instance DimensionedValTag (Over_ sym) (Over_ sym)
+
+instance
+  ( S_ dspec sp
+  , IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  , Bl.ParseSymbol sym lenses
+  , Bl.ConstructBarlow lenses Function s s a b
+  , Bl.IsSymbol sym
+  ) =>
+  DimensionedVal (Over_ sym) dspec ((a -> b) -> R.Run x Unit) where
+  mkDimensional _ _ f = do
+    s <- RunS.getAt (px @sp)
+    RunS.putAt (px @sp) $ Lens.over (Bl.barlow @sym) f s
 
 instance rwseApplyOver_ ::
   ( IsSymbol sp
@@ -1029,6 +1278,16 @@ instance rwseApplyOver_ ::
 
 data ExecS = ExecS
 
+instance DimensionedValTag ExecS ExecS
+
+instance
+  ( S_ dspec sp
+  , IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  ) =>
+  DimensionedVal ExecS dspec (s -> R.Run x f -> R.Run x' s) where
+  mkDimensional _ _ initState m = RunS.execStateAt (px @sp) initState m
+
 instance rwseApplyExecS ::
   ( IsSymbol sp
   , Cons sp (RunS.State s) x' x
@@ -1037,6 +1296,16 @@ instance rwseApplyExecS ::
   rwseApply _ _ _ sp _ initState m = RunS.execStateAt sp initState m
 
 data RunS = RunS
+
+instance DimensionedValTag RunS RunS
+
+instance
+  ( S_ dspec sp
+  , IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  ) =>
+  DimensionedVal RunS dspec (s -> R.Run x f -> R.Run x' (s TupN./\ f)) where
+  mkDimensional _ _ initState m = RunS.runStateAt (px @sp) initState m
 
 instance rwseApplyRunS ::
   ( IsSymbol sp
@@ -1524,6 +1793,17 @@ instance
 
 data Invert = Invert
 
+instance DimensionedValTag Invert Invert
+
+instance
+  ( E_ dspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except e) x'' x'
+  , Cons ep (RunE.Except r) x' x
+  ) =>
+  DimensionedVal Invert dspec (R.Run x e -> R.Run x' r) where
+  mkDimensional _ _ m = xAt @ep Try m <#> Z.invert >>= xAt @ep Ok
+
 instance
   ( IsSymbol ep
   , Cons ep (RunE.Except e) x'' x'
@@ -1533,6 +1813,25 @@ instance
   rwseApply _ _ _ _ _ m = xAt @ep Try m <#> Z.invert >>= xAt @ep Ok
 
 data TryUntil = TryUntil
+
+instance DimensionedValTag TryUntil TryUntil
+
+instance
+  ( E_ dspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except e) x''' x''
+  , Cons ep (RunE.Except r) x'' x'
+  , Cons ep (RunE.Except e) x' x
+  ) =>
+  DimensionedVal TryUntil
+    dspec
+    ( R.Run x r
+      -> Array (e -> R.Run x r)
+      -> R.Run x'' r
+    ) where
+  mkDimensional _ _ try1 tryRest = xAt @ep Invert do
+    e1 <- xAt @ep Invert try1
+    Z.reduceM (\e tryN -> xAt @ep Invert $ tryN e) e1 tryRest
 
 instance
   ( IsSymbol ep
@@ -1555,6 +1854,21 @@ instance
 
 data RunAff = RunAff
 
+instance DimensionedValTag RunAff RunAff
+
+instance
+  ( E_ dspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except Z.JsError) x' (A x)
+  ) =>
+  DimensionedVal RunAff dspec (Aff.Aff f -> R.Run (A x) f) where
+  mkDimensional _ _ a = do
+    res <- aff $ Aff.attempt a
+    onDone res
+    where
+    onDone (Eor.Left e) = xAt @ep Fail $ Z.JsError e
+    onDone (Eor.Right v) = pure v
+
 instance
   ( IsSymbol ep
   , Cons ep (RunE.Except Z.JsError) x' (A x)
@@ -1574,6 +1888,21 @@ instance
 
 data RunEffA = RunEffA
 
+instance DimensionedValTag RunEffA RunEffA
+
+instance
+  ( E_ dspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except Z.JsError) x' (A x)
+  ) =>
+  DimensionedVal RunEffA dspec (Eff.Effect f -> R.Run (A x) f) where
+  mkDimensional _ _ eff = do
+    res <- aff $ Aff.attempt $ EffC.liftEffect eff
+    onDone res
+    where
+    onDone (Eor.Left e) = xAt @ep Fail $ Z.JsError e
+    onDone (Eor.Right v) = pure v
+
 instance
   ( IsSymbol ep
   , Cons ep (RunE.Except Z.JsError) x' (A x)
@@ -1592,6 +1921,18 @@ instance
     onDone (Eor.Right v) = pure v
 
 data RunEffPromise = RunEffPromise
+
+instance DimensionedValTag RunEffPromise RunEffPromise
+
+instance
+  ( E_ dspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except Z.JsError) x' (A x)
+  ) =>
+  DimensionedVal RunEffPromise
+    dspec
+    (Eff.Effect (Promise.Promise f) -> R.Run (A x) f) where
+  mkDimensional _ _ = effectPromiseToAff >>> xAt @ep RunAff
 
 instance
   ( IsSymbol ep
@@ -1619,6 +1960,23 @@ else instance WpEpPickEp wp ep ep
 
 data RunResult = RunResult
 
+instance DimensionedValTag RunResult RunResult
+
+instance
+  ( E_ dspec ep
+  , IsSymbol ep
+  , W_ dspec wp
+  , IsSymbol wp
+  , Cons wp (RunW.Writer (Array w)) x'' x'
+  , Cons ep (RunE.Except e) x' x
+  ) =>
+  DimensionedVal RunResult
+    dspec
+    (R.Run x a -> R.Run x'' (Result w e a)) where
+  mkDimensional _ _ m = do
+    w <- RunW.runWriterAt (px @wp) $ RunE.runExceptAt (px @ep) m
+    pure $ { w: (Tup.fst w), v: (Tup.snd w) }
+
 instance
   ( IsSymbol wp
   , IsSymbol ep'
@@ -1632,6 +1990,21 @@ instance
     pure $ { w: (Tup.fst w), v: (Tup.snd w) }
 
 data Unresult = Unresult
+
+instance DimensionedValTag Unresult Unresult
+
+instance
+  ( E_ dspec ep
+  , IsSymbol ep
+  , W_ dspec wp
+  , IsSymbol wp
+  , Cons wp (RunW.Writer (Array w)) x'' x
+  , Cons ep (RunE.Except e) x' x
+  ) =>
+  DimensionedVal Unresult dspec (Result w e a -> R.Run x a) where
+  mkDimensional _ _ { w, v } = do
+    xAt @wp Tell w
+    xAt @ep Ok v
 
 instance
   ( IsSymbol wp
@@ -1647,6 +2020,16 @@ instance
 
 data MapWE = MapWE
 
+instance DimensionedValTag MapWE MapWE
+
+instance
+  ( DimensionedVal MapE dspec ((e1 -> e2) -> f'' -> f')
+  , DimensionedVal MapW dspec ((w1 -> w2) -> f' -> f)
+  ) =>
+  DimensionedVal MapWE dspec ((w1 -> w2) -> (e1 -> e2) -> f'' -> f) where
+  mkDimensional _ _ fw fe m = mkDimensional (px @MapW) (px @dspec) fw
+    $ mkDimensional (px @MapE) (px @dspec) fe m
+
 instance
   ( RWSEFn MapE rp wp sp ep' ((e1 -> e2) -> f'' -> f')
   , RWSEFn MapW rp wp sp ep' ((w1 -> w2) -> f' -> f)
@@ -1657,6 +2040,24 @@ instance
     $ mkXFn @rp @wp @sp @ep' MapE fe m
 
 data TellMappedHush = TellMappedHush
+
+instance DimensionedValTag TellMappedHush TellMappedHush
+
+instance
+  ( E_ dspec ep
+  , IsSymbol ep
+  , W_ dspec wp
+  , IsSymbol wp
+  , Cons wp (RunW.Writer (m w)) x'' x'
+  , Cons ep (RunE.Except e) x' x
+  , Monad.Monad m
+  , ZD.Defaultable d
+  ) =>
+  DimensionedVal TellMappedHush dspec ((e -> w) -> R.Run x d -> R.Run x' d) where
+  mkDimensional _ _ mapW m = xAt @ep Try m >>= onDone
+    where
+    onDone (Eor.Left e) = xAt @wp Say (mapW e) <#> const ZD.default
+    onDone (Eor.Right r) = pure $ r
 
 instance
   ( IsSymbol wp
@@ -1674,6 +2075,25 @@ instance
     onDone (Eor.Right r) = pure $ r
 
 data TellMappedMHush = TellMappedMHush
+
+instance DimensionedValTag TellMappedMHush TellMappedMHush
+
+instance
+  ( E_ dspec ep
+  , IsSymbol ep
+  , W_ dspec wp
+  , IsSymbol wp
+  , Cons wp (RunW.Writer (m w)) x'' x'
+  , Cons ep (RunE.Except e) x' x
+  , Monad.Monad m
+  , Monoid.Monoid (m w)
+  , ZD.Defaultable d
+  ) =>
+  DimensionedVal TellMappedMHush dspec ((e -> m w) -> R.Run x d -> R.Run x' d) where
+  mkDimensional _ _ mapW m = xAt @ep Try m >>= onDone
+    where
+    onDone (Eor.Left e) = xAt @wp Tell (mapW e) <#> const ZD.default
+    onDone (Eor.Right r) = pure $ r
 
 instance
   ( IsSymbol wp

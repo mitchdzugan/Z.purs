@@ -1,6 +1,7 @@
 module Z.SSBM.Slp.DB.App where
 
 import Z.XDom.Prelude
+import Z.XDom.Reducer as Rdc
 import Z.XDom.Router as Rt
 import Routing.Duplex as Dup
 import Routing.Duplex.Generic as G
@@ -12,17 +13,20 @@ countAct n Inc = n + 1
 countAct n Dec = n - 1
 countAct _ Reset = 3
 
-xOnE :: forall x. String -> XDom (count :: (Reducer CountAction Int) | x)
+xOnE
+  :: forall x
+   . String
+  -> XDom (count :: Reducer CountAction Int | x)
 xOnE message = do
   d.div do
     d.text message
     d.button do
       da.cn "btn btn-soft"
-      da.onClick $ \_ -> xdom @"count" @"dispatch" Reset
+      da.onClick $ \_ -> mkDimAt @"count" @Rdc.Dispatch Reset
       d.text "reset"
 
 xApp :: forall x. XurlStProviderX x -> XDom x
-xApp = mkDimAt @"router" @(DomX "runRouter") route
+xApp = mkDim @(DomX "runRouter") route
   (\{ url } -> Just $ urlToString url)
   do
     -- - x @(DomX "routeOrE")

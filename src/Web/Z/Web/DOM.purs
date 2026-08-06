@@ -96,13 +96,12 @@ xAddEventListener
   -> t
   -> Edit EventListenerOpts
   -> (WebEvent.Event -> XWeb () Unit)
-  -> XWeb x (XPure (XWeb x Unit))
+  -> XWeb x (XWeb x Unit)
 xAddEventListener eType target opts onE = do
   let o = edit defaultEventListenerOpts opts
   let tgt = toEventTarget target
   el <- lift _xWeb $ AddEventListenerCmd (evalX <<< runXWeb) eType tgt o onE id
-  pure $ XPure $ pure $ lift _xWeb $ RmEventListenerCmd eType tgt o.capture el
-    unit
+  pure $ lift _xWeb $ RmEventListenerCmd eType tgt o.capture el id
 
 xPushState
   :: forall x
@@ -153,7 +152,7 @@ data XWebF a
       WebEventT.EventTarget
       Boolean
       WebEventT.EventListener
-      a
+      (Unit -> a)
   | PushStateCmd Foreign String String a
   | SetDocumentTitle String a
 
@@ -194,9 +193,10 @@ handleXWeb = case _ of
     el <- WebEventT.eventListener \e -> pure $ wr $ h e
     WebEventT.addEventListenerWithOptions et el o t
     pure el
-  RmEventListenerCmd et t c l r -> pure $ Unsafe.unsafePerformEffect do
+  RmEventListenerCmd et t c l f -> pure $ f $ Unsafe.unsafePerformEffect do
+    traceM "removing event..."
+    traceM { et, l, c, t }
     WebEventT.removeEventListener et l c t
-    pure r
   PushStateCmd f t u r -> pure $ Unsafe.unsafePerformEffect do
     w <- HTML.window
     h <- Window.history w

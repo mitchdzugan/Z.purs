@@ -5,6 +5,7 @@ module Z.XDom.Router
   , Run(..)
   , T
   , X
+  , class RouteP_
   , class XRouterP
   ) where
 
@@ -54,8 +55,13 @@ instance
 
 instance DimensionedValTag Run Run
 
+class RouteP_ pdesc p | pdesc -> p
+
+instance RouteP_ (XAt t) t
+else instance RouteP_ t "router"
+
 instance
-  ( R_ pdesc p
+  ( RouteP_ pdesc p
   , Cons p (R r) x' x
   , IsSymbol p
   ) =>
@@ -86,7 +92,7 @@ instance
   ) =>
   RWSEFn RouteOrE ep wp sp rp (Z.Run x (Either RouteError r)) where
   rwseApply _ _ _ _ _ = do
-    r <- x @p @"ask"
+    r <- mkDimAt @p @Ask
     pure $ routeParse r.routeSpec $ urlRelative r.urlState.url
 
 data HrefAttr = HrefAttr
@@ -104,5 +110,5 @@ instance
   ) =>
   RWSEFn HrefAttr ep wp sp rp (r -> Run' x) where
   rwseApply _ _ _ _ _ route = do
-    r <- x @p @"ask"
+    r <- mkDimAt @p @Ask
     mkDimAt @pp @Tell $ pure $ XDom.Href $ routePrint r.routeSpec route

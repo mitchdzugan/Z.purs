@@ -21,6 +21,18 @@ type X a s x = Z.R (Tg () a s) x
 
 data Dispatch = Dispatch
 
+instance DimensionedValTag Dispatch Dispatch
+
+instance
+  ( R_ dspec rp
+  , IsSymbol rp
+  , Cons rp (R' (Tg r a s)) x' x
+  ) =>
+  DimensionedVal Dispatch dspec (a -> Z.Run' x) where
+  mkDimensional _ _ a = do
+    r <- mkDimAt @rp @Ask
+    x' @"$" $ r.set $ r.update r.get a
+
 instance Cons0 Dispatch where
   cons0 = Dispatch
 
@@ -35,7 +47,7 @@ instance
     ep
     (a -> Z.Run' x) where
   rwseApply _ _ _ _ _ a = do
-    r <- x @rp @"ask"
+    r <- mkDimAt @rp @Ask
     x' @"$" $ r.set $ r.update r.get a
 
 data Run = Run

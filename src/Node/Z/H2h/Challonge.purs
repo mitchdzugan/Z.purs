@@ -14,8 +14,8 @@ import Node.Z.H2h.Builder as B
 import Node.Z.Puppeteer as P
 
 getEventData :: forall x. B.GetDataFn x
-getEventData = B.adaptBuilder $ x' @"withReturn" \xReturn -> do
-  { client, networkControl, slug } <- x' @"ask"
+getEventData = B.adaptBuilder $ mkDim @WithReturn \xReturn -> do
+  { client, networkControl, slug } <- mkDim @Ask
   let { cachePath } = client
   let eCacheOnlyEmpty = H2hE.Gql GqlE.CacheOnlyEmpty
   cached <- getCached slug cachePath networkControl
@@ -28,12 +28,12 @@ getEventData = B.adaptBuilder $ x' @"withReturn" \xReturn -> do
   fullPath slug path = path /./ ("CHALLONGE-" <> slug <> ".json")
   writeToCache _ Nothing _ = pure unit
   writeToCache slug (Just path) res =
-    x' @"tellMappedHush" (H2hW.Gql <<< GqlW.CacheWrite) $ xEncodeTextFileP
+    mkDim @TellMappedHush (H2hW.Gql <<< GqlW.CacheWrite) $ xEncodeTextFileP
       (fullPath slug path)
       res
   getCached _ Nothing _ = pure Nothing
   getCached _ _ Gql.ForceFetch = pure Nothing
-  getCached slug (Just path) _ = x' @"tellMappedMHush" mapMDecodeErr
+  getCached slug (Just path) _ = mkDim @TellMappedMHush mapMDecodeErr
     $ xDecodeTextFile
     $ fullPath slug path
   mapMDecodeErr e@(DecodeError _) = [ H2hW.Gql $ GqlW.CacheDecode e ]
@@ -46,7 +46,7 @@ getEventDataImpl = do
     page <- pDo "newPage" "" $ P.xNewPage browser
     xInfo { op: "xSetViewport" }
     pDo "xSetViewport" "1920x1080" $ P.xSetViewport page 1920 1080
-    { slug } <- x' @"ask"
+    { slug } <- mkDim @Ask
     let url = "https://challonge.com/" <> slug
     xInfo { op: "xGoto", url }
     pDo "xGoto" url $ P.xGoto page url $ x' @"~waitUntil" $ Just
@@ -54,7 +54,7 @@ getEventDataImpl = do
     pWaitFor page ".redesigned-meta-list .item .text"
     pWaitFor page ".title #title"
     pWaitFor page ".bracket-svg .match .match--player"
-    x' @"evalS" initialState $ readPageData page
+    mkDim @EvalS initialState $ readPageData page
   where
   initialState =
     { isDE: false
@@ -65,7 +65,7 @@ getEventDataImpl = do
     }
 
   readPageData page = do
-    { slug } <- x' @"ask"
+    { slug } <- mkDim @Ask
     itemEls <- pEls page ".redesigned-meta-list .item"
     forM_ itemEls $ \el -> do
       itemLabel <- pEl el ".item-label" >>= pInnerText
@@ -163,7 +163,7 @@ getEventDataImpl = do
         forM_ (arrFromFoldable baseSet.slots) $ \slot -> do
           whenJust slot.entrantId $ \entrantId -> do
             setAdd entrantId #
-              x @"setsLoop" @"over"
+              mkDimAt @"setsLoop" @Over
                 (if isGrands then __ @"gfEIds" else __ @"nonGfEIds")
         { gfEIds, nonGfEIds } <- x @"setsLoop" @"get"
         seenAllGFEntrants <- x' @"withReturn" \xReturn -> do

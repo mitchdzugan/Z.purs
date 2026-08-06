@@ -28,7 +28,7 @@ mapOfJsonElsWithFieldsTypeAnd_t = reduce reducer mapEmpty
 
 getEventData :: forall x. B.GetDataFn x
 getEventData = B.adaptBuilder $ x' @"evalS" initState do
-  { slug } <- x' @"ask"
+  { slug } <- mkDim @Ask
   { event } <- fetchRawEventData
   let entrantNodes = event.entrants.nodes
   forM_ entrantNodes $ \entrantNode -> do
@@ -60,7 +60,7 @@ getEventData = B.adaptBuilder $ x' @"evalS" initState do
     x' @"%entrants" $ mapSet entrantId entrant
   forM_ event.standings.nodes $ \standing -> do
     let entrantId = sOrN standing.entrant.id
-    x' @"set" (_o_ @"entrants" @"standing" (ix entrantId))
+    mkDim @Set (_o_ @"entrants" @"standing" (ix entrantId))
       { placement: standing.placement, isFinal: standing.isFinal }
 
   let rawPgs = arrSortWith (g_ @"id") event.phaseGroups
@@ -93,7 +93,7 @@ getEventData = B.adaptBuilder $ x' @"evalS" initState do
         pure $ H2h.NoScore /\ H2h.NoScore
       let slotA = { entrantId: eIdA <#> sOrN, score: slotScoreA }
       let slotB = { entrantId: eIdB <#> sOrN, score: slotScoreB }
-      x' @"set" (_o @"sets" $ at setId) $ Just
+      mkDim @Set (_o @"sets" $ at setId) $ Just
         { id: setId
         , roundText: set.fullRoundText
         , overrideScoreText: set.displayScore
@@ -103,7 +103,7 @@ getEventData = B.adaptBuilder $ x' @"evalS" initState do
         , doesCount: (not isBye) && (not isDQ) && (isJust set.winnerId)
         , slots: slotA ~ slotB
         }
-    { sets } <- x' @"get"
+    { sets } <- mkDim @"-"
     pure
       { id: sOrN pg.id
       , displayIdentifier: pg.displayIdentifier
@@ -114,7 +114,7 @@ getEventData = B.adaptBuilder $ x' @"evalS" initState do
           , phaseOrder: pg.phase.phaseOrder
           }
       }
-  { entrants } <- x' @"get"
+  { entrants } <- mkDim @"-"
   let { endAt } = event.tournament
   date <- mkDim @Unwrap (H2hE.InvalidInstant endAt) do
     instant (Milliseconds (toNumber endAt)) <#> toDateTime
@@ -136,12 +136,12 @@ getEventData = B.adaptBuilder $ x' @"evalS" initState do
   where
   initState = { entrants: mapEmpty @SorN @H2h.Entrant }
   fetchRawPhaseGroupData phaseGroupId = do
-    { client, networkControl } <- x' @"ask"
+    { client, networkControl } <- mkDim @Ask
     let initVars = { page: 0, phaseGroupId }
     let pSpecs = [ All.ggPageSpec (__ @"page") (__ @"phaseGroup.sets") ]
-    x' @"mapWE" H2hW.Gql H2hE.Gql do
+    mkDim @MapWE H2hW.Gql H2hE.Gql do
       All.ggQueryAll Q.phaseGroup initVars pSpecs client networkControl
-  fetchRawEventData = x' @"tryUntil"
+  fetchRawEventData = mkDim @TryUntil
     (f' Q.eventMaxDataPerReq $ Just Gql.CacheOnly)
     [ const (f' Q.evenMinComplexityPerReq $ Just Gql.CacheOnly)
     , const (f' Q.eventMaxDataPerReq Nothing)
@@ -149,11 +149,11 @@ getEventData = B.adaptBuilder $ x' @"evalS" initState do
     ]
     where
     f' q ncOverride = do
-      { client, slug } <- x' @"ask"
-      nc <- x' @"ask" <#> \r -> jOr r.networkControl ncOverride
+      { client, slug } <- mkDim @Ask
+      nc <- mkDim @Ask <#> \r -> jOr r.networkControl ncOverride
       let initVars = { pageE: 0, pageS: 0, slug }
       let eSpec = All.ggPageSpec (__ @"pageE") (__ @"event.entrants")
       let sSpec = All.ggPageSpec (__ @"pageS") (__ @"event.standings")
       let pSpecs = [ eSpec, sSpec ]
-      x' @"mapWE" H2hW.Gql H2hE.Gql do
+      mkDim @MapWE H2hW.Gql H2hE.Gql do
         All.ggQueryAll q initVars pSpecs client nc
