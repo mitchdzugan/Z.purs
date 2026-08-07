@@ -9,9 +9,9 @@ module Z.XDom.State
 
 import Z.Prelude hiding (Run, Get(..), Set(..))
 import Z.Prelude as Z
-import Z.XDom.Preact as XDom
+import Z.XDom.Core as XDom
 
-type Tg r s = { get :: s, set :: s -> XPure Unit | r }
+type Tg r s = { get :: s, set :: s -> XEff Unit | r }
 type T s = Tg () s
 type R s = R' (Tg () s)
 
@@ -51,7 +51,7 @@ instance
     (s -> Z.Run' x) where
   rwseApply _ _ _ _ _ s = do
     r <- mkDimAt @rp @Ask
-    xPure $ r.set s
+    xDo $ r.set s
 
 data Run = Run
 
@@ -71,4 +71,4 @@ instance
   rwseApply _ _ _ _ _ initState m = do
     XDom.(<*#) initState \state set -> do
       let env = { set, get: state }
-      x @rp @"$" XDom.DomRunR env m
+      mkDimAt @rp @XDom.DomRunR env m

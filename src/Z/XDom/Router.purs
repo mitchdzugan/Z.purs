@@ -5,14 +5,13 @@ module Z.XDom.Router
   , Run(..)
   , T
   , X
-  , class RouteP_
   , class XRouterP
   ) where
 
 import Z.Prelude hiding (Run, Get(..), Set(..), R)
 
 import Z.Prelude as Z
-import Z.XDom.Preact as XDom
+import Z.XDom.Core as XDom
 import Z.XDom.UrlState as UrlSt
 
 type T r = { routeSpec :: RouteDuplex' r, urlState :: UrlSt.T }
@@ -48,20 +47,15 @@ instance
     ) where
   rwseApply _ _ _ _ _ routeSpec mkTitle m provider = do
     provider toTitleOr_ \urlState -> do
-      x @p @"$" XDom.DomRunR { routeSpec, urlState } m
+      mkDimAt @p @XDom.DomRunR { routeSpec, urlState } m
     where
     toTitleOr_ url = finTitle url $ routeParse routeSpec $ urlRelative url
     finTitle url routeOrE = mkTitle { url, routeOrE }
 
 instance DimensionedValTag Run Run
 
-class RouteP_ pdesc p | pdesc -> p
-
-instance RouteP_ (XAt t) t
-else instance RouteP_ t "router"
-
 instance
-  ( RouteP_ pdesc p
+  ( RP_ pdesc p
   , Cons p (R r) x' x
   , IsSymbol p
   ) =>
@@ -75,7 +69,7 @@ instance
     ) where
   mkDimensional _ _ routeSpec mkTitle m provider = do
     provider toTitleOr_ \urlState -> do
-      x @p @"$" XDom.DomRunR { routeSpec, urlState } m
+      mkDimAt @p @XDom.DomRunR { routeSpec, urlState } m
     where
     toTitleOr_ url = finTitle url $ routeParse routeSpec $ urlRelative url
     finTitle url routeOrE = mkTitle { url, routeOrE }
@@ -97,15 +91,29 @@ instance
 
 data HrefAttr = HrefAttr
 
+instance DimensionedValTag HrefAttr HrefAttr
+instance
+  ( RP_ pdesc p
+  , IsSymbol p
+  , IsSymbol pp
+  , Cons p (R r) x_a x
+  , Cons pp (W' (Array XDom.PropWF)) x_b x
+  , TypeEquals pp XDom.XProps_
+  ) =>
+  DimensionedVal HrefAttr dspec (r -> Run' x) where
+  mkDimensional _ _ route = do
+    r <- mkDimAt @p @Ask
+    mkDimAt @pp @Tell $ pure $ XDom.Href $ routePrint r.routeSpec route
+
 instance Cons0 HrefAttr where
   cons0 = HrefAttr
 
 instance
   ( XRouterP ep wp sp rp p
   , Cons p (R r) x' x
-  , Cons pp (W' (Array XDom.PropWF)) x'' x
   , IsSymbol p
   , IsSymbol pp
+  , Cons pp (W' (Array XDom.PropWF)) x'' x
   , TypeEquals pp XDom.XProps_
   ) =>
   RWSEFn HrefAttr ep wp sp rp (r -> Run' x) where

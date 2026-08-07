@@ -18,10 +18,7 @@ xPreactHydrate d r = x' @"runEffPromise" $ js_renderIn r d
 
 xDomRunWeb :: forall x. XD.RDom (DOM.XWEB x) -> XD.RDom x
 xDomRunWeb m = do
-  r <- mkDimAt @XD.XSelf_ @Ask
-  let
-    ir = XD.extXSelf @(XD.IdS) r ((<$>) XD.IdS <<< DOM.runXWeb) XD.unId XD.unId
-      XD.unId
+  ir <- XD.xSelfExtendX' DOM.runXWeb
   XD.xRawFragment $ XD.runEls ir $ x' @"execW" $ x @XD.XSelf_ @"runR" ir m
 
 xProvideHistoryX
@@ -37,7 +34,7 @@ xProvideHistoryX toTitleOr_ fx = do
     XD.d.use1Eff do
       doc <- xDocument
       win <- xWindow
-      let xUpUrl = xLocationUrl >>= x' @"$" <<< setSt <<< UrlSt.mk toTitleOr_
+      let xUpUrl = xDo <<< setSt <<< UrlSt.mk toTitleOr_ =<< xLocationUrl
       let { pushState, popState } = eventType
       d'pop <- xAddEventListener popState win default \_ -> xUpUrl
       d'push <- xAddEventListener pushState win default \_ -> xUpUrl
@@ -57,6 +54,6 @@ xProvideHistoryX toTitleOr_ fx = do
                   xPushState href newUrl.titleOr_
                   xOut newUrl.titleOr_
                   whenJust newUrl.titleOr_ xSetDocumentTitle
-                  x' @"$" $ setSt newUrl
+                  xDo $ setSt newUrl
       pure $ d'pop *> d'push *> d'click
     fx st

@@ -10,7 +10,7 @@ module Z.XDom.Reducer
 
 import Z.Prelude hiding (Run)
 import Z.Prelude as Z
-import Z.XDom.Preact as XDom
+import Z.XDom.Core as XDom
 import Z.XDom.State as St
 import Z.XDom.State (Get(..)) as StExp
 
@@ -24,14 +24,14 @@ data Dispatch = Dispatch
 instance DimensionedValTag Dispatch Dispatch
 
 instance
-  ( R_ dspec rp
+  ( RP_ dspec rp
   , IsSymbol rp
   , Cons rp (R' (Tg r a s)) x' x
   ) =>
   DimensionedVal Dispatch dspec (a -> Z.Run' x) where
   mkDimensional _ _ a = do
     r <- mkDimAt @rp @Ask
-    xPure $ r.set $ r.update r.get a
+    xDo $ r.set $ r.update r.get a
 
 instance Cons0 Dispatch where
   cons0 = Dispatch
@@ -48,7 +48,7 @@ instance
     (a -> Z.Run' x) where
   rwseApply _ _ _ _ _ a = do
     r <- mkDimAt @rp @Ask
-    xPure $ r.set $ r.update r.get a
+    xDo $ r.set $ r.update r.get a
 
 data Run = Run
 
@@ -68,4 +68,4 @@ instance
   rwseApply _ _ _ _ _ initState update m = do
     XDom.(<*#) initState \state set -> do
       let env = { set, get: state, update }
-      x @rp @"$" XDom.DomRunR env m
+      mkDimAt @rp @XDom.DomRunR env m

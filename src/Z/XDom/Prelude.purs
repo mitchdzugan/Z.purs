@@ -12,7 +12,7 @@ module Z.XDom.Prelude
 
 import Z.Prelude (class DimensionedValTag)
 import Z.Prelude hiding (div) as ZP
-import Z.XDom.Preact as XDom
+import Z.XDom.Core as XDom
 import Z.XDom.Reducer as Rdc
 import Z.XDom.Router as Rt
 import Z.XDom.State as St
@@ -43,7 +43,9 @@ else instance XDomTLS "dispatch" Rdc.Dispatch
 
 data DomX s = DomX
 
-instance DimensionedValTag (DomX "runRouter") Rt.Run
+instance DimensionedValTag (DomX "Router.run") Rt.Run
+else instance DimensionedValTag (DomX "Router.hrefAttr") Rt.HrefAttr
+else instance DimensionedValTag (DomX "runR") XDom.DomRunR
 
 xdom'
   :: forall @sym o f

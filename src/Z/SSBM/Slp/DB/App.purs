@@ -26,7 +26,7 @@ xOnE message = do
       d.text "reset"
 
 xApp :: forall x. XurlStProviderX x -> XDom x
-xApp = mkDim @(DomX "runRouter") route
+xApp = xdom' @"Router.run" route
   (\{ url } -> Just $ urlToString url)
   do
     -- - x @(DomX "routeOrE")
@@ -36,7 +36,7 @@ xApp = mkDim @(DomX "runRouter") route
       da.cn "flex flex-col gap-4"
       d.div $ d.a do
         da.cn "btn link btn-primary"
-        xdom' @"Router.href" $ Profile "Jimmy"
+        xdom' @"Router.href" (Profile "Jimmy")
         d.text "profile link"
       d.div $ xdom @"count" @"Reducer.run" 3 countAct $ xdom' @"bindE" xOnE do
         count <- xdom @"count" @"get"

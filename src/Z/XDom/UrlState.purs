@@ -11,7 +11,7 @@ module Z.XDom.UrlState
   ) where
 
 import Z.Prelude
-import Z.XDom.Preact as XD
+import Z.XDom.Core as XD
 
 type HrefSpec = Either { actual :: String, parsed :: String } String
 

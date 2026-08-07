@@ -38,6 +38,7 @@ module Z.Z.Shorthand
   , type (#>)
   , type (+)
   , type (<#)
+  , un'
   ) where
 
 import Prelude
@@ -52,6 +53,7 @@ import Z.Z.Defaultable (class Defaultable, orDefault, default) as Z
 import Z.Z.Core as ZCore
 import Z.Z.Ext
   ( class IsSymbol
+  , class Newtype
   , First
   , Maybe(..)
   , Optic
@@ -61,6 +63,7 @@ import Z.Z.Ext
   , over
   , view
   , set
+  , unwrap
   , Reader
   , Writer
   , Except
@@ -68,6 +71,9 @@ import Z.Z.Ext
 import Z.Z.Ext ((/\)) as ZExp
 import Z.Z.X as X
 import Type.Row (type (+)) as TypeRow
+
+un' :: forall nt t. Z.Newtype nt t => nt -> t
+un' = Z.unwrap
 
 stextConcat
   :: forall t1 t2. ZCore.SText t1 => ZCore.SText t2 => t1 -> t2 -> String

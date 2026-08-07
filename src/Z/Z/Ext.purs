@@ -22,6 +22,7 @@ module Z.Z.Ext
   , module Foldable
   , module Foreign
   , module Generic
+  , module Identity
   , module Int
   , module Lens
   , module LensAt
@@ -70,6 +71,7 @@ import Data.Enum (toEnum, class BoundedEnum, class Enum, defaultCardinality, def
 import Data.Exists (Exists, mkExists, runExists) as Exists
 import Data.Foldable (fold, class Foldable, maximum, minimum, maximumBy, minimumBy, foldlDefault) as Foldable
 import Data.Generic.Rep (class Generic) as Generic
+import Data.Identity (Identity(..)) as Identity
 import Data.Int (ceil, floor, round, trunc, toNumber, pow, quot) as Int
 import Data.Lens (Fold, Optic, Lens, Lens', Prism, Prism', view, preview, previewOn, viewOn, lastOf, toArrayOf, review, over, set, _Just) as Lens
 import Data.Lens.At (at, class At) as LensAt

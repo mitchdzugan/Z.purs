@@ -1,5 +1,7 @@
 module Z.Z.Core
-  ( AntiUnit
+  ( (<##>)
+  , (<$$>)
+  , AntiUnit
   , HashSet
   , IdT
   , JsAny
@@ -20,6 +22,8 @@ module Z.Z.Core
   , encodeForeign
   , encodeOpts
   , fDiscard
+  , ffmap
+  , ffmapFlipped
   , forM
   , forM_
   , inc
@@ -79,25 +83,26 @@ import Data.Argonaut.Encode (class EncodeJson, encodeJson)
 import Data.Array as Arr
 import Data.Either as Eor
 import Data.Foldable as Foldable
-import Data.Int as Int
-import Data.Traversable as Traversable
-import Data.Tuple.Nested as TupN
 import Data.Functor as F
+import Data.Functor.Flip (Flip)
+import Data.Int as Int
 import Data.Map as Map
 import Data.Maybe as May
 import Data.Ord as Ord
 import Data.Ring as Ring
 import Data.Semiring as Semiring
 import Data.Set as Set
+import Data.Traversable as Traversable
+import Data.Tuple.Nested as TupN
 import Effect.Exception as Exc
 import Foreign as Foreign
-import Type.Proxy (Proxy(..)) as Proxy
 import Parsing as Parsing
 import Parsing.Combinators as Prc
 import Parsing.String as Prs
 import Parsing.String.Basic as Prsb
 import Routing.Duplex as Dup
 import Routing.Duplex.Parser as DupP
+import Type.Proxy (Proxy(..)) as Proxy
 
 routePrint :: forall i o. Dup.RouteDuplex i o -> i -> String
 routePrint = Dup.print
@@ -213,6 +218,28 @@ instance voidRtError :: RtError Void where
 
 fDiscard :: forall f i. F.Functor f => f i -> f Unit
 fDiscard = map $ const unit
+
+ffmap
+  :: forall f g a b
+   . F.Functor f
+  => F.Functor g
+  => (a -> b)
+  -> (g (f a))
+  -> (g (f b))
+ffmap f r = map (map f) r
+
+infixl 2 ffmap as <$$>
+
+ffmapFlipped
+  :: forall f g a b
+   . F.Functor f
+  => F.Functor g
+  => (g (f a))
+  -> (a -> b)
+  -> (g (f b))
+ffmapFlipped = flip ffmap
+
+infixl 2 ffmapFlipped as <##>
 
 type P :: forall k. k -> Type
 type P a = Proxy.Proxy a
