@@ -55,7 +55,7 @@ module Z.XDom.Core
   , XProps_
   , XSelf_
   , _xProps
-  , d
+  , ddd
   , da
   , del
   , dpureText
@@ -363,8 +363,8 @@ mkD f =
   , withNewState: dwithNewState
   }
 
-d :: forall x. DType (RDom' x XEl -> RDom x)
-d = mkD id
+ddd :: forall x. DType (RDom' x XEl -> RDom x)
+ddd = mkD id
 
 del
   :: forall x

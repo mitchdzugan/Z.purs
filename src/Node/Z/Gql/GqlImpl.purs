@@ -100,7 +100,7 @@ xOperateUnknown opString vars client networkControl = mkDim @WithReturn
   getCached _ ForceFetch = pure $ 0 /\ Nothing
   getCached Nothing _ = pure $ 0 /\ Nothing
   getCached (Just p) _ = getCachedRec p 0
-  writeToCache Nothing _ _ = default
+  writeToCache Nothing _ _ = pass
   writeToCache (Just cachePath) collisionCount toCache = do
     let filename = cacheFilename cachePath collisionCount
     mkDim @TellMappedHush GqlW.CacheWrite $ xEncodeTextFileP filename toCache

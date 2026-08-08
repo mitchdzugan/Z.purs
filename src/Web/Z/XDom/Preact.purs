@@ -31,14 +31,14 @@ xProvideHistoryX toTitleOr_ fx = do
   let baseUrlState = UrlSt.mk toTitleOr_ locUrl
   let origin = urlOrigin locUrl
   XD.dwithNewState baseUrlState \st setSt -> do
-    XD.d.use1Eff do
+    XD.ddd.use1Eff do
       doc <- xDocument
       win <- xWindow
       let xUpUrl = xDo <<< setSt <<< UrlSt.mk toTitleOr_ =<< xLocationUrl
       let { pushState, popState } = eventType
-      d'pop <- xAddEventListener popState win default \_ -> xUpUrl
-      d'push <- xAddEventListener pushState win default \_ -> xUpUrl
-      d'click <- xAddEventListener eventType.click doc default \e -> do
+      d'pop <- xAddEventListener popState win pass \_ -> xUpUrl
+      d'push <- xAddEventListener pushState win pass \_ -> xUpUrl
+      d'click <- xAddEventListener eventType.click doc pass \e -> do
         let orTarget = evTarget e
         whenJust orTarget \target -> do
           orClosest <- xClosest target "a"

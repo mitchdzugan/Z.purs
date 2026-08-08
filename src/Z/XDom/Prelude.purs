@@ -1,6 +1,7 @@
 module Z.XDom.Prelude
   ( DomX
   , Reducer
+  , RouterX(..)
   , XReducer
   , XurlStProviderX
   , class XDomTLS
@@ -43,9 +44,13 @@ else instance XDomTLS "dispatch" Rdc.Dispatch
 
 data DomX s = DomX
 
-instance DimensionedValTag (DomX "Router.run") Rt.Run
-else instance DimensionedValTag (DomX "Router.hrefAttr") Rt.HrefAttr
-else instance DimensionedValTag (DomX "runR") XDom.DomRunR
+instance DimensionedValTag (DomX "runR") XDom.DomRunR
+else instance DimensionedValTag (DomX "bindE") XDom.DomBindE
+
+data RouterX s = RouterX
+
+instance DimensionedValTag (RouterX "run") Rt.Run
+else instance DimensionedValTag (RouterX "hrefAttr") Rt.HrefAttr
 
 xdom'
   :: forall @sym o f

@@ -55,9 +55,9 @@ instance
 instance DimensionedValTag Run Run
 
 instance
-  ( RP_ pdesc p
-  , Cons p (R r) x' x
-  , IsSymbol p
+  ( RP_ dspec rp
+  , Cons rp (R r) x' x
+  , IsSymbol rp
   ) =>
   DimensionedVal Run
     pdesc
@@ -69,7 +69,7 @@ instance
     ) where
   mkDimensional _ _ routeSpec mkTitle m provider = do
     provider toTitleOr_ \urlState -> do
-      mkDimAt @p @XDom.DomRunR { routeSpec, urlState } m
+      mkDimAt @rp @XDom.DomRunR { routeSpec, urlState } m
     where
     toTitleOr_ url = finTitle url $ routeParse routeSpec $ urlRelative url
     finTitle url routeOrE = mkTitle { url, routeOrE }
@@ -93,17 +93,17 @@ data HrefAttr = HrefAttr
 
 instance DimensionedValTag HrefAttr HrefAttr
 instance
-  ( RP_ pdesc p
-  , IsSymbol p
-  , IsSymbol pp
-  , Cons p (R r) x_a x
-  , Cons pp (W' (Array XDom.PropWF)) x_b x
-  , TypeEquals pp XDom.XProps_
+  ( OrDefault_ "router" dspec rp
+  , IsSymbol rp
+  , Cons rp (R r) x_a (xProps :: W' (Array XDom.PropWF) | x)
   ) =>
-  DimensionedVal HrefAttr dspec (r -> Run' x) where
+  DimensionedVal HrefAttr
+    dspec
+    (r -> Run' (xProps :: W' (Array XDom.PropWF) | x)) where
   mkDimensional _ _ route = do
-    r <- mkDimAt @p @Ask
-    mkDimAt @pp @Tell $ pure $ XDom.Href $ routePrint r.routeSpec route
+    r <- mkDimAt @rp @Ask
+    mkDimAt @XDom.XProps_ @Tell $ pure $ XDom.Href $ routePrint r.routeSpec
+      route
 
 instance Cons0 HrefAttr where
   cons0 = HrefAttr

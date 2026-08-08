@@ -111,6 +111,7 @@ module Z.Z.X.Core
   , X'
   , XApply
   , XAt(..)
+  , XAtDefault(..)
   , XBASE
   , XBaseF
   , XBase_
@@ -248,10 +249,10 @@ class
 
 mkDim
   :: forall @tt tag t
-   . DimensionedVal tag Void t
+   . DimensionedVal tag XAtDefault t
   => RootDimensionedValueTag tt tag
   => t
-mkDim = mkDimensional (P.Proxy :: P.Proxy tag) (P.Proxy :: P.Proxy Void)
+mkDim = mkDimensional (P.Proxy :: P.Proxy tag) (P.Proxy :: P.Proxy XAtDefault)
 
 mkDimAt
   :: forall @at @tt tag t
@@ -271,6 +272,7 @@ mkDimWE = mkDimensional (P.Proxy :: P.Proxy tag)
 
 data XAt at = XAt
 data Xwe atw ate = Xwe
+data XAtDefault = XAtDefault
 
 class RP_ i o | i -> o
 class WP_ i o | i -> o
@@ -279,21 +281,24 @@ class EP_ i o | i -> o
 class OrDefault_ s i o | s i -> o
 
 instance RP_ (XAt t) t
-else instance RP_ t "reader"
+instance RP_ (Xwe _w _e) "reader"
+instance RP_ XAtDefault "reader"
 
 instance WP_ (Xwe w e) w
-else instance WP_ (XAt t) t
-else instance WP_ t "writer"
+instance WP_ (XAt t) t
+instance WP_ XAtDefault "writer"
 
 instance SP_ (XAt t) t
-else instance SP_ t "state"
+instance SP_ (Xwe _w _e) "state"
+instance SP_ XAtDefault "state"
 
 instance EP_ (Xwe w e) e
-else instance EP_ (XAt t) t
-else instance EP_ t "except"
+instance EP_ (XAt t) t
+instance EP_ XAtDefault "except"
 
 instance OrDefault_ s (XAt t) t
-else instance OrDefault_ s t s
+instance OrDefault_ s (Xwe _w _e) s
+instance OrDefault_ s XAtDefault s
 
 class Cons0 t where
   cons0 :: t

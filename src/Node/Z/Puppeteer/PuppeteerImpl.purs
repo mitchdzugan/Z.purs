@@ -46,7 +46,7 @@ xUseBrowser'
    . (ResourceStage -> JsError -> e)
   -> (Browser -> EA e + E e x #> a)
   -> EA e x #> a
-xUseBrowser' = arg2' default xUseBrowser
+xUseBrowser' = arg2' pass xUseBrowser
 
 xNewPage :: forall x. Browser -> EA JsError x #> Page
 xNewPage = x' @"runEffPromise" <<< js_newPage
@@ -59,7 +59,7 @@ xGoto page url optsEdit = do
   x' @"runEffPromise" $ js_goto url opts page
 
 xGoto' :: forall x. Page -> String -> EA JsError x #> Unit
-xGoto' = arg3' default xGoto
+xGoto' = arg3' pass xGoto
 
 xSetViewport
   :: forall x
@@ -86,7 +86,7 @@ xWaitForSelector'
    . Page
   -> String
   -> EA JsError x #> Unit
-xWaitForSelector' = arg3' default xWaitForSelector
+xWaitForSelector' = arg3' pass xWaitForSelector
 
 xEls
   :: forall x o
