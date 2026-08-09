@@ -20,10 +20,11 @@ foreign import js_sha256ArrOfBuffer
 ofArrayBuffer :: Array Int -> Buffer
 ofArrayBuffer = js_ofArrayBuffer
 
-sha256OfBuffer :: forall x. Buffer -> X.X (X.EA Z.JsError x) String
+sha256OfBuffer :: forall x. Buffer -> X.XRun (X.EA Z.JsError x) String
 sha256OfBuffer = X.x' @"runEffPromise" <<< js_sha256OfBuffer
 
-sha256BytesOfBuffer :: forall x. Buffer -> X.X (X.EA Z.JsError x) (Array E.Byte)
+sha256BytesOfBuffer
+  :: forall x. Buffer -> X.XRun (X.EA Z.JsError x) (Array E.Byte)
 sha256BytesOfBuffer = (<$>) ((<$>) E.byte)
   <<< X.x' @"runEffPromise"
   <<< js_sha256ArrOfBuffer

@@ -1,80 +1,74 @@
 module Z.Z.Defaultable.Generable
-  ( GAt
-  , GDescAt(..)
-  , GDescDefault(..)
-  , GTag
+  ( GDescDefault
+  , GenerableNickname
   , Generable
-  , GenerableP
-  , GenerableW
-  , class GDefaultable
-  , class GOrDefault_
+  , GWrappedTag(..)
+  , class GOrDefault
   , class GTaggedDefaultable
   , class GenerableC
-  , class GenerableWUnwrap
-  , gDefault
+  , class GenerableNicknameC
   , gTaggedDefault
   , mkGenerable
+  , type (@@)
   ) where
 
-import Prelude
-
 import Z.Z.Defaultable.Core (class Defaultable, default)
-
-class GDefaultable :: forall @k. k -> Type -> Constraint
-class GDefaultable ga a | ga -> a where
-  gDefault :: a
 
 class GTaggedDefaultable :: forall @k. k -> Type -> Constraint
 class GTaggedDefaultable ga a | ga -> a where
   gTaggedDefault :: a
 
-data GTag :: forall k. k -> Type
-data GTag a = GTag
+data Generable :: forall k. k -> Type
+data Generable a = Generable
+
+data GWrappedTag :: forall k1 k2. k1 -> k2 -> Type
+data GWrappedTag tag gdesc = GWrappedTag
+
+infixr 0 type GWrappedTag as @@
 
 instance
-  ( GDefaultable ga a
+  ( GenerableC tag GDescDefault a
   ) =>
-  GTaggedDefaultable (GTag ga) a where
-  gTaggedDefault = gDefault @ga
+  GTaggedDefaultable (Generable tag) a where
+  gTaggedDefault = mkGenerable @tag @GDescDefault
+else instance
+  ( GenerableC tagOut GDescDefault a
+  , GenerableNicknameC tagIn tagOut
+  ) =>
+  GTaggedDefaultable (GenerableNickname tagIn) a where
+  gTaggedDefault = mkGenerable @tagOut @GDescDefault
+else instance
+  ( GenerableC tag gspec a
+  ) =>
+  GTaggedDefaultable (GWrappedTag (Generable tag) gspec) a where
+  gTaggedDefault = mkGenerable @tag @gspec
+else instance
+  ( GenerableC tagOut gspec a
+  , GenerableNicknameC tagIn tagOut
+  ) =>
+  GTaggedDefaultable (GWrappedTag (GenerableNickname tagIn) gspec) a where
+  gTaggedDefault = mkGenerable @tagOut @gspec
 else instance
   ( Defaultable a
   ) =>
   GTaggedDefaultable a a where
   gTaggedDefault = default
 
-data GDescAt at = GDescAt
 data GDescDefault = GDescDefault
 
-class GOrDefault_ s i o | s i -> o
+class GOrDefault :: forall @k1 @k2 @k3. k1 -> k2 -> k3 -> Constraint
+class GOrDefault s i o | s i -> o
 
-instance GOrDefault_ s (GDescAt t) t
-instance GOrDefault_ s GDescDefault s
-
-data GenerableP t = GenerableP
-
-type Generable t = GTag (GenerableP t)
-
-data GenerableW w = GenerableW
-
-class GenerableWUnwrap w tag gspec | w -> tag gspec
-
-newtype GAt at tag = GAt tag
-
-instance GenerableWUnwrap (GAt at tag) (GDescAt at) tag
+instance GOrDefault s GDescDefault s
+else instance GOrDefault s t t
 
 class GenerableC :: forall @k1 @k2. k1 -> k2 -> Type -> Constraint
 class GenerableC tag gspec v | tag gspec -> v where
   mkGenerable :: v
 
-instance
-  ( GenerableC tag GDescDefault v
-  ) =>
-  GDefaultable (GenerableP tag) v where
-  gDefault = mkGenerable @tag @GDescDefault
+class GenerableNicknameC :: forall @k1 @k2. k1 -> k2 -> Constraint
+class GenerableNicknameC tagIn tagOut | tagIn -> tagOut
 
-else instance
-  ( GenerableC tag gspec v
-  , GenerableWUnwrap w tag gspec
-  ) =>
-  GDefaultable (GenerableW w) v where
-  gDefault = mkGenerable @tag @gspec
+data GenerableNickname :: forall @k. k -> Type
+data GenerableNickname tagIn
+

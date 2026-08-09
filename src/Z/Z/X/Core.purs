@@ -107,7 +107,7 @@ module Z.Z.X.Core
   , WaSA
   , WaSE
   , WithReturn
-  , X
+  , XRun
   , X'
   , XApply
   , XAt(..)
@@ -212,6 +212,7 @@ import Unsafe.Coerce as UnsafeC
 import Z.Z.Barlow (class Strong)
 import Z.Z.Barlow as Bl
 import Z.Z.Core as Z
+import Z.Z.Defaultable (class GOrDefault)
 import Z.Z.Defaultable as ZD
 import Z.Z.Ext as ZE
 
@@ -1384,6 +1385,9 @@ instance
     onDone (Eor.Right v) = pure v
 -}
 
+class GWriterOrDefault :: forall k1 k2. k1 -> k2 -> Constraint
+class GOrDefault "writer" gdesc wp <= GWriterOrDefault gdesc wp
+
 data Say = Say
 
 instance DimensionedValTag Say Say
@@ -2132,27 +2136,27 @@ data XState = XState
 
 --------------- EVAL -------------------------------------------------------
 
-evalX :: forall a. X () a -> a
+evalX :: forall a. XRun () a -> a
 evalX m = Unsafe.unsafePerformEffect $ R.runBaseEffect $ R.expand $ runXBase m
 
-runX :: forall e a. X (E e ()) a -> Eor.Either e a
+runX :: forall e a. XRun (E e ()) a -> Eor.Either e a
 runX = evalX <<< x' @"try"
 
-evalXA :: forall a. X (A ()) a -> Aff.Aff a
+evalXA :: forall a. XRun (A ()) a -> Aff.Aff a
 evalXA m = R.match { aff: \(AffCmd a) -> a } # R.run $ runXBase m
 
-runXA :: forall e a. X (EA e ()) a -> Aff.Aff (Eor.Either e a)
+runXA :: forall e a. XRun (EA e ()) a -> Aff.Aff (Eor.Either e a)
 runXA = evalXA <<< x' @"try"
 
 --------------- OTHER ------------------------------------------------------
 
-type Edit s = X (S s ()) Unit
+type Edit s = XRun (S s ()) Unit
 
 edit :: forall a. a -> Edit a -> a
 edit init m = R.extract $ RunS.execState init $
   runXBase m
 
-type StrW = X (Wa String ()) Unit
+type StrW = XRun (Wa String ()) Unit
 
 joinStrW :: String -> StrW -> String
 joinStrW s m = StrCommon.joinWith s $ evalX $ x' @"execW" m
@@ -2171,16 +2175,16 @@ promiseToAff = Promise.toAff
 effectPromiseToAff :: forall a. Eff.Effect (Promise.Promise a) -> Aff.Aff a
 effectPromiseToAff e = EffC.liftEffect e >>= promiseToAff
 
-xTimeout :: forall x. Int -> X (A x) Unit
+xTimeout :: forall x. Int -> XRun (A x) Unit
 xTimeout ms = Z.fDiscard $ x' @"try" $ x' @"runEffPromise" $ js_timeout ms
 
 --------------- CORE TYPE ---------------------------------------------------
 
-type X x a = R.Run (XBASE x) a
+type XRun x a = R.Run (XBASE x) a
 
-type X' x = X x Unit
+type X' x = XRun x Unit
 
-type X_ a = X () a
+type X_ a = XRun () a
 
 type XWa w fx a = R.Run (XBASE + fx + Wa w ()) a
 
@@ -2233,27 +2237,27 @@ handleXBase = case _ of
 runXBase :: forall r. R.Run (XBASE + r) ~> R.Run r
 runXBase = R.run (R.on _eff handleXBase R.send)
 
-xPass :: forall x. X x Unit
+xPass :: forall x. XRun x Unit
 xPass = R.lift _eff (PassCmd unit)
 
-xOut :: forall l x. l -> X x Unit
+xOut :: forall l x. l -> XRun x Unit
 xOut v = Z.fDiscard $ R.lift _eff (LogDirectCmd "log" (Z.jsAny v) unit)
 
-xOutErr :: forall l x. l -> X x Unit
+xOutErr :: forall l x. l -> XRun x Unit
 xOutErr v = Z.fDiscard $ R.lift _eff (LogDirectCmd "error" (Z.jsAny v) unit)
 
-xLogCmd :: forall l x. String -> l -> X x Unit
+xLogCmd :: forall l x. String -> l -> XRun x Unit
 xLogCmd k v = do
   let src = Unsafe.unsafePerformEffect js_getStack
   Z.fDiscard $ R.lift _eff (LogCmd k src (Z.jsAny v) unit)
 
-xInfo :: forall l x. l -> X x Unit
+xInfo :: forall l x. l -> XRun x Unit
 xInfo = xLogCmd "log"
 
-xLogWarning :: forall l x. l -> X x Unit
+xLogWarning :: forall l x. l -> XRun x Unit
 xLogWarning = xLogCmd "warn"
 
-xLogError :: forall l x. l -> X x Unit
+xLogError :: forall l x. l -> XRun x Unit
 xLogError = xLogCmd "error"
 
 --------------- XBuilders ---------------------------------------------------

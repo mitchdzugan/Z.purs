@@ -1,6 +1,5 @@
 module Z.Z.Defaultable.Util
-  ( d
-  , z
+  ( z
   ) where
 
 import Prelude
@@ -10,10 +9,7 @@ import Prim.Row (class Cons)
 import Run (Run)
 import Run.Writer (Writer, WRITER, tellAt)
 import Type.Proxy (Proxy(..))
-import Z.Z.Defaultable.Generable (GAt, GDescAt(..), GDescDefault(..), GTag, Generable, GenerableP, GenerableW, class GDefaultable, class GOrDefault_, class GTaggedDefaultable, class GenerableC, class GenerableWUnwrap, gDefault, gTaggedDefault, mkGenerable)
-
-d :: forall @tag a. GTaggedDefaultable tag a => a
-d = gTaggedDefault @tag
+import Z.Z.Defaultable.Generable (class GOrDefault, class GTaggedDefaultable, class GenerableC, class GenerableNicknameC, type (@@), GenerableNickname, Generable, Generable, GenerableNickname, gTaggedDefault)
 
 z :: forall @tag a. GTaggedDefaultable tag a => a
 z = gTaggedDefault @tag
@@ -26,13 +22,9 @@ instance
   ( IsSymbol wp
   , Cons wp (Writer (m w)) x' x
   , Monad m
-  , GOrDefault_ "writer" gspec wp
+  , GOrDefault "writer" gspec wp
   ) =>
   GenerableC SayT gspec (w -> Run x Unit) where
   mkGenerable w = do
     tellAt (Proxy @wp) $ pure w
     pure unit
-
-tt :: Run (WRITER (Array Int) ()) Unit
-tt = do
-  d @Say 1

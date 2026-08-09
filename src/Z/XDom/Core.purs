@@ -164,7 +164,7 @@ dwithKey k m = do
 
 infixr 3 dwithKey as <!&
 
-type SetStateFn s = s -> X () Unit
+type SetStateFn s = s -> XRun () Unit
 
 type DwithNewState =
   forall x s. s -> (s -> (s -> XEff Unit) -> RDom x) -> RDom x

@@ -127,7 +127,7 @@ xPreventDefault e = lift _xWeb $ PreventDefaultCmd e unit
 xStopPropagation :: forall x. WET.Event -> XWeb x Unit
 xStopPropagation e = lift _xWeb $ StopPropagationCmd e unit
 
-type XWeb x a = X (xWeb :: XWebF | x) a
+type XWeb x a = XRun (xWeb :: XWebF | x) a
 
 type XWebRunner = forall a. XWeb () a -> a
 

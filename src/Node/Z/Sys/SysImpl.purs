@@ -313,7 +313,7 @@ infixr 0 pathJoin as /./
 -- join paths unless rightside is absolute in which case, use rightside
 infixr 0 pathJoinAbs as /.|//
 
-type XNode x a = X (xNode :: XNodeF | x) a
+type XNode x a = XRun (xNode :: XNodeF | x) a
 
 xArgParse
   :: forall x a

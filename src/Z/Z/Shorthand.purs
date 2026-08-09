@@ -118,12 +118,12 @@ infixr 0 mlast as <|<
 
 infixr 0 mfirst as >|>
 
-type Xflipped a x = X.X x a
+type Xflipped a x = X.XRun x a
 
 type TPlus :: forall k. (Row k -> Row k) -> Row k -> Row k
 type TPlus a b = a TypeRow.+ b
 
-infixr 0 type X.X as #>
+infixr 0 type X.XRun as #>
 
 infixr 0 type Xflipped as <#
 
