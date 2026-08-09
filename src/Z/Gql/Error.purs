@@ -11,10 +11,10 @@ data T
   | CacheOnlyEmpty
   | ResponseTypeError JsonDecodeError
 
-derive instance gnericT :: Generic T _
+derive instance Generic T _
 
-instance decodeT :: DecodeJson T where
+instance DecodeJson T where
   decodeJson x = genericDecodeJson x
 
-instance encodeT :: EncodeJson T where
+instance EncodeJson T where
   encodeJson x = genericEncodeJson x

@@ -22,29 +22,27 @@ asInt P3 = 3
 asInt P4 = 4
 asInt (NonOEM n) = n
 
-derive instance eqT :: Eq T
-derive instance ordT :: Ord T
-
-derive instance genericT :: Generic T _
-
-instance decodeJsonT :: DecodeJson T where
+derive instance Eq T
+derive instance Ord T
+derive instance Generic T _
+instance DecodeJson T where
   decodeJson x = genericDecodeJson x
 
-instance encodeJsonT :: EncodeJson T where
+instance EncodeJson T where
   encodeJson x = genericEncodeJson x
 
-instance showT :: Show T where
+instance Show T where
   show P1 = "p1"
   show P2 = "p2"
   show P3 = "p3"
   show P4 = "p4"
   show (NonOEM x) = "p{x}" <> show x
 
-instance boundedT :: Bounded T where
+instance Bounded T where
   top = P4
   bottom = P1
 
-instance enumT :: Enum T where
+instance Enum T where
   succ P4 = Nothing
   succ P3 = Just P4
   succ P2 = Just P3
@@ -56,7 +54,7 @@ instance enumT :: Enum T where
   pred P1 = Nothing
   pred _ = Nothing
 
-instance boundedEnumT :: BoundedEnum T where
+instance BoundedEnum T where
   cardinality = defaultCardinality
   toEnum = defaultToEnum
   fromEnum = defaultFromEnum

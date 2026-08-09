@@ -1,71 +1,52 @@
 module Z.XDom.Reducer
-  ( Dispatch(..)
-  , R
-  , Run(..)
+  ( R
   , T
   , Tg
   , X
-  , module StExp
+  , XDomDispatch
+  , XDomDispatchT
+  , XDomRunReducer
+  , XDomRunReducerT
   ) where
 
 import Z.Prelude hiding (Run)
+
 import Z.Prelude as Z
 import Z.XDom.Core as XDom
 import Z.XDom.State as St
-import Z.XDom.State (Get(..)) as StExp
 
 type Tg r a s = St.Tg (update :: s -> a -> s | r) s
 type T a s = Tg () a s
 type R a s = R' (Tg () a s)
 type X a s x = Z.R (Tg () a s) x
 
-data Dispatch = Dispatch
-
-instance DimensionedValTag Dispatch Dispatch
+data XDomDispatchT = XDomDispatchT
 
 instance
-  ( RP_ dspec rp
+  ( GOrDefault "reader" gspec rp
   , IsSymbol rp
   , Cons rp (R' (Tg r a s)) x' x
   ) =>
-  DimensionedVal Dispatch dspec (a -> Z.Run' x) where
-  mkDimensional _ _ a = do
-    r <- mkDimAt @rp @Ask
+  GenerableC XDomDispatchT gspec (a -> Z.Run' x) where
+  mkGenerable a = do
+    r <- z @(XAsk @@ gspec)
     xDo $ r.set $ r.update r.get a
 
-instance Cons0 Dispatch where
-  cons0 = Dispatch
+type XDomDispatch = Generable XDomDispatchT
+
+data XDomRunReducerT = XDomRunReducerT
 
 instance
-  ( Cons rp (R' (Tg r a s)) x' x
+  ( GOrDefault "reader" gspec rp
   , IsSymbol rp
+  , Cons rp (R' (T a s)) x' x
   ) =>
-  RWSEFn Dispatch
-    rp
-    wp
-    sp
-    ep
-    (a -> Z.Run' x) where
-  rwseApply _ _ _ _ _ a = do
-    r <- mkDimAt @rp @Ask
-    xDo $ r.set $ r.update r.get a
-
-data Run = Run
-
-instance Cons0 Run where
-  cons0 = Run
-
-instance
-  ( Cons rp (R' (T a s)) x' x
-  , IsSymbol rp
-  ) =>
-  RWSEFn Run
-    rp
-    wp
-    sp
-    ep
+  GenerableC XDomRunReducerT
+    gspec
     (s -> (s -> a -> s) -> XDom.RDom x -> XDom.RDom x') where
-  rwseApply _ _ _ _ _ initState update m = do
+  mkGenerable initState update m = do
     XDom.(<*#) initState \state set -> do
       let env = { set, get: state, update }
-      mkDimAt @rp @XDom.DomRunR env m
+      z @(XDom.XDomRunR @@ gspec) env m
+
+type XDomRunReducer = Generable XDomRunReducerT

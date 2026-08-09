@@ -1,13 +1,14 @@
 module Node.Z.H2h.Startgg (getEventData) where
 
 import Z.Prelude
-import Z.H2h.Error as H2hE
-import Z.H2h.Module as H2h
-import Z.H2h.Warning as H2hW
+
 import Node.Z.Gql as Gql
 import Node.Z.H2h.Builder as B
 import Node.Z.H2h.Startgg.All as All
 import Node.Z.H2h.Startgg.Queries as Q
+import Z.H2h.Error as H2hE
+import Z.H2h.Module as H2h
+import Z.H2h.Warning as H2hW
 
 mapOfJsonElsWithFieldsTypeAnd_t
   :: forall @t ttype tLns ttypeLns tr' ttyper' r
@@ -28,7 +29,7 @@ mapOfJsonElsWithFieldsTypeAnd_t = reduce reducer mapEmpty
 
 getEventData :: forall x. B.GetDataFn x
 getEventData = B.adaptBuilder $ x' @"evalS" initState do
-  { slug } <- mkDim @Ask
+  { slug } <- z @XAsk
   { event } <- fetchRawEventData
   let entrantNodes = event.entrants.nodes
   forM_ entrantNodes $ \entrantNode -> do
@@ -136,7 +137,7 @@ getEventData = B.adaptBuilder $ x' @"evalS" initState do
   where
   initState = { entrants: mapEmpty @SorN @H2h.Entrant }
   fetchRawPhaseGroupData phaseGroupId = do
-    { client, networkControl } <- mkDim @Ask
+    { client, networkControl } <- z @XAsk
     let initVars = { page: 0, phaseGroupId }
     let pSpecs = [ All.ggPageSpec (__ @"page") (__ @"phaseGroup.sets") ]
     mkDim @MapWE H2hW.Gql H2hE.Gql do
@@ -149,8 +150,8 @@ getEventData = B.adaptBuilder $ x' @"evalS" initState do
     ]
     where
     f' q ncOverride = do
-      { client, slug } <- mkDim @Ask
-      nc <- mkDim @Ask <#> \r -> jOr r.networkControl ncOverride
+      { client, slug } <- z @XAsk
+      nc <- z @XAsk <#> \r -> jOr r.networkControl ncOverride
       let initVars = { pageE: 0, pageS: 0, slug }
       let eSpec = All.ggPageSpec (__ @"pageE") (__ @"event.entrants")
       let sSpec = All.ggPageSpec (__ @"pageS") (__ @"event.standings")

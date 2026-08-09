@@ -21,6 +21,7 @@ module Z.H2h.Module
   ) where
 
 import Z.Prelude
+
 import Z.H2h.Error as H2hE
 import Z.H2h.Warning as H2hW
 
@@ -30,12 +31,12 @@ type Warning = H2hW.T
 
 data BracketingSite = Startgg | Challonge
 
-derive instance genericBracketingSite :: Generic BracketingSite _
+derive instance Generic BracketingSite _
 
-instance decodeJsonBracketingSite :: DecodeJson BracketingSite where
+instance DecodeJson BracketingSite where
   decodeJson x = genericDecodeJson x
 
-instance encodeJsonBracketingSite :: EncodeJson BracketingSite where
+instance EncodeJson BracketingSite where
   encodeJson x = genericEncodeJson x
 
 data Score = DQ Boolean | Count Int | NoScore
@@ -46,12 +47,12 @@ mkScoreDQ isDQd = DQ isDQd
 mkScoreCount :: Int -> Score
 mkScoreCount count = Count count
 
-derive instance genericScore :: Generic Score _
+derive instance Generic Score _
 
-instance decodeJsonScore :: DecodeJson Score where
+instance DecodeJson Score where
   decodeJson x = genericDecodeJson x
 
-instance encodeJsonScore :: EncodeJson Score where
+instance EncodeJson Score where
   encodeJson x = genericEncodeJson x
 
 type Slot =

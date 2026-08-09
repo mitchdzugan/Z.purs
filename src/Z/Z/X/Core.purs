@@ -70,12 +70,11 @@ module Z.Z.X.Core
   , SE
   , SEA
   , Say
+  , SayT
   , Set
   , Set_
   , StrW
   , Tell
-  , TellMappedHush
-  , TellMappedMHush
   , ToArrayOf
   , ToArrayOfR
   , ToArrayOfR_
@@ -107,18 +106,31 @@ module Z.Z.X.Core
   , WaSA
   , WaSE
   , WithReturn
-  , XRun
-  , X'
+  , X
   , XApply
+  , XAsk
+  , XAskT
   , XAt(..)
   , XAtDefault(..)
   , XBASE
   , XBaseF
   , XBase_
   , XEnv
+  , XRun
+  , XRunR
+  , XRunRT
+  , XRunWA
+  , XSay
   , XState
-  , XWa
-  , X_
+  , XTell
+  , XTellMappedHush
+  , XTellMappedHushT
+  , XTellMappedMHush
+  , XTellMappedMHushT
+  , XTellT
+  , XTry
+  , XTryT
+  , Xnn
   , Xwe(..)
   , class Cons0
   , class DimensionedVal
@@ -183,7 +195,7 @@ import Data.Maybe as May
 import Data.Maybe.First as MayFirst
 import Data.Monoid as Monoid
 import Data.Monoid.Endo as Endo
-import Data.Newtype (wrap, unwrap, class Newtype) as NT
+import Data.Newtype (class Newtype, unwrap, wrap) as NT
 import Data.Profunctor (class Profunctor)
 import Data.String.Common as StrCommon
 import Data.Symbol (class IsSymbol)
@@ -212,9 +224,130 @@ import Unsafe.Coerce as UnsafeC
 import Z.Z.Barlow (class Strong)
 import Z.Z.Barlow as Bl
 import Z.Z.Core as Z
-import Z.Z.Defaultable (class GOrDefault)
+import Z.Z.Defaultable
+  ( class G2OrDefault
+  , class GOrDefault
+  , class GenerableC
+  , class GenerableNicknameC
+  , type (@@)
+  , G1
+  , Generable
+  , GenerableNickname
+  , z
+  )
 import Z.Z.Defaultable as ZD
 import Z.Z.Ext as ZE
+
+data XTryT = XTryT
+
+instance
+  ( GOrDefault "except" gspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except e) x' x
+  ) =>
+  GenerableC XTryT gspec (R.Run x a -> R.Run x' (Eor.Either e a)) where
+  mkGenerable m = RunE.runExceptAt (px @ep) m
+
+type XTry = Generable XTryT
+
+data SayT = SayT
+
+instance
+  ( IsSymbol wp
+  , Cons wp (RunW.Writer (m w)) x' x
+  , Monad m
+  , GOrDefault "writer" gspec wp
+  ) =>
+  GenerableC SayT gspec (w -> R.Run x Unit) where
+  mkGenerable w = do
+    RunW.tellAt (Proxy @wp) $ pure w
+    pure unit
+
+type XSay = Generable SayT
+
+data XTellT = XTellT
+
+instance
+  ( IsSymbol wp
+  , Cons wp (RunW.Writer w) x' x
+  , Monoid w
+  , GOrDefault "writer" gspec wp
+  ) =>
+  GenerableC XTellT gspec (w -> R.Run x Unit) where
+  mkGenerable w = do
+    RunW.tellAt (Proxy @wp) w
+    pure unit
+
+type XTell = Generable XTellT
+
+type XTellMappedHush = Generable XTellMappedHushT
+data XTellMappedHushT = XTellMappedHushT
+
+instance
+  ( G2OrDefault "except" gspec ep
+  , GOrDefault "writer" gspec wp
+  , IsSymbol ep
+  , IsSymbol wp
+  , Cons wp (RunW.Writer (m w)) x'' x'
+  , Cons ep (RunE.Except e) x' x
+  , Monad.Monad m
+  , ZD.Defaultable d
+  ) =>
+  GenerableC XTellMappedHushT gspec ((e -> w) -> R.Run x d -> R.Run x' d) where
+  mkGenerable mapW m = z @(XTry @@ G1 ep) m >>= onDone
+    where
+    onDone (Eor.Left e) = z @(XSay @@ gspec) (mapW e) <#> const ZD.default
+    onDone (Eor.Right r) = pure $ r
+
+type XTellMappedMHush = Generable XTellMappedMHushT
+data XTellMappedMHushT = XTellMappedMHushT
+
+instance
+  ( G2OrDefault "except" gspec ep
+  , GOrDefault "writer" gspec wp
+  , IsSymbol ep
+  , IsSymbol wp
+  , Cons wp (RunW.Writer (m w)) x'' x'
+  , Cons ep (RunE.Except e) x' x
+  , Monad.Monad m
+  , Monoid.Monoid (m w)
+  , ZD.Defaultable d
+  ) =>
+  GenerableC XTellMappedMHushT gspec ((e -> m w) -> R.Run x d -> R.Run x' d) where
+  mkGenerable mapW m = z @(XTry @@ G1 ep) m >>= onDone
+    where
+    onDone (Eor.Left e) = z @(XTell @@ gspec) (mapW e) <#> const ZD.default
+    onDone (Eor.Right r) = pure $ r
+
+data XAskT = XAskT
+
+instance
+  ( IsSymbol p
+  , Cons p (RunR.Reader r) x' x
+  , GOrDefault "reader" gspec p
+  ) =>
+  GenerableC XAskT gspec (R.Run x r) where
+  mkGenerable = RunR.askAt (Proxy @p)
+
+type XAsk = Generable XAskT
+
+data XRunRT = XRunRT
+type XRunR = Generable XRunRT
+
+instance
+  ( IsSymbol p
+  , Cons p (RunR.Reader r) x' x
+  , GOrDefault "reader" gspec p
+  ) =>
+  GenerableC XRunRT gspec (r -> R.Run x a -> R.Run x' a) where
+  mkGenerable = RunR.runReaderAt (P.Proxy :: P.Proxy p)
+
+data Xnn :: Symbol -> Type
+data Xnn str = XX
+
+instance GenerableNicknameC (Xnn "^") XAskT
+
+type X str = GenerableNickname (Xnn str)
 
 class DimensionedValTag tagIn tagOut | tagIn -> tagOut
 
@@ -421,12 +554,6 @@ instance Cons0 WithReturn where
 instance Cons0 Tell where
   cons0 = Tell
 
-instance Cons0 TellMappedHush where
-  cons0 = TellMappedHush
-
-instance Cons0 TellMappedMHush where
-  cons0 = TellMappedMHush
-
 instance Cons0 Unwrap where
   cons0 = Unwrap
 
@@ -503,9 +630,7 @@ else instance XTLS "try" Try
 else instance XTLS "tryUntil" TryUntil
 else instance XTLS "withReturn" WithReturn
 else instance XTLS "tell" Tell
-else instance XTLS "tellMappedHush" TellMappedHush
 else instance XTLS "unwrap" Unwrap
-else instance XTLS "tellMappedMHush" TellMappedMHush
 else instance
   ( Symbol.Cons sh stail s
   , XTLSFull sh stail f
@@ -1320,7 +1445,7 @@ instance mkdEvalS ::
   DimensionedVal EvalS dspec (s -> R.Run x f -> R.Run x' f) where
   mkDimensional _ _ initState m = RunS.evalStateAt (px @sp) initState m
 
-instance rwseApplyEvalS ::
+instance
   ( IsSymbol sp
   , Cons sp (RunS.State s) x' x
   ) =>
@@ -2036,78 +2161,6 @@ instance
   rwseApply _ _ _ _ _ fw fe m = mkXFn @rp @wp @sp @ep' MapW fw
     $ mkXFn @rp @wp @sp @ep' MapE fe m
 
-data TellMappedHush = TellMappedHush
-
-instance DimensionedValTag TellMappedHush TellMappedHush
-
-instance
-  ( EP_ dspec ep
-  , IsSymbol ep
-  , WP_ dspec wp
-  , IsSymbol wp
-  , Cons wp (RunW.Writer (m w)) x'' x'
-  , Cons ep (RunE.Except e) x' x
-  , Monad.Monad m
-  , ZD.Defaultable d
-  ) =>
-  DimensionedVal TellMappedHush dspec ((e -> w) -> R.Run x d -> R.Run x' d) where
-  mkDimensional _ _ mapW m = xAt @ep Try m >>= onDone
-    where
-    onDone (Eor.Left e) = xAt @wp Say (mapW e) <#> const ZD.default
-    onDone (Eor.Right r) = pure $ r
-
-instance
-  ( IsSymbol wp
-  , IsSymbol ep'
-  , WpEpPickEp wp ep ep'
-  , Cons wp (RunW.Writer (m w)) x'' x'
-  , Cons ep' (RunE.Except e) x' x
-  , Monad.Monad m
-  , ZD.Defaultable d
-  ) =>
-  RWSEFn TellMappedHush rp wp sp ep ((e -> w) -> R.Run x d -> R.Run x' d) where
-  rwseApply _ _ _ _ _ mapW m = xAt @ep' Try m >>= onDone
-    where
-    onDone (Eor.Left e) = xAt @wp Say (mapW e) <#> const ZD.default
-    onDone (Eor.Right r) = pure $ r
-
-data TellMappedMHush = TellMappedMHush
-
-instance DimensionedValTag TellMappedMHush TellMappedMHush
-
-instance
-  ( EP_ dspec ep
-  , IsSymbol ep
-  , WP_ dspec wp
-  , IsSymbol wp
-  , Cons wp (RunW.Writer (m w)) x'' x'
-  , Cons ep (RunE.Except e) x' x
-  , Monad.Monad m
-  , Monoid.Monoid (m w)
-  , ZD.Defaultable d
-  ) =>
-  DimensionedVal TellMappedMHush dspec ((e -> m w) -> R.Run x d -> R.Run x' d) where
-  mkDimensional _ _ mapW m = xAt @ep Try m >>= onDone
-    where
-    onDone (Eor.Left e) = xAt @wp Tell (mapW e) <#> const ZD.default
-    onDone (Eor.Right r) = pure $ r
-
-instance
-  ( IsSymbol wp
-  , IsSymbol ep'
-  , WpEpPickEp wp ep ep'
-  , Cons wp (RunW.Writer (m w)) x'' x'
-  , Cons ep' (RunE.Except e) x' x
-  , Monad.Monad m
-  , Monoid.Monoid (m w)
-  , ZD.Defaultable d
-  ) =>
-  RWSEFn TellMappedMHush rp wp sp ep ((e -> m w) -> R.Run x d -> R.Run x' d) where
-  rwseApply _ _ _ _ _ mapW m = xAt @ep' Try m >>= onDone
-    where
-    onDone (Eor.Left e) = xAt @wp Tell (mapW e) <#> const ZD.default
-    onDone (Eor.Right r) = pure $ r
-
 --------------------- x -----------------------
 
 type XFnG :: forall k1 k2 k3 k4. k1 -> k2 -> k3 -> k4 -> Type
@@ -2128,8 +2181,8 @@ xAtWE = mkXFn @wp @wp @ep @ep
 class XPSel :: forall k1 k2 k3 k4. k1 -> k2 -> k3 -> k4 -> Constraint
 class XPSel a b c d | a b c -> d
 
-instance envXPSel :: XPSel XEnv rs ss rs
-instance stateXPSel :: XPSel XState rs ss ss
+instance XPSel XEnv rs ss rs
+instance XPSel XState rs ss ss
 
 data XEnv = XEnv
 data XState = XState
@@ -2182,17 +2235,13 @@ xTimeout ms = Z.fDiscard $ x' @"try" $ x' @"runEffPromise" $ js_timeout ms
 
 type XRun x a = R.Run (XBASE x) a
 
-type X' x = XRun x Unit
-
-type X_ a = XRun () a
-
-type XWa w fx a = R.Run (XBASE + fx + Wa w ()) a
+type XRunWA w fx a = R.Run (XBASE + fx + Wa w ()) a
 
 --------------- AFF -------------------------------------------------------
 
 data AffF a = AffCmd (Aff.Aff a)
 
-derive instance functorAffF :: Functor AffF
+derive instance Functor AffF
 
 type AFF x = (aff :: AffF | x)
 
@@ -2216,7 +2265,7 @@ data XBaseF a
   | LogCmd String String Z.JsAny a
   | LogDirectCmd String Z.JsAny a
 
-derive instance functorXBaseF :: Functor XBaseF
+derive instance Functor XBaseF
 
 type XBASE x = (xBase :: XBaseF | x)
 

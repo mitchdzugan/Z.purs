@@ -1,8 +1,11 @@
 module Z.Z.Defaultable.Generable
-  ( GDescDefault
-  , GenerableNickname
-  , Generable
+  ( G2
+  , G1
+  , GDescDefault
   , GWrappedTag(..)
+  , Generable
+  , GenerableNickname
+  , class G2OrDefault
   , class GOrDefault
   , class GTaggedDefaultable
   , class GenerableC
@@ -54,13 +57,29 @@ else instance
   GTaggedDefaultable a a where
   gTaggedDefault = default
 
+data G2 :: forall @k1 @k2. k1 -> k2 -> Type
+data G2 t1 t2 = G2
+
+data G1 :: forall @k1. k1 -> Type
+data G1 t1 = G1
+
 data GDescDefault = GDescDefault
 
 class GOrDefault :: forall @k1 @k2 @k3. k1 -> k2 -> k3 -> Constraint
 class GOrDefault s i o | s i -> o
 
+class G2OrDefault :: forall @k1 @k2 @k3. k1 -> k2 -> k3 -> Constraint
+class G2OrDefault s i o | s i -> o
+
 instance GOrDefault s GDescDefault s
+else instance GOrDefault s (G1 t1) t1
+else instance GOrDefault s (G2 t1 _t2) t1
 else instance GOrDefault s t t
+
+instance G2OrDefault s GDescDefault s
+else instance G2OrDefault s (G1 _t1) s
+else instance G2OrDefault s (G2 _t1 t2) t2
+else instance G2OrDefault s t s
 
 class GenerableC :: forall @k1 @k2. k1 -> k2 -> Type -> Constraint
 class GenerableC tag gspec v | tag gspec -> v where

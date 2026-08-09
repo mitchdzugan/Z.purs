@@ -46,8 +46,8 @@ import Prelude
 
 import Data.Argonaut.Core (stringify) as AArg
 import Data.Argonaut.Core as Arg
-import Data.Argonaut.Decode (JsonDecodeError(..)) as JDE
 import Data.Argonaut.Decode (class DecodeJson, fromJsonString) as Dec
+import Data.Argonaut.Decode (JsonDecodeError(..)) as JDE
 import Data.Argonaut.Decode as ADec
 import Data.Argonaut.Decode.Generic (genericDecodeJson) as DecodeGeneric
 import Data.Argonaut.Encode (class EncodeJson, encodeJson) as Enc
@@ -55,15 +55,15 @@ import Data.Argonaut.Encode.Generic (genericEncodeJson) as EncodeGeneric
 import Data.Array as Array
 import Data.Either as Either
 import Data.Generic.Rep (class Generic) as Generic
-import Data.Maybe as Maybe
 import Data.Map as Map
+import Data.Maybe as Maybe
 import Data.Ord as Ord
 import Data.Ordering as Ordering
 import Data.Tuple as Tup
 import Foreign.Object as FO
 import Type.Proxy as Proxy
-import Z.Z.Url as Url
 import Z.Z.Core as Z
+import Z.Z.Url as Url
 
 urlFromParts :: Url.Parts -> Url.URL
 urlFromParts = Url.fromParts
@@ -139,7 +139,7 @@ decodeFailTypeMismatch
   :: forall x. String -> Either.Either JDE.JsonDecodeError x
 decodeFailTypeMismatch = Either.Left <<< JDE.TypeMismatch
 
-instance showJsonDecodeError :: Show JsonDecodeError where
+instance Show JsonDecodeError where
   show (JsonDecodeError jde) = show jde
 
 decodeRtoI :: JDE.JsonDecodeError -> JsonDecodeErrorInt
@@ -158,22 +158,22 @@ decodeItoR (AtKey s e) = JDE.AtKey s $ decodeItoR e
 decodeItoR (Named s e) = JDE.Named s $ decodeItoR e
 decodeItoR MissingValue = JDE.MissingValue
 
-derive instance genericJsonJsonDecodeError :: Generic.Generic JsonDecodeError _
-derive instance genericJsonJsonDecodeErrorInt ::
+derive instance Generic.Generic JsonDecodeError _
+derive instance
   Generic.Generic JsonDecodeErrorInt _
 
-instance decodeJsonJsonDecodeErrorInt :: Dec.DecodeJson JsonDecodeErrorInt where
+instance Dec.DecodeJson JsonDecodeErrorInt where
   decodeJson x = DecodeGeneric.genericDecodeJson x
 
-instance encodeJsonJsonDecodeErrorInt :: Enc.EncodeJson JsonDecodeErrorInt where
+instance Enc.EncodeJson JsonDecodeErrorInt where
   encodeJson x = EncodeGeneric.genericEncodeJson x
 
-instance decodeJsonJsonDecodeError :: Dec.DecodeJson JsonDecodeError where
+instance Dec.DecodeJson JsonDecodeError where
   decodeJson x = do
     j :: JsonDecodeErrorInt <- ADec.decodeJson x
     pure $ JsonDecodeError $ decodeItoR j
 
-instance encodeJsonJsonDecodeError :: Enc.EncodeJson JsonDecodeError where
+instance Enc.EncodeJson JsonDecodeError where
   encodeJson (JsonDecodeError x) = Enc.encodeJson $ decodeRtoI x
 
 type JsonDecodeFn t = Arg.Json -> Either.Either JsonDecodeError t
@@ -240,23 +240,23 @@ data SorN = SorN_S String | SorN_I Int
 class IsStringOrNum a where
   sOrN :: a -> SorN
 
-derive instance genericSorN :: Generic.Generic SorN _
-derive instance eqSorN :: Eq SorN
-derive instance ordSorN :: Ord SorN
+derive instance Generic.Generic SorN _
+derive instance Eq SorN
+derive instance Ord SorN
 
-instance decodeSorN :: Dec.DecodeJson SorN where
+instance Dec.DecodeJson SorN where
   decodeJson x = DecodeGeneric.genericDecodeJson x
 
-instance encodeSorN :: Enc.EncodeJson SorN where
+instance Enc.EncodeJson SorN where
   encodeJson x = EncodeGeneric.genericEncodeJson x
 
-instance stringIsStringOrNum :: IsStringOrNum String where
+instance IsStringOrNum String where
   sOrN = SorN_S
 
-instance intIsStringOrNum :: IsStringOrNum Int where
+instance IsStringOrNum Int where
   sOrN = SorN_I
 
-instance stringOrNumShow :: Show SorN where
+instance Show SorN where
   show (SorN_S s) = s
   show (SorN_I i) = show i
 
@@ -275,10 +275,10 @@ arg4' a4 f a1 a2 a3 = f a1 a2 a3 a4
 
 data ResourceStage = Acquire | Release
 
-derive instance genericResourceStage :: Generic.Generic ResourceStage _
+derive instance Generic.Generic ResourceStage _
 
-instance decodeJsonResourceStage :: Dec.DecodeJson ResourceStage where
+instance Dec.DecodeJson ResourceStage where
   decodeJson x = DecodeGeneric.genericDecodeJson x
 
-instance encodeJsonResourceStage :: Enc.EncodeJson ResourceStage where
+instance Enc.EncodeJson ResourceStage where
   encodeJson x = EncodeGeneric.genericEncodeJson x

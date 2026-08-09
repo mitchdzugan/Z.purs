@@ -32,18 +32,18 @@ adjustDateTime
   -> May.Maybe DateTime
 adjustDateTime dur dt = impl_to_data dt # DateTime.adjust dur <#> data_to_impl
 
-derive instance genericDateTime :: Z.Generic DateTime _
+derive instance Z.Generic DateTime _
 
-derive instance eqDateTime ∷ Eq a => Eq DateTime
+derive instance Eq a => Eq DateTime
 
-instance decodeDateTime :: Z.DecodeJson DateTime where
+instance Z.DecodeJson DateTime where
   decodeJson x = Dec.decodeJson x <#> Z.Milliseconds <#> DateTimeInst.instant
     >>= fromInst
     where
     fromInst Z.Nothing = Z.Left $ Dec.TypeMismatch "Invalid date"
     fromInst (Z.Just i) = Z.Right $ data_to_impl $ DateTimeInst.toDateTime i
 
-instance encodeDateTime :: Z.EncodeJson DateTime where
+instance Z.EncodeJson DateTime where
   encodeJson = impl_to_data
     >>> DateTimeInst.fromDateTime
     >>> DateTimeInst.unInstant

@@ -1,6 +1,7 @@
 module Node.Z.SSBM.Slp.Rec where
 
 import Node.Z.Prelude
+
 import Z.SSBM.Slp.Port as Port
 import Z.Z.Opt as O
 
@@ -63,7 +64,7 @@ xRun args = do
     envState <- x' @"execS" envStateInit $ addConfigs noOptConfigs wd configs
     env <- finalizeEnv envState opts $ show $ wd /./ "output.mp4"
     xInfo env
-    x' @"runR" env launchAndRecord
+    z @XRunR env launchAndRecord
 
 mergeListOps
   :: forall a f. Foldable f => List a -> f (ListOp a) -> List a
@@ -183,7 +184,7 @@ newtype CliOpts = CliOpts
   , recPath :: String
   }
 
-derive instance newtypeCliOpts :: Newtype CliOpts _
+derive instance Newtype CliOpts _
 
 type IniFilename = String
 type IniProperty = String
@@ -191,10 +192,10 @@ type IniValue = String
 
 data IniMod = IniMod IniFilename IniProperty IniValue
 
-derive instance eqIniMod :: Eq IniMod
-derive instance ordIniMod :: Ord IniMod
+derive instance Eq IniMod
+derive instance Ord IniMod
 
-derive instance genericIniMod :: Generic IniMod _
+derive instance Generic IniMod _
 
 iniModToStr :: IniMod -> String
 iniModToStr (IniMod i p v) = i <> ":" <> p <> "=" <> v
@@ -211,24 +212,22 @@ iniModOfStr s = do
   where
   emsg = "Expected `$ini:$prop=$val`"
 
-instance decodeJsonIniMod :: DecodeJson IniMod where
+instance DecodeJson IniMod where
   decodeJson x = do
     (baseDecodeJson x <#> iniModOfStr) >>= onEor
     where
     onEor (Right v) = pure v
     onEor (Left msg) = decodeFailTypeMismatch msg
 
-instance encodeJsonIniMod :: EncodeJson IniMod where
+instance EncodeJson IniMod where
   encodeJson x = encodeJson $ iniModToStr x
 
 newtype PortCostume = PortCostume (Port.T /\ Int)
 
-derive instance newtypePortCostume :: Newtype PortCostume _
-
-derive instance eqPortCostume :: Eq PortCostume
-derive instance ordPortCostume :: Ord PortCostume
-
-derive instance genericPortCostume :: Generic PortCostume _
+derive instance Newtype PortCostume _
+derive instance Eq PortCostume
+derive instance Ord PortCostume
+derive instance Generic PortCostume _
 
 portCostumeToStr :: PortCostume -> String
 portCostumeToStr (PortCostume (p /\ c)) = (show $ Port.asInt p) <> "=" <> show c
@@ -242,19 +241,19 @@ portCostumeOfStr s = do
   where
   emsg = "Expected `$port:$costume` => `[1|2|3|4]=[1|2|3|4|5|6]"
 
-instance decodeJsonPortCostume :: DecodeJson PortCostume where
+instance DecodeJson PortCostume where
   decodeJson x = do
     (baseDecodeJson x <#> portCostumeOfStr) >>= onEor
     where
     onEor (Right v) = pure v
     onEor (Left msg) = decodeFailTypeMismatch msg
 
-instance encodeJsonPortCostume :: EncodeJson PortCostume where
+instance EncodeJson PortCostume where
   encodeJson x = encodeJson $ portCostumeToStr x
 
 data ListOp a = LReset | LCons a
 
-instance decodeListOp :: DecodeJson a => DecodeJson (ListOp a) where
+instance DecodeJson a => DecodeJson (ListOp a) where
   decodeJson x = do
     caseJsonString decodeCons onString x
     where
@@ -262,7 +261,7 @@ instance decodeListOp :: DecodeJson a => DecodeJson (ListOp a) where
     onString _ = decodeCons
     decodeCons = baseDecodeJson x <#> LCons
 
-instance encodeListOp :: EncodeJson a => EncodeJson (ListOp a) where
+instance EncodeJson a => EncodeJson (ListOp a) where
   encodeJson LReset = encodeJson "="
   encodeJson (LCons a) = encodeJson a
 
@@ -400,7 +399,7 @@ slpRecInfo wd = O.info (cliOpts wd O.<**> O.helper)
 
 data Error = NoIso | ConfigNotFound String | ConfigDecodeErr JsonDecodeError
 
-instance errorRtError :: RtError Error where
+instance RtError Error where
   rtErrExtra _ = encodeJson {}
   rtErrName NoIso = "melee iso not found"
   rtErrName (ConfigNotFound _) = "config file not found"

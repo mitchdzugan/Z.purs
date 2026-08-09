@@ -37,9 +37,10 @@ module Node.Z.Sys.SysImpl
   ) where
 
 import Z.Prelude
+
+import Effect.Unsafe as Unsafe
 import Z.Sys.Module as Sys
 import Z.Z.Opt as O
-import Effect.Unsafe as Unsafe
 
 foreign import js_readTextFile
   :: String -> Effect $ Promise String
@@ -64,16 +65,16 @@ foreign import js_loadYaml
 
 newtype Path = Path String
 
-instance showPath :: Show Path where
+instance Show Path where
   show (Path s) = s
 
 class Pathlike a where
   pathStr :: a -> String
 
-instance pathlikePath :: Pathlike Path where
+instance Pathlike Path where
   pathStr (Path p) = p
 
-instance pathlikeString :: Pathlike String where
+instance Pathlike String where
   pathStr s = s
 
 xReadFile :: forall x p. Pathlike p => p -> EA JsError x #> Buffer
@@ -194,7 +195,7 @@ effAffThenExit a = runAff_ onDone a
 type XNodeEA e x = EA e (XNODE x)
 
 runXAThenExit
-  :: forall @w @e a. RtError e => XWa w (XNodeEA e) a -> Effect Unit
+  :: forall @w @e a. RtError e => XRunWA w (XNodeEA e) a -> Effect Unit
 runXAThenExit m = effAffThenExit $ runXA $ do
   w /\ res <- x' @"runW" $ expand $ runXNode m
   when (arrSize w > 0) do
@@ -205,13 +206,13 @@ runXAThenExit m = effAffThenExit $ runXA $ do
 runXAThenExitWithArgv
   :: forall @w @e a
    . RtError e
-  => (Array String -> XWa w (XNodeEA e) a)
+  => (Array String -> XRunWA w (XNodeEA e) a)
   -> Effect Unit
 runXAThenExitWithArgv fm = runXAThenExit $ xArgv >>= fm
 
 data Platform = Win32 | Darwin | Linux | Android | FreeBSD | OpenBSD | Unknown
 
-derive instance eqPlatform :: Eq Platform
+derive instance Eq Platform
 
 toPlatform :: String -> Platform
 toPlatform "win32" = Win32
@@ -287,7 +288,7 @@ handleXNode = case _ of
   EnvPathsCmd appName suffix f -> pure $ f $ Unsafe.unsafePerformEffect $
     js_envPaths appName (encodeOpts { suffix })
 
-derive instance functorXBaseF :: Functor XNodeF
+derive instance Functor XNodeF
 
 type XNODE x = (xNode :: XNodeF | x)
 

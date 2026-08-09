@@ -3,19 +3,20 @@ module Node.Z.H2h.Challonge
   ) where
 
 import Node.Z.Prelude
-import Z.Bk.Elimination.Round as Round
-import Z.Gql.Warning as GqlW
-import Z.Gql.Error as GqlE
-import Z.H2h.Error as H2hE
-import Z.H2h.Module as H2h
-import Z.H2h.Warning as H2hW
+
 import Node.Z.Gql as Gql
 import Node.Z.H2h.Builder as B
 import Node.Z.Puppeteer as P
+import Z.Bk.Elimination.Round as Round
+import Z.Gql.Error as GqlE
+import Z.Gql.Warning as GqlW
+import Z.H2h.Error as H2hE
+import Z.H2h.Module as H2h
+import Z.H2h.Warning as H2hW
 
 getEventData :: forall x. B.GetDataFn x
 getEventData = B.adaptBuilder $ mkDim @WithReturn \xReturn -> do
-  { client, networkControl, slug } <- mkDim @Ask
+  { client, networkControl, slug } <- z @XAsk
   let { cachePath } = client
   let eCacheOnlyEmpty = H2hE.Gql GqlE.CacheOnlyEmpty
   cached <- getCached slug cachePath networkControl
@@ -28,12 +29,12 @@ getEventData = B.adaptBuilder $ mkDim @WithReturn \xReturn -> do
   fullPath slug path = path /./ ("CHALLONGE-" <> slug <> ".json")
   writeToCache _ Nothing _ = pure unit
   writeToCache slug (Just path) res =
-    mkDim @TellMappedHush (H2hW.Gql <<< GqlW.CacheWrite) $ xEncodeTextFileP
+    z @XTellMappedHush (H2hW.Gql <<< GqlW.CacheWrite) $ xEncodeTextFileP
       (fullPath slug path)
       res
   getCached _ Nothing _ = pure Nothing
   getCached _ _ Gql.ForceFetch = pure Nothing
-  getCached slug (Just path) _ = mkDim @TellMappedMHush mapMDecodeErr
+  getCached slug (Just path) _ = z @XTellMappedMHush mapMDecodeErr
     $ xDecodeTextFile
     $ fullPath slug path
   mapMDecodeErr e@(DecodeError _) = [ H2hW.Gql $ GqlW.CacheDecode e ]
@@ -46,7 +47,7 @@ getEventDataImpl = do
     page <- pDo "newPage" "" $ P.xNewPage browser
     xInfo { op: "xSetViewport" }
     pDo "xSetViewport" "1920x1080" $ P.xSetViewport page 1920 1080
-    { slug } <- mkDim @Ask
+    { slug } <- z @XAsk
     let url = "https://challonge.com/" <> slug
     xInfo { op: "xGoto", url }
     pDo "xGoto" url $ P.xGoto page url $ x' @"~waitUntil" $ Just
@@ -65,7 +66,7 @@ getEventDataImpl = do
     }
 
   readPageData page = do
-    { slug } <- mkDim @Ask
+    { slug } <- z @XAsk
     itemEls <- pEls page ".redesigned-meta-list .item"
     forM_ itemEls $ \el -> do
       itemLabel <- pEl el ".item-label" >>= pInnerText

@@ -16,10 +16,10 @@ data T
   | ParseTime ParseError
   | InvalidInstant Int
 
-derive instance genericT :: Generic T _
+derive instance Generic T _
 
-instance decodeJsonT :: DecodeJson T where
+instance DecodeJson T where
   decodeJson x = genericDecodeJson x
 
-instance encodeJsonT :: EncodeJson T where
+instance EncodeJson T where
   encodeJson x = genericEncodeJson x

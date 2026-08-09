@@ -44,10 +44,10 @@ evTarget = WebEvent.target
 class IsEventTarget a where
   toEventTarget :: a -> WebEventT.EventTarget
 
-instance htmlDocIsEventTarget :: IsEventTarget HTMLDoc.HTMLDocument where
+instance IsEventTarget HTMLDoc.HTMLDocument where
   toEventTarget = HTMLDoc.toEventTarget
 
-instance windowIsEventTarget :: IsEventTarget HTML.Window where
+instance IsEventTarget HTML.Window where
   toEventTarget = Window.toEventTarget
 
 getElementById :: String -> HTMLDoc.HTMLDocument -> Effect (Maybe T.Element)
@@ -214,7 +214,7 @@ handleXWeb = case _ of
     WebEvent.stopPropagation e
     pure r
 
-derive instance functorXBaseF :: Functor XWebF
+derive instance Functor XWebF
 
 type XWEB x = (xWeb :: XWebF | x)
 
@@ -242,7 +242,7 @@ effAffThenExit a = runAff_ onDone a
 type XWebEA e x = EA e (XWEB x)
 
 runXAThenExit
-  :: forall @w @e a. RtError e => XWa w (XWebEA e) a -> Effect Unit
+  :: forall @w @e a. RtError e => XRunWA w (XWebEA e) a -> Effect Unit
 runXAThenExit m = effAffThenExit $ runXA $ do
   w /\ res <- x' @"runW" $ expand $ runXWeb m
   when (arrSize w > 0) do

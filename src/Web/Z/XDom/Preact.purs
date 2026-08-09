@@ -19,7 +19,7 @@ xPreactHydrate d r = x' @"runEffPromise" $ js_renderIn r d
 xDomRunWeb :: forall x. XD.RDom (DOM.XWEB x) -> XD.RDom x
 xDomRunWeb m = do
   ir <- XD.xSelfExtendX' DOM.runXWeb
-  XD.xRawFragment $ XD.runEls ir $ x' @"execW" $ x @XD.XSelf_ @"runR" ir m
+  XD.xRawFragment $ XD.runEls ir $ x' @"execW" $ z @(XRunR @@ XD.XSelf_) ir m
 
 xProvideHistoryX
   :: forall x

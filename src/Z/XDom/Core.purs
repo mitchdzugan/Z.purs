@@ -25,8 +25,6 @@ module Z.XDom.Core
   , DTextW_
   , DTextW_'
   , DType
-  , DomBindE(..)
-  , DomRunR(..)
   , DomS
   , DomS'
   , Duse1Eff
@@ -46,8 +44,12 @@ module Z.XDom.Core
   , SetStateFn
   , XDom
   , XDom'
+  , XDomBindE
+  , XDomBindET
   , XDomFn
   , XDomFn'
+  , XDomRunR
+  , XDomRunRT
   , XDomS
   , XDomS'
   , XEl
@@ -55,8 +57,8 @@ module Z.XDom.Core
   , XProps_
   , XSelf_
   , _xProps
-  , ddd
   , da
+  , ddd
   , del
   , dpureText
   , dpureTextW
@@ -85,6 +87,9 @@ module Z.XDom.Core
   ) where
 
 import Z.Prelude
+
+import Debug (trace)
+import Z.XDom.Preact (PropWF(..), ReactEl) as ReExport
 import Z.XDom.Preact
   ( PropWF(..)
   , ReactEl
@@ -103,24 +108,21 @@ import Z.XDom.Preact
 import Z.XDom.XSelf
   ( XSelf
   , baseXSelf
-  , xSelfExtend
-  , xSelfExtend'
   , runDisposable
   , runEls
   , runUnit
+  , xSelfExtend
+  , xSelfExtend'
   )
 import Z.XDom.XSelf
   ( XSelf
   , baseXSelf
-  , xSelfExtend
-  , xSelfExtend'
   , runDisposable
   , runEls
   , runUnit
+  , xSelfExtend
+  , xSelfExtend'
   ) as ReExport
-import Z.XDom.Preact (PropWF(..), ReactEl) as ReExport
-
-import Debug (trace)
 
 type XSelf_ = "xDomSelf"
 
@@ -149,7 +151,7 @@ type RDom' x fx = GDomFn' IdT x fx Unit
 type XPROPS x = (xProps :: Writer (Array PropWF) | x)
 
 renderX :: XDom () -> ReactEl
-renderX m = js_renderFragment $ evalX $ x @XSelf_ @"runR" baseXSelf
+renderX m = js_renderFragment $ evalX $ z @(XRunR @@ XSelf_) baseXSelf
   $ x' @"execW"
   $ m
 
@@ -157,9 +159,10 @@ type DwithKey = forall x. String -> RDom x -> RDom x
 
 dwithKey :: DwithKey
 dwithKey k m = do
-  rn <- mkDimAt @XSelf_ @Ask
-  mkDim @Say $ js_withKey k $ js_renderFragment $ runEls rn $ x' @"execW"
-    $ x @XSelf_ @"runR" rn
+  rn <- z @(XAsk @@ XSelf_)
+  z @XSay $ js_withKey k $ js_renderFragment $ runEls rn
+    $ x' @"execW"
+    $ z @(XRunR @@ XSelf_) rn
     $ m
 
 infixr 3 dwithKey as <!&
@@ -171,10 +174,10 @@ type DwithNewState =
 
 dwithNewState :: DwithNewState
 dwithNewState initalState fm = do
-  rn <- mkDimAt @XSelf_ @Ask
-  mkDim @Say $ flip (js_withState pure) initalState (renderFn rn)
+  rn <- z @(XAsk @@ XSelf_)
+  z @XSay $ flip (js_withState pure) initalState (renderFn rn)
   where
-  renderFn rn s ss = runEls rn $ mkDim @ExecW $ x @XSelf_ @"runR" rn $ fm
+  renderFn rn s ss = runEls rn $ mkDim @ExecW $ z @(XRunR @@ XSelf_) rn $ fm
     s
     (w ss)
   w ss s = XEff $ ss s
@@ -185,49 +188,45 @@ type D2withNewState =
 infixr 3 dwithNewState as <*#
 
 xRawFragment :: forall x. Array ReactEl -> RDom x
-xRawFragment = mkDim @Say <<< js_renderFragment
-
-data DomRunR = DomRunR
+xRawFragment = z @XSay <<< js_renderFragment
 
 xSelfExtendX'
   :: forall x' x. (forall a. Run x a -> Run x' a) -> RDomFn x' (XSelf x)
-xSelfExtendX' m = mkDimAt @XSelf_ @Ask <#> xSelfExtend' m
+xSelfExtendX' m = z @(XAsk @@ XSelf_) <#> xSelfExtend' m
 
 runRDom :: forall x. XSelf x -> RDom x -> ReactEl
 runRDom r =
-  js_renderFragment <<< runEls r <<< x' @"execW" <<< x @XSelf_ @"runR" r
+  js_renderFragment <<< runEls r <<< x' @"execW" <<< z @(XRunR @@ XSelf_) r
 
 runRDomAndSayIt :: forall x x'. XSelf x -> RDom x -> RDom x'
-runRDomAndSayIt r = mkDim @Say <<< runRDom r
+runRDomAndSayIt r = z @XSay <<< runRDom r
 
-instance DimensionedValTag DomRunR DomRunR
+data XDomRunRT = XDomRunRT
+
+type XDomRunR = Generable XDomRunRT
+
 instance
-  ( RP_ dspec rp
+  ( GOrDefault "reader" gdesc rp
   , IsSymbol rp
   , Cons rp (R' r) x' x
   ) =>
-  DimensionedVal DomRunR dspec (r -> RDom x -> RDom x') where
-  mkDimensional _ _ env m = do
-    ir <- xSelfExtendX' (x @rp @"runR" env)
+  GenerableC XDomRunRT gdesc (r -> RDom x -> RDom x') where
+  mkGenerable env m = do
+    ir <- xSelfExtendX' (z @(XRunR @@ gdesc) env)
     runRDomAndSayIt ir m
 
-data DomBindE = DomBindE
+data XDomBindET = XDomBindET
 
-instance Cons0 DomBindE where
-  cons0 = DomBindE
+type XDomBindE = Generable XDomBindET
 
 instance
   ( Cons ep (E' e) x' x
   , IsSymbol ep
+  , GOrDefault "except" gdesc ep
   ) =>
-  RWSEFn DomBindE
-    rp
-    wp
-    sp
-    ep
-    ((e -> RDom x') -> RDom x -> RDom x') where
-  rwseApply _ _ _ _ _ em m = do
-    r <- mkDimAt @XSelf_ @Ask
+  GenerableC XDomBindET gdesc ((e -> RDom x') -> RDom x -> RDom x') where
+  mkGenerable em m = do
+    r <- z @(XAsk @@ XSelf_)
     let
       ir = xSelfExtend @(Either e)
         (mkDimAt @ep @Try)
@@ -244,13 +243,13 @@ instance
             (Right v) -> v
         )
         r
-    mkDim @Say $ js_withBoundedError (rErr r) (rMain ir)
+    z @XSay $ js_withBoundedError (rErr r) (rMain ir)
     where
     rMain rn _ = js_renderFragment $ runEls rn $ x' @"execW"
-      $ x @XSelf_ @"runR" rn
+      $ z @(XRunR @@ XSelf_) rn
       $ m
     rErr rn e = js_renderFragment $ runEls rn $ x' @"execW"
-      $ x @XSelf_ @"runR" rn
+      $ z @(XRunR @@ XSelf_) rn
       $ em e
 
 type DomS a s = { get :: s, act :: a -> XEff Unit }
@@ -276,8 +275,8 @@ type DuseEveryEff' = forall x. Run' x -> RDom x
 
 duseEff :: DuseEff
 duseEff v m = do
-  r <- mkDimAt @XSelf_ @Ask
-  mkDim @Say $ js_effComponent eq v
+  r <- z @(XAsk @@ XSelf_)
+  z @XSay $ js_effComponent eq v
     (\_ -> let runD' = runDisposable r m in \_ -> runUnit r (runD' unit))
     ((#) unit)
 
@@ -374,12 +373,12 @@ del
 del s m = do
   (propWFs /\ elBuild) <- x @"xProps" @"runW" $ x' @"execW" m
   let props = js_propsFromPropWs propWFKey propWFVal propWFs
-  mkDim @Say $ js_renderEl s (encodeOpts props) elBuild
+  z @XSay $ js_renderEl s (encodeOpts props) elBuild
 
 infixr 3 del as <&
 
 dtext :: forall t x. SText t => t -> RDom x
-dtext t = mkDim @Say $ js_textEl $ stext t
+dtext t = z @XSay $ js_textEl $ stext t
 
 type DTextW_' x = ((forall t. (SText t) => (t -> StrW)) -> StrW) -> RDom x
 type DTextW_ = forall x. DTextW_' x
@@ -393,7 +392,7 @@ dtextW :: DTextW_
 dtextW = dtextWsep ""
 
 xSayText :: forall t. (SText t) => t -> StrW
-xSayText = mkDim @Say <<< stext
+xSayText = z @XSay <<< stext
 
 dtextWsp :: DTextW_
 dtextWsp = dtextWsep " "
@@ -402,7 +401,7 @@ dtextWnl :: DTextW_
 dtextWnl = dtextWsep "\n"
 
 dpureText :: forall x. (RDom' x XEl -> RDom x) -> String -> RDom x
-dpureText fm m = fm $ mkDim @Say $ js_textEl m
+dpureText fm m = fm $ z @XSay $ js_textEl m
 
 dpureTextW :: forall x. (RDom' x XEl -> RDom x) -> DTextW_' x
 dpureTextW fm m = fm $ dtextW m
@@ -451,9 +450,9 @@ da =
   { key: mkDimAt @XProps_ @Tell <<< pure <<< PKey
   , cn: mkDimAt @XProps_ @Tell <<< pure <<< ClassName
   , cnW: \fm -> mkDimAt @XProps_ @Tell $ pure $ ClassName $ joinStrW " " $ fm $
-      mkDim @Say
+      z @XSay
   , href: mkDimAt @XProps_ @Tell <<< pure <<< Href
   , onClick: \f -> do
-      r <- mkDimAt @XSelf_ @Ask
+      r <- z @(XAsk @@ XSelf_)
       mkDimAt @XProps_ @Tell $ pure $ OnClick $ \e -> runUnit r $ f e
   }

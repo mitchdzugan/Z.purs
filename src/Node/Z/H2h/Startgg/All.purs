@@ -5,6 +5,7 @@ module Node.Z.H2h.Startgg.All
   ) where
 
 import Z.Prelude
+
 import Node.Z.Gql as Gql
 import Node.Z.H2h.Startgg.Queries as GGQ
 
@@ -33,7 +34,7 @@ ggQueryAll op initVars pageSpecs client networkControl = do
   let r = { client, networkControl, op }
   initRes <- Gql.xOperate op initVars client networkControl
   let initS = { vars: initVars, res: initRes }
-  { res } <- x' @"runR" r $ x' @"execS" initS $ forM_ pageSpecs
+  { res } <- z @XRunR r $ x' @"execS" initS $ forM_ pageSpecs
     ggPageSpecHandle
   pure res
 
@@ -56,7 +57,7 @@ ggPageSpecHandleImpl
    . GGPageSpecF v r pnr
   -> XPageSpecHandle x v r
 ggPageSpecHandleImpl (GGPageSpecF pageL dataL) = do
-  { client, networkControl, op } <- mkDim @Ask
+  { client, networkControl, op } <- z @XAsk
   mkDim @(PlusS "seenIds") setEmpty $ loop op client networkControl
   where
   loop op client networkControl = do

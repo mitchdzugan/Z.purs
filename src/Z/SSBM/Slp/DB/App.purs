@@ -23,24 +23,24 @@ xOnE message = do
     ddd.text message
     ddd.button do
       da.cn "btn btn-soft"
-      da.onClick $ \_ -> mkDimAt @"count" @Rdc.Dispatch Reset
+      da.onClick $ \_ -> z @(XDomDispatch @@ "count") Reset
       ddd.text "reset"
 
 xApp :: forall x. XurlStProviderX x -> XDom x
-xApp = xdom' @"Router.run" route
+xApp = z @XDomRunRouter route
   (\{ url } -> Just $ urlToString url)
   do
     -- - x @(DomX "routeOrE")
-    r <- xdom' @"Router.routeOrE"
+    r <- z @XDomRouteOrE
     xOut $ show r
     ddd.div do
       da.cn "flex flex-col gap-4"
       ddd.div $ ddd.a do
         da.cn "btn link btn-primary"
-        mkDim @(RouterX "hrefAttr") (Profile "Jimmy")
+        z @XDomRouteHref (Profile "Jimmy")
         ddd.text "profile link"
-      ddd.div $ xdom @"count" @"Reducer.run" 3 countAct $ xdom' @"bindE" xOnE do
-        count <- xdom @"count" @"get"
+      ddd.div $ z @(XDomRunReducer @@ "count") 3 countAct $ z @XDomBindE xOnE do
+        count <- z @(XDomGetState @@ "count")
         ddd.div do
           da.key "asdfasdfasdfasdf..."
           when (count < 0) do x' @"fail" "negative number invalid"
@@ -51,20 +51,19 @@ xApp = xdom' @"Router.run" route
           ddd.button do
             da.cnW \w -> do
               w "btn btn-soft" *> when (count > 5) do w "btn-accent"
-            da.onClick $ (\_ -> xdom @"count" @"dispatch" Dec)
+            da.onClick $ (\_ -> z @(XDomDispatch @@ "count") Dec)
             ddd.text "dec"
           ddd.div %% "Count:" <-> count
           "asdfasdf" <!& ddd.button do
             da.cnW \w -> do
               w "btn btn-soft" *> when (count > 5) do w "btn-accent"
-            da.onClick $ (\_ -> xdom @"count" @"dispatch" Inc)
-            -- onClick $ (\_ -> xAt @"count" @(DomX "dispatch") Inc)
+            da.onClick $ (\_ -> z @(XDomDispatch @@ "count") Inc)
             ddd.text "inc"
 
 data Route = Home | Profile String
 
-derive instance genericRoute :: Generic Route _
-instance showRoute :: Show Route where
+derive instance Generic Route _
+instance Show Route where
   show = genericShow
 
 route :: RouteDuplex' Route

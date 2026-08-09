@@ -6,10 +6,10 @@ import Z.Prelude
 
 data FSDataError = ReadError JsError | DecodeError JsonDecodeError
 
-derive instance genericFSDataError :: Generic FSDataError _
+derive instance Generic FSDataError _
 
-instance decodeJsonFSDataError :: DecodeJson FSDataError where
+instance DecodeJson FSDataError where
   decodeJson x = genericDecodeJson x
 
-instance encodeJsonFSDataError :: EncodeJson FSDataError where
+instance EncodeJson FSDataError where
   encodeJson x = genericEncodeJson x

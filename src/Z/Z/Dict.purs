@@ -6,10 +6,18 @@ module Z.Z.Dict
   ) where
 
 import Prelude
-import Z.Z.Key (class Keyed, keyStr)
+
+import Data.Argonaut.Decode (class DecodeJson, decodeJson)
 import Z.Z.Core (mapM)
-import Z.Z.Ext (class EncodeJson, class Generic, Json, Maybe(..), encodeJson, genericDecodeJson) as Z
-import Data.Argonaut.Decode (decodeJson, class DecodeJson)
+import Z.Z.Ext
+  ( class EncodeJson
+  , class Generic
+  , Json
+  , Maybe(..)
+  , encodeJson
+  , genericDecodeJson
+  ) as Z
+import Z.Z.Key (class Keyed, keyStr)
 
 foreign import data Dict :: Type -> Type
 
@@ -36,12 +44,12 @@ dictLookup k = js_lookup Z.Just Z.Nothing (keyStr k)
 dictInsert :: forall k v. Keyed k => k -> v -> Dict v -> Dict v
 dictInsert k = js_insert (keyStr k)
 
-derive instance genericEncodedDict :: Z.Generic JsonEncodedDict _
+derive instance Z.Generic JsonEncodedDict _
 
-instance decodeEncodedDict :: DecodeJson JsonEncodedDict where
+instance DecodeJson JsonEncodedDict where
   decodeJson x = Z.genericDecodeJson x
 
-instance decodeDict :: DecodeJson v => DecodeJson (Dict v) where
+instance DecodeJson v => DecodeJson (Dict v) where
   decodeJson x = do
     partial <- decodeJson x
     ty <- flip mapM (decodedKVs partial) $ \e -> decodeJson e.v <#> \f ->
@@ -50,5 +58,5 @@ instance decodeDict :: DecodeJson v => DecodeJson (Dict v) where
     where
     decodedKVs (JsonEncodedDict els) = els
 
-instance encodeDict :: Z.EncodeJson v => Z.EncodeJson (Dict v) where
+instance Z.EncodeJson v => Z.EncodeJson (Dict v) where
   encodeJson x = js_encode (Z.encodeJson) x

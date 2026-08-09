@@ -185,15 +185,15 @@ class IsPageOrElement a where
   asPageOrElement :: a -> PageOrElement
   context :: a -> String
 
-instance pageIsPageOrElement :: IsPageOrElement Page where
+instance IsPageOrElement Page where
   asPageOrElement = js_PageOrElement_P
   context _ = ""
 
-instance elementIsPageOrElement :: IsPageOrElement Element_ where
+instance IsPageOrElement Element_ where
   asPageOrElement = js_PageOrElement_E
   context _ = ""
 
-instance element__IsPageOrElement :: IsPageOrElement Element where
+instance IsPageOrElement Element where
   asPageOrElement (Element _ e) = js_PageOrElement_E e
   context (Element x _) = x
 
@@ -204,7 +204,7 @@ type BrowserOpts =
 
 data WaitUntil = DOMContentLoaded
 
-instance encodeWaitUntil :: EncodeJson WaitUntil where
+instance EncodeJson WaitUntil where
   encodeJson DOMContentLoaded = encodeJson "domcontentloaded"
 
 type GotoOpts =

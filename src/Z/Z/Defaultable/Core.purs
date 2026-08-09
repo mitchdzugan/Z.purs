@@ -6,22 +6,23 @@ module Z.Z.Defaultable.Core
   ) where
 
 import Prelude
+
 import Control.Monad as Monad
 import Data.Maybe as May
 
 class Defaultable a where
   default :: a
 
-instance defaultString :: Defaultable String where
+instance Defaultable String where
   default = ""
 
-instance defaultUnit :: Defaultable Unit where
+instance Defaultable Unit where
   default = unit
 
-instance defaultArray :: Defaultable (Array a) where
+instance Defaultable (Array a) where
   default = []
 
-instance defaultJust :: Defaultable (May.Maybe a) where
+instance Defaultable (May.Maybe a) where
   default = May.Nothing
 
 orDefault :: forall d. Defaultable d => May.Maybe d -> d

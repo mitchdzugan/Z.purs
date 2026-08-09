@@ -1,13 +1,17 @@
 module Z.XDom.State
-  ( Get(..)
-  , R
-  , Run(..)
-  , Set(..)
+  ( R
   , T
   , Tg
+  , XDomGetState
+  , XDomGetStateT
+  , XDomRunState
+  , XDomRunStateT
+  , XDomSetState
+  , XDomSetStateT
   ) where
 
-import Z.Prelude hiding (Run, Get(..), Set(..))
+import Z.Prelude hiding (Get(..), Run, Set(..))
+
 import Z.Prelude as Z
 import Z.XDom.Core as XDom
 
@@ -15,60 +19,43 @@ type Tg r s = { get :: s, set :: s -> XEff Unit | r }
 type T s = Tg () s
 type R s = R' (Tg () s)
 
-data Get = Get
-
-instance Cons0 Get where
-  cons0 = Get
+data XDomGetStateT = XDomGetStateT
+type XDomGetState = Generable XDomGetStateT
 
 instance
-  ( Cons rp (R' (Tg r s)) x' x
+  ( GOrDefault "reader" gspec rp
   , IsSymbol rp
+  , Cons rp (R' (Tg r s)) x' x
   ) =>
-  RWSEFn Get
-    rp
-    wp
-    sp
-    ep
-    (Z.Run x s) where
-  rwseApply _ _ _ _ _ = do
+  GenerableC XDomGetStateT gspec (Z.Run x s) where
+  mkGenerable = do
     r <- mkDimAt @rp @Ask
     pure r.get
 
-data Set = Set
-
-instance Cons0 Set where
-  cons0 = Set
+data XDomSetStateT = XDomSetStateT
+type XDomSetState = Generable XDomSetStateT
 
 instance
-  ( Cons rp (R' (Tg r s)) x' x
+  ( GOrDefault "reader" gspec rp
   , IsSymbol rp
+  , Cons rp (R' (Tg r s)) x' x
   ) =>
-  RWSEFn Set
-    rp
-    wp
-    sp
-    ep
-    (s -> Z.Run' x) where
-  rwseApply _ _ _ _ _ s = do
-    r <- mkDimAt @rp @Ask
+  GenerableC XDomSetStateT gspec (s -> Z.Run x Unit) where
+  mkGenerable s = do
+    r <- z @(XAsk @@ gspec)
     xDo $ r.set s
 
-data Run = Run
+data XDomRunStateT = XDomRunStateT
 
-instance Cons0 Run where
-  cons0 = Run
+type XDomRunState = Generable XDomRunStateT
 
 instance
-  ( Cons rp (R' (T s)) x' x
+  ( GOrDefault "reader" gdesc rp
   , IsSymbol rp
+  , Cons rp (R' (T s)) x' x
   ) =>
-  RWSEFn Run
-    rp
-    wp
-    sp
-    ep
-    (s -> XDom.RDom x -> XDom.RDom x') where
-  rwseApply _ _ _ _ _ initState m = do
+  GenerableC XDomRunStateT gdesc (s -> XDom.RDom x -> XDom.RDom x') where
+  mkGenerable initState m = do
     XDom.(<*#) initState \state set -> do
       let env = { set, get: state }
-      mkDimAt @rp @XDom.DomRunR env m
+      z @(XDom.XDomRunR @@ gdesc) env m

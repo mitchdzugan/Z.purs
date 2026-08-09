@@ -127,10 +127,10 @@ else instance Show s => SText s where
 class Applicative f <= Resulting f where
   resultVal :: forall a. f a -> May.Maybe a
 
-instance maybeResulting :: Resulting May.Maybe where
+instance Resulting May.Maybe where
   resultVal m = m
 
-instance eitherResulting :: Resulting (Eor.Either e) where
+instance Resulting (Eor.Either e) where
   resultVal = Eor.hush
 
 foreign import data JsAny :: Type
@@ -147,7 +147,7 @@ foreign import js_removeNils :: Arg.Json -> Arg.Json
 
 newtype AntiUnit = AntiUnit Unit
 
-instance eqAntiUnit :: Eq AntiUnit where
+instance Eq AntiUnit where
   eq _ _ = false
 
 antiUnit :: AntiUnit
@@ -179,10 +179,10 @@ type PureJsError =
 fromPureJsError :: PureJsError -> JsError
 fromPureJsError e = JsError $ Exc.errorWithName e.message e.name
 
-instance decodeJsError :: DecodeJson JsError where
+instance DecodeJson JsError where
   decodeJson j = map fromPureJsError $ decodeJson j
 
-instance encodeJsError :: EncodeJson JsError where
+instance EncodeJson JsError where
   encodeJson (JsError e) = encodeJson
     { "_": "JsError", name: Exc.name e, message: Exc.message e }
 
@@ -206,12 +206,12 @@ class RtError a where
   rtErrMessage :: a -> String
   rtErrExtra :: a -> Arg.Json
 
-instance jsErrorRtError :: RtError JsError where
+instance RtError JsError where
   rtErrName = jsErrorName
   rtErrMessage = jsErrorMessage
   rtErrExtra e = encodeJson { stack: jsErrorStack e }
 
-instance voidRtError :: RtError Void where
+instance RtError Void where
   rtErrName _ = "unreachable error"
   rtErrMessage _ = "should never see this"
   rtErrExtra _ = encodeJson {}
@@ -368,10 +368,10 @@ fromPureParseError :: PureParseError -> ParseError
 fromPureParseError e = ParseError $ Parsing.ParseError e.message $
   Parsing.Position { column: e.column, index: e.index, line: e.line }
 
-instance decodeParseError :: DecodeJson ParseError where
+instance DecodeJson ParseError where
   decodeJson j = map fromPureParseError $ decodeJson j
 
-instance encodeParseError :: EncodeJson ParseError where
+instance EncodeJson ParseError where
   encodeJson
     ( ParseError
         (Parsing.ParseError message (Parsing.Position { column, index, line }))

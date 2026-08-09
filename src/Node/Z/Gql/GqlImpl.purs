@@ -9,6 +9,7 @@ module Node.Z.Gql.GqlImpl
   ) where
 
 import Node.Z.Prelude
+
 import Z.Gql.Error as GqlE
 import Z.Gql.Module as Gql
 import Z.Gql.Warning as GqlW
@@ -29,9 +30,9 @@ data NetworkControl
   | CacheFirst
   | ForceFetch
 
-derive instance eqNetworkControl :: Eq NetworkControl
+derive instance Eq NetworkControl
 
-instance defaultNC :: Defaultable NetworkControl where
+instance Defaultable NetworkControl where
   default = CacheFirst
 
 foreign import js_requestGql
@@ -84,7 +85,7 @@ xOperateUnknown opString vars client networkControl = mkDim @WithReturn
     (/./) cachePath <<< strJoinWith "." <<< filenameParts
   getCachedRec cachePath collisionCount = do
     let filename = cacheFilename cachePath collisionCount
-    parsed <- mkDim @TellMappedMHush mapMDecodeErr $ xDecodeTextFile filename
+    parsed <- z @XTellMappedMHush mapMDecodeErr $ xDecodeTextFile filename
     handleParsed parsed
     where
     mapMDecodeErr e@(DecodeError _) = [ GqlW.CacheDecode e ]
@@ -103,7 +104,7 @@ xOperateUnknown opString vars client networkControl = mkDim @WithReturn
   writeToCache Nothing _ _ = pass
   writeToCache (Just cachePath) collisionCount toCache = do
     let filename = cacheFilename cachePath collisionCount
-    mkDim @TellMappedHush GqlW.CacheWrite $ xEncodeTextFileP filename toCache
+    z @XTellMappedHush GqlW.CacheWrite $ xEncodeTextFileP filename toCache
 
 data Operation v r = Operation String (JsonEncodeFn v) (JsonDecodeFn r)
 
