@@ -3,24 +3,18 @@ module Z.Z.Defaultable.Util
   , default
   , orDefault
   , whenJust
-  , z
   ) where
 
 import Prelude
 
 import Data.Maybe (Maybe, fromMaybe, maybe)
 import Z.Z.Defaultable.Generable
-  ( class GTaggedDefaultable
-  , class GenerableC
+  ( class Generable
   , GDefault
-  , gTaggedDefault
   , mkGenerable
   )
 
-z :: forall @tag a. GTaggedDefaultable tag a => a
-z = gTaggedDefault @tag
-
-type WithDefaultable d t = GenerableC d GDefault d => t
+type WithDefaultable d t = Generable d GDefault d => t
 
 orDefault :: forall d. WithDefaultable d (Maybe d -> d)
 orDefault m = fromMaybe (default @d) m

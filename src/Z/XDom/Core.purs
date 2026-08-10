@@ -45,11 +45,9 @@ module Z.XDom.Core
   , XDom
   , XDom'
   , XDomBindE
-  , XDomBindET(..)
   , XDomFn
   , XDomFn'
   , XDomRunR
-  , XDomRunRT(..)
   , XDomS
   , XDomS'
   , XEl
@@ -160,7 +158,7 @@ type DwithKey = forall x. String -> RDom x -> RDom x
 dwithKey :: DwithKey
 dwithKey k m = do
   rn <- g1 @XAsk @XSelf_
-  z @XSay $ js_withKey k $ js_renderFragment $ runEls rn
+  g @XSay $ js_withKey k $ js_renderFragment $ runEls rn
     $ g @XExecW
     $ g1 @XRunR @XSelf_ rn
     $ m
@@ -175,7 +173,7 @@ type DwithNewState =
 dwithNewState :: DwithNewState
 dwithNewState initalState fm = do
   rn <- g1 @XAsk @XSelf_
-  z @XSay $ flip (js_withState pure) initalState (renderFn rn)
+  g @XSay $ flip (js_withState pure) initalState (renderFn rn)
   where
   renderFn rn s ss = runEls rn $ g @XExecW $ g1 @XRunR @XSelf_ rn $ fm
     s
@@ -188,7 +186,7 @@ type D2withNewState =
 infixr 3 dwithNewState as <*#
 
 xRawFragment :: forall x. Array ReactEl -> RDom x
-xRawFragment = z @XSay <<< js_renderFragment
+xRawFragment = g @XSay <<< js_renderFragment
 
 xSelfExtendX'
   :: forall x' x. (forall a. Run x a -> Run x' a) -> RDomFn x' (XSelf x)
@@ -199,30 +197,28 @@ runRDom r =
   js_renderFragment <<< runEls r <<< g @XExecW <<< g1 @XRunR @XSelf_ r
 
 runRDomAndSayIt :: forall x x'. XSelf x -> RDom x -> RDom x'
-runRDomAndSayIt r = z @XSay <<< runRDom r
+runRDomAndSayIt r = g @XSay <<< runRDom r
 
-data XDomRunRT = XDomRunRT
-type XDomRunR = Generable XDomRunRT
+data XDomRunR
 
 instance
   ( GOrDefault "reader" gdesc rp
   , IsSymbol rp
   , Cons rp (R' r) x' x
   ) =>
-  GenerableC XDomRunRT gdesc (r -> RDom x -> RDom x') where
+  Generable XDomRunR gdesc (r -> RDom x -> RDom x') where
   mkGenerable env m = do
     ir <- xSelfExtendX' (g1 @XRunR @rp env)
     runRDomAndSayIt ir m
 
-data XDomBindET = XDomBindET
-type XDomBindE = Generable XDomBindET
+data XDomBindE
 
 instance
   ( Cons ep (E' e) x' x
   , IsSymbol ep
   , GOrDefault "except" gdesc ep
   ) =>
-  GenerableC XDomBindET gdesc ((e -> RDom x') -> RDom x -> RDom x') where
+  Generable XDomBindE gdesc ((e -> RDom x') -> RDom x -> RDom x') where
   mkGenerable em m = do
     r <- g1 @XAsk @XSelf_
     let
@@ -241,7 +237,7 @@ instance
             (Right v) -> v
         )
         r
-    z @XSay $ js_withBoundedError (rErr r) (rMain ir)
+    g @XSay $ js_withBoundedError (rErr r) (rMain ir)
     where
     rMain rn _ = js_renderFragment $ runEls rn $ g @XExecW
       $ g1 @XRunR @XSelf_ rn
@@ -274,7 +270,7 @@ type DuseEveryEff' = forall x. Run' x -> RDom x
 duseEff :: DuseEff
 duseEff v m = do
   r <- g1 @XAsk @XSelf_
-  z @XSay $ js_effComponent eq v
+  g @XSay $ js_effComponent eq v
     (\_ -> let runD' = runDisposable r m in \_ -> runUnit r (runD' unit))
     ((#) unit)
 
@@ -371,12 +367,12 @@ del
 del s m = do
   (propWFs /\ elBuild) <- g1 @XRunW @"xProps" $ g @XExecW m
   let props = js_propsFromPropWs propWFKey propWFVal propWFs
-  z @XSay $ js_renderEl s (encodeOpts props) elBuild
+  g @XSay $ js_renderEl s (encodeOpts props) elBuild
 
 infixr 3 del as <&
 
 dtext :: forall t x. SText t => t -> RDom x
-dtext t = z @XSay $ js_textEl $ stext t
+dtext t = g @XSay $ js_textEl $ stext t
 
 type DTextW_' x = ((forall t. (SText t) => (t -> StrW)) -> StrW) -> RDom x
 type DTextW_ = forall x. DTextW_' x
@@ -390,7 +386,7 @@ dtextW :: DTextW_
 dtextW = dtextWsep ""
 
 xSayText :: forall t. (SText t) => t -> StrW
-xSayText = z @XSay <<< stext
+xSayText = g @XSay <<< stext
 
 dtextWsp :: DTextW_
 dtextWsp = dtextWsep " "
@@ -399,7 +395,7 @@ dtextWnl :: DTextW_
 dtextWnl = dtextWsep "\n"
 
 dpureText :: forall x. (RDom' x XEl -> RDom x) -> String -> RDom x
-dpureText fm m = fm $ z @XSay $ js_textEl m
+dpureText fm m = fm $ g @XSay $ js_textEl m
 
 dpureTextW :: forall x. (RDom' x XEl -> RDom x) -> DTextW_' x
 dpureTextW fm m = fm $ dtextW m
@@ -448,7 +444,7 @@ da =
   { key: g1 @XTell @XProps_ <<< pure <<< PKey
   , cn: g1 @XTell @XProps_ <<< pure <<< ClassName
   , cnW: \fm -> g1 @XTell @XProps_ $ pure $ ClassName $ joinStrW " " $ fm $
-      z @XSay
+      g @XSay
   , href: g1 @XTell @XProps_ <<< pure <<< Href
   , onClick: \f -> do
       r <- g1 @XAsk @XSelf_

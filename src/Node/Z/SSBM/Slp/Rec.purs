@@ -41,7 +41,7 @@ xRun args = do
         /./ "Slippi Launcher"
         /./ "Settings"
   launcherSettings <-
-    z @XTry (xDecodeTextFile @LauncherSettings' launcherSettingsPath) <#>
+    g @XTry (xDecodeTextFile @LauncherSettings' launcherSettingsPath) <#>
       hush
   let isoPath = launcherSettings <#> g_ @"settings.isoPath"
   let
@@ -64,7 +64,7 @@ xRun args = do
     envState <- g @XExecS envStateInit $ addConfigs noOptConfigs wd configs
     env <- finalizeEnv envState opts $ show $ wd /./ "output.mp4"
     xInfo env
-    z @XRunR env launchAndRecord
+    g @XRunR env launchAndRecord
 
 mergeListOps
   :: forall a f. Foldable f => List a -> f (ListOp a) -> List a
@@ -98,7 +98,7 @@ updateEnv cfg st =
 finalizeEnv
   :: forall x. EnvBuildState -> CliOpts -> String -> E Error x #> RecordEnv
 finalizeEnv st (CliOpts opts) defaultOutputPath = do
-  isoPath <- z @XOk $ jOrE NoIso st.isoPath
+  isoPath <- g @XOk $ jOrE NoIso st.isoPath
   pure
     { isoPath
     , outputPath: jOr defaultOutputPath opts.outputPath

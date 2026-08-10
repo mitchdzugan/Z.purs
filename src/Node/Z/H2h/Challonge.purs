@@ -29,12 +29,12 @@ getEventData = B.adaptBuilder $ g @XWithReturn \xReturn -> do
   fullPath slug path = path /./ ("CHALLONGE-" <> slug <> ".json")
   writeToCache _ Nothing _ = pure unit
   writeToCache slug (Just path) res =
-    z @XTellMappedHush (H2hW.Gql <<< GqlW.CacheWrite) $ xEncodeTextFileP
+    g @XTellMappedHush (H2hW.Gql <<< GqlW.CacheWrite) $ xEncodeTextFileP
       (fullPath slug path)
       res
   getCached _ Nothing _ = pure Nothing
   getCached _ _ Gql.ForceFetch = pure Nothing
-  getCached slug (Just path) _ = z @XTellMappedMHush mapMDecodeErr
+  getCached slug (Just path) _ = g @XTellMappedMHush mapMDecodeErr
     $ xDecodeTextFile
     $ fullPath slug path
   mapMDecodeErr e@(DecodeError _) = [ H2hW.Gql $ GqlW.CacheDecode e ]

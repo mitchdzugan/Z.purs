@@ -27,19 +27,19 @@ xOnE message = do
       ddd.text "reset"
 
 xApp :: forall x. XurlStProviderX x -> XDom x
-xApp = z @XDomRunRouter route
+xApp = g @XDomRunRouter route
   (\{ url } -> Just $ urlToString url)
   do
     -- - x @(DomX "routeOrE")
-    r <- z @XDomRouteOrE
+    r <- g @XDomRouteOrE
     xOut $ show r
     ddd.div do
       da.cn "flex flex-col gap-4"
       ddd.div $ ddd.a do
         da.cn "btn link btn-primary"
-        z @XDomRouteHref (Profile "Jimmy")
+        g @XDomRouteHref (Profile "Jimmy")
         ddd.text "profile link"
-      ddd.div $ g1 @XDomRunReducer @"count" 3 countAct $ z @XDomBindE xOnE do
+      ddd.div $ g1 @XDomRunReducer @"count" 3 countAct $ g @XDomBindE xOnE do
         count <- g1 @XDomGetState @"count"
         ddd.div do
           da.key "asdfasdfasdfasdf..."

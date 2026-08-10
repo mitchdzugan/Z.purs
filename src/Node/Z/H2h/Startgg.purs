@@ -104,7 +104,7 @@ getEventData = B.adaptBuilder $ g @XEvalS initState do
         , doesCount: (not isBye) && (not isDQ) && (isJust set.winnerId)
         , slots: slotA ~ slotB
         }
-    { sets } <- z @XGet
+    { sets } <- g @XGet
     pure
       { id: sOrN pg.id
       , displayIdentifier: pg.displayIdentifier
@@ -115,7 +115,7 @@ getEventData = B.adaptBuilder $ g @XEvalS initState do
           , phaseOrder: pg.phase.phaseOrder
           }
       }
-  { entrants } <- z @XGet
+  { entrants } <- g @XGet
   let { endAt } = event.tournament
   date <- g @XUnwrap (H2hE.InvalidInstant endAt) do
     instant (Milliseconds (toNumber endAt)) <#> toDateTime

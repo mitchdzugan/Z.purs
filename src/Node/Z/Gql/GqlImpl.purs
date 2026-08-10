@@ -32,7 +32,7 @@ data NetworkControl
 
 derive instance Eq NetworkControl
 
-instance GenerableC NetworkControl gdesc NetworkControl where
+instance Generable NetworkControl gdesc NetworkControl where
   mkGenerable = CacheFirst
 
 foreign import js_requestGql
@@ -127,4 +127,4 @@ xOperate
   -> WEA (Array GqlW.T) GqlE.T x #> res
 xOperate (Operation opString encode decode) vars client networkControl = do
   json <- xOperateUnknown opString (encode vars) client networkControl
-  g @XMapE GqlE.ResponseTypeError $ z @XOk $ decode json
+  g @XMapE GqlE.ResponseTypeError $ g @XOk $ decode json
