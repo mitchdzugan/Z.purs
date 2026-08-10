@@ -71,6 +71,6 @@ instance
     (r -> Run' (xProps :: W' (Array XDom.PropWF) | x)) where
   mkGenerable route = do
     r <- g1 @XAsk @p
-    mkDimAt @XDom.XProps_ @Tell $ pure $ XDom.Href $ routePrint r.routeSpec
+    g1 @XTell @XDom.XProps_ $ pure $ XDom.Href $ routePrint r.routeSpec
       route
 

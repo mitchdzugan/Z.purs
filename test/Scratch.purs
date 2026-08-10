@@ -1,6 +1,7 @@
 module Test.Scratch where
 
 import Node.Z.Prelude
+
 import Z.SSBM.Slp.Read.Impl as SlpRead
 
 testCachePath :: String
@@ -11,7 +12,7 @@ main = runXAThenExit do
   -- b <- xReadFile "/home/dz/Slippi/Game_20260709T183630.slp"
   -- let game = SlpRead.game b
   -- xInfo $ SlpRead.stats game
-  _ <- x' @"fail" $ jsError "asdf" "adf"
+  _ <- g @XFail $ jsError "asdf" "adf"
   xInfo $ key
     [ key (-1)
     , key (0 /\ 3)

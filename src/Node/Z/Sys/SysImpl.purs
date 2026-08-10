@@ -78,10 +78,10 @@ instance Pathlike String where
   pathStr s = s
 
 xReadFile :: forall x p. Pathlike p => p -> EA JsError x #> Buffer
-xReadFile = x' @"runEffPromise" <<< js_readFile <<< pathStr
+xReadFile = g @XRunEffPromise <<< js_readFile <<< pathStr
 
 xReadTextFile :: forall x p. Pathlike p => p -> EA JsError x #> String
-xReadTextFile = x' @"runEffPromise" <<< js_readTextFile <<< pathStr
+xReadTextFile = g @XRunEffPromise <<< js_readTextFile <<< pathStr
 
 xDecodeTextFile
   :: forall x p @d
@@ -90,7 +90,7 @@ xDecodeTextFile
   => p
   -> EA Sys.FSDataError x #> d
 xDecodeTextFile p = do
-  contents <- mkDim @MapE Sys.ReadError $ xReadTextFile p
+  contents <- g @XMapE Sys.ReadError $ xReadTextFile p
   z @XOk $ mapL Sys.DecodeError $ decode contents
 
 xDecodeYamlString
@@ -109,7 +109,7 @@ xDecodeYamlFile
   => p
   -> EA Sys.FSDataError x #> d
 xDecodeYamlFile p = do
-  contents <- mkDim @MapE Sys.ReadError $ xReadTextFile p
+  contents <- g @XMapE Sys.ReadError $ xReadTextFile p
   xDecodeYamlString contents
 
 xDecodeAnyYamlExt
@@ -119,23 +119,23 @@ xDecodeAnyYamlExt
   => p
   -> EA Sys.FSDataError x #> d
 xDecodeAnyYamlExt p = do
-  contents <- x' @"tryUntil"
-    (mkDim @MapE Sys.ReadError $ xReadTextFile $ (pathStr p) <> ".yaml")
-    [ const $ mkDim @MapE Sys.ReadError $ xReadTextFile $ (pathStr p) <>
+  contents <- g @XTryUntil
+    (g @XMapE Sys.ReadError $ xReadTextFile $ (pathStr p) <> ".yaml")
+    [ const $ g @XMapE Sys.ReadError $ xReadTextFile $ (pathStr p) <>
         ".json"
-    , const $ mkDim @MapE Sys.ReadError $ xReadTextFile $ p
+    , const $ g @XMapE Sys.ReadError $ xReadTextFile $ p
     ]
   xDecodeYamlString contents
 
 xMkdir :: forall x p. Pathlike p => p -> EA JsError x #> Unit
-xMkdir = x' @"runEffPromise" <<< js_mkdir <<< pathStr
+xMkdir = g @XRunEffPromise <<< js_mkdir <<< pathStr
 
 xMkdirP :: forall x p. Pathlike p => p -> EA JsError x #> Unit
-xMkdirP = x' @"runEffPromise" <<< js_mkdirp <<< pathStr
+xMkdirP = g @XRunEffPromise <<< js_mkdirp <<< pathStr
 
 xWriteTextFile
   :: forall x p. Pathlike p => p -> String -> EA JsError x #> Unit
-xWriteTextFile p = x' @"runEffPromise" <<< js_writeTextFile (pathStr p)
+xWriteTextFile p = g @XRunEffPromise <<< js_writeTextFile (pathStr p)
 
 xWriteTextFileP
   :: forall x p. Pathlike p => p -> String -> EA JsError x #> Unit
@@ -171,7 +171,7 @@ lookupEnv :: String -> Effect $ Maybe String
 lookupEnv = js_lookupEnv Just Nothing
 
 xLookupEnv :: forall x. String -> A x #> Maybe String
-xLookupEnv k = z @XTry (x' @"runEffA" $ lookupEnv k) <#> getRes
+xLookupEnv k = z @XTry (g @XRunEffA $ lookupEnv k) <#> getRes
   where
   getRes (Right (Just v)) = Just v
   getRes _ = Nothing
@@ -197,7 +197,7 @@ type XNodeEA e x = EA e (XNODE x)
 runXAThenExit
   :: forall @w @e a. RtError e => XRunWA w (XNodeEA e) a -> Effect Unit
 runXAThenExit m = effAffThenExit $ runXA $ do
-  w /\ res <- x' @"runW" $ expand $ runXNode m
+  w /\ res <- g @XRunW $ expand $ runXNode m
   when (arrSize w > 0) do
     xLogWarning "collected warnings ⌄"
     xLogWarning w

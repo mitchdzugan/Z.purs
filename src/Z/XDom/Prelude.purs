@@ -7,7 +7,6 @@ module Z.XDom.Prelude
   , module ZP
   ) where
 
-import Z.Prelude (class DimensionedValTag)
 import Z.Prelude hiding (div) as ZP
 import Z.XDom.Core as XDom
 import Z.XDom.Reducer (XDomDispatch, XDomRunReducer) as ModuleReExports

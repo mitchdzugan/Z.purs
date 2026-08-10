@@ -23,8 +23,8 @@ addConfigs allowFNF wd configPaths = do
     g @XModify $ updateEnv c
     addConfigs false (dirname fullPath) (gmOr'_ @"includes?" c)
   onDecode fp (Left (ReadError _)) = do
-    when (not allowFNF) $ x' @"fail" $ ConfigNotFound $ show fp
-  onDecode _ (Left (DecodeError e)) = x' @"fail" $ ConfigDecodeErr e
+    when (not allowFNF) $ g @XFail $ ConfigNotFound $ show fp
+  onDecode _ (Left (DecodeError e)) = g @XFail $ ConfigDecodeErr e
 
 xRun :: forall x. Array String -> EA Error x ##> Unit
 xRun args = do
@@ -61,7 +61,7 @@ xRun args = do
     let noOptConfigs = arrSize optConfigs == 0
     let baseConfigPath = show $ cfgPath /./ "config"
     let configs = if noOptConfigs then [ baseConfigPath ] else optConfigs
-    envState <- x' @"execS" envStateInit $ addConfigs noOptConfigs wd configs
+    envState <- g @XExecS envStateInit $ addConfigs noOptConfigs wd configs
     env <- finalizeEnv envState opts $ show $ wd /./ "output.mp4"
     xInfo env
     z @XRunR env launchAndRecord

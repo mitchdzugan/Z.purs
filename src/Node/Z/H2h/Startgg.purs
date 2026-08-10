@@ -28,7 +28,7 @@ mapOfJsonElsWithFieldsTypeAnd_t = reduce reducer mapEmpty
   reducer m i = mapSet (g_ @ttype i) (g_ @t i) m
 
 getEventData :: forall x. B.GetDataFn x
-getEventData = B.adaptBuilder $ x' @"evalS" initState do
+getEventData = B.adaptBuilder $ g @XEvalS initState do
   { slug } <- g @XAsk
   { event } <- fetchRawEventData
   let entrantNodes = event.entrants.nodes
@@ -79,7 +79,7 @@ getEventData = B.adaptBuilder $ x' @"evalS" initState do
           if isNothing set.winnerId then Nothing
           else if isWinA then Just Pos
           else Just Neg
-      slotScoreA /\ slotScoreB <- x' @"withReturn" \xReturn -> do
+      slotScoreA /\ slotScoreB <- g @XWithReturn \xReturn -> do
         let games = orDefault set.games
         let winnerIds = games <#> _.winnerId
         let doneGames = arrSize $ arrFilter isJust winnerIds
@@ -117,7 +117,7 @@ getEventData = B.adaptBuilder $ x' @"evalS" initState do
       }
   { entrants } <- z @XGet
   let { endAt } = event.tournament
-  date <- mkDim @Unwrap (H2hE.InvalidInstant endAt) do
+  date <- g @XUnwrap (H2hE.InvalidInstant endAt) do
     instant (Milliseconds (toNumber endAt)) <#> toDateTime
   pure
     { id: sOrN event.id
@@ -140,9 +140,9 @@ getEventData = B.adaptBuilder $ x' @"evalS" initState do
     { client, networkControl } <- g @XAsk
     let initVars = { page: 0, phaseGroupId }
     let pSpecs = [ All.ggPageSpec (__ @"page") (__ @"phaseGroup.sets") ]
-    mkDim @MapWE H2hW.Gql H2hE.Gql do
+    g @XMapWE H2hW.Gql H2hE.Gql do
       All.ggQueryAll Q.phaseGroup initVars pSpecs client networkControl
-  fetchRawEventData = mkDim @TryUntil
+  fetchRawEventData = g @XTryUntil
     (f' Q.eventMaxDataPerReq $ Just Gql.CacheOnly)
     [ const (f' Q.evenMinComplexityPerReq $ Just Gql.CacheOnly)
     , const (f' Q.eventMaxDataPerReq Nothing)
@@ -156,5 +156,5 @@ getEventData = B.adaptBuilder $ x' @"evalS" initState do
       let eSpec = All.ggPageSpec (__ @"pageE") (__ @"event.entrants")
       let sSpec = All.ggPageSpec (__ @"pageS") (__ @"event.standings")
       let pSpecs = [ eSpec, sSpec ]
-      mkDim @MapWE H2hW.Gql H2hE.Gql do
+      g @XMapWE H2hW.Gql H2hE.Gql do
         All.ggQueryAll q initVars pSpecs client nc

@@ -45,8 +45,8 @@ requestGql
   -> String
   -> Json
   -> EA Gql.Error x #> Json
-requestGql apiUrl authToken query vars = mkDim @MapE GqlE.NetworkError
-  $ mkDim @RunEffPromise
+requestGql apiUrl authToken query vars = g @XMapE GqlE.NetworkError
+  $ g @XRunEffPromise
   $ js_requestGql apiUrl authToken query vars
 
 xOperateUnknown
@@ -56,12 +56,12 @@ xOperateUnknown
   -> Client
   -> NetworkControl
   -> WEA (Array GqlW.T) GqlE.T x #> Json
-xOperateUnknown opString vars client networkControl = mkDim @WithReturn
+xOperateUnknown opString vars client networkControl = g @XWithReturn
   \xReturn ->
     do
       (collisionCount /\ cached) <- getCached cachePath networkControl
       whenJust cached xReturn
-      when (networkControl == CacheOnly) $ mkDim @Fail GqlE.CacheOnlyEmpty
+      when (networkControl == CacheOnly) $ g @XFail GqlE.CacheOnlyEmpty
       xInfo { gql: "submitting operation", op: opHeader, vars }
       xTimeout 6000
       res <- requestGql url authTokenJson opString vars
@@ -127,4 +127,4 @@ xOperate
   -> WEA (Array GqlW.T) GqlE.T x #> res
 xOperate (Operation opString encode decode) vars client networkControl = do
   json <- xOperateUnknown opString (encode vars) client networkControl
-  mkDim @MapE GqlE.ResponseTypeError $ z @XOk $ decode json
+  g @XMapE GqlE.ResponseTypeError $ z @XOk $ decode json

@@ -14,12 +14,12 @@ import Z.XDom.UrlState as UrlSt
 foreign import js_renderIn :: XD.ReactEl -> Element -> Effect (Promise Unit)
 
 xPreactHydrate :: forall x. Element -> XD.ReactEl -> EA JsError x #> Unit
-xPreactHydrate d r = x' @"runEffPromise" $ js_renderIn r d
+xPreactHydrate d r = g @XRunEffPromise $ js_renderIn r d
 
 xDomRunWeb :: forall x. XD.RDom (DOM.XWEB x) -> XD.RDom x
 xDomRunWeb m = do
   ir <- XD.xSelfExtendX' DOM.runXWeb
-  XD.xRawFragment $ XD.runEls ir $ x' @"execW" $ g1 @XRunR @XD.XSelf_ ir m
+  XD.xRawFragment $ XD.runEls ir $ g @XExecW $ g1 @XRunR @XD.XSelf_ ir m
 
 xProvideHistoryX
   :: forall x

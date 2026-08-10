@@ -43,7 +43,7 @@ xApp = z @XDomRunRouter route
         count <- g1 @XDomGetState @"count"
         ddd.div do
           da.key "asdfasdfasdfasdf..."
-          when (count < 0) do x' @"fail" "negative number invalid"
+          when (count < 0) do g @XFail "negative number invalid"
           ddd.a do
             da.href "/#23145"
             ddd.text "link"

@@ -15,6 +15,12 @@ module Z.Z.Util
   , arrSortWith
   , baseDecodeJson
   , class IsStringOrNum
+  , class RevSym
+  , class SplitSp1
+  , class SplitSp1Impl
+  , class UpCat
+  , class UpCf
+  , class UpCt
   , decode
   , decode'
   , decodeErrTypeMismatch
@@ -61,6 +67,7 @@ import Data.Ord as Ord
 import Data.Ordering as Ordering
 import Data.Tuple as Tup
 import Foreign.Object as FO
+import Prim.Symbol as Symbol
 import Type.Proxy as Proxy
 import Z.Z.Core as Z
 import Z.Z.Url as Url
@@ -282,3 +289,49 @@ instance Dec.DecodeJson ResourceStage where
 
 instance Enc.EncodeJson ResourceStage where
   encodeJson x = EncodeGeneric.genericEncodeJson x
+
+class SplitSp1 i o1 o2 | i -> o1 o2
+
+instance (SplitSp1Impl i "" "" "f" o1 o2) => SplitSp1 i o1 o2
+
+class SplitSp1Impl sym cat cf ct tat tf | sym cat cf ct -> tat tf
+
+class UpCat c cat ct cat' | c cat ct -> cat'
+
+instance UpCat " " cat ct cat
+else instance UpCat c cat "t" cat
+else instance (Symbol.Cons c cat cat') => UpCat c cat "f" cat'
+
+class UpCf c cf ct cf' | c cf ct -> cf'
+
+instance UpCf c cf "f" cf
+else instance (Symbol.Cons c cf cf') => UpCf c cf "t" cf'
+
+class UpCt c ct ct' | c ct -> ct'
+
+instance UpCt " " ct "t"
+else instance UpCt c ct ct
+
+class RevSym s c s' | s c -> s'
+
+instance RevSym "" c c
+else instance
+  ( Symbol.Cons c1 s' s
+  , Symbol.Cons c1 c c'
+  , RevSym s' c' f
+  ) =>
+  RevSym s c f
+
+instance
+  ( RevSym cf "" tf
+  , RevSym cat "" tat
+  ) =>
+  SplitSp1Impl "" cat cf ct tat tf
+else instance
+  ( Symbol.Cons c s' s
+  , UpCat c cat ct cat'
+  , UpCf c cf ct cf'
+  , UpCt c ct ct'
+  , SplitSp1Impl s' cat' cf' ct' tat tf
+  ) =>
+  SplitSp1Impl s cat cf ct tat tf

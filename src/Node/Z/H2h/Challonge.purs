@@ -15,13 +15,13 @@ import Z.H2h.Module as H2h
 import Z.H2h.Warning as H2hW
 
 getEventData :: forall x. B.GetDataFn x
-getEventData = B.adaptBuilder $ mkDim @WithReturn \xReturn -> do
+getEventData = B.adaptBuilder $ g @XWithReturn \xReturn -> do
   { client, networkControl, slug } <- g @XAsk
   let { cachePath } = client
   let eCacheOnlyEmpty = H2hE.Gql GqlE.CacheOnlyEmpty
   cached <- getCached slug cachePath networkControl
   whenJust cached xReturn
-  when (networkControl == Gql.CacheOnly) $ mkDim @Fail eCacheOnlyEmpty
+  when (networkControl == Gql.CacheOnly) $ g @XFail eCacheOnlyEmpty
   res <- getEventDataImpl
   writeToCache slug cachePath res
   pure res
@@ -55,7 +55,7 @@ getEventDataImpl = do
     pWaitFor page ".redesigned-meta-list .item .text"
     pWaitFor page ".title #title"
     pWaitFor page ".bracket-svg .match .match--player"
-    mkDim @EvalS initialState $ readPageData page
+    g @XEvalS initialState $ readPageData page
   where
   initialState =
     { isDE: false
@@ -72,7 +72,7 @@ getEventDataImpl = do
       itemLabel <- pEl el ".item-label" >>= pInnerText
       itemText <- pEl el ".text" >>= pInnerText
       when (itemLabel == "Start Time" || itemLabel == "Start") do
-        date <- mkDim @MapE H2hE.ParseTime $ mkDim @RunParser itemText
+        date <- g @XMapE H2hE.ParseTime $ g @XRunParser itemText
           parseDate
         g @(XSet_ "dateOrE") $ Right date
         pure unit
@@ -88,9 +88,9 @@ getEventDataImpl = do
     forM_ bracketEls $ \bracketEl -> do
       matchEls <- pEls bracketEl ".match"
       forM_ matchEls $ \matchEl -> g @(XPlusS "winnerId") Nothing do
-        setId <- pReadDataAttr matchEl "match" >>= \s -> mkDim @MapE
+        setId <- pReadDataAttr matchEl "match" >>= \s -> g @XMapE
           H2hE.ParseTime
-          (mkDim @RunParser s parseInt)
+          (g @XRunParser s parseInt)
         playerEls <- pEls matchEl ".match--player"
         slots <- forM playerEls $ \playerEl -> do
           entrantId <- pReadIdDataAttr playerEl "participant"
@@ -98,8 +98,8 @@ getEventDataImpl = do
           scoreEl <- pEl playerEl ".match--player-score"
           scoreClass <- pGetAttribute scoreEl "class"
           scoreS <- pInnerHtml scoreEl
-          score <- mkDim @MapE H2hE.ParseTime do
-            mkDim @RunParser scoreS parseInt <#> H2h.mkScoreCount
+          score <- g @XMapE H2hE.ParseTime do
+            g @XRunParser scoreS parseInt <#> H2h.mkScoreCount
           forM_ (strSplit (Pattern " ") scoreClass) $ \cn -> do
             when (cn == "-winner") $ g @(XSet_ "winnerId") $ Just entrantId
           g @XSet (_o @"entrants" $ at entrantId) $ Just
@@ -137,7 +137,7 @@ getEventDataImpl = do
       <#> arrReverse
       <<< arrSortWith (g_ @"id")
       <<< arrFromFoldable
-    isComplete <- x' @"withReturn" \xReturn -> do
+    isComplete <- g @XWithReturn \xReturn -> do
       forM_ baseSetList $ \baseSet -> do
         when (isNothing baseSet.winner) (xReturn false)
       pure true
@@ -151,7 +151,7 @@ getEventDataImpl = do
         , gfEIds: setEmpty @SorN
         , nonGfEIds: setEmpty @SorN
         }
-    roundSets <- mkDimAt @"setsLoop" @EvalS setsLoopState $ do
+    roundSets <- g1 @XEvalS @"setsLoop" setsLoopState $ do
       roundSets' <- forM baseSetList $ \baseSet -> do
         { prev, isDropRound } <- g1 @XGet @"setsLoop"
         let prevSet = prev <#> \p -> p.base
@@ -167,7 +167,7 @@ getEventDataImpl = do
               g1 @XOver @"setsLoop"
                 (if isGrands then __ @"gfEIds" else __ @"nonGfEIds")
         { gfEIds, nonGfEIds } <- g1 @XGet @"setsLoop"
-        seenAllGFEntrants <- x' @"withReturn" \xReturn -> do
+        seenAllGFEntrants <- g @XWithReturn \xReturn -> do
           forM_ (arrFromFoldable gfEIds) $ \id -> do
             when (not (setHas id nonGfEIds)) (xReturn false)
           pure true
@@ -289,7 +289,7 @@ getEventDataImpl = do
     -> String
     -> E JsError + EA H2hE.T xx #> a
     -> EA H2hE.T xx #> a
-  pDo s1 s2 m = mkDim @MapE (H2hE.Puppeteer s1 s2) m
+  pDo s1 s2 m = g @XMapE (H2hE.Puppeteer s1 s2) m
 
   pDoPorE
     :: forall xx pOrE a
@@ -298,7 +298,7 @@ getEventDataImpl = do
     -> String
     -> E JsError + EA H2hE.T xx #> a
     -> EA H2hE.T xx #> a
-  pDoPorE pOrE s m = mkDim @MapE (H2hE.Puppeteer (P.context pOrE) s) m
+  pDoPorE pOrE s m = g @XMapE (H2hE.Puppeteer (P.context pOrE) s) m
 
   pEls
     :: forall xx pOrE

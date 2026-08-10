@@ -122,7 +122,7 @@ g
 g = mkGenerable @tag @GDefault
 
 g'
-  :: forall @gdesc @tspec tag v
+  :: forall @tspec @gdesc tag v
    . HasGTag tspec tag
   => GenerableC tag gdesc v
   => v

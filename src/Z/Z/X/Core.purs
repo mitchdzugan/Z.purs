@@ -2,22 +2,9 @@ module Z.Z.X.Core
   ( A
   , AFF
   , AffF
-  , BindE
   , E
   , EA
   , Edit
-  , EvalS
-  , EvalW
-  , ExecS
-  , ExecW
-  , Fail
-  , FromE
-  , Hush
-  , Invert
-  , MapE
-  , MapW
-  , MapWE
-  , PlusS
   , R
   , RA
   , RE
@@ -43,22 +30,11 @@ module Z.Z.X.Core
   , RWaSE
   , RWaSEA
   , Result
-  , RunAff
-  , RunEffA
-  , RunEffPromise
-  , RunParser
-  , RunResult
-  , RunS
-  , RunW
   , S
   , SA
   , SE
   , SEA
-  , Say
   , StrW
-  , Tell
-  , TryUntil
-  , Unwrap
   , W
   , WA
   , WE
@@ -74,20 +50,27 @@ module Z.Z.X.Core
   , WaS
   , WaSA
   , WaSE
-  , WithReturn
-  , XApply
   , XAsk
-  , XAt(..)
-  , XAtDefault(..)
   , XBASE
   , XBaseF
   , XBase_
-  , XEnv
+  , XBindE
+  , XEvalS
+  , XEvalW
+  , XExecS
+  , XExecW
+  , XFail
+  , XFromE
   , XGet
   , XGetWithT
   , XGetterReaderT(..)
   , XGetterStateT(..)
+  , XHush
   , XImpl
+  , XInvert
+  , XMapE
+  , XMapW
+  , XMapWE
   , XModify
   , XOk
   , XOver
@@ -103,13 +86,19 @@ module Z.Z.X.Core
   , XPreview_WithT
   , XPut
   , XRun
+  , XRunAff
+  , XRunEffA
+  , XRunEffPromise
+  , XRunParser
   , XRunR
+  , XRunResult
+  , XRunS
+  , XRunW
   , XRunWA
   , XSay
   , XSet
   , XSet_
   , XSet_T
-  , XState
   , XTell
   , XTellMappedHush
   , XTellMappedMHush
@@ -120,61 +109,29 @@ module Z.Z.X.Core
   , XToArrayOfWithT
   , XToArrayOf_WithT
   , XTry
+  , XTryUntil
   , XUnresult
+  , XUnwrap
+  , XUnwrap'
   , XViewR
   , XViewR_(..)
   , XViewS
   , XViewS_(..)
   , XViewWithT
   , XView_WithT
-  , Xwe(..)
-  , class Cons0
-  , class DimensionedVal
-  , class DimensionedValTag
-  , class EP_
+  , XWithReturn
   , class GOrE
   , class GOrR
   , class GOrS
   , class GOrW
-  , class OrDefault_
-  , class ParseRootTagParts
-  , class ParseRootTagPartsImpl
-  , class RP_
-  , class RWSEFn
-  , class ReturnP_
-  , class RevSym
-  , class RootDimensionedValueTag
-  , class SP_
-  , class SplitSp1
-  , class UpCat
-  , class UpCf
-  , class UpCt
-  , class WP_
-  , class WpEpPickEp
   , class XGetterTypes
-  , class XPSel
-  , class XReturnP
-  , class XTLS
-  , class XTLSFull
-  , class XTLSRFull
-  , class XTLSSFull
-  , class XTLSunAt
-  , cons0
   , edit
   , evalX
   , evalXA
   , joinStrW
-  , mkDim
-  , mkDimAt
-  , mkDimWE
-  , mkDimensional
   , runX
   , runXA
   , runXBase
-  , rwseApply
-  , x
-  , x'
-  , xAtWE
   , xGetter
   , xInfo
   , xLogError
@@ -208,7 +165,6 @@ import Effect.Unsafe as Unsafe
 import Parsing as Parsing
 import Prim.Row (class Cons)
 import Prim.Row as Row
-import Prim.Symbol as Symbol
 import Record as Rec
 import Run as R
 import Run.Except as RunE
@@ -226,11 +182,11 @@ import Z.Z.Defaultable
   , class GOrDefault
   , class GTagMap
   , class GenerableC
-  , class HasGTag
+  , G1
   , GDefault
   , Generable
+  , g
   , g1
-  , mkGenerable
   , z
   )
 import Z.Z.Defaultable as ZD
@@ -250,6 +206,174 @@ data XImpl :: forall k. k -> Type
 data XImpl xFn
 
 ------------------------------- e -------------------------------------
+
+type XFromE = Generable (XImpl "fromE")
+
+instance
+  ( GOrE gspec ep
+  , IsSymbol ep
+  , IsSymbol baseE
+  , Cons ep (RunE.Except e) x'' x'
+  , Cons baseE (RunE.Except e) x' x
+  , TypeEquals.TypeEquals baseE "except"
+  ) =>
+  GenerableC (XImpl "fromE") gspec (R.Run x a -> R.Run x' a) where
+  mkGenerable m = do
+    RunE.runExceptAt (px @baseE) m >>= onDone
+    where
+    onDone (Eor.Left e) = RunE.throwAt (px @ep) e
+    onDone (Eor.Right v) = pure v
+
+type XFail = Generable (XImpl "fail")
+
+instance
+  ( GOrE gspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except e) x' x
+  ) =>
+  GenerableC (XImpl "fail") gspec (e -> R.Run x a) where
+  mkGenerable e = RunE.throwAt (px @ep) e
+
+type XRunParser = Generable (XImpl "runParser")
+
+instance
+  ( GOrE gspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except Z.ParseError) x' x
+  ) =>
+  GenerableC (XImpl "runParser") gspec (s -> Parsing.Parser s a -> R.Run x a) where
+  mkGenerable s pr = g1 @XOk @ep $ Z.runParser s pr
+
+type XBindE = Generable (XImpl "bindE")
+
+instance
+  ( GOrE gspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except e2) x'' x'
+  , Cons ep (RunE.Except e1) x' x
+  ) =>
+  GenerableC (XImpl "bindE")
+    gspec
+    ((e1 -> R.Run x' f) -> R.Run x f -> R.Run x' f) where
+  mkGenerable be m = g1 @XTry @ep m >>= onDone
+    where
+    onDone (Eor.Left e) = be e
+    onDone (Eor.Right v) = pure v
+
+type XMapE = Generable (XImpl "mapE")
+
+instance
+  ( GOrE gspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except e2) x'' x'
+  , Cons ep (RunE.Except e1) x' x
+  ) =>
+  GenerableC (XImpl "mapE") gspec ((e1 -> e2) -> R.Run x f -> R.Run x' f) where
+  mkGenerable fe m = g1 @XBindE @ep (g1 @XFail @ep <<< fe) m
+
+type XUnwrap = Generable (XImpl "unwrap")
+
+instance
+  ( GOrE gspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except e) x' x
+  ) =>
+  GenerableC (XImpl "unwrap") gspec (e -> May.Maybe a -> R.Run x a) where
+  mkGenerable _ (May.Just a) = pure a
+  mkGenerable e _ = g1 @XFail @ep e
+
+type XUnwrap' = Generable (XImpl "unwrap'")
+
+instance
+  ( GOrE gspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except Z.JsError) x' x
+  ) =>
+  GenerableC (XImpl "unwrap'") gspec (May.Maybe a -> R.Run x a) where
+  mkGenerable = g1 @XUnwrap @ep $ Z.jsError' "Nothing#unwrap"
+
+type XHush = Generable (XImpl "hush")
+
+instance
+  ( GOrE gspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except Z.JsError) x' x
+  , GenerableC d GDefault d
+  ) =>
+  GenerableC (XImpl "hush") gspec (R.Run x d -> R.Run x' d) where
+  mkGenerable m = (<$>) ZD.orDefault $ g1 @XTry @ep m <#> Eor.hush
+
+type XInvert = Generable (XImpl "invert")
+
+instance
+  ( GOrE gspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except e) x'' x'
+  , Cons ep (RunE.Except r) x' x
+  ) =>
+  GenerableC (XImpl "invert") gspec (R.Run x e -> R.Run x' r) where
+  mkGenerable m = g1 @XTry @ep m <#> Z.invert >>= g1 @XOk @ep
+
+type XTryUntil = Generable (XImpl "tryUntil")
+
+instance
+  ( GOrE gspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except e) x''' x''
+  , Cons ep (RunE.Except r) x'' x'
+  , Cons ep (RunE.Except e) x' x
+  ) =>
+  GenerableC (XImpl "tryUntil")
+    gspec
+    ( R.Run x r
+      -> Array (e -> R.Run x r)
+      -> R.Run x'' r
+    ) where
+  mkGenerable try1 tryRest = g1 @XInvert @ep do
+    e1 <- g1 @XInvert @ep try1
+    Z.reduceM (\e tryN -> g1 @XInvert @ep $ tryN e) e1 tryRest
+
+type XRunAff = Generable (XImpl "runAff")
+
+instance
+  ( GOrE gspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except Z.JsError) x' (A x)
+  ) =>
+  GenerableC (XImpl "runAff") gspec (Aff.Aff f -> R.Run (A x) f) where
+  mkGenerable a = do
+    res <- aff $ Aff.attempt a
+    onDone res
+    where
+    onDone (Eor.Left e) = g1 @XFail @ep $ Z.JsError e
+    onDone (Eor.Right v) = pure v
+
+type XRunEffA = Generable (XImpl "runEffA")
+
+instance
+  ( GOrE gspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except Z.JsError) x' (A x)
+  ) =>
+  GenerableC (XImpl "runEffA") gspec (Eff.Effect f -> R.Run (A x) f) where
+  mkGenerable eff = do
+    res <- aff $ Aff.attempt $ EffC.liftEffect eff
+    onDone res
+    where
+    onDone (Eor.Left e) = g1 @XFail @ep $ Z.JsError e
+    onDone (Eor.Right v) = pure v
+
+type XRunEffPromise = Generable (XImpl "runEffPromise")
+
+instance
+  ( GOrE gspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except Z.JsError) x' (A x)
+  ) =>
+  GenerableC (XImpl "runEffPromise")
+    gspec
+    (Eff.Effect (Promise.Promise f) -> R.Run (A x) f) where
+  mkGenerable = effectPromiseToAff >>> g1 @XRunAff @ep
 
 type XTry = Generable (XImpl "try")
 
@@ -272,6 +396,50 @@ instance
   mkGenerable (Eor.Left e) = RunE.throwAt (px @ep) e
   mkGenerable (Eor.Right a) = pure a
 
+type XWithReturn = Generable (XImpl "withReturn")
+
+instance
+  ( GOrDefault "earlyReturn" gspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except r) x' x
+  ) =>
+  GenerableC (XImpl "withReturn")
+    gspec
+    (((r -> R.Run x Unit) -> R.Run x r) -> R.Run x' r) where
+  mkGenerable m = RunE.runExceptAt (px @ep) (m return) >>= onRes
+    where
+    return = RunE.throwAt (px @ep)
+    onRes (Eor.Left ret) = pure ret
+    onRes (Eor.Right ret) = pure ret
+
+------------------------------ w/e ----------------------------------------
+
+type XRunResult = Generable (XImpl "runResult")
+
+instance
+  ( GOrDefault "except" gspec ep
+  , G2OrDefault "writer" gspec wp
+  , IsSymbol ep
+  , IsSymbol wp
+  , Cons wp (RunW.Writer (Array w)) x'' x'
+  , Cons ep (RunE.Except e) x' x
+  ) =>
+  GenerableC (XImpl "runResult") gspec (R.Run x a -> R.Run x'' (Result w e a)) where
+  mkGenerable m = do
+    w <- RunW.runWriterAt (px @wp) $ RunE.runExceptAt (px @ep) m
+    pure $ { w: (Tup.fst w), v: (Tup.snd w) }
+
+type XMapWE = Generable (XImpl "mapWE")
+
+instance
+  ( GOrDefault "except" gspec ep
+  , G2OrDefault "writer" gspec wp
+  , GenerableC (XImpl "mapE") (G1 ep) ((e1 -> e2) -> f'' -> f')
+  , GenerableC (XImpl "mapW") (G1 wp) ((w1 -> w2) -> f' -> f)
+  ) =>
+  GenerableC (XImpl "mapWE") gspec ((w1 -> w2) -> (e1 -> e2) -> f'' -> f) where
+  mkGenerable fw fe m = g1 @XMapW @wp fw $ g1 @XMapE @ep fe m
+
 type XUnresult = Generable (XImpl "unresult")
 
 instance
@@ -282,12 +450,62 @@ instance
   , Cons wp (RunW.Writer (Array w)) x'' x
   , Cons ep (RunE.Except e) x' x
   ) =>
-  GenerableC (XImpl "unresult") dspec (Result w e a -> R.Run x a) where
+  GenerableC (XImpl "unresult") gspec (Result w e a -> R.Run x a) where
   mkGenerable { w, v } = do
     g1 @XTell @wp w
     g1 @XOk @ep v
 
 ------------------------------ w ----------------------------------------
+
+type XExecW = Generable (XImpl "execW")
+
+instance
+  ( GOrW gspec wp
+  , IsSymbol wp
+  , Cons wp (RunW.Writer w) x' x
+  , Monoid.Monoid w
+  ) =>
+  GenerableC (XImpl "execW") gspec (R.Run x Unit -> R.Run x' w) where
+  mkGenerable m = RunW.runWriterAt (px @wp) m <#> Tup.fst
+
+type XRunW = Generable (XImpl "runW")
+
+instance
+  ( GOrW gspec wp
+  , IsSymbol wp
+  , Cons wp (RunW.Writer w) x' x
+  , Monoid.Monoid w
+  ) =>
+  GenerableC (XImpl "runW") gspec (R.Run x f -> R.Run x' (w TupN./\ f)) where
+  mkGenerable m = RunW.runWriterAt (px @wp) m
+
+type XEvalW = Generable (XImpl "evalW")
+
+instance
+  ( GOrW gspec wp
+  , IsSymbol wp
+  , Cons wp (RunW.Writer w) x' x
+  , Monoid.Monoid w
+  ) =>
+  GenerableC (XImpl "evalW") gspec (R.Run x f -> R.Run x' f) where
+  mkGenerable m = RunW.runWriterAt (px @wp) m <#> Tup.snd
+
+type XMapW = Generable (XImpl "mapW")
+
+instance
+  ( GOrW gspec wp
+  , IsSymbol wp
+  , Cons wp (RunW.Writer (m w2)) x'' x'
+  , Cons wp (RunW.Writer (m w1)) x' x
+  , Monoid.Monoid (m w2)
+  , Monoid.Monoid (m w1)
+  , Monad.Monad m
+  ) =>
+  GenerableC (XImpl "mapW") gspec ((w1 -> w2) -> R.Run x f -> R.Run x' f) where
+  mkGenerable f m = do
+    (w TupN./\ res) <- RunW.runWriterAt (px @wp) m
+    RunW.tellAt (px @wp) $ map f w
+    pure res
 
 type XSay = Generable (XImpl "say")
 
@@ -369,6 +587,36 @@ instance
   mkGenerable = RunR.runReaderAt (P.Proxy :: P.Proxy p)
 
 ------------------------------- S ------------------------------------
+
+type XExecS = Generable (XImpl "execS")
+
+instance
+  ( IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  , GOrS gspec sp
+  ) =>
+  GenerableC (XImpl "execS") gspec (s -> R.Run x f -> R.Run x' s) where
+  mkGenerable initState m = RunS.execStateAt (px @sp) initState m
+
+type XRunS = Generable (XImpl "runS")
+
+instance
+  ( IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  , GOrS gspec sp
+  ) =>
+  GenerableC (XImpl "runS") gspec (s -> R.Run x f -> R.Run x' (s TupN./\ f)) where
+  mkGenerable initState m = RunS.runStateAt (px @sp) initState m
+
+type XEvalS = Generable (XImpl "evalS")
+
+instance
+  ( IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  , GOrS gspec sp
+  ) =>
+  GenerableC (XImpl "evalS") gspec (s -> R.Run x f -> R.Run x' f) where
+  mkGenerable initState m = RunS.evalStateAt (px @sp) initState m
 
 type XPut = Generable (XImpl "put")
 
@@ -530,7 +778,7 @@ instance
     gspec
     ((Lens.Optic (Forget a) s t a b) -> R.Run x a) where
   mkGenerable l = do
-    v <- g' @gspec @(Generable (XGetWithT getter))
+    v <- g' @(Generable (XGetWithT getter)) @gspec
     pure $ Lens.view l v
 
 data XView_WithT :: forall @k. k -> Type -> Type
@@ -548,7 +796,7 @@ instance
     gspec
     (R.Run x a) where
   mkGenerable = do
-    v <- g' @gspec @(Generable (XGetWithT getter))
+    v <- g' @(Generable (XGetWithT getter)) @gspec
     pure $ Lens.view (Bl.barlow @sym) v
 
 data XPreviewWithT :: forall k. k -> Type
@@ -563,7 +811,7 @@ instance
     gspec
     ((Lens.Optic (Forget (MayFirst.First a)) s t a b) -> R.Run x (May.Maybe a)) where
   mkGenerable l = do
-    v <- g' @gspec @(Generable (XGetWithT getter))
+    v <- g' @(Generable (XGetWithT getter)) @gspec
     pure $ Lens.preview l v
 
 data XPreview_WithT :: forall @k. k -> Type -> Type
@@ -581,7 +829,7 @@ instance
     gspec
     (R.Run x (May.Maybe a)) where
   mkGenerable = do
-    v <- g' @gspec @(Generable (XGetWithT getter))
+    v <- g' @(Generable (XGetWithT getter)) @gspec
     pure $ Lens.preview (Bl.barlow @sym) v
 
 data XToArrayOfWithT :: forall k. k -> Type
@@ -598,7 +846,7 @@ instance
       -> R.Run x (Array a)
     ) where
   mkGenerable l = do
-    v <- g' @gspec @(Generable (XGetWithT getter))
+    v <- g' @(Generable (XGetWithT getter)) @gspec
     pure $ Lens.toArrayOf l v
 
 data XToArrayOf_WithT :: forall @k. k -> Type -> Type
@@ -619,7 +867,7 @@ instance
     gspec
     (R.Run x (Array a)) where
   mkGenerable = do
-    v <- g' @gspec @(Generable (XGetWithT getter))
+    v <- g' @(Generable (XGetWithT getter)) @gspec
     pure $ Lens.toArrayOf (Bl.barlow @sym) v
 
 type XAsk = Generable (XGetWithT XGetterReaderT)
@@ -648,1050 +896,8 @@ instance GTagMap (XToArrayOfS_ s) (XToArrayOf_WithT s XGetterStateT)
 
 -----------------------------------------------------------------------------
 
-class DimensionedValTag tagIn tagOut | tagIn -> tagOut
-
-class RootDimensionedValueTag tagIn tagOut | tagIn -> tagOut
-
-class ParseRootTagPartsImpl w1 w2 tagOut | w1 w2 -> tagOut
-
-class ParseRootTagParts tagIn tagOut | tagIn -> tagOut
-
-instance
-  ( SplitSp1 tagIn w1 w2
-  , ParseRootTagPartsImpl w1 w2 tagOut
-  , IsSymbol tagIn
-  ) =>
-  ParseRootTagParts tagIn tagOut
-else instance ParseRootTagParts ti to
-
-instance RootDimensionedValueTag "fail" Fail
-else instance (DimensionedValTag ti to) => RootDimensionedValueTag ti to
-
-class
-  DimensionedValTag tag tag <=
-  DimensionedVal tag dspec t
-  | dspec -> t where
-  mkDimensional :: P.Proxy tag -> P.Proxy dspec -> t
-
-mkDim
-  :: forall @tt tag t
-   . DimensionedVal tag XAtDefault t
-  => RootDimensionedValueTag tt tag
-  => t
-mkDim = mkDimensional (P.Proxy :: P.Proxy tag) (P.Proxy :: P.Proxy XAtDefault)
-
-mkDimAt
-  :: forall @at @tt tag t
-   . DimensionedVal tag (XAt at) t
-  => RootDimensionedValueTag tt tag
-  => t
-mkDimAt = mkDimensional (P.Proxy :: P.Proxy tag)
-  (P.Proxy :: P.Proxy (XAt at))
-
-mkDimWE
-  :: forall @wp @ep @tt tag t
-   . DimensionedVal tag (Xwe wp ep) t
-  => RootDimensionedValueTag tt tag
-  => t
-mkDimWE = mkDimensional (P.Proxy :: P.Proxy tag)
-  (P.Proxy :: P.Proxy (Xwe wp ep))
-
-data XAt at = XAt
-data Xwe atw ate = Xwe
-data XAtDefault = XAtDefault
-
-class RP_ i o | i -> o
-class WP_ i o | i -> o
-class SP_ i o | i -> o
-class EP_ i o | i -> o
-class OrDefault_ s i o | s i -> o
-
-instance RP_ (XAt t) t
-instance RP_ (Xwe _w _e) "reader"
-instance RP_ XAtDefault "reader"
-
-instance WP_ (Xwe w e) w
-instance WP_ (XAt t) t
-instance WP_ XAtDefault "writer"
-
-instance SP_ (XAt t) t
-instance SP_ (Xwe _w _e) "state"
-instance SP_ XAtDefault "state"
-
-instance EP_ (Xwe w e) e
-instance EP_ (XAt t) t
-instance EP_ XAtDefault "except"
-
-instance OrDefault_ s (XAt t) t
-instance OrDefault_ s (Xwe _w _e) s
-instance OrDefault_ s XAtDefault s
-
-class Cons0 t where
-  cons0 :: t
-
-instance Cons0 BindE where
-  cons0 = BindE
-
-instance Cons0 EvalS where
-  cons0 = EvalS
-
-instance Cons0 EvalW where
-  cons0 = EvalW
-
-instance Cons0 ExecS where
-  cons0 = ExecS
-
-instance Cons0 ExecW where
-  cons0 = ExecW
-
-instance Cons0 Fail where
-  cons0 = Fail
-
-instance Cons0 FromE where
-  cons0 = FromE
-
-instance Cons0 Hush where
-  cons0 = Hush
-
-instance Cons0 Invert where
-  cons0 = Invert
-
-instance Cons0 MapE where
-  cons0 = MapE
-
-instance Cons0 MapW where
-  cons0 = MapW
-
-instance Cons0 MapWE where
-  cons0 = MapWE
-
-instance Cons0 Say where
-  cons0 = Say
-
-instance Cons0 RunW where
-  cons0 = RunW
-
-instance Cons0 RunS where
-  cons0 = RunS
-
-instance Cons0 RunResult where
-  cons0 = RunResult
-
-instance Cons0 RunParser where
-  cons0 = RunParser
-
-instance Cons0 RunEffPromise where
-  cons0 = RunEffPromise
-
-instance Cons0 RunEffA where
-  cons0 = RunEffA
-
-instance Cons0 RunAff where
-  cons0 = RunAff
-
-instance Cons0 (PlusS t) where
-  cons0 = PlusS
-
-instance Cons0 TryUntil where
-  cons0 = TryUntil
-
-instance Cons0 WithReturn where
-  cons0 = WithReturn
-
-instance Cons0 Tell where
-  cons0 = Tell
-
-instance Cons0 Unwrap where
-  cons0 = Unwrap
-
-instance Cons0 XApply where
-  cons0 = XApply
-
-class XTLS
-  :: forall k1
-   . Symbol
-  -> k1
-  -> Constraint
-class XTLS sym f | sym -> f
-
-instance XTLS "$" XApply
-else instance XTLS "evalS" EvalS
-else instance XTLS "evalW" EvalW
-else instance XTLS "execS" ExecS
-else instance XTLS "execW" ExecW
-else instance XTLS "fail" Fail
-else instance XTLS "fromE" FromE
-else instance XTLS "hush" Hush
-else instance XTLS "invert" Invert
-else instance XTLS "mapE" MapE
-else instance XTLS "mapW" MapW
-else instance XTLS "mapWE" MapWE
-else instance XTLS "runAff" RunAff
-else instance XTLS "runEffA" RunEffA
-else instance XTLS "runEffPromise" RunEffPromise
-else instance XTLS "runParser" RunParser
-else instance XTLS "runResult" RunResult
-else instance XTLS "runS" RunS
-else instance XTLS "runW" RunW
-else instance XTLS "say" Say
-else instance XTLS "tryUntil" TryUntil
-else instance XTLS "withReturn" WithReturn
-else instance XTLS "tell" Tell
-else instance XTLS "unwrap" Unwrap
-else instance
-  ( Symbol.Cons sh stail s
-  , XTLSFull sh stail f
-  ) =>
-  XTLS s f
-
-x'
-  :: forall @sym o f
-   . Cons0 f
-  => XTLS sym f
-  => RWSEFn f "reader" "writer" "state" "except" o
-  => o
-x' = rwseApply (cons0 :: f) (px @"reader") (px @"writer") (px @"state")
-  (px @"except")
-
-x
-  :: forall @pp @sym f o
-   . Cons0 f
-  => XTLS sym f
-  => RWSEFn f pp pp pp pp o
-  => o
-x = rwseApply (cons0 :: f) (px @pp) (px @pp) (px @pp) (px @pp)
-
-class XTLSFull sh stail f | sh stail -> f
-
-class XTLSRFull sh stail f | sh stail -> f
-
-class XTLSSFull sh stail f | sh stail -> f
-
-class SplitSp1 i o1 o2 | i -> o1 o2
-
-instance (XTLSunAt i "" "" "f" o1 o2) => SplitSp1 i o1 o2
-
-class XTLSunAt sym cat cf ct tat tf | sym cat cf ct -> tat tf
-
-class UpCat c cat ct cat' | c cat ct -> cat'
-
-instance UpCat " " cat ct cat
-else instance UpCat c cat "t" cat
-else instance (Symbol.Cons c cat cat') => UpCat c cat "f" cat'
-
-class UpCf c cf ct cf' | c cf ct -> cf'
-
-instance UpCf c cf "f" cf
-else instance (Symbol.Cons c cf cf') => UpCf c cf "t" cf'
-
-class UpCt c ct ct' | c ct -> ct'
-
-instance UpCt " " ct "t"
-else instance UpCt c ct ct
-
-class RevSym s c s' | s c -> s'
-
-instance RevSym "" c c
-else instance
-  ( Symbol.Cons c1 s' s
-  , Symbol.Cons c1 c c'
-  , RevSym s' c' f
-  ) =>
-  RevSym s c f
-
-instance
-  ( RevSym cf "" tf
-  , RevSym cat "" tat
-  ) =>
-  XTLSunAt "" cat cf ct tat tf
-else instance
-  ( Symbol.Cons c s' s
-  , UpCat c cat ct cat'
-  , UpCf c cf ct cf'
-  , UpCt c ct ct'
-  , XTLSunAt s' cat' cf' ct' tat tf
-  ) =>
-  XTLSunAt s cat cf ct tat tf
-
 px :: forall @k. P.Proxy k
 px = P.Proxy
-
-class RWSEFn
-  :: forall k1 k2 k3 k4. Type -> k1 -> k2 -> k3 -> k4 -> Type -> Constraint
-class RWSEFn f rp wp sp ep o | f rp wp sp ep -> o where
-  rwseApply :: f -> P.Proxy rp -> P.Proxy wp -> P.Proxy sp -> P.Proxy ep -> o
-
--------------------- OTHER ----------------------
-
-data WithReturn = WithReturn
-
-class ReturnP_ pdesc p | pdesc -> p
-
-instance ReturnP_ (XAt t) t
-else instance ReturnP_ t "(x)::earlyReturn"
-
-class XReturnP rp wp sp ep fp | rp wp sp ep -> fp
-
-instance XReturnP rp wp sp ep "earlyReturn"
-else instance XReturnP _r _w _s ep ep
-
-instance DimensionedValTag WithReturn WithReturn
-
-instance
-  ( ReturnP_ dspec pp
-  , IsSymbol pp
-  , Cons pp (RunE.Except r) x' x
-  ) =>
-  DimensionedVal WithReturn
-    dspec
-    (((r -> R.Run x Unit) -> R.Run x r) -> R.Run x' r) where
-  mkDimensional _ _ m = RunE.runExceptAt (px @pp) (m return) >>= onRes
-    where
-    return = RunE.throwAt (px @pp)
-    onRes (Eor.Left ret) = pure ret
-    onRes (Eor.Right ret) = pure ret
-
-instance
-  ( XReturnP rp wp sp ep p
-  , IsSymbol p
-  , Cons p (RunE.Except r) x' x
-  ) =>
-  RWSEFn WithReturn
-    rp
-    wp
-    sp
-    ep
-    (((r -> R.Run x Unit) -> R.Run x r) -> R.Run x' r) where
-  rwseApply _ _ _ _ _ m = RunE.runExceptAt (px @p) (m return) >>= onRes
-    where
-    return = RunE.throwAt (px @p)
-    onRes (Eor.Left ret) = pure ret
-    onRes (Eor.Right ret) = pure ret
-
-data XApply = XApply
-
-instance
-  ( RWSEFn i rp wp sp ep o
-  ) =>
-  RWSEFn XApply rp wp sp ep (i -> o) where
-  rwseApply _ rp wp sp ep i = rwseApply i rp wp sp ep
-
----------------------- S ------------------------
-
-data ExecS = ExecS
-
-instance DimensionedValTag ExecS ExecS
-
-instance
-  ( SP_ dspec sp
-  , IsSymbol sp
-  , Cons sp (RunS.State s) x' x
-  ) =>
-  DimensionedVal ExecS dspec (s -> R.Run x f -> R.Run x' s) where
-  mkDimensional _ _ initState m = RunS.execStateAt (px @sp) initState m
-
-instance rwseApplyExecS ::
-  ( IsSymbol sp
-  , Cons sp (RunS.State s) x' x
-  ) =>
-  RWSEFn ExecS rp wp sp ep (s -> R.Run x Unit -> R.Run x' s) where
-  rwseApply _ _ _ sp _ initState m = RunS.execStateAt sp initState m
-
-data RunS = RunS
-
-instance DimensionedValTag RunS RunS
-
-instance
-  ( SP_ dspec sp
-  , IsSymbol sp
-  , Cons sp (RunS.State s) x' x
-  ) =>
-  DimensionedVal RunS dspec (s -> R.Run x f -> R.Run x' (s TupN./\ f)) where
-  mkDimensional _ _ initState m = RunS.runStateAt (px @sp) initState m
-
-instance rwseApplyRunS ::
-  ( IsSymbol sp
-  , Cons sp (RunS.State s) x' x
-  ) =>
-  RWSEFn RunS rp wp sp ep (s -> R.Run x f -> R.Run x' (s TupN./\ f)) where
-  rwseApply _ _ _ sp _ initState m = RunS.runStateAt sp initState m
-
-data EvalS = EvalS
-
-instance DimensionedValTag EvalS EvalS
-
-instance mkdEvalS ::
-  ( SP_ dspec sp
-  , IsSymbol sp
-  , Cons sp (RunS.State s) x' x
-  ) =>
-  DimensionedVal EvalS dspec (s -> R.Run x f -> R.Run x' f) where
-  mkDimensional _ _ initState m = RunS.evalStateAt (px @sp) initState m
-
-instance
-  ( IsSymbol sp
-  , Cons sp (RunS.State s) x' x
-  ) =>
-  RWSEFn EvalS rp wp sp ep (s -> R.Run x f -> R.Run x' f) where
-  rwseApply _ _ _ sp _ initState m = RunS.evalStateAt sp initState m
-
-data PlusS :: forall @k. k -> Type
-data PlusS sym = PlusS
-
-instance DimensionedValTag (PlusS sym) (PlusS sym)
-
-instance
-  ( SP_ dspec sp
-  , IsSymbol sp
-  , IsSymbol sym
-  , Row.Lacks sym r1
-  , Cons sym a r1 r2
-  , Cons sp (RunS.State { | r1 }) x'' x'
-  , Cons sp (RunS.State { | r2 }) x' x
-  ) =>
-  DimensionedVal (PlusS sym) dspec (a -> R.Run x f -> R.Run x' f) where
-  mkDimensional _ _ v m = do
-    curr <- RunS.getAt (px @sp)
-    let next = Rec.insert (Proxy :: Proxy sym) v curr
-    (s TupN./\ r) <- RunS.runStateAt (px @sp) next m
-    RunS.putAt (px @sp) (Rec.delete (Proxy :: Proxy sym) s)
-    pure r
-
-instance rwseApplyPlusS ::
-  ( IsSymbol sp
-  , IsSymbol sym
-  , Row.Lacks sym r1
-  , Cons sym a r1 r2
-  , Cons sp (RunS.State { | r1 }) x'' x'
-  , Cons sp (RunS.State { | r2 }) x' x
-  ) =>
-  RWSEFn (PlusS sym) rp wp sp ep (a -> R.Run x f -> R.Run x' f) where
-  rwseApply _ _ _ sp _ v m = do
-    curr <- RunS.getAt sp
-    let next = Rec.insert (Proxy :: Proxy sym) v curr
-    (s TupN./\ r) <- RunS.runStateAt sp next m
-    RunS.putAt sp (Rec.delete (Proxy :: Proxy sym) s)
-    pure r
-
----------------------- W ------------------------
-
-{-
-data FromW = FromW
-
-instance
-  ( IsSymbol wp
-  , IsSymbol baseW
-  , Cons wp (RunE.Except e) x'' x'
-  , Cons baseW (RunE.Except e) x' x
-  , TypeEquals.TypeEquals baseW "writer"
-  ) =>
-  RWSEFn FromW rp wp sp ep (R.Run x a -> R.Run x' a) where
-  rwseApply _ _ _ _ _ m = do
-    RunE.runExceptAt (px @baseW) m >>= onDone
-    where
-    onDone (Eor.Left e) = RunE.throwAt (px @wp) e
-    onDone (Eor.Right v) = pure v
--}
-
-data Say = Say
-
-instance DimensionedValTag Say Say
-
-instance
-  ( WP_ dspec wp
-  , IsSymbol wp
-  , Cons wp (RunW.Writer (m w)) x' x
-  , Monad.Monad m
-  ) =>
-  DimensionedVal Say dspec (w -> R.Run x Unit) where
-  mkDimensional _ _ = RunW.tellAt (px @wp) <<< pure
-
-instance rwseApplySay ::
-  ( IsSymbol wp
-  , Cons wp (RunW.Writer (m w)) x' x
-  , Monad.Monad m
-  ) =>
-  RWSEFn Say
-    _p
-    wp
-    _s
-    _e
-    (w -> R.Run x Unit) where
-  rwseApply _ _ wp _ _ = RunW.tellAt wp <<< pure
-
-data Tell = Tell
-
-instance DimensionedValTag Tell Tell
-
-instance
-  ( WP_ dspec wp
-  , IsSymbol wp
-  , Cons wp (RunW.Writer w) x' x
-  , Monoid.Monoid w
-  ) =>
-  DimensionedVal Tell dspec (w -> R.Run x Unit) where
-  mkDimensional _ _ = RunW.tellAt (px @wp)
-
-instance
-  ( IsSymbol wp
-  , Cons wp (RunW.Writer w) x' x
-  , Monoid.Monoid w
-  ) =>
-  RWSEFn Tell
-    _p
-    wp
-    _s
-    _e
-    (w -> R.Run x Unit) where
-  rwseApply _ _ wp _ _ = RunW.tellAt wp
-
-data ExecW = ExecW
-
-instance DimensionedValTag ExecW ExecW
-
-instance
-  ( WP_ dspec wp
-  , IsSymbol wp
-  , Cons wp (RunW.Writer w) x' x
-  , Monoid.Monoid w
-  ) =>
-  DimensionedVal ExecW dspec (R.Run x Unit -> R.Run x' w) where
-  mkDimensional _ _ m = RunW.runWriterAt (px @wp) m <#> Tup.fst
-
-instance
-  ( IsSymbol wp
-  , Cons wp (RunW.Writer w) x' x
-  , Monoid.Monoid w
-  ) =>
-  RWSEFn ExecW rp wp sp ep (R.Run x Unit -> R.Run x' w) where
-  rwseApply _ _ wp _ _ m = RunW.runWriterAt wp m <#> Tup.fst
-
-data RunW = RunW
-
-instance DimensionedValTag RunW RunW
-
-instance
-  ( WP_ dspec wp
-  , IsSymbol wp
-  , Cons wp (RunW.Writer w) x' x
-  , Monoid.Monoid w
-  ) =>
-  DimensionedVal RunW dspec (R.Run x f -> R.Run x' (w TupN./\ f)) where
-  mkDimensional _ _ m = RunW.runWriterAt (px @wp) m
-
-instance
-  ( IsSymbol wp
-  , Cons wp (RunW.Writer w) x' x
-  , Monoid.Monoid w
-  ) =>
-  RWSEFn RunW rp wp sp ep (R.Run x f -> R.Run x' (w TupN./\ f)) where
-  rwseApply _ _ wp _ _ m = RunW.runWriterAt wp m
-
-data EvalW = EvalW
-
-instance DimensionedValTag EvalW EvalW
-
-instance
-  ( WP_ dspec wp
-  , IsSymbol wp
-  , Cons wp (RunW.Writer w) x' x
-  , Monoid.Monoid w
-  ) =>
-  DimensionedVal EvalW dspec (R.Run x f -> R.Run x' f) where
-  mkDimensional _ _ m = RunW.runWriterAt (px @wp) m <#> Tup.snd
-
-instance
-  ( IsSymbol wp
-  , Cons wp (RunW.Writer w) x' x
-  , Monoid.Monoid w
-  ) =>
-  RWSEFn EvalW rp wp sp ep (R.Run x f -> R.Run x' f) where
-  rwseApply _ _ wp _ _ m = RunW.runWriterAt wp m <#> Tup.snd
-
-data MapW = MapW
-
-instance DimensionedValTag MapW MapW
-
-instance
-  ( WP_ dspec wp
-  , IsSymbol wp
-  , Cons wp (RunW.Writer (m w2)) x'' x'
-  , Cons wp (RunW.Writer (m w1)) x' x
-  , Monoid.Monoid (m w2)
-  , Monoid.Monoid (m w1)
-  , Monad.Monad m
-  ) =>
-  DimensionedVal MapW dspec ((w1 -> w2) -> R.Run x f -> R.Run x' f) where
-  mkDimensional _ _ f m = do
-    (w TupN./\ res) <- RunW.runWriterAt (px @wp) m
-    RunW.tellAt (px @wp) $ map f w
-    pure res
-
-instance
-  ( IsSymbol wp
-  , Cons wp (RunW.Writer (m w2)) x'' x'
-  , Cons wp (RunW.Writer (m w1)) x' x
-  , Monoid.Monoid (m w2)
-  , Monoid.Monoid (m w1)
-  , Monad.Monad m
-  ) =>
-  RWSEFn MapW rp wp sp ep ((w1 -> w2) -> R.Run x f -> R.Run x' f) where
-  rwseApply _ _ wp _ _ f m = do
-    (w TupN./\ res) <- RunW.runWriterAt wp m
-    RunW.tellAt wp $ map f w
-    pure res
-
----------------------- E ------------------------
-
-data FromE = FromE
-
-instance
-  ( IsSymbol ep
-  , IsSymbol baseE
-  , Cons ep (RunE.Except e) x'' x'
-  , Cons baseE (RunE.Except e) x' x
-  , TypeEquals.TypeEquals baseE "except"
-  ) =>
-  RWSEFn FromE rp wp sp ep (R.Run x a -> R.Run x' a) where
-  rwseApply _ _ _ _ _ m = do
-    RunE.runExceptAt (px @baseE) m >>= onDone
-    where
-    onDone (Eor.Left e) = RunE.throwAt (px @ep) e
-    onDone (Eor.Right v) = pure v
-
-instance DimensionedValTag FromE FromE
-
-instance
-  ( EP_ dspec ep
-  , IsSymbol ep
-  , IsSymbol baseE
-  , Cons ep (RunE.Except e) x'' x'
-  , Cons baseE (RunE.Except e) x' x
-  , TypeEquals.TypeEquals baseE "except"
-  ) =>
-  DimensionedVal FromE dspec (R.Run x a -> R.Run x' a) where
-  mkDimensional _ _ m = do
-    RunE.runExceptAt (px @baseE) m >>= onDone
-    where
-    onDone (Eor.Left e) = RunE.throwAt (px @ep) e
-    onDone (Eor.Right v) = pure v
-
-data Fail = Fail
-
-instance DimensionedValTag Fail Fail
-
-instance
-  ( EP_ dspec ep
-  , IsSymbol ep
-  , Cons ep (RunE.Except e) x' x
-  ) =>
-  DimensionedVal Fail dspec (e -> R.Run x a) where
-  mkDimensional _ _ e = RunE.throwAt (px @ep) e
-
-instance
-  ( IsSymbol ep
-  , Cons ep (RunE.Except e) x' x
-  ) =>
-  RWSEFn Fail
-    _r
-    _w
-    _s
-    ep
-    (e -> R.Run x a) where
-  rwseApply _ _ _ _ _ e = RunE.throwAt (px @ep) e
-
-data RunParser = RunParser
-
-instance DimensionedValTag RunParser RunParser
-
-instance
-  ( EP_ dspec ep
-  , IsSymbol ep
-  , Cons ep (RunE.Except Z.ParseError) x' x
-  ) =>
-  DimensionedVal RunParser dspec (s -> Parsing.Parser s a -> R.Run x a) where
-  mkDimensional _ _ s pr = g1 @XOk @ep $ Z.runParser s pr
-
-instance
-  ( IsSymbol ep
-  , Cons ep (RunE.Except Z.ParseError) x' x
-  ) =>
-  RWSEFn RunParser
-    _r
-    _w
-    _s
-    ep
-    (s -> Parsing.Parser s a -> R.Run x a) where
-  rwseApply _ _ _ _ _ s pr = g1 @XOk @ep $ Z.runParser s pr
-
-data BindE = BindE
-
-instance DimensionedValTag BindE BindE
-
-instance
-  ( EP_ dspec ep
-  , IsSymbol ep
-  , Cons ep (RunE.Except e2) x'' x'
-  , Cons ep (RunE.Except e1) x' x
-  ) =>
-  DimensionedVal BindE dspec ((e1 -> R.Run x' f) -> R.Run x f -> R.Run x' f) where
-  mkDimensional _ _ be m = g1 @XTry @ep m >>= onDone
-    where
-    onDone (Eor.Left e) = be e
-    onDone (Eor.Right v) = pure v
-
-instance
-  ( IsSymbol ep
-  , Cons ep (RunE.Except e2) x'' x'
-  , Cons ep (RunE.Except e1) x' x
-  ) =>
-  RWSEFn BindE rp wp sp ep ((e1 -> R.Run x' f) -> R.Run x f -> R.Run x' f) where
-  rwseApply _ _ _ _ _ be m = g1 @XTry @ep m >>= onDone
-    where
-    onDone (Eor.Left e) = be e
-    onDone (Eor.Right v) = pure v
-
-data MapE = MapE
-
-instance DimensionedValTag MapE MapE
-
-instance
-  ( EP_ dspec ep
-  , IsSymbol ep
-  , Cons ep (RunE.Except e2) x'' x'
-  , Cons ep (RunE.Except e1) x' x
-  ) =>
-  DimensionedVal MapE dspec ((e1 -> e2) -> R.Run x f -> R.Run x' f) where
-  mkDimensional _ _ fe m = xAt @ep BindE (xAt @ep Fail <<< fe) m
-
-instance
-  ( IsSymbol ep
-  , Cons ep (RunE.Except e2) x'' x'
-  , Cons ep (RunE.Except e1) x' x
-  ) =>
-  RWSEFn MapE rp wp sp ep ((e1 -> e2) -> R.Run x f -> R.Run x' f) where
-  rwseApply _ _ _ _ _ fe m = xAt @ep BindE (xAt @ep Fail <<< fe) m
-
-data Unwrap = Unwrap
-
-instance DimensionedValTag Unwrap Unwrap
-
-instance
-  ( EP_ dspec ep
-  , IsSymbol ep
-  , Cons ep (RunE.Except e) x' x
-  ) =>
-  DimensionedVal Unwrap dspec (e -> May.Maybe a -> R.Run x a) where
-  mkDimensional _ _ _ (May.Just a) = pure a
-  mkDimensional _ _ e _ = xAt @ep Fail e
-
-instance
-  ( IsSymbol ep
-  , Cons ep (RunE.Except e) x' x
-  ) =>
-  RWSEFn Unwrap
-    _r
-    _w
-    _s
-    ep
-    (e -> May.Maybe a -> R.Run x a) where
-  rwseApply _ _ _ _ _ _ (May.Just a) = pure a
-  rwseApply _ _ _ _ _ e _ = xAt @ep Fail e
-
-data Unwrap' = Unwrap'
-
-instance DimensionedValTag Unwrap' Unwrap'
-
-instance
-  ( EP_ dspec ep
-  , IsSymbol ep
-  , Cons ep (RunE.Except Z.JsError) x' x
-  ) =>
-  DimensionedVal Unwrap' dspec (May.Maybe a -> R.Run x a) where
-  mkDimensional _ _ = xAt @ep Unwrap $ Z.jsError' "Nothing#unwrap"
-
-instance
-  ( IsSymbol ep
-  , Cons ep (RunE.Except Z.JsError) x' x
-  ) =>
-  RWSEFn Unwrap'
-    _r
-    _w
-    _s
-    ep
-    (May.Maybe a -> R.Run x a) where
-  rwseApply _ _ _ _ _ = xAt @ep Unwrap $ Z.jsError' "Nothing#unwrap"
-
-data Hush = Hush
-
-instance DimensionedValTag Hush Hush
-
-instance
-  ( EP_ dspec ep
-  , IsSymbol ep
-  , Cons ep (RunE.Except Z.JsError) x' x
-  , GenerableC d GDefault d
-  ) =>
-  DimensionedVal Hush dspec (R.Run x d -> R.Run x' d) where
-  mkDimensional _ _ m = (<$>) ZD.orDefault $ g1 @XTry @ep m <#> Eor.hush
-
-instance
-  ( IsSymbol ep
-  , Cons ep (RunE.Except Z.JsError) x' x
-  , GenerableC d GDefault d
-  ) =>
-  RWSEFn Hush
-    _r
-    _w
-    _s
-    ep
-    (R.Run x d -> R.Run x' d) where
-  rwseApply _ _ _ _ _ m = (<$>) ZD.orDefault $ g1 @XTry @ep m <#> Eor.hush
-
-data Invert = Invert
-
-instance DimensionedValTag Invert Invert
-
-instance
-  ( EP_ dspec ep
-  , IsSymbol ep
-  , Cons ep (RunE.Except e) x'' x'
-  , Cons ep (RunE.Except r) x' x
-  ) =>
-  DimensionedVal Invert dspec (R.Run x e -> R.Run x' r) where
-  mkDimensional _ _ m = g1 @XTry @ep m <#> Z.invert >>= g1 @XOk @ep
-
-instance
-  ( IsSymbol ep
-  , Cons ep (RunE.Except e) x'' x'
-  , Cons ep (RunE.Except r) x' x
-  ) =>
-  RWSEFn Invert rp wp sp ep (R.Run x e -> R.Run x' r) where
-  rwseApply _ _ _ _ _ m = g1 @XTry @ep m <#> Z.invert >>= g1 @XOk @ep
-
-data TryUntil = TryUntil
-
-instance DimensionedValTag TryUntil TryUntil
-
-instance
-  ( EP_ dspec ep
-  , IsSymbol ep
-  , Cons ep (RunE.Except e) x''' x''
-  , Cons ep (RunE.Except r) x'' x'
-  , Cons ep (RunE.Except e) x' x
-  ) =>
-  DimensionedVal TryUntil
-    dspec
-    ( R.Run x r
-      -> Array (e -> R.Run x r)
-      -> R.Run x'' r
-    ) where
-  mkDimensional _ _ try1 tryRest = xAt @ep Invert do
-    e1 <- xAt @ep Invert try1
-    Z.reduceM (\e tryN -> xAt @ep Invert $ tryN e) e1 tryRest
-
-instance
-  ( IsSymbol ep
-  , Cons ep (RunE.Except e) x''' x''
-  , Cons ep (RunE.Except r) x'' x'
-  , Cons ep (RunE.Except e) x' x
-  ) =>
-  RWSEFn TryUntil
-    _r
-    _w
-    _s
-    ep
-    ( R.Run x r
-      -> Array (e -> R.Run x r)
-      -> R.Run x'' r
-    ) where
-  rwseApply _ _ _ _ _ try1 tryRest = xAt @ep Invert do
-    e1 <- xAt @ep Invert try1
-    Z.reduceM (\e tryN -> xAt @ep Invert $ tryN e) e1 tryRest
-
-data RunAff = RunAff
-
-instance DimensionedValTag RunAff RunAff
-
-instance
-  ( EP_ dspec ep
-  , IsSymbol ep
-  , Cons ep (RunE.Except Z.JsError) x' (A x)
-  ) =>
-  DimensionedVal RunAff dspec (Aff.Aff f -> R.Run (A x) f) where
-  mkDimensional _ _ a = do
-    res <- aff $ Aff.attempt a
-    onDone res
-    where
-    onDone (Eor.Left e) = xAt @ep Fail $ Z.JsError e
-    onDone (Eor.Right v) = pure v
-
-instance
-  ( IsSymbol ep
-  , Cons ep (RunE.Except Z.JsError) x' (A x)
-  ) =>
-  RWSEFn RunAff
-    _r
-    _w
-    _s
-    ep
-    (Aff.Aff f -> R.Run (A x) f) where
-  rwseApply _ _ _ _ _ a = do
-    res <- aff $ Aff.attempt a
-    onDone res
-    where
-    onDone (Eor.Left e) = xAt @ep Fail $ Z.JsError e
-    onDone (Eor.Right v) = pure v
-
-data RunEffA = RunEffA
-
-instance DimensionedValTag RunEffA RunEffA
-
-instance
-  ( EP_ dspec ep
-  , IsSymbol ep
-  , Cons ep (RunE.Except Z.JsError) x' (A x)
-  ) =>
-  DimensionedVal RunEffA dspec (Eff.Effect f -> R.Run (A x) f) where
-  mkDimensional _ _ eff = do
-    res <- aff $ Aff.attempt $ EffC.liftEffect eff
-    onDone res
-    where
-    onDone (Eor.Left e) = xAt @ep Fail $ Z.JsError e
-    onDone (Eor.Right v) = pure v
-
-instance
-  ( IsSymbol ep
-  , Cons ep (RunE.Except Z.JsError) x' (A x)
-  ) =>
-  RWSEFn RunEffA
-    _r
-    _w
-    _s
-    ep
-    (Eff.Effect f -> R.Run (A x) f) where
-  rwseApply _ _ _ _ _ eff = do
-    res <- aff $ Aff.attempt $ EffC.liftEffect eff
-    onDone res
-    where
-    onDone (Eor.Left e) = xAt @ep Fail $ Z.JsError e
-    onDone (Eor.Right v) = pure v
-
-data RunEffPromise = RunEffPromise
-
-instance DimensionedValTag RunEffPromise RunEffPromise
-
-instance
-  ( EP_ dspec ep
-  , IsSymbol ep
-  , Cons ep (RunE.Except Z.JsError) x' (A x)
-  ) =>
-  DimensionedVal RunEffPromise
-    dspec
-    (Eff.Effect (Promise.Promise f) -> R.Run (A x) f) where
-  mkDimensional _ _ = effectPromiseToAff >>> xAt @ep RunAff
-
-instance
-  ( IsSymbol ep
-  , Cons ep (RunE.Except Z.JsError) x' (A x)
-  ) =>
-  RWSEFn RunEffPromise
-    _r
-    _w
-    _s
-    ep
-    (Eff.Effect (Promise.Promise f) -> R.Run (A x) f) where
-  rwseApply _ _ _ _ _ = effectPromiseToAff >>> xAt @ep RunAff
-
--------------------- W/E ----------------------
-
--- run E at default "except" if only 1 symbol provided
--- use that symbol for the W dimension. this typeclass
--- constraint handles that case
-
-class WpEpPickEp :: Symbol -> Symbol -> Symbol -> Constraint
-class WpEpPickEp wp ep ep' | wp ep -> ep'
-
-instance WpEpPickEp wp wp "except"
-else instance WpEpPickEp wp ep ep
-
-data RunResult = RunResult
-
-instance DimensionedValTag RunResult RunResult
-
-instance
-  ( EP_ dspec ep
-  , IsSymbol ep
-  , WP_ dspec wp
-  , IsSymbol wp
-  , Cons wp (RunW.Writer (Array w)) x'' x'
-  , Cons ep (RunE.Except e) x' x
-  ) =>
-  DimensionedVal RunResult
-    dspec
-    (R.Run x a -> R.Run x'' (Result w e a)) where
-  mkDimensional _ _ m = do
-    w <- RunW.runWriterAt (px @wp) $ RunE.runExceptAt (px @ep) m
-    pure $ { w: (Tup.fst w), v: (Tup.snd w) }
-
-instance
-  ( IsSymbol wp
-  , IsSymbol ep'
-  , WpEpPickEp wp ep ep'
-  , Cons wp (RunW.Writer (Array w)) x'' x'
-  , Cons ep' (RunE.Except e) x' x
-  ) =>
-  RWSEFn RunResult rp wp sp ep (R.Run x a -> R.Run x'' (Result w e a)) where
-  rwseApply _ _ _ _ _ m = do
-    w <- RunW.runWriterAt (px @wp) $ RunE.runExceptAt (px @ep') m
-    pure $ { w: (Tup.fst w), v: (Tup.snd w) }
-
-data MapWE = MapWE
-
-instance DimensionedValTag MapWE MapWE
-
-instance
-  ( DimensionedVal MapE dspec ((e1 -> e2) -> f'' -> f')
-  , DimensionedVal MapW dspec ((w1 -> w2) -> f' -> f)
-  ) =>
-  DimensionedVal MapWE dspec ((w1 -> w2) -> (e1 -> e2) -> f'' -> f) where
-  mkDimensional _ _ fw fe m = mkDimensional (px @MapW) (px @dspec) fw
-    $ mkDimensional (px @MapE) (px @dspec) fe m
-
-instance
-  ( RWSEFn MapE rp wp sp ep' ((e1 -> e2) -> f'' -> f')
-  , RWSEFn MapW rp wp sp ep' ((w1 -> w2) -> f' -> f)
-  , WpEpPickEp wp ep ep'
-  ) =>
-  RWSEFn MapWE rp wp sp ep ((w1 -> w2) -> (e1 -> e2) -> f'' -> f) where
-  rwseApply _ _ _ _ _ fw fe m = mkXFn @rp @wp @sp @ep' MapW fw
-    $ mkXFn @rp @wp @sp @ep' MapE fe m
-
---------------------- x -----------------------
-
-type XFnG :: forall k1 k2 k3 k4. k1 -> k2 -> k3 -> k4 -> Type
-type XFnG rp wp sp ep = forall f o. RWSEFn f rp wp sp ep o => f -> o
-
-mkXFn :: forall @rp @wp @sp @ep. XFnG rp wp sp ep
-mkXFn f = rwseApply f (px @rp) (px @wp) (px @sp) (px @ep)
-
--- | Runs `class RWSEFn` implementers primarily at the specified variant key
-xAt :: forall @p. XFnG p p p p
-xAt = mkXFn @p @p @p @p
-
--- | Runs `class RWSEFn` implementers with Writer variant key `@wp` and
--- | Except variant key `@ep`
-xAtWE :: forall @wp @ep. XFnG wp wp ep ep
-xAtWE = mkXFn @wp @wp @ep @ep
-
-class XPSel :: forall k1 k2 k3 k4. k1 -> k2 -> k3 -> k4 -> Constraint
-class XPSel a b c d | a b c -> d
-
-instance XPSel XEnv rs ss rs
-instance XPSel XState rs ss ss
-
-data XEnv = XEnv
-data XState = XState
 
 --------------- EVAL -------------------------------------------------------
 
@@ -1718,7 +924,7 @@ edit init m = R.extract $ RunS.execState init $
 type StrW = XRun (Wa String ()) Unit
 
 joinStrW :: String -> StrW -> String
-joinStrW s m = StrCommon.joinWith s $ evalX $ x' @"execW" m
+joinStrW s m = StrCommon.joinWith s $ evalX $ g @XExecW m
 
 --------------- E FNS -----------------------------------------------------
 
@@ -1735,7 +941,7 @@ effectPromiseToAff :: forall a. Eff.Effect (Promise.Promise a) -> Aff.Aff a
 effectPromiseToAff e = EffC.liftEffect e >>= promiseToAff
 
 xTimeout :: forall x. Int -> XRun (A x) Unit
-xTimeout ms = Z.fDiscard $ z @XTry $ x' @"runEffPromise" $ js_timeout ms
+xTimeout ms = Z.fDiscard $ g @XTry $ g @XRunEffPromise $ js_timeout ms
 
 --------------- CORE TYPE ---------------------------------------------------
 

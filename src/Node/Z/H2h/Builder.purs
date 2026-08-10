@@ -13,7 +13,7 @@ adaptBuilder
   :: forall x
    . BuildX x #> H2h.Event
   -> GetDataFn x
-adaptBuilder b source client networkControl = mkDim @RunResult $ g @XRunR
+adaptBuilder b source client networkControl = g @XRunResult $ g @XRunR
   env
   b
   where

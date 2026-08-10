@@ -152,7 +152,7 @@ type XPROPS x = (xProps :: Writer (Array PropWF) | x)
 
 renderX :: XDom () -> ReactEl
 renderX m = js_renderFragment $ evalX $ g1 @XRunR @XSelf_ baseXSelf
-  $ x' @"execW"
+  $ g @XExecW
   $ m
 
 type DwithKey = forall x. String -> RDom x -> RDom x
@@ -161,7 +161,7 @@ dwithKey :: DwithKey
 dwithKey k m = do
   rn <- g1 @XAsk @XSelf_
   z @XSay $ js_withKey k $ js_renderFragment $ runEls rn
-    $ x' @"execW"
+    $ g @XExecW
     $ g1 @XRunR @XSelf_ rn
     $ m
 
@@ -177,7 +177,7 @@ dwithNewState initalState fm = do
   rn <- g1 @XAsk @XSelf_
   z @XSay $ flip (js_withState pure) initalState (renderFn rn)
   where
-  renderFn rn s ss = runEls rn $ mkDim @ExecW $ g1 @XRunR @XSelf_ rn $ fm
+  renderFn rn s ss = runEls rn $ g @XExecW $ g1 @XRunR @XSelf_ rn $ fm
     s
     (w ss)
   w ss s = XEff $ ss s
@@ -196,7 +196,7 @@ xSelfExtendX' m = g1 @XAsk @XSelf_ <#> xSelfExtend' m
 
 runRDom :: forall x. XSelf x -> RDom x -> ReactEl
 runRDom r =
-  js_renderFragment <<< runEls r <<< x' @"execW" <<< g1 @XRunR @XSelf_ r
+  js_renderFragment <<< runEls r <<< g @XExecW <<< g1 @XRunR @XSelf_ r
 
 runRDomAndSayIt :: forall x x'. XSelf x -> RDom x -> RDom x'
 runRDomAndSayIt r = z @XSay <<< runRDom r
@@ -243,10 +243,10 @@ instance
         r
     z @XSay $ js_withBoundedError (rErr r) (rMain ir)
     where
-    rMain rn _ = js_renderFragment $ runEls rn $ x' @"execW"
+    rMain rn _ = js_renderFragment $ runEls rn $ g @XExecW
       $ g1 @XRunR @XSelf_ rn
       $ m
-    rErr rn e = js_renderFragment $ runEls rn $ x' @"execW"
+    rErr rn e = js_renderFragment $ runEls rn $ g @XExecW
       $ g1 @XRunR @XSelf_ rn
       $ em e
 
@@ -369,7 +369,7 @@ del
   -> RDom' x XEl
   -> RDom x
 del s m = do
-  (propWFs /\ elBuild) <- x @"xProps" @"runW" $ x' @"execW" m
+  (propWFs /\ elBuild) <- g1 @XRunW @"xProps" $ g @XExecW m
   let props = js_propsFromPropWs propWFKey propWFVal propWFs
   z @XSay $ js_renderEl s (encodeOpts props) elBuild
 
@@ -445,12 +445,12 @@ da
      , onClick :: forall x. (Int -> Run' x) -> RDom' x XPROPS
      }
 da =
-  { key: mkDimAt @XProps_ @Tell <<< pure <<< PKey
-  , cn: mkDimAt @XProps_ @Tell <<< pure <<< ClassName
-  , cnW: \fm -> mkDimAt @XProps_ @Tell $ pure $ ClassName $ joinStrW " " $ fm $
+  { key: g1 @XTell @XProps_ <<< pure <<< PKey
+  , cn: g1 @XTell @XProps_ <<< pure <<< ClassName
+  , cnW: \fm -> g1 @XTell @XProps_ $ pure $ ClassName $ joinStrW " " $ fm $
       z @XSay
-  , href: mkDimAt @XProps_ @Tell <<< pure <<< Href
+  , href: g1 @XTell @XProps_ <<< pure <<< Href
   , onClick: \f -> do
       r <- g1 @XAsk @XSelf_
-      mkDimAt @XProps_ @Tell $ pure $ OnClick $ \e -> runUnit r $ f e
+      g1 @XTell @XProps_ $ pure $ OnClick $ \e -> runUnit r $ f e
   }

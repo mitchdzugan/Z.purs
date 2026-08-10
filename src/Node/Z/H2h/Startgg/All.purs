@@ -34,7 +34,7 @@ ggQueryAll op initVars pageSpecs client networkControl = do
   let r = { client, networkControl, op }
   initRes <- Gql.xOperate op initVars client networkControl
   let initS = { vars: initVars, res: initRes }
-  { res } <- z @XRunR r $ x' @"execS" initS $ forM_ pageSpecs
+  { res } <- g @XRunR r $ g @XExecS initS $ forM_ pageSpecs
     ggPageSpecHandle
   pure res
 
@@ -58,7 +58,7 @@ ggPageSpecHandleImpl
   -> XPageSpecHandle x v r
 ggPageSpecHandleImpl (GGPageSpecF pageL dataL) = do
   { client, networkControl, op } <- g @XAsk
-  mkDim @(PlusS "seenIds") setEmpty $ loop op client networkControl
+  g @(XPlusS "seenIds") setEmpty $ loop op client networkControl
   where
   loop op client networkControl = do
     g @XToArrayOfS (_o_ @"res" @"nodes+.id" dataL) >>= \ids -> do
