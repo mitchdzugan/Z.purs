@@ -91,7 +91,7 @@ xDecodeTextFile
   -> EA Sys.FSDataError x #> d
 xDecodeTextFile p = do
   contents <- mkDim @MapE Sys.ReadError $ xReadTextFile p
-  mkDim @Ok $ mapL Sys.DecodeError $ decode contents
+  z @XOk $ mapL Sys.DecodeError $ decode contents
 
 xDecodeYamlString
   :: forall x @d
@@ -99,8 +99,8 @@ xDecodeYamlString
   => String
   -> EA Sys.FSDataError x #> d
 xDecodeYamlString contents = do
-  json <- mkDim @Ok $ mapL Sys.ReadError $ js_loadYaml contents Left Right
-  mkDim @Ok $ mapL Sys.DecodeError $ decodeJson json
+  json <- z @XOk $ mapL Sys.ReadError $ js_loadYaml contents Left Right
+  z @XOk $ mapL Sys.DecodeError $ decodeJson json
 
 xDecodeYamlFile
   :: forall x p @d
@@ -171,7 +171,7 @@ lookupEnv :: String -> Effect $ Maybe String
 lookupEnv = js_lookupEnv Just Nothing
 
 xLookupEnv :: forall x. String -> A x #> Maybe String
-xLookupEnv k = x' @"try" (x' @"runEffA" $ lookupEnv k) <#> getRes
+xLookupEnv k = z @XTry (x' @"runEffA" $ lookupEnv k) <#> getRes
   where
   getRes (Right (Just v)) = Just v
   getRes _ = Nothing

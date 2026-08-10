@@ -17,10 +17,10 @@ addConfigs
 addConfigs allowFNF wd configPaths = do
   forM_ configPaths \configPath -> do
     let fullPath = wd /.|// configPath
-    x' @"try" (xDecodeAnyYamlExt @RecordConfig fullPath) >>= onDecode fullPath
+    g @XTry (xDecodeAnyYamlExt @RecordConfig fullPath) >>= onDecode fullPath
   where
   onDecode fullPath (Right c) = do
-    x' @"modify" $ updateEnv c
+    g @XModify $ updateEnv c
     addConfigs false (dirname fullPath) (gmOr'_ @"includes?" c)
   onDecode fp (Left (ReadError _)) = do
     when (not allowFNF) $ x' @"fail" $ ConfigNotFound $ show fp
@@ -41,7 +41,7 @@ xRun args = do
         /./ "Slippi Launcher"
         /./ "Settings"
   launcherSettings <-
-    x' @"try" (xDecodeTextFile @LauncherSettings' launcherSettingsPath) <#>
+    z @XTry (xDecodeTextFile @LauncherSettings' launcherSettingsPath) <#>
       hush
   let isoPath = launcherSettings <#> g_ @"settings.isoPath"
   let
@@ -98,7 +98,7 @@ updateEnv cfg st =
 finalizeEnv
   :: forall x. EnvBuildState -> CliOpts -> String -> E Error x #> RecordEnv
 finalizeEnv st (CliOpts opts) defaultOutputPath = do
-  isoPath <- x' @"ok" $ jOrE NoIso st.isoPath
+  isoPath <- z @XOk $ jOrE NoIso st.isoPath
   pure
     { isoPath
     , outputPath: jOr defaultOutputPath opts.outputPath

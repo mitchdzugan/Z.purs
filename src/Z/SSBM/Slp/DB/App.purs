@@ -23,7 +23,7 @@ xOnE message = do
     ddd.text message
     ddd.button do
       da.cn "btn btn-soft"
-      da.onClick $ \_ -> z @(XDomDispatch @@ "count") Reset
+      da.onClick $ \_ -> g1 @XDomDispatch @"count" Reset
       ddd.text "reset"
 
 xApp :: forall x. XurlStProviderX x -> XDom x
@@ -39,8 +39,8 @@ xApp = z @XDomRunRouter route
         da.cn "btn link btn-primary"
         z @XDomRouteHref (Profile "Jimmy")
         ddd.text "profile link"
-      ddd.div $ z @(XDomRunReducer @@ "count") 3 countAct $ z @XDomBindE xOnE do
-        count <- z @(XDomGetState @@ "count")
+      ddd.div $ g1 @XDomRunReducer @"count" 3 countAct $ z @XDomBindE xOnE do
+        count <- g1 @XDomGetState @"count"
         ddd.div do
           da.key "asdfasdfasdfasdf..."
           when (count < 0) do x' @"fail" "negative number invalid"
@@ -51,13 +51,13 @@ xApp = z @XDomRunRouter route
           ddd.button do
             da.cnW \w -> do
               w "btn btn-soft" *> when (count > 5) do w "btn-accent"
-            da.onClick $ (\_ -> z @(XDomDispatch @@ "count") Dec)
+            da.onClick $ (\_ -> g1 @XDomDispatch @"count" Dec)
             ddd.text "dec"
           ddd.div %% "Count:" <-> count
           "asdfasdf" <!& ddd.button do
             da.cnW \w -> do
               w "btn btn-soft" *> when (count > 5) do w "btn-accent"
-            da.onClick $ (\_ -> z @(XDomDispatch @@ "count") Inc)
+            da.onClick $ (\_ -> g1 @XDomDispatch @"count" Inc)
             ddd.text "inc"
 
 data Route = Home | Profile String

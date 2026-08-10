@@ -3,14 +3,14 @@ module Z.XDom.State
   , T
   , Tg
   , XDomGetState
-  , XDomGetStateT
+  , XDomGetStateT(..)
   , XDomRunState
-  , XDomRunStateT
+  , XDomRunStateT(..)
   , XDomSetState
-  , XDomSetStateT
+  , XDomSetStateT(..)
   ) where
 
-import Z.Prelude hiding (Get(..), Run, Set(..))
+import Z.Prelude hiding (Run)
 
 import Z.Prelude as Z
 import Z.XDom.Core as XDom
@@ -29,7 +29,7 @@ instance
   ) =>
   GenerableC XDomGetStateT gspec (Z.Run x s) where
   mkGenerable = do
-    r <- mkDimAt @rp @Ask
+    r <- g1 @XAsk @rp
     pure r.get
 
 data XDomSetStateT = XDomSetStateT
@@ -42,11 +42,10 @@ instance
   ) =>
   GenerableC XDomSetStateT gspec (s -> Z.Run x Unit) where
   mkGenerable s = do
-    r <- z @(XAsk @@ gspec)
+    r <- g1 @XAsk @rp
     xDo $ r.set s
 
 data XDomRunStateT = XDomRunStateT
-
 type XDomRunState = Generable XDomRunStateT
 
 instance
@@ -58,4 +57,4 @@ instance
   mkGenerable initState m = do
     XDom.(<*#) initState \state set -> do
       let env = { set, get: state }
-      z @(XDom.XDomRunR @@ gdesc) env m
+      g1 @XDom.XDomRunR @rp env m

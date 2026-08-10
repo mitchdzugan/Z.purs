@@ -5,14 +5,15 @@ module Node.Z.H2h.Builder
   ) where
 
 import Z.Prelude
-import Z.H2h.Module as H2h
+
 import Node.Z.Gql as Gql
+import Z.H2h.Module as H2h
 
 adaptBuilder
   :: forall x
    . BuildX x #> H2h.Event
   -> GetDataFn x
-adaptBuilder b source client networkControl = mkDim @RunResult $ mkDim @RunR
+adaptBuilder b source client networkControl = mkDim @RunResult $ g @XRunR
   env
   b
   where

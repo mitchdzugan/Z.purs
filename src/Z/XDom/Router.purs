@@ -2,15 +2,15 @@ module Z.XDom.Router
   ( R
   , T
   , X
-  , XDomHrefAttrT
   , XDomRouteHref
+  , XDomRouteHrefT
   , XDomRouteOrE
   , XDomRouteOrET
   , XDomRunRouter
   , XDomRunRouterT
   ) where
 
-import Z.Prelude hiding (Get(..), R, Run, Set(..))
+import Z.Prelude hiding (R, Run)
 
 import Z.Prelude as Z
 import Z.XDom.Core as XDom
@@ -39,7 +39,7 @@ instance
     ) where
   mkGenerable routeSpec mkTitle m provider = do
     provider toTitleOr_ \urlState -> do
-      z @(XDom.XDomRunR @@ G1 p) { routeSpec, urlState } m
+      g1 @XDom.XDomRunR @p { routeSpec, urlState } m
     where
     toTitleOr_ url = finTitle url $ routeParse routeSpec $ urlRelative url
     finTitle url routeOrE = mkTitle { url, routeOrE }
@@ -54,11 +54,11 @@ instance
   ) =>
   GenerableC XDomRouteOrET gdesc (Z.Run x (Either RouteError r)) where
   mkGenerable = do
-    r <- mkDimAt @p @Ask
+    r <- g1 @XAsk @p
     pure $ routeParse r.routeSpec $ urlRelative r.urlState.url
 
-data XDomHrefAttrT = XDomHrefAttrT
-type XDomRouteHref = Generable XDomHrefAttrT
+data XDomRouteHrefT = XDomRouteHrefT
+type XDomRouteHref = Generable XDomRouteHrefT
 
 instance
   ( GOrDefault "router" gdesc p
@@ -66,11 +66,11 @@ instance
   , Cons p (R r) x' x
   , Cons p (R r) x_a (xProps :: W' (Array XDom.PropWF) | x)
   ) =>
-  GenerableC XDomHrefAttrT
+  GenerableC XDomRouteHrefT
     gdesc
     (r -> Run' (xProps :: W' (Array XDom.PropWF) | x)) where
   mkGenerable route = do
-    r <- z @(XAsk @@ G1 p)
+    r <- g1 @XAsk @p
     mkDimAt @XDom.XProps_ @Tell $ pure $ XDom.Href $ routePrint r.routeSpec
       route
 

@@ -45,11 +45,11 @@ module Z.XDom.Core
   , XDom
   , XDom'
   , XDomBindE
-  , XDomBindET
+  , XDomBindET(..)
   , XDomFn
   , XDomFn'
   , XDomRunR
-  , XDomRunRT
+  , XDomRunRT(..)
   , XDomS
   , XDomS'
   , XEl
@@ -151,7 +151,7 @@ type RDom' x fx = GDomFn' IdT x fx Unit
 type XPROPS x = (xProps :: Writer (Array PropWF) | x)
 
 renderX :: XDom () -> ReactEl
-renderX m = js_renderFragment $ evalX $ z @(XRunR @@ XSelf_) baseXSelf
+renderX m = js_renderFragment $ evalX $ g1 @XRunR @XSelf_ baseXSelf
   $ x' @"execW"
   $ m
 
@@ -159,10 +159,10 @@ type DwithKey = forall x. String -> RDom x -> RDom x
 
 dwithKey :: DwithKey
 dwithKey k m = do
-  rn <- z @(XAsk @@ XSelf_)
+  rn <- g1 @XAsk @XSelf_
   z @XSay $ js_withKey k $ js_renderFragment $ runEls rn
     $ x' @"execW"
-    $ z @(XRunR @@ XSelf_) rn
+    $ g1 @XRunR @XSelf_ rn
     $ m
 
 infixr 3 dwithKey as <!&
@@ -174,10 +174,10 @@ type DwithNewState =
 
 dwithNewState :: DwithNewState
 dwithNewState initalState fm = do
-  rn <- z @(XAsk @@ XSelf_)
+  rn <- g1 @XAsk @XSelf_
   z @XSay $ flip (js_withState pure) initalState (renderFn rn)
   where
-  renderFn rn s ss = runEls rn $ mkDim @ExecW $ z @(XRunR @@ XSelf_) rn $ fm
+  renderFn rn s ss = runEls rn $ mkDim @ExecW $ g1 @XRunR @XSelf_ rn $ fm
     s
     (w ss)
   w ss s = XEff $ ss s
@@ -192,17 +192,16 @@ xRawFragment = z @XSay <<< js_renderFragment
 
 xSelfExtendX'
   :: forall x' x. (forall a. Run x a -> Run x' a) -> RDomFn x' (XSelf x)
-xSelfExtendX' m = z @(XAsk @@ XSelf_) <#> xSelfExtend' m
+xSelfExtendX' m = g1 @XAsk @XSelf_ <#> xSelfExtend' m
 
 runRDom :: forall x. XSelf x -> RDom x -> ReactEl
 runRDom r =
-  js_renderFragment <<< runEls r <<< x' @"execW" <<< z @(XRunR @@ XSelf_) r
+  js_renderFragment <<< runEls r <<< x' @"execW" <<< g1 @XRunR @XSelf_ r
 
 runRDomAndSayIt :: forall x x'. XSelf x -> RDom x -> RDom x'
 runRDomAndSayIt r = z @XSay <<< runRDom r
 
 data XDomRunRT = XDomRunRT
-
 type XDomRunR = Generable XDomRunRT
 
 instance
@@ -212,11 +211,10 @@ instance
   ) =>
   GenerableC XDomRunRT gdesc (r -> RDom x -> RDom x') where
   mkGenerable env m = do
-    ir <- xSelfExtendX' (z @(XRunR @@ gdesc) env)
+    ir <- xSelfExtendX' (g1 @XRunR @rp env)
     runRDomAndSayIt ir m
 
 data XDomBindET = XDomBindET
-
 type XDomBindE = Generable XDomBindET
 
 instance
@@ -226,10 +224,10 @@ instance
   ) =>
   GenerableC XDomBindET gdesc ((e -> RDom x') -> RDom x -> RDom x') where
   mkGenerable em m = do
-    r <- z @(XAsk @@ XSelf_)
+    r <- g1 @XAsk @XSelf_
     let
       ir = xSelfExtend @(Either e)
-        (mkDimAt @ep @Try)
+        (g1 @XTry @ep)
         ( \eOr -> case eOr of
             (Left e) -> js_throwBoundedError e
             (Right v) -> v
@@ -246,10 +244,10 @@ instance
     z @XSay $ js_withBoundedError (rErr r) (rMain ir)
     where
     rMain rn _ = js_renderFragment $ runEls rn $ x' @"execW"
-      $ z @(XRunR @@ XSelf_) rn
+      $ g1 @XRunR @XSelf_ rn
       $ m
     rErr rn e = js_renderFragment $ runEls rn $ x' @"execW"
-      $ z @(XRunR @@ XSelf_) rn
+      $ g1 @XRunR @XSelf_ rn
       $ em e
 
 type DomS a s = { get :: s, act :: a -> XEff Unit }
@@ -275,7 +273,7 @@ type DuseEveryEff' = forall x. Run' x -> RDom x
 
 duseEff :: DuseEff
 duseEff v m = do
-  r <- z @(XAsk @@ XSelf_)
+  r <- g1 @XAsk @XSelf_
   z @XSay $ js_effComponent eq v
     (\_ -> let runD' = runDisposable r m in \_ -> runUnit r (runD' unit))
     ((#) unit)
@@ -453,6 +451,6 @@ da =
       z @XSay
   , href: mkDimAt @XProps_ @Tell <<< pure <<< Href
   , onClick: \f -> do
-      r <- z @(XAsk @@ XSelf_)
+      r <- g1 @XAsk @XSelf_
       mkDimAt @XProps_ @Tell $ pure $ OnClick $ \e -> runUnit r $ f e
   }

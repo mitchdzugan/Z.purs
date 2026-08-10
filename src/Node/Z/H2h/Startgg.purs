@@ -29,7 +29,7 @@ mapOfJsonElsWithFieldsTypeAnd_t = reduce reducer mapEmpty
 
 getEventData :: forall x. B.GetDataFn x
 getEventData = B.adaptBuilder $ x' @"evalS" initState do
-  { slug } <- z @XAsk
+  { slug } <- g @XAsk
   { event } <- fetchRawEventData
   let entrantNodes = event.entrants.nodes
   forM_ entrantNodes $ \entrantNode -> do
@@ -58,14 +58,14 @@ getEventData = B.adaptBuilder $ x' @"evalS" initState do
         , participants
         , standing: { placement: 0, isFinal: false }
         }
-    x' @"%entrants" $ mapSet entrantId entrant
+    g @(XOver_ "entrants") $ mapSet entrantId entrant
   forM_ event.standings.nodes $ \standing -> do
     let entrantId = sOrN standing.entrant.id
-    mkDim @Set (_o_ @"entrants" @"standing" (ix entrantId))
+    g @XSet (_o_ @"entrants" @"standing" (ix entrantId))
       { placement: standing.placement, isFinal: standing.isFinal }
 
   let rawPgs = arrSortWith (g_ @"id") event.phaseGroups
-  pgs <- forM rawPgs $ \pg -> x' @"-+sets" (mapEmpty @Int) do
+  pgs <- forM rawPgs $ \pg -> g @(XPlusS "sets") (mapEmpty @Int) do
     { phaseGroup } <- fetchRawPhaseGroupData pg.id
     forM_ phaseGroup.sets.nodes $ \set -> do
       let
@@ -94,7 +94,7 @@ getEventData = B.adaptBuilder $ x' @"evalS" initState do
         pure $ H2h.NoScore /\ H2h.NoScore
       let slotA = { entrantId: eIdA <#> sOrN, score: slotScoreA }
       let slotB = { entrantId: eIdB <#> sOrN, score: slotScoreB }
-      mkDim @Set (_o @"sets" $ at setId) $ Just
+      g @XSet (_o @"sets" $ at setId) $ Just
         { id: setId
         , roundText: set.fullRoundText
         , overrideScoreText: set.displayScore
@@ -104,7 +104,7 @@ getEventData = B.adaptBuilder $ x' @"evalS" initState do
         , doesCount: (not isBye) && (not isDQ) && (isJust set.winnerId)
         , slots: slotA ~ slotB
         }
-    { sets } <- mkDim @"-"
+    { sets } <- z @XGet
     pure
       { id: sOrN pg.id
       , displayIdentifier: pg.displayIdentifier
@@ -115,7 +115,7 @@ getEventData = B.adaptBuilder $ x' @"evalS" initState do
           , phaseOrder: pg.phase.phaseOrder
           }
       }
-  { entrants } <- mkDim @"-"
+  { entrants } <- z @XGet
   let { endAt } = event.tournament
   date <- mkDim @Unwrap (H2hE.InvalidInstant endAt) do
     instant (Milliseconds (toNumber endAt)) <#> toDateTime
@@ -137,7 +137,7 @@ getEventData = B.adaptBuilder $ x' @"evalS" initState do
   where
   initState = { entrants: mapEmpty @SorN @H2h.Entrant }
   fetchRawPhaseGroupData phaseGroupId = do
-    { client, networkControl } <- z @XAsk
+    { client, networkControl } <- g @XAsk
     let initVars = { page: 0, phaseGroupId }
     let pSpecs = [ All.ggPageSpec (__ @"page") (__ @"phaseGroup.sets") ]
     mkDim @MapWE H2hW.Gql H2hE.Gql do
@@ -150,8 +150,8 @@ getEventData = B.adaptBuilder $ x' @"evalS" initState do
     ]
     where
     f' q ncOverride = do
-      { client, slug } <- z @XAsk
-      nc <- z @XAsk <#> \r -> jOr r.networkControl ncOverride
+      { client, slug } <- g @XAsk
+      nc <- g @XAsk <#> \r -> jOr r.networkControl ncOverride
       let initVars = { pageE: 0, pageS: 0, slug }
       let eSpec = All.ggPageSpec (__ @"pageE") (__ @"event.entrants")
       let sSpec = All.ggPageSpec (__ @"pageS") (__ @"event.standings")

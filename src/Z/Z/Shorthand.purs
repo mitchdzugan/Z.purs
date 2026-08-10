@@ -43,34 +43,29 @@ module Z.Z.Shorthand
 
 import Prelude
 
-import Z.Z.Barlow
-  ( class ConstructBarlow
-  , class ParseSymbol
-  , Forget
-  , barlow
-  ) as Z
-import Z.Z.Defaultable (class Defaultable, orDefault, default) as Z
+import Type.Row (type (+)) as TypeRow
+import Z.Z.Barlow (class ConstructBarlow, class ParseSymbol, Forget, barlow) as Z
 import Z.Z.Core as ZCore
+import Z.Z.Defaultable (WithDefaultable, default, orDefault) as Z
 import Z.Z.Ext
   ( class IsSymbol
   , class Newtype
+  , Either(..)
+  , Except
   , First
   , Maybe(..)
   , Optic
-  , Either(..)
-  , fromMaybe
-  , preview
-  , over
-  , view
-  , set
-  , unwrap
   , Reader
   , Writer
-  , Except
+  , fromMaybe
+  , over
+  , preview
+  , set
+  , unwrap
+  , view
   ) as Z
 import Z.Z.Ext ((/\)) as ZExp
 import Z.Z.X as X
-import Type.Row (type (+)) as TypeRow
 
 un' :: forall nt t. Z.Newtype nt t => nt -> t
 un' = Z.unwrap
@@ -129,13 +124,13 @@ infixr 0 type Xflipped as <#
 
 infixr 1 type TPlus as +
 
-_' :: forall a. Z.Defaultable a => a
-_' = Z.default
+_' :: forall a. Z.WithDefaultable a a
+_' = Z.default @a
 
 jOr :: forall a. a -> Z.Maybe a -> a
 jOr = Z.fromMaybe
 
-jOr' :: forall a. Z.Defaultable a => Z.Maybe a -> a
+jOr' :: forall a. Z.WithDefaultable a (Z.Maybe a -> a)
 jOr' = Z.orDefault
 
 jOr0 :: Z.Maybe Int -> Int
@@ -214,9 +209,7 @@ gmOr'_
    . Z.ParseSymbol sym lenses
   => Z.ConstructBarlow lenses (Z.Forget (Z.First a)) s t a b
   => Z.IsSymbol sym
-  => Z.Defaultable a
-  => s
-  -> a
+  => Z.WithDefaultable a (s -> a)
 gmOr'_ d = Z.orDefault $ Z.preview (Z.barlow @sym) d
 
 __

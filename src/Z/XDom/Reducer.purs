@@ -4,9 +4,9 @@ module Z.XDom.Reducer
   , Tg
   , X
   , XDomDispatch
-  , XDomDispatchT
+  , XDomDispatchT(..)
   , XDomRunReducer
-  , XDomRunReducerT
+  , XDomRunReducerT(..)
   ) where
 
 import Z.Prelude hiding (Run)
@@ -21,6 +21,7 @@ type R a s = R' (Tg () a s)
 type X a s x = Z.R (Tg () a s) x
 
 data XDomDispatchT = XDomDispatchT
+type XDomDispatch = Generable XDomDispatchT
 
 instance
   ( GOrDefault "reader" gspec rp
@@ -29,12 +30,11 @@ instance
   ) =>
   GenerableC XDomDispatchT gspec (a -> Z.Run' x) where
   mkGenerable a = do
-    r <- z @(XAsk @@ gspec)
+    r <- g1 @XAsk @rp
     xDo $ r.set $ r.update r.get a
 
-type XDomDispatch = Generable XDomDispatchT
-
 data XDomRunReducerT = XDomRunReducerT
+type XDomRunReducer = Generable XDomRunReducerT
 
 instance
   ( GOrDefault "reader" gspec rp
@@ -47,6 +47,4 @@ instance
   mkGenerable initState update m = do
     XDom.(<*#) initState \state set -> do
       let env = { set, get: state, update }
-      z @(XDom.XDomRunR @@ gspec) env m
-
-type XDomRunReducer = Generable XDomRunReducerT
+      g1 @XDom.XDomRunR @rp env m

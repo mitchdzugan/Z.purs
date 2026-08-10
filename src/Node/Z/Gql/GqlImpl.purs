@@ -32,8 +32,8 @@ data NetworkControl
 
 derive instance Eq NetworkControl
 
-instance Defaultable NetworkControl where
-  default = CacheFirst
+instance GenerableC NetworkControl gdesc NetworkControl where
+  mkGenerable = CacheFirst
 
 foreign import js_requestGql
   :: String -> Json -> String -> Json -> Effect (Promise Json)
@@ -85,7 +85,7 @@ xOperateUnknown opString vars client networkControl = mkDim @WithReturn
     (/./) cachePath <<< strJoinWith "." <<< filenameParts
   getCachedRec cachePath collisionCount = do
     let filename = cacheFilename cachePath collisionCount
-    parsed <- z @XTellMappedMHush mapMDecodeErr $ xDecodeTextFile filename
+    parsed <- g @XTellMappedMHush mapMDecodeErr $ xDecodeTextFile filename
     handleParsed parsed
     where
     mapMDecodeErr e@(DecodeError _) = [ GqlW.CacheDecode e ]
@@ -104,7 +104,7 @@ xOperateUnknown opString vars client networkControl = mkDim @WithReturn
   writeToCache Nothing _ _ = pass
   writeToCache (Just cachePath) collisionCount toCache = do
     let filename = cacheFilename cachePath collisionCount
-    z @XTellMappedHush GqlW.CacheWrite $ xEncodeTextFileP filename toCache
+    g @XTellMappedHush GqlW.CacheWrite $ xEncodeTextFileP filename toCache
 
 data Operation v r = Operation String (JsonEncodeFn v) (JsonDecodeFn r)
 
@@ -127,4 +127,4 @@ xOperate
   -> WEA (Array GqlW.T) GqlE.T x #> res
 xOperate (Operation opString encode decode) vars client networkControl = do
   json <- xOperateUnknown opString (encode vars) client networkControl
-  mkDim @MapE GqlE.ResponseTypeError $ mkDim @Ok $ decode json
+  mkDim @MapE GqlE.ResponseTypeError $ z @XOk $ decode json

@@ -2,7 +2,6 @@ module Z.Z.X.Core
   ( A
   , AFF
   , AffF
-  , Ask
   , BindE
   , E
   , EA
@@ -13,25 +12,12 @@ module Z.Z.X.Core
   , ExecW
   , Fail
   , FromE
-  , GGet
-  , Get
   , Hush
   , Invert
   , MapE
   , MapW
   , MapWE
-  , Modify
-  , Ok
-  , Over
-  , Over_
   , PlusS
-  , Preview
-  , PreviewR
-  , PreviewR_
-  , PreviewS
-  , PreviewS_
-  , Preview_
-  , Put
   , R
   , RA
   , RE
@@ -61,7 +47,6 @@ module Z.Z.X.Core
   , RunEffA
   , RunEffPromise
   , RunParser
-  , RunR
   , RunResult
   , RunS
   , RunW
@@ -70,26 +55,10 @@ module Z.Z.X.Core
   , SE
   , SEA
   , Say
-  , SayT
-  , Set
-  , Set_
   , StrW
   , Tell
-  , ToArrayOf
-  , ToArrayOfR
-  , ToArrayOfR_
-  , ToArrayOfS
-  , ToArrayOfS_
-  , ToArrayOf_
-  , Try
   , TryUntil
   , Unwrap
-  , View
-  , ViewR
-  , ViewR_
-  , ViewS
-  , ViewS_
-  , View_
   , W
   , WA
   , WE
@@ -106,36 +75,67 @@ module Z.Z.X.Core
   , WaSA
   , WaSE
   , WithReturn
-  , X
   , XApply
   , XAsk
-  , XAskT
   , XAt(..)
   , XAtDefault(..)
   , XBASE
   , XBaseF
   , XBase_
   , XEnv
+  , XGet
+  , XGetWithT
+  , XGetterReaderT(..)
+  , XGetterStateT(..)
+  , XImpl
+  , XModify
+  , XOk
+  , XOver
+  , XOver_
+  , XOver_T
+  , XPlusS
+  , XPlusST
+  , XPreviewR
+  , XPreviewR_(..)
+  , XPreviewS
+  , XPreviewS_(..)
+  , XPreviewWithT
+  , XPreview_WithT
+  , XPut
   , XRun
   , XRunR
-  , XRunRT
   , XRunWA
   , XSay
+  , XSet
+  , XSet_
+  , XSet_T
   , XState
   , XTell
   , XTellMappedHush
-  , XTellMappedHushT
   , XTellMappedMHush
-  , XTellMappedMHushT
-  , XTellT
+  , XToArrayOfR
+  , XToArrayOfR_(..)
+  , XToArrayOfS
+  , XToArrayOfS_(..)
+  , XToArrayOfWithT
+  , XToArrayOf_WithT
   , XTry
-  , XTryT
-  , Xnn
+  , XUnresult
+  , XViewR
+  , XViewR_(..)
+  , XViewS
+  , XViewS_(..)
+  , XViewWithT
+  , XView_WithT
   , Xwe(..)
   , class Cons0
   , class DimensionedVal
   , class DimensionedValTag
   , class EP_
+  , class GOrE
+  , class GOrR
+  , class GOrS
+  , class GOrW
   , class OrDefault_
   , class ParseRootTagParts
   , class ParseRootTagPartsImpl
@@ -151,6 +151,7 @@ module Z.Z.X.Core
   , class UpCt
   , class WP_
   , class WpEpPickEp
+  , class XGetterTypes
   , class XPSel
   , class XReturnP
   , class XTLS
@@ -174,6 +175,7 @@ module Z.Z.X.Core
   , x
   , x'
   , xAtWE
+  , xGetter
   , xInfo
   , xLogError
   , xLogWarning
@@ -195,8 +197,6 @@ import Data.Maybe as May
 import Data.Maybe.First as MayFirst
 import Data.Monoid as Monoid
 import Data.Monoid.Endo as Endo
-import Data.Newtype (class Newtype, unwrap, wrap) as NT
-import Data.Profunctor (class Profunctor)
 import Data.String.Common as StrCommon
 import Data.Symbol (class IsSymbol)
 import Data.Tuple as Tup
@@ -204,7 +204,6 @@ import Data.Tuple.Nested as TupN
 import Effect as Eff
 import Effect.Aff as Aff
 import Effect.Class as EffC
-import Effect.Exception as Exc
 import Effect.Unsafe as Unsafe
 import Parsing as Parsing
 import Prim.Row (class Cons)
@@ -220,87 +219,123 @@ import Type.Equality (class TypeEquals) as TypeEquals
 import Type.Proxy (Proxy(..))
 import Type.Proxy as P
 import Type.Row (type (+))
-import Unsafe.Coerce as UnsafeC
-import Z.Z.Barlow (class Strong)
 import Z.Z.Barlow as Bl
 import Z.Z.Core as Z
 import Z.Z.Defaultable
   ( class G2OrDefault
   , class GOrDefault
+  , class GTagMap
   , class GenerableC
-  , class GenerableNicknameC
-  , type (@@)
-  , G1
+  , class HasGTag
+  , GDefault
   , Generable
-  , GenerableNickname
+  , g1
+  , mkGenerable
   , z
   )
 import Z.Z.Defaultable as ZD
-import Z.Z.Ext as ZE
+import Z.Z.Defaultable.Generable (g')
 
-data XTryT = XTryT
+class GOrR gspec p | gspec -> p
+class GOrW gspec p | gspec -> p
+class GOrS gspec p | gspec -> p
+class GOrE gspec p | gspec -> p
+
+instance (GOrDefault "reader" gspec p) => GOrR gspec p
+instance (GOrDefault "writer" gspec p) => GOrW gspec p
+instance (GOrDefault "state" gspec p) => GOrS gspec p
+instance (GOrDefault "except" gspec p) => GOrE gspec p
+
+data XImpl :: forall k. k -> Type
+data XImpl xFn
+
+------------------------------- e -------------------------------------
+
+type XTry = Generable (XImpl "try")
+
+instance
+  ( GOrE gspec ep
+  , IsSymbol ep
+  , Cons ep (RunE.Except e) x' x
+  ) =>
+  GenerableC (XImpl "try") gspec (R.Run x a -> R.Run x' (Eor.Either e a)) where
+  mkGenerable m = RunE.runExceptAt (px @ep) m
+
+type XOk = Generable (XImpl "ok")
 
 instance
   ( GOrDefault "except" gspec ep
   , IsSymbol ep
   , Cons ep (RunE.Except e) x' x
   ) =>
-  GenerableC XTryT gspec (R.Run x a -> R.Run x' (Eor.Either e a)) where
-  mkGenerable m = RunE.runExceptAt (px @ep) m
+  GenerableC (XImpl "ok") gspec (Eor.Either e a -> R.Run x a) where
+  mkGenerable (Eor.Left e) = RunE.throwAt (px @ep) e
+  mkGenerable (Eor.Right a) = pure a
 
-type XTry = Generable XTryT
+type XUnresult = Generable (XImpl "unresult")
 
-data SayT = SayT
+instance
+  ( GOrDefault "except" gspec ep
+  , G2OrDefault "writer" gspec wp
+  , IsSymbol ep
+  , IsSymbol wp
+  , Cons wp (RunW.Writer (Array w)) x'' x
+  , Cons ep (RunE.Except e) x' x
+  ) =>
+  GenerableC (XImpl "unresult") dspec (Result w e a -> R.Run x a) where
+  mkGenerable { w, v } = do
+    g1 @XTell @wp w
+    g1 @XOk @ep v
+
+------------------------------ w ----------------------------------------
+
+type XSay = Generable (XImpl "say")
 
 instance
   ( IsSymbol wp
   , Cons wp (RunW.Writer (m w)) x' x
   , Monad m
-  , GOrDefault "writer" gspec wp
+  , GOrW gspec wp
   ) =>
-  GenerableC SayT gspec (w -> R.Run x Unit) where
+  GenerableC (XImpl "say") gspec (w -> R.Run x Unit) where
   mkGenerable w = do
     RunW.tellAt (Proxy @wp) $ pure w
     pure unit
 
-type XSay = Generable SayT
-
-data XTellT = XTellT
+type XTell = Generable (XImpl "tell")
 
 instance
   ( IsSymbol wp
   , Cons wp (RunW.Writer w) x' x
   , Monoid w
-  , GOrDefault "writer" gspec wp
+  , GOrW gspec wp
   ) =>
-  GenerableC XTellT gspec (w -> R.Run x Unit) where
+  GenerableC (XImpl "tell") gspec (w -> R.Run x Unit) where
   mkGenerable w = do
     RunW.tellAt (Proxy @wp) w
     pure unit
 
-type XTell = Generable XTellT
-
-type XTellMappedHush = Generable XTellMappedHushT
-data XTellMappedHushT = XTellMappedHushT
+type XTellMappedHush = Generable (XImpl "tellMappedHush")
 
 instance
   ( G2OrDefault "except" gspec ep
-  , GOrDefault "writer" gspec wp
+  , GOrW gspec wp
   , IsSymbol ep
   , IsSymbol wp
   , Cons wp (RunW.Writer (m w)) x'' x'
   , Cons ep (RunE.Except e) x' x
   , Monad.Monad m
-  , ZD.Defaultable d
+  , GenerableC d GDefault d
   ) =>
-  GenerableC XTellMappedHushT gspec ((e -> w) -> R.Run x d -> R.Run x' d) where
-  mkGenerable mapW m = z @(XTry @@ G1 ep) m >>= onDone
+  GenerableC (XImpl "tellMappedHush")
+    gspec
+    ((e -> w) -> R.Run x d -> R.Run x' d) where
+  mkGenerable mapW m = g1 @XTry @ep m >>= onDone
     where
-    onDone (Eor.Left e) = z @(XSay @@ gspec) (mapW e) <#> const ZD.default
+    onDone (Eor.Left e) = g1 @XSay @wp (mapW e) <#> const (ZD.default @d)
     onDone (Eor.Right r) = pure $ r
 
-type XTellMappedMHush = Generable XTellMappedMHushT
-data XTellMappedMHushT = XTellMappedMHushT
+type XTellMappedMHush = Generable (XImpl "tellMappedMHush")
 
 instance
   ( G2OrDefault "except" gspec ep
@@ -311,51 +346,313 @@ instance
   , Cons ep (RunE.Except e) x' x
   , Monad.Monad m
   , Monoid.Monoid (m w)
-  , ZD.Defaultable d
+  , GenerableC d GDefault d
   ) =>
-  GenerableC XTellMappedMHushT gspec ((e -> m w) -> R.Run x d -> R.Run x' d) where
-  mkGenerable mapW m = z @(XTry @@ G1 ep) m >>= onDone
+  GenerableC (XImpl "tellMappedMHush")
+    gspec
+    ((e -> m w) -> R.Run x d -> R.Run x' d) where
+  mkGenerable mapW m = g1 @XTry @ep m >>= onDone
     where
-    onDone (Eor.Left e) = z @(XTell @@ gspec) (mapW e) <#> const ZD.default
+    onDone (Eor.Left e) = g1 @XTell @wp (mapW e) <#> const (ZD.default @d)
     onDone (Eor.Right r) = pure $ r
 
-data XAskT = XAskT
+------------------------------- R ------------------------------------
+
+type XRunR = Generable (XImpl "runR")
 
 instance
   ( IsSymbol p
   , Cons p (RunR.Reader r) x' x
-  , GOrDefault "reader" gspec p
+  , GOrR gspec p
   ) =>
-  GenerableC XAskT gspec (R.Run x r) where
-  mkGenerable = RunR.askAt (Proxy @p)
-
-type XAsk = Generable XAskT
-
-data XRunRT = XRunRT
-type XRunR = Generable XRunRT
-
-instance
-  ( IsSymbol p
-  , Cons p (RunR.Reader r) x' x
-  , GOrDefault "reader" gspec p
-  ) =>
-  GenerableC XRunRT gspec (r -> R.Run x a -> R.Run x' a) where
+  GenerableC (XImpl "runR") gspec (r -> R.Run x a -> R.Run x' a) where
   mkGenerable = RunR.runReaderAt (P.Proxy :: P.Proxy p)
 
-data Xnn :: Symbol -> Type
-data Xnn str = XX
+------------------------------- S ------------------------------------
 
-instance GenerableNicknameC (Xnn "^") XAskT
+type XPut = Generable (XImpl "put")
 
-type X str = GenerableNickname (Xnn str)
+instance
+  ( IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  , GOrS gspec sp
+  ) =>
+  GenerableC (XImpl "put") gspec (s -> R.Run x Unit) where
+  mkGenerable = RunS.putAt (P.Proxy :: P.Proxy sp)
+
+type XModify = Generable (XImpl "modify")
+
+instance
+  ( IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  , GOrS gspec sp
+  ) =>
+  GenerableC (XImpl "modify") gspec ((s -> s) -> R.Run x Unit) where
+  mkGenerable = RunS.modifyAt (P.Proxy :: P.Proxy sp)
+
+type XSet = Generable (XImpl "set")
+
+instance
+  ( IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  , GOrS gspec sp
+  ) =>
+  GenerableC (XImpl "set")
+    gspec
+    (Lens.Optic Function s s a b -> b -> R.Run x Unit) where
+  mkGenerable l v = do
+    s <- RunS.getAt (P.Proxy :: P.Proxy sp)
+    RunS.putAt (P.Proxy :: P.Proxy sp) $ Lens.set l v s
+
+type XOver = Generable (XImpl "over")
+
+instance
+  ( IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  , GOrS gspec sp
+  ) =>
+  GenerableC (XImpl "over")
+    gspec
+    (Lens.Optic Function s s a b -> (a -> b) -> R.Run x Unit) where
+  mkGenerable l f = do
+    s <- RunS.getAt (P.Proxy :: P.Proxy sp)
+    RunS.putAt (P.Proxy :: P.Proxy sp) $ Lens.over l f s
+
+data XSet_T str
+
+instance
+  ( GOrS gspec sp
+  , IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  , Bl.ParseSymbol sym lenses
+  , Bl.ConstructBarlow lenses Function s s a b
+  , Bl.IsSymbol sym
+  ) =>
+  GenerableC (XSet_T sym) gspec (b -> R.Run x Unit) where
+  mkGenerable v = do
+    s <- RunS.getAt (px @sp)
+    RunS.putAt (px @sp) $ Lens.set (Bl.barlow @sym) v s
+
+data XSet_ str
+
+instance GTagMap (XSet_ str) (XSet_T str)
+
+data XOver_T str
+
+instance
+  ( GOrS gspec sp
+  , IsSymbol sp
+  , Cons sp (RunS.State s) x' x
+  , Bl.ParseSymbol sym lenses
+  , Bl.ConstructBarlow lenses Function s s a b
+  , Bl.IsSymbol sym
+  ) =>
+  GenerableC (XOver_T sym) gspec ((a -> b) -> R.Run x Unit) where
+  mkGenerable f = do
+    s <- RunS.getAt (px @sp)
+    RunS.putAt (px @sp) $ Lens.over (Bl.barlow @sym) f s
+
+data XOver_ str
+
+instance GTagMap (XOver_ str) (XOver_T str)
+
+data XPlusST str
+
+instance
+  ( GOrS gspec sp
+  , IsSymbol sp
+  , IsSymbol sym
+  , Row.Lacks sym r1
+  , Cons sym a r1 r2
+  , Cons sp (RunS.State { | r1 }) x'' x'
+  , Cons sp (RunS.State { | r2 }) x' x
+  ) =>
+  GenerableC (XPlusST sym) gspec (a -> R.Run x f -> R.Run x' f) where
+  mkGenerable v m = do
+    curr <- RunS.getAt (px @sp)
+    let next = Rec.insert (Proxy :: Proxy sym) v curr
+    (s TupN./\ r) <- RunS.runStateAt (px @sp) next m
+    RunS.putAt (px @sp) (Rec.delete (Proxy :: Proxy sym) s)
+    pure r
+
+data XPlusS str
+
+instance GTagMap (XPlusS str) (XPlusST str)
+
+------------------------- GETTERS ----------------------------
+
+class XGetterTypes
+  :: forall k1 k2
+   . k1
+  -> k2
+  -> Symbol
+  -> (Type -> Type -> Type)
+  -> Type
+  -> Constraint
+class XGetterTypes getter gspec p m t | getter gspec -> p m t where
+  xGetter :: forall x' x. IsSymbol p => Cons p (m t) x' x => R.Run x t
+
+data XGetterStateT = XGetterStateT
+data XGetterReaderT = XGetterReaderT
+
+instance
+  ( GOrDefault "reader" gspec p
+  ) =>
+  XGetterTypes XGetterReaderT gspec p RunR.Reader r where
+  xGetter = RunR.askAt (Proxy @p)
+
+instance
+  ( GOrDefault "state" gspec p
+  ) =>
+  XGetterTypes XGetterStateT gspec p RunS.State s where
+  xGetter = RunS.getAt (Proxy @p)
+
+data XGetWithT :: forall k. k -> Type
+data XGetWithT t = XGetWithT
+
+instance
+  ( XGetterTypes getter gspec p m s
+  , IsSymbol p
+  , Cons p (m s) x' x
+  ) =>
+  GenerableC (XGetWithT getter) gspec (R.Run x s) where
+  mkGenerable = xGetter @getter @gspec
+
+data XViewWithT :: forall k. k -> Type
+data XViewWithT t = XViewWithT
+
+instance
+  ( XGetterTypes getter gspec p m s
+  , IsSymbol p
+  , Cons p (m s) x' x
+  ) =>
+  GenerableC (XViewWithT getter)
+    gspec
+    ((Lens.Optic (Forget a) s t a b) -> R.Run x a) where
+  mkGenerable l = do
+    v <- g' @gspec @(Generable (XGetWithT getter))
+    pure $ Lens.view l v
+
+data XView_WithT :: forall @k. k -> Type -> Type
+data XView_WithT sym t = XView_WithT
+
+instance
+  ( XGetterTypes getter gspec p m s
+  , IsSymbol p
+  , Cons p (m s) x' x
+  , Bl.ParseSymbol sym lenses
+  , Bl.ConstructBarlow lenses (Bl.Forget a) s t a b
+  , Bl.IsSymbol sym
+  ) =>
+  GenerableC (XView_WithT sym getter)
+    gspec
+    (R.Run x a) where
+  mkGenerable = do
+    v <- g' @gspec @(Generable (XGetWithT getter))
+    pure $ Lens.view (Bl.barlow @sym) v
+
+data XPreviewWithT :: forall k. k -> Type
+data XPreviewWithT t = XPreviewWithT
+
+instance
+  ( XGetterTypes getter gspec p m s
+  , IsSymbol p
+  , Cons p (m s) x' x
+  ) =>
+  GenerableC (XPreviewWithT getter)
+    gspec
+    ((Lens.Optic (Forget (MayFirst.First a)) s t a b) -> R.Run x (May.Maybe a)) where
+  mkGenerable l = do
+    v <- g' @gspec @(Generable (XGetWithT getter))
+    pure $ Lens.preview l v
+
+data XPreview_WithT :: forall @k. k -> Type -> Type
+data XPreview_WithT sym t = XPreview_WithT
+
+instance
+  ( XGetterTypes getter gspec p m s
+  , IsSymbol p
+  , Cons p (m s) x' x
+  , Bl.ParseSymbol sym lenses
+  , Bl.ConstructBarlow lenses (Bl.Forget (MayFirst.First a)) s t a b
+  , Bl.IsSymbol sym
+  ) =>
+  GenerableC (XPreview_WithT sym getter)
+    gspec
+    (R.Run x (May.Maybe a)) where
+  mkGenerable = do
+    v <- g' @gspec @(Generable (XGetWithT getter))
+    pure $ Lens.preview (Bl.barlow @sym) v
+
+data XToArrayOfWithT :: forall k. k -> Type
+data XToArrayOfWithT t = XToArrayOfWithT
+
+instance
+  ( XGetterTypes getter gspec p m s
+  , IsSymbol p
+  , Cons p (m s) x' x
+  ) =>
+  GenerableC (XToArrayOfWithT getter)
+    gspec
+    ( (Lens.Optic (Forget (Endo.Endo Function (ListT.List a))) s t a b)
+      -> R.Run x (Array a)
+    ) where
+  mkGenerable l = do
+    v <- g' @gspec @(Generable (XGetWithT getter))
+    pure $ Lens.toArrayOf l v
+
+data XToArrayOf_WithT :: forall @k. k -> Type -> Type
+data XToArrayOf_WithT sym t = XToArrayOf_WithT
+
+instance
+  ( XGetterTypes getter gspec p m s
+  , IsSymbol p
+  , Cons p (m s) x' x
+  , Bl.ParseSymbol sym lenses
+  , Bl.ConstructBarlow lenses (Bl.Forget (Endo.Endo Function (ListT.List a))) s
+      t
+      a
+      b
+  , Bl.IsSymbol sym
+  ) =>
+  GenerableC (XToArrayOf_WithT sym getter)
+    gspec
+    (R.Run x (Array a)) where
+  mkGenerable = do
+    v <- g' @gspec @(Generable (XGetWithT getter))
+    pure $ Lens.toArrayOf (Bl.barlow @sym) v
+
+type XAsk = Generable (XGetWithT XGetterReaderT)
+type XGet = Generable (XGetWithT XGetterStateT)
+type XViewR = Generable (XViewWithT XGetterReaderT)
+type XViewS = Generable (XViewWithT XGetterStateT)
+type XPreviewR = Generable (XPreviewWithT XGetterReaderT)
+type XPreviewS = Generable (XPreviewWithT XGetterStateT)
+type XToArrayOfR = Generable (XToArrayOfWithT XGetterReaderT)
+type XToArrayOfS = Generable (XToArrayOfWithT XGetterStateT)
+
+data XViewR_ s
+data XViewS_ s
+data XPreviewR_ s
+data XPreviewS_ s
+data XToArrayOfR_ s
+data XToArrayOfS_ s
+
+instance GTagMap (XViewR_ s) (XView_WithT s XGetterReaderT)
+instance GTagMap (XPreviewR_ s) (XPreview_WithT s XGetterReaderT)
+instance GTagMap (XToArrayOfR_ s) (XToArrayOf_WithT s XGetterReaderT)
+
+instance GTagMap (XViewS_ s) (XView_WithT s XGetterStateT)
+instance GTagMap (XPreviewS_ s) (XPreview_WithT s XGetterStateT)
+instance GTagMap (XToArrayOfS_ s) (XToArrayOf_WithT s XGetterStateT)
+
+-----------------------------------------------------------------------------
 
 class DimensionedValTag tagIn tagOut | tagIn -> tagOut
 
 class RootDimensionedValueTag tagIn tagOut | tagIn -> tagOut
 
 class ParseRootTagPartsImpl w1 w2 tagOut | w1 w2 -> tagOut
-
-instance ParseRootTagPartsImpl "~" t (Over_ t)
 
 class ParseRootTagParts tagIn tagOut | tagIn -> tagOut
 
@@ -368,11 +665,6 @@ instance
 else instance ParseRootTagParts ti to
 
 instance RootDimensionedValueTag "fail" Fail
-else instance RootDimensionedValueTag "^" (GGet XEnv)
-else instance RootDimensionedValueTag "-" (GGet XState)
-else instance RootDimensionedValueTag "-~" Set
-else instance RootDimensionedValueTag "-%" Over
-else instance RootDimensionedValueTag "-" (GGet XState)
 else instance (DimensionedValTag ti to) => RootDimensionedValueTag ti to
 
 class
@@ -485,9 +777,6 @@ instance Cons0 RunS where
 instance Cons0 RunResult where
   cons0 = RunResult
 
-instance Cons0 RunR where
-  cons0 = RunR
-
 instance Cons0 RunParser where
   cons0 = RunParser
 
@@ -500,50 +789,8 @@ instance Cons0 RunEffA where
 instance Cons0 RunAff where
   cons0 = RunAff
 
-instance Cons0 Put where
-  cons0 = Put
-
 instance Cons0 (PlusS t) where
   cons0 = PlusS
-
-instance Cons0 Ok where
-  cons0 = Ok
-
-instance Cons0 Modify where
-  cons0 = Modify
-
-instance Cons0 Get where
-  cons0 = Get
-
-instance Cons0 Set where
-  cons0 = Set
-
-instance Cons0 Ask where
-  cons0 = Ask
-
-instance Cons0 Over where
-  cons0 = Over
-
-instance Cons0 ViewR where
-  cons0 = ViewR
-
-instance Cons0 ViewS where
-  cons0 = ViewS
-
-instance Cons0 PreviewR where
-  cons0 = PreviewR
-
-instance Cons0 PreviewS where
-  cons0 = PreviewS
-
-instance Cons0 ToArrayOfR where
-  cons0 = ToArrayOfR
-
-instance Cons0 ToArrayOfS where
-  cons0 = ToArrayOfS
-
-instance Cons0 Try where
-  cons0 = Try
 
 instance Cons0 TryUntil where
   cons0 = TryUntil
@@ -557,30 +804,6 @@ instance Cons0 Tell where
 instance Cons0 Unwrap where
   cons0 = Unwrap
 
-instance Cons0 (ViewR_ t) where
-  cons0 = ViewR_
-
-instance Cons0 (ViewS_ t) where
-  cons0 = ViewS_
-
-instance Cons0 (PreviewR_ t) where
-  cons0 = PreviewR_
-
-instance Cons0 (PreviewS_ t) where
-  cons0 = PreviewS_
-
-instance Cons0 (ToArrayOfR_ t) where
-  cons0 = ToArrayOfR_
-
-instance Cons0 (ToArrayOfS_ t) where
-  cons0 = ToArrayOfS_
-
-instance Cons0 (Over_ t) where
-  cons0 = Over_
-
-instance Cons0 (Set_ t) where
-  cons0 = Set_
-
 instance Cons0 XApply where
   cons0 = XApply
 
@@ -591,9 +814,7 @@ class XTLS
   -> Constraint
 class XTLS sym f | sym -> f
 
-instance XTLS "get" Get
-else instance XTLS "$" XApply
-else instance XTLS "set" Set
+instance XTLS "$" XApply
 else instance XTLS "evalS" EvalS
 else instance XTLS "evalW" EvalW
 else instance XTLS "execS" ExecS
@@ -605,28 +826,14 @@ else instance XTLS "invert" Invert
 else instance XTLS "mapE" MapE
 else instance XTLS "mapW" MapW
 else instance XTLS "mapWE" MapWE
-else instance XTLS "set" Set
-else instance XTLS "modify" Modify
-else instance XTLS "ok" Ok
-else instance XTLS "put" Put
 else instance XTLS "runAff" RunAff
 else instance XTLS "runEffA" RunEffA
 else instance XTLS "runEffPromise" RunEffPromise
 else instance XTLS "runParser" RunParser
-else instance XTLS "runR" RunR
 else instance XTLS "runResult" RunResult
 else instance XTLS "runS" RunS
 else instance XTLS "runW" RunW
 else instance XTLS "say" Say
-else instance XTLS "over" Over
-else instance XTLS "ask" Ask
-else instance XTLS "viewR" ViewR
-else instance XTLS "viewS" ViewS
-else instance XTLS "previewR" PreviewR
-else instance XTLS "previewS" PreviewS
-else instance XTLS "toArrayOfR" ToArrayOfR
-else instance XTLS "toArrayOfS" ToArrayOfS
-else instance XTLS "try" Try
 else instance XTLS "tryUntil" TryUntil
 else instance XTLS "withReturn" WithReturn
 else instance XTLS "tell" Tell
@@ -656,33 +863,9 @@ x = rwseApply (cons0 :: f) (px @pp) (px @pp) (px @pp) (px @pp)
 
 class XTLSFull sh stail f | sh stail -> f
 
-instance
-  XTLSFull "%" rest (Over_ rest)
-else instance
-  XTLSFull "~" rest (Set_ rest)
-else instance
-  ( Symbol.Cons rest1 rest' rest
-  , XTLSRFull rest1 rest' f
-  ) =>
-  XTLSFull "^" rest f
-else instance
-  ( Symbol.Cons rest1 rest' rest
-  , XTLSSFull rest1 rest' f
-  ) =>
-  XTLSFull "-" rest f
-
 class XTLSRFull sh stail f | sh stail -> f
 
-instance XTLSRFull "." rest (ViewR_ rest)
-else instance XTLSRFull "?" rest (PreviewR_ rest)
-else instance XTLSRFull "*" rest (ToArrayOfR_ rest)
-
 class XTLSSFull sh stail f | sh stail -> f
-
-instance XTLSSFull "." rest (ViewS_ rest)
-else instance XTLSSFull "?" rest (PreviewS_ rest)
-else instance XTLSSFull "*" rest (ToArrayOfS_ rest)
-else instance XTLSSFull "+" rest (PlusS rest)
 
 class SplitSp1 i o1 o2 | i -> o1 o2
 
@@ -720,7 +903,7 @@ instance
   ( RevSym cf "" tf
   , RevSym cat "" tat
   ) =>
-  XTLSunAt "" cat cf "t" tat tf
+  XTLSunAt "" cat cf ct tat tf
 else instance
   ( Symbol.Cons c s' s
   , UpCat c cat ct cat'
@@ -729,80 +912,6 @@ else instance
   , XTLSunAt s' cat' cf' ct' tat tf
   ) =>
   XTLSunAt s cat cf ct tat tf
-
-opViewR_
-  :: forall @sym lhsI o
-   . IsSymbol sym
-  => ((lhsI -> ViewR_ sym) -> o)
-  -> o
-opViewR_ f = f (\_ -> ViewR_ @sym)
-
-infixr 0 opViewR_ as ^@
-
-opPreviewR_
-  :: forall @sym lhsI o
-   . IsSymbol sym
-  => ((lhsI -> PreviewR_ sym) -> o)
-  -> o
-opPreviewR_ f = f (\_ -> PreviewR_ @sym)
-
-infixr 0 opPreviewR_ as ^?@
-
-opToArrayOfR_
-  :: forall @sym lhsI o
-   . IsSymbol sym
-  => ((lhsI -> ToArrayOfR_ sym) -> o)
-  -> o
-opToArrayOfR_ f = f (\_ -> ToArrayOfR_ @sym)
-
-infixr 0 opToArrayOfR_ as ^*@
-
-opViewS_
-  :: forall @sym lhsI o
-   . IsSymbol sym
-  => ((lhsI -> ViewS_ sym) -> o)
-  -> o
-opViewS_ f = f (\_ -> ViewS_ @sym)
-
-infixr 0 opViewS_ as -@
-
-opPreviewS_
-  :: forall @sym lhsI o
-   . IsSymbol sym
-  => ((lhsI -> PreviewS_ sym) -> o)
-  -> o
-opPreviewS_ f = f (\_ -> PreviewS_ @sym)
-
-infixr 0 opPreviewS_ as -?@
-
-opToArrayOfS_
-  :: forall @sym lhsI o
-   . IsSymbol sym
-  => ((lhsI -> ToArrayOfS_ sym) -> o)
-  -> o
-opToArrayOfS_ f = f (\_ -> ToArrayOfS_ @sym)
-
-infixr 0 opToArrayOfS_ as -*@
-
-opOver_
-  :: forall @sym lhsI rhs o
-   . IsSymbol sym
-  => ((lhsI -> Over_ sym) -> rhs -> o)
-  -> rhs
-  -> o
-opOver_ f rhs = f (\_ -> Over_ @sym) rhs
-
-infixr 0 opOver_ as @%
-
-opSet_
-  :: forall @sym lhsI rhs o
-   . IsSymbol sym
-  => ((lhsI -> Set_ sym) -> rhs -> o)
-  -> rhs
-  -> o
-opSet_ f rhs = f (\_ -> Set_ @sym) rhs
-
-infixr 0 opSet_ as @~
 
 px :: forall @k. P.Proxy k
 px = P.Proxy
@@ -867,533 +976,7 @@ instance
   RWSEFn XApply rp wp sp ep (i -> o) where
   rwseApply _ rp wp sp ep i = rwseApply i rp wp sp ep
 
---------------------- R/S -----------------------
-
-data GGet t = GGet t
-
-instance DimensionedValTag (GGet t) (GGet t)
-
-instance
-  ( RP_ dspec rp
-  , IsSymbol rp
-  , Cons rp (RunR.Reader r) x' x
-  ) =>
-  DimensionedVal (GGet XEnv) dspec (R.Run x r) where
-  mkDimensional _ _ = RunR.askAt (px @rp)
-
-instance
-  ( SP_ dspec sp
-  , IsSymbol sp
-  , Cons sp (RunS.State s) x' x
-  ) =>
-  DimensionedVal (GGet XState) dspec (R.Run x s) where
-  mkDimensional _ _ = RunS.getAt (px @sp)
-
-instance rwseApplyGetR ::
-  ( IsSymbol rp
-  , Cons rp (RunR.Reader r) x' x
-  ) =>
-  RWSEFn (GGet XEnv) rp _w _s _e (R.Run x r) where
-  rwseApply _ rp _ _ _ = RunR.askAt rp
-
-instance rwseApplyGetS ::
-  ( IsSymbol sp
-  , Cons sp (RunS.State s) x' x
-  ) =>
-  RWSEFn (GGet XState) _r _w sp _e (R.Run x s) where
-  rwseApply _ _ _ sp _ = RunS.getAt sp
-
-data View g = View g
-
-instance DimensionedValTag (View g) (View g)
-
-instance
-  ( DimensionedVal (GGet g) dspec (R.Run x s)
-  ) =>
-  DimensionedVal (View g) dspec ((Lens.Optic (Forget a) s t a b) -> R.Run x a) where
-  mkDimensional _ _ l = do
-    v <- mkDimensional (px @(GGet g)) (px @dspec)
-    pure $ Lens.view l v
-
-instance rwseApplyView ::
-  ( RWSEFn (GGet g) rp wp sp ep (R.Run x s)
-  ) =>
-  RWSEFn (View g) rp wp sp ep ((Lens.Optic (Forget a) s t a b) -> R.Run x a) where
-  rwseApply (View t) _ _ _ _ l = do
-    v <- mkXFn @rp @wp @sp @ep $ GGet t
-    pure $ Lens.view l v
-
-data View_ :: forall @k. k -> Type -> Type
-data View_ sym g = View_ g
-
-instance DimensionedValTag (View_ sym g) (View_ sym g)
-
-instance
-  ( DimensionedVal (GGet g) dspec (R.Run x s)
-  , Bl.ParseSymbol sym lenses
-  , Bl.ConstructBarlow lenses (Bl.Forget a) s t a b
-  , Bl.IsSymbol sym
-  ) =>
-  DimensionedVal (View_ sym g) dspec (R.Run x a) where
-  mkDimensional _ _ = do
-    v <- mkDimensional (px @(GGet g)) (px @dspec)
-    pure $ Lens.view (Bl.barlow @sym) v
-
-instance rwseApplyView_ ::
-  ( RWSEFn (GGet g) rp wp sp ep (R.Run x s)
-  , Bl.ParseSymbol sym lenses
-  , Bl.ConstructBarlow lenses (Bl.Forget a) s t a b
-  , Bl.IsSymbol sym
-  ) =>
-  RWSEFn (View_ sym g) rp wp sp ep (R.Run x a) where
-  rwseApply (View_ t) _ _ _ _ = do
-    v <- mkXFn @rp @wp @sp @ep $ GGet t
-    pure $ Lens.view (Bl.barlow @sym) v
-
-data Preview g = Preview g
-
-instance DimensionedValTag (Preview g) (Preview g)
-
-instance
-  ( DimensionedVal (GGet g) dspec (R.Run x s)
-  ) =>
-  DimensionedVal (Preview g)
-    dspec
-    ((Lens.Optic (Forget (MayFirst.First a)) s t a b) -> R.Run x (May.Maybe a)) where
-  mkDimensional _ _ l = do
-    v <- mkDimensional (px @(GGet g)) (px @dspec)
-    pure $ Lens.preview l v
-
-instance rwseApplyPreview ::
-  ( RWSEFn (GGet g) rp wp sp ep (R.Run x s)
-  ) =>
-  RWSEFn (Preview g)
-    rp
-    wp
-    sp
-    ep
-    ((Lens.Optic (Forget (MayFirst.First a)) s t a b) -> R.Run x (May.Maybe a)) where
-  rwseApply (Preview t) _ _ _ _ l = do
-    v <- mkXFn @rp @wp @sp @ep $ GGet t
-    pure $ Lens.preview l v
-
-data Preview_ :: forall @k. k -> Type -> Type
-data Preview_ b t = Preview_ t
-
-instance DimensionedValTag (Preview_ sym g) (Preview_ sym g)
-
-instance
-  ( DimensionedVal (GGet g) dspec (R.Run x s)
-  , Bl.ParseSymbol sym lenses
-  , Bl.ConstructBarlow lenses (Bl.Forget (MayFirst.First a)) s t a b
-  , Bl.IsSymbol sym
-  ) =>
-  DimensionedVal (Preview_ sym g) dspec (R.Run x (May.Maybe a)) where
-  mkDimensional _ _ = do
-    v <- mkDimensional (px @(GGet g)) (px @dspec)
-    pure $ Lens.preview (Bl.barlow @sym) v
-
-instance rwseApplyPreview_ ::
-  ( RWSEFn (GGet g) rp wp sp ep (R.Run x s)
-  , Bl.ParseSymbol sym lenses
-  , Bl.ConstructBarlow lenses (Bl.Forget (MayFirst.First a)) s t a b
-  , Bl.IsSymbol sym
-  ) =>
-  RWSEFn (Preview_ sym g) rp wp sp ep (R.Run x (May.Maybe a)) where
-  rwseApply (Preview_ t) _ _ _ _ = do
-    v <- mkXFn @rp @wp @sp @ep $ GGet t
-    pure $ Lens.preview (Bl.barlow @sym) v
-
-data ToArrayOf t = ToArrayOf t
-
-instance DimensionedValTag (ToArrayOf g) (ToArrayOf g)
-
-instance
-  ( DimensionedVal (GGet g) dspec (R.Run x s)
-  ) =>
-  DimensionedVal (ToArrayOf g)
-    dspec
-    ( (Lens.Optic (Forget (Endo.Endo Function (ListT.List a))) s t a b)
-      -> R.Run x (Array a)
-    ) where
-  mkDimensional _ _ l = do
-    v <- mkDimensional (px @(GGet g)) (px @dspec)
-    pure $ Lens.toArrayOf l v
-
-instance rwseApplyToArrayOf ::
-  ( RWSEFn (GGet g) rp wp sp ep (R.Run x s)
-  ) =>
-  RWSEFn (ToArrayOf g)
-    rp
-    wp
-    sp
-    ep
-    ( (Lens.Optic (Forget (Endo.Endo Function (ListT.List a))) s t a b)
-      -> R.Run x (Array a)
-    ) where
-  rwseApply (ToArrayOf t) _ _ _ _ l = do
-    v <- mkXFn @rp @wp @sp @ep $ GGet t
-    pure $ Lens.toArrayOf l v
-
-data ToArrayOf_ :: forall @k. k -> Type -> Type
-data ToArrayOf_ b t = ToArrayOf_ t
-
-instance DimensionedValTag (ToArrayOf_ sym g) (ToArrayOf_ sym g)
-
-instance
-  ( DimensionedVal (GGet g) dspec (R.Run x s)
-  , Bl.ParseSymbol sym lenses
-  , Bl.ConstructBarlow lenses (Bl.Forget (Endo.Endo Function (ListT.List a))) s
-      t
-      a
-      b
-  , Bl.IsSymbol sym
-  ) =>
-  DimensionedVal (ToArrayOf_ sym g) dspec (R.Run x (Array a)) where
-  mkDimensional _ _ = do
-    v <- mkDimensional (px @(GGet g)) (px @dspec)
-    pure $ Lens.toArrayOf (Bl.barlow @sym) v
-
-instance rwseApplyToArrayOf_ ::
-  ( RWSEFn (GGet g) rp wp sp ep (R.Run x s)
-  , Bl.ParseSymbol sym lenses
-  , Bl.ConstructBarlow lenses (Bl.Forget (Endo.Endo Function (ListT.List a))) s
-      t
-      a
-      b
-  , Bl.IsSymbol sym
-  ) =>
-  RWSEFn (ToArrayOf_ sym g) rp wp sp ep (R.Run x (Array a)) where
-  rwseApply (ToArrayOf_ t) _ _ _ _ = do
-    v <- mkXFn @rp @wp @sp @ep $ GGet t
-    pure $ Lens.toArrayOf (Bl.barlow @sym) v
-
----------------------- R ------------------------
-
-data RunR = RunR
-
-instance DimensionedValTag RunR RunR
-
-instance
-  ( RP_ dspec rp
-  , IsSymbol rp
-  , Cons rp (RunR.Reader r) x' x
-  ) =>
-  DimensionedVal RunR dspec (r -> R.Run x a -> R.Run x' a) where
-  mkDimensional _ _ = RunR.runReaderAt (P.Proxy :: P.Proxy rp)
-
-instance rwseApplyRunEnv ::
-  ( IsSymbol rp
-  , Cons rp (RunR.Reader r) x' x
-  ) =>
-  RWSEFn RunR
-    rp
-    _w
-    _s
-    _e
-    (r -> R.Run x a -> R.Run x' a) where
-  rwseApply _ _ _ _ _ = RunR.runReaderAt (P.Proxy :: P.Proxy rp)
-
-data Ask = Ask
-
-instance DimensionedValTag Ask (GGet XEnv)
-
-instance rwseApplyAtR ::
-  ( RWSEFn (GGet XEnv) rp wp sp ep f
-  ) =>
-  RWSEFn Ask rp wp sp ep f where
-  rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ GGet XEnv
-
-data ViewR = ViewR
-
-instance DimensionedValTag ViewR (View XEnv)
-
-instance rwseApplyViewR ::
-  ( RWSEFn (View XEnv) rp wp sp ep f
-  ) =>
-  RWSEFn (ViewR) rp wp sp ep f where
-  rwseApply (ViewR) _ _ _ _ = mkXFn @rp @wp @sp @ep $ View XEnv
-
-data ViewR_ :: forall @k. k -> Type
-data ViewR_ b = ViewR_
-
-instance DimensionedValTag (ViewR_ b) (View_ b XEnv)
-
-instance rwseApplyViewR_ ::
-  ( RWSEFn (View_ b XEnv) rp wp sp ep f
-  ) =>
-  RWSEFn (ViewR_ b) rp wp sp ep f where
-  rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ View_ @b XEnv
-
-data PreviewR = PreviewR
-
-instance DimensionedValTag PreviewR (Preview XEnv)
-
-instance rwseApplyPreviewR ::
-  ( RWSEFn (Preview XEnv) rp wp sp ep f
-  ) =>
-  RWSEFn (PreviewR) rp wp sp ep f where
-  rwseApply (PreviewR) _ _ _ _ = mkXFn @rp @wp @sp @ep $ Preview XEnv
-
-data PreviewR_ :: forall @k. k -> Type
-data PreviewR_ b = PreviewR_
-
-instance DimensionedValTag (PreviewR_ b) (Preview_ b XEnv)
-
-instance rwseApplyPreviewR_ ::
-  ( RWSEFn (Preview_ b XEnv) rp wp sp ep f
-  ) =>
-  RWSEFn (PreviewR_ b) rp wp sp ep f where
-  rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ Preview_ @b XEnv
-
-data ToArrayOfR = ToArrayOfR
-
-instance DimensionedValTag ToArrayOfR (ToArrayOf XEnv)
-
-instance rwseApplyToArrayOfR ::
-  ( RWSEFn (ToArrayOf XEnv) rp wp sp ep f
-  ) =>
-  RWSEFn (ToArrayOfR) rp wp sp ep f where
-  rwseApply (ToArrayOfR) _ _ _ _ = mkXFn @rp @wp @sp @ep $ ToArrayOf XEnv
-
-data ToArrayOfR_ :: forall @k. k -> Type
-data ToArrayOfR_ b = ToArrayOfR_
-
-instance DimensionedValTag (ToArrayOfR_ b) (ToArrayOf_ b XEnv)
-
-instance rwseApplyToArrayOfR_ ::
-  ( RWSEFn (ToArrayOf_ b XEnv) rp wp sp ep f
-  ) =>
-  RWSEFn (ToArrayOfR_ b) rp wp sp ep f where
-  rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ ToArrayOf_ @b XEnv
-
 ---------------------- S ------------------------
-
-data Get = Get
-
-instance DimensionedValTag Get (GGet XState)
-
-instance rwseApplyAtS ::
-  ( RWSEFn (GGet XState) rp wp sp ep f
-  ) =>
-  RWSEFn Get rp wp sp ep f where
-  rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ GGet XState
-
-data ViewS = ViewS
-
-instance DimensionedValTag ViewS (View XState)
-
-instance rwseApplyViewS ::
-  ( RWSEFn (View XState) rp wp sp ep f
-  ) =>
-  RWSEFn (ViewS) rp wp sp ep f where
-  rwseApply (ViewS) _ _ _ _ = mkXFn @rp @wp @sp @ep $ View XState
-
-data ViewS_ :: forall @k. k -> Type
-data ViewS_ b = ViewS_
-
-instance DimensionedValTag (ViewS_ b) (View_ b XState)
-
-instance rwseApplyViewS_ ::
-  ( RWSEFn (View_ b XState) rp wp sp ep f
-  ) =>
-  RWSEFn (ViewS_ b) rp wp sp ep f where
-  rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ View_ @b XState
-
-data PreviewS = PreviewS
-
-instance DimensionedValTag PreviewS (Preview XState)
-
-instance rwseApplyPreviewS ::
-  ( RWSEFn (Preview XState) rp wp sp ep f
-  ) =>
-  RWSEFn (PreviewS) rp wp sp ep f where
-  rwseApply (PreviewS) _ _ _ _ = mkXFn @rp @wp @sp @ep $ Preview XState
-
-data PreviewS_ :: forall @k. k -> Type
-data PreviewS_ b = PreviewS_
-
-instance DimensionedValTag (PreviewS_ b) (Preview_ b XState)
-
-instance rwseApplyPreviewS_ ::
-  ( RWSEFn (Preview_ b XState) rp wp sp ep f
-  ) =>
-  RWSEFn (PreviewS_ b) rp wp sp ep f where
-  rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ Preview_ @b XState
-
-data ToArrayOfS = ToArrayOfS
-
-instance DimensionedValTag ToArrayOfS (ToArrayOf XState)
-
-instance rwseApplyToArrayOfS ::
-  ( RWSEFn (ToArrayOf XState) rp wp sp ep f
-  ) =>
-  RWSEFn (ToArrayOfS) rp wp sp ep f where
-  rwseApply (ToArrayOfS) _ _ _ _ = mkXFn @rp @wp @sp @ep $ ToArrayOf XState
-
-data ToArrayOfS_ :: forall @k. k -> Type
-data ToArrayOfS_ b = ToArrayOfS_
-
-instance DimensionedValTag (ToArrayOfS_ b) (ToArrayOf_ b XState)
-
-instance rwseApplyToArrayOfS_ ::
-  ( RWSEFn (ToArrayOf_ b XState) rp wp sp ep f
-  ) =>
-  RWSEFn (ToArrayOfS_ b) rp wp sp ep f where
-  rwseApply _ _ _ _ _ = mkXFn @rp @wp @sp @ep $ ToArrayOf_ @b XState
-
-data Put = Put
-
-instance DimensionedValTag Put Put
-
-instance
-  ( SP_ dspec sp
-  , IsSymbol sp
-  , Cons sp (RunS.State s) x' x
-  ) =>
-  DimensionedVal Put dspec (s -> R.Run x Unit) where
-  mkDimensional _ _ = RunS.putAt (px @sp)
-
-instance rwseApplyPut ::
-  ( IsSymbol sp
-  , Cons sp (RunS.State s) x' x
-  ) =>
-  RWSEFn Put rp wp sp ep (s -> R.Run x Unit) where
-  rwseApply _ _ _ sp _ = RunS.putAt sp
-
-data Modify = Modify
-
-instance DimensionedValTag Modify Modify
-
-instance
-  ( SP_ dspec sp
-  , IsSymbol sp
-  , Cons sp (RunS.State s) x' x
-  ) =>
-  DimensionedVal Modify dspec ((s -> s) -> R.Run x Unit) where
-  mkDimensional _ _ = RunS.modifyAt (px @sp)
-
-instance rwseApplyModify ::
-  ( IsSymbol sp
-  , Cons sp (RunS.State s) x' x
-  ) =>
-  RWSEFn Modify rp wp sp ep ((s -> s) -> R.Run x Unit) where
-  rwseApply _ _ _ sp _ = RunS.modifyAt sp
-
-data Set = Set
-
-instance DimensionedValTag Set Set
-
-instance
-  ( SP_ dspec sp
-  , IsSymbol sp
-  , Cons sp (RunS.State s) x' x
-  ) =>
-  DimensionedVal Set
-    dspec
-    (Lens.Optic Function s s a b -> b -> R.Run x Unit) where
-  mkDimensional _ _ l v = do
-    s <- RunS.getAt (px @sp)
-    RunS.putAt (px @sp) $ Lens.set l v s
-
-instance rwseApplySet ::
-  ( IsSymbol sp
-  , Cons sp (RunS.State s) x' x
-  ) =>
-  RWSEFn Set rp wp sp ep (Lens.Optic Function s s a b -> b -> R.Run x Unit) where
-  rwseApply _ _ _ sp _ l v = do
-    s <- RunS.getAt sp
-    RunS.putAt sp $ Lens.set l v s
-
-data Set_ :: forall @k. k -> Type
-data Set_ b = Set_
-
-instance DimensionedValTag (Set_ sym) (Set_ sym)
-
-instance
-  ( SP_ dspec sp
-  , IsSymbol sp
-  , Cons sp (RunS.State s) x' x
-  , Bl.ParseSymbol sym lenses
-  , Bl.ConstructBarlow lenses Function s s a b
-  , Bl.IsSymbol sym
-  ) =>
-  DimensionedVal (Set_ sym) dspec (b -> R.Run x Unit) where
-  mkDimensional _ _ v = do
-    s <- RunS.getAt (px @sp)
-    RunS.putAt (px @sp) $ Lens.set (Bl.barlow @sym) v s
-
-instance rwseApplySet_ ::
-  ( IsSymbol sp
-  , Cons sp (RunS.State s) x' x
-  , Bl.ParseSymbol sym lenses
-  , Bl.ConstructBarlow lenses Function s s a b
-  , Bl.IsSymbol sym
-  ) =>
-  RWSEFn (Set_ sym) rp wp sp ep (b -> R.Run x Unit) where
-  rwseApply _ _ _ sp _ v = do
-    s <- RunS.getAt sp
-    RunS.putAt sp $ Lens.set (Bl.barlow @sym) v s
-
-data Over = Over
-
-instance DimensionedValTag Over Over
-
-instance
-  ( SP_ dspec sp
-  , IsSymbol sp
-  , Cons sp (RunS.State s) x' x
-  ) =>
-  DimensionedVal Over
-    dspec
-    (Lens.Optic Function s s a b -> (a -> b) -> R.Run x Unit) where
-  mkDimensional _ _ l f = do
-    s <- RunS.getAt (px @sp)
-    RunS.putAt (px @sp) $ Lens.over l f s
-
-instance rwseApplyOver ::
-  ( IsSymbol sp
-  , Cons sp (RunS.State s) x' x
-  ) =>
-  RWSEFn Over
-    rp
-    wp
-    sp
-    ep
-    (Lens.Optic Function s s a b -> (a -> b) -> R.Run x Unit) where
-  rwseApply _ _ _ sp _ l f = do
-    s <- RunS.getAt sp
-    RunS.putAt sp $ Lens.over l f s
-
-data Over_ :: forall @k. k -> Type
-data Over_ sym = Over_
-
-instance DimensionedValTag (Over_ sym) (Over_ sym)
-
-instance
-  ( SP_ dspec sp
-  , IsSymbol sp
-  , Cons sp (RunS.State s) x' x
-  , Bl.ParseSymbol sym lenses
-  , Bl.ConstructBarlow lenses Function s s a b
-  , Bl.IsSymbol sym
-  ) =>
-  DimensionedVal (Over_ sym) dspec ((a -> b) -> R.Run x Unit) where
-  mkDimensional _ _ f = do
-    s <- RunS.getAt (px @sp)
-    RunS.putAt (px @sp) $ Lens.over (Bl.barlow @sym) f s
-
-instance rwseApplyOver_ ::
-  ( IsSymbol sp
-  , Cons sp (RunS.State s) x' x
-  , Bl.ParseSymbol sym lenses
-  , Bl.ConstructBarlow lenses Function s s a b
-  , Bl.IsSymbol sym
-  ) =>
-  RWSEFn (Over_ sym) rp wp sp ep ((a -> b) -> R.Run x Unit) where
-  rwseApply _ _ _ sp _ f = do
-    s <- RunS.getAt sp
-    RunS.putAt sp $ Lens.over (Bl.barlow @sym) f s
 
 data ExecS = ExecS
 
@@ -1509,9 +1092,6 @@ instance
     onDone (Eor.Left e) = RunE.throwAt (px @wp) e
     onDone (Eor.Right v) = pure v
 -}
-
-class GWriterOrDefault :: forall k1 k2. k1 -> k2 -> Constraint
-class GOrDefault "writer" gdesc wp <= GWriterOrDefault gdesc wp
 
 data Say = Say
 
@@ -1696,25 +1276,6 @@ instance
     onDone (Eor.Left e) = RunE.throwAt (px @ep) e
     onDone (Eor.Right v) = pure v
 
-data Try = Try
-
-instance DimensionedValTag Try Try
-
-instance
-  ( EP_ dspec ep
-  , IsSymbol ep
-  , Cons ep (RunE.Except e) x' x
-  ) =>
-  DimensionedVal Try dspec (R.Run x a -> R.Run x' (Eor.Either e a)) where
-  mkDimensional _ _ m = RunE.runExceptAt (px @ep) m
-
-instance
-  ( IsSymbol ep
-  , Cons ep (RunE.Except e) x' x
-  ) =>
-  RWSEFn Try rp wp sp ep (R.Run x a -> R.Run x' (Eor.Either e a)) where
-  rwseApply _ _ _ _ ep m = RunE.runExceptAt ep m
-
 data Fail = Fail
 
 instance DimensionedValTag Fail Fail
@@ -1739,32 +1300,6 @@ instance
     (e -> R.Run x a) where
   rwseApply _ _ _ _ _ e = RunE.throwAt (px @ep) e
 
-data Ok = Ok
-
-instance DimensionedValTag Ok Ok
-
-instance
-  ( EP_ dspec ep
-  , IsSymbol ep
-  , Cons ep (RunE.Except e) x' x
-  ) =>
-  DimensionedVal Ok dspec (Eor.Either e a -> R.Run x a) where
-  mkDimensional _ _ (Eor.Left e) = RunE.throwAt (px @ep) e
-  mkDimensional _ _ (Eor.Right a) = pure a
-
-instance
-  ( IsSymbol ep
-  , Cons ep (RunE.Except e) x' x
-  ) =>
-  RWSEFn Ok
-    _r
-    _w
-    _s
-    ep
-    (Eor.Either e a -> R.Run x a) where
-  rwseApply _ _ _ _ _ (Eor.Left e) = RunE.throwAt (px @ep) e
-  rwseApply _ _ _ _ _ (Eor.Right a) = pure a
-
 data RunParser = RunParser
 
 instance DimensionedValTag RunParser RunParser
@@ -1775,7 +1310,7 @@ instance
   , Cons ep (RunE.Except Z.ParseError) x' x
   ) =>
   DimensionedVal RunParser dspec (s -> Parsing.Parser s a -> R.Run x a) where
-  mkDimensional _ _ s pr = xAt @ep Ok $ Z.runParser s pr
+  mkDimensional _ _ s pr = g1 @XOk @ep $ Z.runParser s pr
 
 instance
   ( IsSymbol ep
@@ -1787,7 +1322,7 @@ instance
     _s
     ep
     (s -> Parsing.Parser s a -> R.Run x a) where
-  rwseApply _ _ _ _ _ s pr = xAt @ep Ok $ Z.runParser s pr
+  rwseApply _ _ _ _ _ s pr = g1 @XOk @ep $ Z.runParser s pr
 
 data BindE = BindE
 
@@ -1800,7 +1335,7 @@ instance
   , Cons ep (RunE.Except e1) x' x
   ) =>
   DimensionedVal BindE dspec ((e1 -> R.Run x' f) -> R.Run x f -> R.Run x' f) where
-  mkDimensional _ _ be m = xAt @ep Try m >>= onDone
+  mkDimensional _ _ be m = g1 @XTry @ep m >>= onDone
     where
     onDone (Eor.Left e) = be e
     onDone (Eor.Right v) = pure v
@@ -1811,7 +1346,7 @@ instance
   , Cons ep (RunE.Except e1) x' x
   ) =>
   RWSEFn BindE rp wp sp ep ((e1 -> R.Run x' f) -> R.Run x f -> R.Run x' f) where
-  rwseApply _ _ _ _ _ be m = xAt @ep Try m >>= onDone
+  rwseApply _ _ _ _ _ be m = g1 @XTry @ep m >>= onDone
     where
     onDone (Eor.Left e) = be e
     onDone (Eor.Right v) = pure v
@@ -1895,15 +1430,15 @@ instance
   ( EP_ dspec ep
   , IsSymbol ep
   , Cons ep (RunE.Except Z.JsError) x' x
-  , ZD.Defaultable d
+  , GenerableC d GDefault d
   ) =>
   DimensionedVal Hush dspec (R.Run x d -> R.Run x' d) where
-  mkDimensional _ _ m = (<$>) ZD.orDefault $ xAt @ep Try m <#> Eor.hush
+  mkDimensional _ _ m = (<$>) ZD.orDefault $ g1 @XTry @ep m <#> Eor.hush
 
 instance
   ( IsSymbol ep
   , Cons ep (RunE.Except Z.JsError) x' x
-  , ZD.Defaultable d
+  , GenerableC d GDefault d
   ) =>
   RWSEFn Hush
     _r
@@ -1911,7 +1446,7 @@ instance
     _s
     ep
     (R.Run x d -> R.Run x' d) where
-  rwseApply _ _ _ _ _ m = (<$>) ZD.orDefault $ xAt @ep Try m <#> Eor.hush
+  rwseApply _ _ _ _ _ m = (<$>) ZD.orDefault $ g1 @XTry @ep m <#> Eor.hush
 
 data Invert = Invert
 
@@ -1924,7 +1459,7 @@ instance
   , Cons ep (RunE.Except r) x' x
   ) =>
   DimensionedVal Invert dspec (R.Run x e -> R.Run x' r) where
-  mkDimensional _ _ m = xAt @ep Try m <#> Z.invert >>= xAt @ep Ok
+  mkDimensional _ _ m = g1 @XTry @ep m <#> Z.invert >>= g1 @XOk @ep
 
 instance
   ( IsSymbol ep
@@ -1932,7 +1467,7 @@ instance
   , Cons ep (RunE.Except r) x' x
   ) =>
   RWSEFn Invert rp wp sp ep (R.Run x e -> R.Run x' r) where
-  rwseApply _ _ _ _ _ m = xAt @ep Try m <#> Z.invert >>= xAt @ep Ok
+  rwseApply _ _ _ _ _ m = g1 @XTry @ep m <#> Z.invert >>= g1 @XOk @ep
 
 data TryUntil = TryUntil
 
@@ -2111,35 +1646,6 @@ instance
     w <- RunW.runWriterAt (px @wp) $ RunE.runExceptAt (px @ep') m
     pure $ { w: (Tup.fst w), v: (Tup.snd w) }
 
-data Unresult = Unresult
-
-instance DimensionedValTag Unresult Unresult
-
-instance
-  ( EP_ dspec ep
-  , IsSymbol ep
-  , WP_ dspec wp
-  , IsSymbol wp
-  , Cons wp (RunW.Writer (Array w)) x'' x
-  , Cons ep (RunE.Except e) x' x
-  ) =>
-  DimensionedVal Unresult dspec (Result w e a -> R.Run x a) where
-  mkDimensional _ _ { w, v } = do
-    xAt @wp Tell w
-    xAt @ep Ok v
-
-instance
-  ( IsSymbol wp
-  , IsSymbol ep'
-  , WpEpPickEp wp ep ep'
-  , Cons wp (RunW.Writer (Array w)) x'' x
-  , Cons ep' (RunE.Except e) x' x
-  ) =>
-  RWSEFn Unresult rp wp sp ep (Result w e a -> R.Run x a) where
-  rwseApply _ _ _ _ _ { w, v } = do
-    xAt @wp Tell w
-    xAt @ep' Ok v
-
 data MapWE = MapWE
 
 instance DimensionedValTag MapWE MapWE
@@ -2193,13 +1699,13 @@ evalX :: forall a. XRun () a -> a
 evalX m = Unsafe.unsafePerformEffect $ R.runBaseEffect $ R.expand $ runXBase m
 
 runX :: forall e a. XRun (E e ()) a -> Eor.Either e a
-runX = evalX <<< x' @"try"
+runX = evalX <<< z @XTry
 
 evalXA :: forall a. XRun (A ()) a -> Aff.Aff a
 evalXA m = R.match { aff: \(AffCmd a) -> a } # R.run $ runXBase m
 
 runXA :: forall e a. XRun (EA e ()) a -> Aff.Aff (Eor.Either e a)
-runXA = evalXA <<< x' @"try"
+runXA = evalXA <<< z @XTry
 
 --------------- OTHER ------------------------------------------------------
 
@@ -2229,7 +1735,7 @@ effectPromiseToAff :: forall a. Eff.Effect (Promise.Promise a) -> Aff.Aff a
 effectPromiseToAff e = EffC.liftEffect e >>= promiseToAff
 
 xTimeout :: forall x. Int -> XRun (A x) Unit
-xTimeout ms = Z.fDiscard $ x' @"try" $ x' @"runEffPromise" $ js_timeout ms
+xTimeout ms = Z.fDiscard $ z @XTry $ x' @"runEffPromise" $ js_timeout ms
 
 --------------- CORE TYPE ---------------------------------------------------
 
