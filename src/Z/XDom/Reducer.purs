@@ -23,7 +23,7 @@ data XDomDispatch
 instance
   ( GOrDefault "reader" gspec rp
   , IsSymbol rp
-  , Cons rp (R' (Tg r a s)) x' x
+  , Cons rp (R' (T a s)) x' x
   ) =>
   Generable XDomDispatch gspec (a -> Z.Run' x) where
   mkGenerable a = do

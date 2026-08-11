@@ -24,6 +24,7 @@
             "json",
             "maybe",
             "node-process",
+            "now",
             "optparse",
             "parsing",
             "prelude",

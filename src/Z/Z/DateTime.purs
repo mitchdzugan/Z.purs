@@ -1,6 +1,8 @@
 module Z.Z.DateTime
   ( DateTime(..)
   , adjustDateTime
+  , dateTimeAsMS
+  , fromRawDateTime
   , toDateTime
   ) where
 
@@ -14,6 +16,9 @@ import Data.Time.Duration as TimeDuration
 import Z.Z.Ext as Z
 
 data DateTime = DateTime DateTime.Date DateTime.Time
+
+fromRawDateTime :: DateTime.DateTime -> DateTime
+fromRawDateTime = data_to_impl
 
 data_to_impl :: DateTime.DateTime -> DateTime
 data_to_impl dt = DateTime (DateTime.date dt) (DateTime.time dt)
@@ -49,3 +54,9 @@ instance Z.EncodeJson DateTime where
     >>> DateTimeInst.unInstant
     >>> Z.unwrap
     >>> Z.encodeJson
+
+dateTimeAsMS :: DateTime -> Number
+dateTimeAsMS = impl_to_data
+  >>> DateTimeInst.fromDateTime
+  >>> DateTimeInst.unInstant
+  >>> Z.unwrap

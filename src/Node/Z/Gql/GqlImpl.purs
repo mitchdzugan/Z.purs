@@ -56,18 +56,16 @@ xOperateUnknown
   -> Client
   -> NetworkControl
   -> WEA (Array GqlW.T) GqlE.T x #> Json
-xOperateUnknown opString vars client networkControl = g @XWithReturn
-  \xReturn ->
-    do
-      (collisionCount /\ cached) <- getCached cachePath networkControl
-      whenJust cached xReturn
-      when (networkControl == CacheOnly) $ g @XFail GqlE.CacheOnlyEmpty
-      xInfo { gql: "submitting operation", op: opHeader, vars }
-      xTimeout 6000
-      res <- requestGql url authTokenJson opString vars
-      let toCache = [ res, fromString opKeyStr ]
-      writeToCache cachePath collisionCount toCache
-      pure res
+xOperateUnknown opString vars client nc = g @XWithReturn \xReturn -> do
+  (collisionCount /\ cached) <- getCached cachePath nc
+  whenJust cached xReturn
+  when (nc == CacheOnly) $ g @XFail GqlE.CacheOnlyEmpty
+  xInfo { gql: "submitting operation", op: opHeader, vars }
+  xTimeout 6000
+  res <- requestGql url authTokenJson opString vars
+  let toCache = [ res, fromString opKeyStr ]
+  writeToCache cachePath collisionCount toCache
+  pure res
   where
   { cachePath, authToken, url } = client
   authTokenJson = encodeJson authToken

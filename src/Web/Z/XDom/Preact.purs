@@ -16,7 +16,7 @@ foreign import js_renderIn :: XD.ReactEl -> Element -> Effect (Promise Unit)
 xPreactHydrate :: forall x. Element -> XD.ReactEl -> EA JsError x #> Unit
 xPreactHydrate d r = g @XRunEffPromise $ js_renderIn r d
 
-xDomRunWeb :: forall x. XD.RDom (DOM.XWEB x) -> XD.RDom x
+xDomRunWeb :: forall x. XD.RDom (XWebV x) -> XD.RDom x
 xDomRunWeb m = do
   ir <- XD.xSelfExtendX' DOM.runXWeb
   XD.xRawFragment $ XD.runEls ir $ g @XExecW $ g1 @XRunR @XD.XSelf_ ir m
@@ -24,14 +24,14 @@ xDomRunWeb m = do
 xProvideHistoryX
   :: forall x
    . (URL -> Maybe String)
-  -> (UrlSt.T -> XD.XDom (XWEB x))
-  -> XD.XDom (XWEB x)
+  -> (UrlSt.T -> XD.XDom (XWebV x))
+  -> XD.XDom (XWebV x)
 xProvideHistoryX toTitleOr_ fx = do
   locUrl <- xLocationUrl
   let baseUrlState = UrlSt.mk toTitleOr_ locUrl
   let origin = urlOrigin locUrl
   XD.dwithNewState baseUrlState \st setSt -> do
-    XD.ddd.use1Eff do
+    XD.d.use1Eff do
       doc <- xDocument
       win <- xWindow
       let xUpUrl = xDo <<< setSt <<< UrlSt.mk toTitleOr_ =<< xLocationUrl

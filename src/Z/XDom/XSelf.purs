@@ -15,6 +15,7 @@ module Z.XDom.XSelf
   ) where
 
 import Z.Prelude
+
 import Z.XDom.Preact (ReactEl)
 
 data IdS a = IdS a
@@ -70,6 +71,7 @@ runDisposable self m = runExists useSelf self
   useSelf (XSelfF { run, unDisposable }) =
     let d' = eval_ $ run m in \_ -> unDisposable d'
 
+data MComp :: forall k1 k2. (k1 -> Type) -> (k2 -> k1) -> k2 -> Type
 data MComp m' m x = MComp (m' (m x))
 
 instance

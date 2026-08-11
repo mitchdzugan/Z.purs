@@ -55,6 +55,9 @@ module Z.Z.X.Core
   , XBaseF
   , XBase_
   , XBindE
+  , XDoAsked
+  , XDoTagged
+  , XEffTagLabel(..)
   , XEvalS
   , XEvalW
   , XExecS
@@ -91,8 +94,10 @@ module Z.Z.X.Core
   , XRunR
   , XRunResult
   , XRunS
+  , XRunTaggable
   , XRunW
   , XRunWA
+  , XRunsEffTagged
   , XSay
   , XSet
   , XSet_
@@ -133,6 +138,8 @@ module Z.Z.X.Core
   , xInfo
   , xLogError
   , xLogWarning
+  , xNow
+  , xNowMS
   , xOut
   , xOutErr
   , xPass
@@ -158,6 +165,7 @@ import Data.Tuple.Nested as TupN
 import Effect as Eff
 import Effect.Aff as Aff
 import Effect.Class as EffC
+import Effect.Now as Now
 import Effect.Unsafe as Unsafe
 import Parsing as Parsing
 import Prim.Row (class Cons)
@@ -174,6 +182,7 @@ import Type.Proxy as P
 import Type.Row (type (+))
 import Z.Z.Barlow as Bl
 import Z.Z.Core as Z
+import Z.Z.DateTime (DateTime(..), dateTimeAsMS, fromRawDateTime)
 import Z.Z.Defaultable
   ( class G2OrDefault
   , class GOrDefault
@@ -581,6 +590,40 @@ instance
   Generable (XImpl "runR") gspec (r -> R.Run x a -> R.Run x' a) where
   mkGenerable = RunR.runReaderAt (P.Proxy :: P.Proxy p)
 
+type XDoAsked = XImpl "doAsked"
+
+instance
+  ( GOrDefault "taggedEff" gspec p
+  , IsSymbol p
+  , Cons p (RunR.Reader r) x' x
+  ) =>
+  Generable (XImpl "doAsked") gspec ((r -> XEffTagged p a) -> R.Run x a) where
+  mkGenerable getEff = g1 @XAsk @p <#> getEff <#> (#) <#> useTag @p
+
+data XEffTagLabel = XEffTagLabel
+
+type XRunsEffTagged = RunR.Reader XEffTagLabel
+
+type XRunTaggable = XImpl "runTaggable"
+
+instance
+  ( GOrDefault "taggedEff" gspec p
+  , IsSymbol p
+  , Cons p XRunsEffTagged x' x
+  ) =>
+  Generable (XImpl "runTaggable") gspec (R.Run x a -> R.Run x' a) where
+  mkGenerable = g1 @XRunR @p XEffTagLabel
+
+type XDoTagged = XImpl "doTagged"
+
+instance
+  ( GOrDefault "taggedEff" gspec p
+  , IsSymbol p
+  , Cons p XRunsEffTagged x' x
+  ) =>
+  Generable (XImpl "doTagged") gspec (XEffTagged p a -> R.Run x a) where
+  mkGenerable eff = g1 @XDoAsked @p (const eff)
+
 ------------------------------- S ------------------------------------
 
 type XExecS = XImpl "execS"
@@ -985,6 +1028,7 @@ foreign import js_getStack :: Eff.Effect String
 
 data XBaseF a
   = PassCmd a
+  | NowCmd (DateTime -> a)
   | LogCmd String String Z.JsAny a
   | LogDirectCmd String Z.JsAny a
 
@@ -998,6 +1042,8 @@ _eff = P.Proxy :: P.Proxy XBase_
 
 handleXBase :: forall r. XBaseF ~> R.Run r
 handleXBase = case _ of
+  NowCmd f -> pure $ f $ fromRawDateTime $ Unsafe.unsafePerformEffect $
+    Now.nowDateTime
   PassCmd a -> pure a
   LogCmd k src v e -> do
     pure $ Unsafe.unsafePerformEffect $ js_consoleFn k src [ v ]
@@ -1031,6 +1077,12 @@ xLogWarning = xLogCmd "warn"
 
 xLogError :: forall l x. l -> XRun x Unit
 xLogError = xLogCmd "error"
+
+xNow :: forall x. XRun x DateTime
+xNow = R.lift _eff (NowCmd identity)
+
+xNowMS :: forall x. XRun x Number
+xNowMS = xNow <#> dateTimeAsMS
 
 --------------- XBuilders ---------------------------------------------------
 

@@ -19,6 +19,7 @@ module Z.Z.Url
   , path
   , pathFromString
   , pathOrURLFromString
+  , pathSegments
   , port
   , protocol
   , query

@@ -43,6 +43,7 @@ module Z.Z.Util
   , urlFromString
   , urlOrigin
   , urlPathFromString
+  , urlPathSegments
   , urlQuery
   , urlRelative
   , urlToString
@@ -95,6 +96,9 @@ urlOrigin url = Url.protocol url <> "://" <> rest (Url.port url)
   where
   rest Maybe.Nothing = Url.host url
   rest (Maybe.Just n) = Url.host url <> ":" <> show n
+
+urlPathSegments :: Url.URL -> Array String
+urlPathSegments u = Url.pathSegments $ Url.path u
 
 nth :: forall a. Array a -> Int -> Maybe.Maybe a
 nth = Array.index

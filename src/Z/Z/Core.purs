@@ -37,6 +37,7 @@ module Z.Z.Core
   , jsErrorStack
   , jsonRmNils
   , jsonStr
+  , listFromFoldable
   , mapEmpty
   , mapFromFoldable
   , mapL
@@ -45,12 +46,15 @@ module Z.Z.Core
   , mapSize
   , p
   , p2
+  , parseEof
   , parseFail
   , parseFailWithPosition
   , parseInt
   , parseNumber
+  , parseRest
   , parseString
   , parseStringAs
+  , parseStringEofAs
   , parseString_
   , parseTry
   , pureF
@@ -86,6 +90,7 @@ import Data.Foldable as Foldable
 import Data.Functor as F
 import Data.Functor.Flip (Flip)
 import Data.Int as Int
+import Data.List as List
 import Data.Map as Map
 import Data.Maybe as May
 import Data.Ord as Ord
@@ -309,6 +314,9 @@ arrEmpty = []
 arrFromFoldable :: forall a f. Foldable.Foldable f => f a -> Array a
 arrFromFoldable = Arr.fromFoldable
 
+listFromFoldable :: forall a f. Foldable.Foldable f => f a -> List.List a
+listFromFoldable = List.fromFoldable
+
 invert :: forall e r. Eor.Either e r -> Eor.Either r e
 invert (Eor.Left e) = Eor.Right e
 invert (Eor.Right r) = Eor.Left r
@@ -394,11 +402,23 @@ parseTry
   :: forall m s a. Parsing.ParserT s m a -> Parsing.ParserT s m a
 parseTry = Prc.try
 
+parseEof :: forall m. Parsing.ParserT String m Unit
+parseEof = Prs.eof
+
+parseRest :: forall m. Parsing.ParserT String m String
+parseRest = Prs.rest
+
 parseString :: forall m. String -> Parsing.ParserT String m String
 parseString = Prs.string
 
 parseStringAs :: forall m v. String -> v -> Parsing.ParserT String m v
 parseStringAs s v = Prs.string s <#> const v
+
+parseStringEofAs :: forall m v. String -> v -> Parsing.ParserT String m v
+parseStringEofAs s v = do
+  res <- parseStringAs s v
+  parseEof
+  pure res
 
 parseString_ :: forall m. String -> Parsing.ParserT String m Unit
 parseString_ s = parseStringAs s unit

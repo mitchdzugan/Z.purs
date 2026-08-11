@@ -42,6 +42,7 @@ module Z.XDom.Core
   , RDomFn
   , RDomFn'
   , SetStateFn
+  , XDOMEFF
   , XDom
   , XDom'
   , XDomBindE
@@ -55,8 +56,8 @@ module Z.XDom.Core
   , XProps_
   , XSelf_
   , _xProps
+  , d
   , da
-  , ddd
   , del
   , dpureText
   , dpureTextW
@@ -80,6 +81,7 @@ module Z.XDom.Core
   , dwithNewState
   , module ReExport
   , renderX
+  , xDomDo
   , xRawFragment
   , xSelfExtendX'
   ) where
@@ -260,16 +262,20 @@ type XEl x = Wa ReactEl + XPROPS x
 type XProps_ = "xProps"
 _xProps = Proxy :: Proxy XProps_
 
-type DuseEff = forall x a. Eq a => a -> Run x (Run' x) -> RDom x
-type Duse1Eff = forall x. Run x (Run' x) -> RDom x
-type DuseEveryEff = forall x. Run x (Run' x) -> RDom x
-type DuseEff' = forall x a. Eq a => a -> Run' x -> RDom x
-type Duse1Eff' = forall x. Run' x -> RDom x
-type DuseEveryEff' = forall x. Run' x -> RDom x
+type XDOMEFF x = (xDomEff :: XRunsEffTagged | x)
+
+type DuseEff =
+  forall x a. Eq a => a -> Run (XDOMEFF x) (Run' (XDOMEFF x)) -> RDom x
+
+type Duse1Eff = forall x. Run (XDOMEFF x) (Run' (XDOMEFF x)) -> RDom x
+type DuseEveryEff = forall x. Run (XDOMEFF x) (Run' (XDOMEFF x)) -> RDom x
+type DuseEff' = forall x a. Eq a => a -> Run' (XDOMEFF x) -> RDom x
+type Duse1Eff' = forall x. Run' (XDOMEFF x) -> RDom x
+type DuseEveryEff' = forall x. Run' (XDOMEFF x) -> RDom x
 
 duseEff :: DuseEff
 duseEff v m = do
-  r <- g1 @XAsk @XSelf_
+  r <- xSelfExtendX' (g1 @XRunTaggable @"xDomEff")
   g @XSay $ js_effComponent eq v
     (\_ -> let runD' = runDisposable r m in \_ -> runUnit r (runD' unit))
     ((#) unit)
@@ -356,8 +362,8 @@ mkD f =
   , withNewState: dwithNewState
   }
 
-ddd :: forall x. DType (RDom' x XEl -> RDom x)
-ddd = mkD id
+d :: forall x. DType (RDom' x XEl -> RDom x)
+d = mkD id
 
 del
   :: forall x
@@ -438,7 +444,10 @@ da
      , cn :: forall x. String -> RDom' x XPROPS
      , cnW :: forall x. ((String -> StrW) -> StrW) -> RDom' x XPROPS
      , href :: forall x. String -> RDom' x XPROPS
-     , onClick :: forall x. (Int -> Run' x) -> RDom' x XPROPS
+     , onClick ::
+         forall x
+          . (Int -> Run' (xDomEff :: XRunsEffTagged | XPROPS x))
+         -> RDom' x XPROPS
      }
 da =
   { key: g1 @XTell @XProps_ <<< pure <<< PKey
@@ -447,6 +456,9 @@ da =
       g @XSay
   , href: g1 @XTell @XProps_ <<< pure <<< Href
   , onClick: \f -> do
-      r <- g1 @XAsk @XSelf_
-      g1 @XTell @XProps_ $ pure $ OnClick $ \e -> runUnit r $ f e
+      ir <- xSelfExtendX' (g1 @XRunTaggable @"xDomEff")
+      g1 @XTell @XProps_ $ pure $ OnClick $ \e -> runUnit ir $ f e
   }
+
+xDomDo :: forall x a. XEffTagged "xDomEff" a -> Run (XDOMEFF x) a
+xDomDo = g1 @XDoTagged @"xDomEff"
