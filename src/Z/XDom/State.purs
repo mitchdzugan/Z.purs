@@ -12,7 +12,7 @@ import Z.Prelude hiding (Run)
 import Z.Prelude as Z
 import Z.XDom.Core as XDom
 
-type Tg r s = { get :: s, set :: s -> XEff Unit | r }
+type Tg r s = { get :: s, set :: s -> XEffTagged "xDomEff" Unit | r }
 type T s = Tg () s
 type R s = R' (Tg () s)
 
@@ -33,12 +33,12 @@ data XDomSetState
 instance
   ( GOrDefault "reader" gspec rp
   , IsSymbol rp
-  , Cons rp (R' (Tg r s)) x' x
+  , Cons rp (R' (Tg r s)) x' (XDom.XDOMEFF x)
   ) =>
-  Generable XDomSetState gspec (s -> Z.Run x Unit) where
+  Generable XDomSetState gspec (s -> Z.Run (XDom.XDOMEFF x) Unit) where
   mkGenerable s = do
     r <- g1 @XAsk @rp
-    xDo $ r.set s
+    XDom.xDomDo $ r.set s
 
 data XDomRunState
 

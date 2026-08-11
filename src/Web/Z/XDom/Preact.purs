@@ -34,7 +34,8 @@ xProvideHistoryX toTitleOr_ fx = do
     XD.d.use1Eff do
       doc <- xDocument
       win <- xWindow
-      let xUpUrl = xDo <<< setSt <<< UrlSt.mk toTitleOr_ =<< xLocationUrl
+      let xDomDo = g1 @XRunTaggable @"xDomEff" <<< XD.xDomDo
+      let xUpUrl = xDomDo <<< setSt <<< UrlSt.mk toTitleOr_ =<< xLocationUrl
       let { pushState, popState } = eventType
       d'pop <- xAddEventListener popState win pass \_ -> xUpUrl
       d'push <- xAddEventListener pushState win pass \_ -> xUpUrl
@@ -54,6 +55,6 @@ xProvideHistoryX toTitleOr_ fx = do
                   xPushState href newUrl.titleOr_
                   xOut newUrl.titleOr_
                   whenJust newUrl.titleOr_ xSetDocumentTitle
-                  xDo $ setSt newUrl
+                  xDomDo $ setSt newUrl
       pure $ d'pop *> d'push *> d'click
     fx st

@@ -23,12 +23,12 @@ data XDomDispatch
 instance
   ( GOrDefault "reader" gspec rp
   , IsSymbol rp
-  , Cons rp (R' (T a s)) x' x
+  , Cons rp (R' (T a s)) x' (XDom.XDOMEFF x)
   ) =>
-  Generable XDomDispatch gspec (a -> Z.Run' x) where
+  Generable XDomDispatch gspec (a -> Z.Run' (XDom.XDOMEFF x)) where
   mkGenerable a = do
     r <- g1 @XAsk @rp
-    xDo $ r.set $ r.update r.get a
+    XDom.xDomDo $ r.set $ r.update r.get a
 
 data XDomRunReducer
 

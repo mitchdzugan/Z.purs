@@ -26,8 +26,8 @@ foreign import js_propsFromPropWs
 
 foreign import js_withState
   :: forall s
-   . (Unit -> Run () Unit)
-  -> (s -> (s -> Run () Unit) -> Array ReactEl)
+   . (Unit -> Effect Unit)
+  -> (s -> (s -> Effect Unit) -> Array ReactEl)
   -> s
   -> ReactEl
 

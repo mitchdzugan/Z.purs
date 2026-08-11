@@ -25,8 +25,6 @@ module Z.XDom.Core
   , DTextW_
   , DTextW_'
   , DType
-  , DomS
-  , DomS'
   , Duse1Eff
   , Duse1Eff'
   , DuseEff
@@ -36,12 +34,10 @@ module Z.XDom.Core
   , DwithKey
   , DwithNewState
   , GDomFn'
-  , ISet
   , RDom
   , RDom'
   , RDomFn
   , RDomFn'
-  , SetStateFn
   , XDOMEFF
   , XDom
   , XDom'
@@ -49,8 +45,6 @@ module Z.XDom.Core
   , XDomFn
   , XDomFn'
   , XDomRunR
-  , XDomS
-  , XDomS'
   , XEl
   , XPROPS
   , XProps_
@@ -167,10 +161,8 @@ dwithKey k m = do
 
 infixr 3 dwithKey as <!&
 
-type SetStateFn s = s -> XRun () Unit
-
 type DwithNewState =
-  forall x s. s -> (s -> (s -> XEff Unit) -> RDom x) -> RDom x
+  forall x s. s -> (s -> (s -> XEffTagged "xDomEff" Unit) -> RDom x) -> RDom x
 
 dwithNewState :: DwithNewState
 dwithNewState initalState fm = do
@@ -180,7 +172,7 @@ dwithNewState initalState fm = do
   renderFn rn s ss = runEls rn $ g @XExecW $ g1 @XRunR @XSelf_ rn $ fm
     s
     (w ss)
-  w ss s = XEff $ ss s
+  w ss s = tagEffX @"xDomEff" $ ss s
 
 type D2withNewState =
   forall x x' s. s -> (s -> (s -> Run x' Unit) -> RDom x) -> RDom x
@@ -247,16 +239,6 @@ instance
     rErr rn e = js_renderFragment $ runEls rn $ g @XExecW
       $ g1 @XRunR @XSelf_ rn
       $ em e
-
-type DomS a s = { get :: s, act :: a -> XEff Unit }
-
-type DomS' s = DomS s s
-
-type XDomS a s = R' (DomS a s)
-
-type XDomS' s = R' (DomS s s)
-
-type ISet s = s -> XEff Unit
 
 type XEl x = Wa ReactEl + XPROPS x
 type XProps_ = "xProps"

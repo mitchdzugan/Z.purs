@@ -1,14 +1,12 @@
 module Z.Z.X.Util
   ( Run'
   , Run_
-  , XEff(..)
   , XEffTag
   , XEffTagged
   , evalTagged
   , eval_
   , tagEffX
   , useTag
-  , xDo
   ) where
 
 import Prelude
@@ -24,13 +22,6 @@ eval_ m = Unsafe.unsafePerformEffect $ R.runBaseEffect $ R.expand m
 type Run' x = R.Run x Unit
 
 type Run_ a = R.Run () a
-
-newtype XEff a = XEff (Run_ a)
-
-derive instance Newtype (XEff a) _
-
-xDo :: forall x a. XEff a -> R.Run x a
-xDo = pure <<< eval_ <<< unwrap
 
 data XEffTagged :: forall k. k -> Type -> Type
 data XEffTagged t a = XEffTagged (Effect a)
