@@ -26,8 +26,7 @@ foreign import js_propsFromPropWs
 
 foreign import js_withState
   :: forall s
-   . (Unit -> Effect Unit)
-  -> (s -> (s -> Effect Unit) -> Array ReactEl)
+   . (s -> (s -> Effect Unit) -> Array ReactEl)
   -> s
   -> ReactEl
 
@@ -37,7 +36,6 @@ foreign import js_effComponent
    . (a -> a -> Boolean)
   -> a
   -> (Unit -> (Unit -> Unit))
-  -> ((Unit -> Unit) -> Unit)
   -> ReactEl
 
 foreign import js_withBoundedError

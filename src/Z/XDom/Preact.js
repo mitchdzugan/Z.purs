@@ -8,7 +8,7 @@ class StateComponent extends Component {
 
   render() {
     const setter = (st) => {
-      return this.props.pure(this.setState({ st }));
+      return () => this.setState({ st });
     };
     return h(Fragment, {}, ...this.props.renderEls(this.state.st)(setter));
   }
@@ -16,7 +16,7 @@ class StateComponent extends Component {
 
 class EffComponent extends Component {
   get lastFn() {
-    return !this.last ? () => {} : () => this.props.runLast(this.last[1]);
+    return !this.last ? () => {} : () => this.last[1]();
   }
 
   postRender() {
@@ -57,11 +57,11 @@ export const js_propsFromPropWs = (getK) => (getV) => (kvs) => {
   }
   return res;
 };
-export const js_withState = (pure) => (renderEls) => (initialState) =>
-  h(StateComponent, { renderEls, initialState, pure });
+export const js_withState = (renderEls) => (initialState) =>
+  h(StateComponent, { renderEls, initialState });
 export const js_withKey = (key) => (el) => h(KeyComponent, { key, el });
-export const js_effComponent = (eq) => (v) => (onNew) => (runLast) =>
-  h(EffComponent, { eq, v, onNew, runLast });
+export const js_effComponent = (eq) => (v) => (onNew) =>
+  h(EffComponent, { eq, v, onNew });
 
 class BoundedError {
   constructor(error) {

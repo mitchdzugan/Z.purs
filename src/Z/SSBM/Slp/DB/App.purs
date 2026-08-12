@@ -1,6 +1,6 @@
 module Z.SSBM.Slp.DB.App where
 
-import Z.XDom2.Prelude
+import Z.XDom.Prelude
 
 data CountAction = Inc | Dec | Reset
 

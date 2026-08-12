@@ -1,24 +1,19 @@
 module Z.XDom.Prelude
   ( Reducer
-  , XReducer
   , XurlStProviderX
   , module ModuleReExports
-  , module XDom
-  , module ZP
   ) where
 
-import Z.Prelude hiding (div) as ZP
-import Z.XDom.Core as XDom
-import Z.XDom.Reducer (XDomDispatch, XDomRunReducer) as ModuleReExports
-import Z.XDom.Reducer as Rdc
-import Z.XDom.Router (XDomRouteHref, XDomRouteOrE, XDomRunRouter, XDomUrlState) as ModuleReExports
-import Z.XDom.Router as Rt
-import Z.XDom.State (XDomGetState, XDomRunState, XDomSetState) as ModuleReExports
-import Z.XDom.State as St
-import Z.XDom.UrlState (actualHref) as ModuleReExports
+import Z.Prelude as ModuleReExports
+import Z.Prelude as Z
+import Z.XDom.Core as Core
+import Z.XDom.Core as ModuleReExports
+import Z.XDom.Preact (ReactEl) as ModuleReExports
+import Z.XDom.Router hiding (R, T, X) as ModuleReExports
+import Z.XDom.UrlState as ModuleReExports
 import Z.XDom.UrlState as UrlSt
 
-type Reducer a s = Rdc.R a s
-type XReducer a s x = Rdc.X a s x
+type XurlStProviderX sx de = UrlSt.XProvider sx de
 
-type XurlStProviderX x = UrlSt.XProvider x
+type Reducer a s =
+  (Z.R' { get :: s, update :: a -> Z.XEffTagged "domEff" Z.Unit })
