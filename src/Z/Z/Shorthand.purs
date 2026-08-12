@@ -64,6 +64,7 @@ import Z.Z.Ext
   , unwrap
   , view
   ) as Z
+import Z.Z.Ext (class TypeEquals)
 import Z.Z.Ext ((/\)) as ZExp
 import Z.Z.X as X
 

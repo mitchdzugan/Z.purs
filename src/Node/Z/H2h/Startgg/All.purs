@@ -58,16 +58,16 @@ ggPageSpecHandleImpl
   -> XPageSpecHandle x v r
 ggPageSpecHandleImpl (GGPageSpecF pageL dataL) = do
   { client, networkControl, op } <- g @XAsk
-  g @(XPlusS "seenIds") setEmpty $ loop op client networkControl
+  s''plus @"seenIds" setEmpty $ loop op client networkControl
   where
   loop op client networkControl = do
     g @XToArrayOfS (_o_ @"res" @"nodes+.id" dataL) >>= \ids -> do
-      (g @(XSet_ "seenIds") $ setFromFoldable ids)
-    seenIds <- g @(XViewS_ "seenIds")
+      (s''sets @"seenIds" $ setFromFoldable ids)
+    seenIds <- s''views @"seenIds"
     total <- g @XViewS (_o_ @"res" @"pageInfo.total" dataL)
     when (setSize seenIds < total) do
       g @XOver (_o @"vars" pageL) inc
-      vars <- g @(XViewS_ "vars")
+      vars <- s''views @"vars"
       res <- Gql.xOperate op vars client networkControl
       let nodes = view (dataL # o_ @"nodes") res
       g @XOver (_o_ @"res" @"nodes" dataL)

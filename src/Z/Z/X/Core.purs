@@ -128,12 +128,34 @@ module Z.Z.X.Core
   , class GOrW
   , class XGetterTypes
   , edit
+  , eff''permit
+  , eff'permit
   , evalX
   , evalXA
   , joinStrW
+  , r''act
+  , r''ask
+  , r''encapsulate
+  , r''run
+  , r'act
+  , r'ask
+  , r'encapsulate
+  , r'run
   , runX
   , runXA
   , runXBase
+  , s''plus
+  , s''sets
+  , s''views
+  , s'plus
+  , s'sets
+  , s'views
+  , w''exec
+  , w''say
+  , w''tell
+  , w'exec
+  , w'say
+  , w'tell
   , xGetter
   , xInfo
   , xLogError
@@ -590,6 +612,19 @@ instance
   Generable (XImpl "runR") gspec (r -> R.Run x a -> R.Run x' a) where
   mkGenerable = RunR.runReaderAt (P.Proxy :: P.Proxy p)
 
+type XEncapsulateR = XImpl "encapsulateR"
+
+instance
+  ( IsSymbol p
+  , Cons p (RunR.Reader r) x' x
+  , Cons p (RunR.Reader r) (XBASE ()) xe
+  , GOrR gspec p
+  ) =>
+  Generable (XImpl "encapsulateR") gspec (R.Run x (R.Run xe a -> a)) where
+  mkGenerable = do
+    r <- RunR.askAt (P.Proxy :: P.Proxy p)
+    pure \m -> evalX $ RunR.runReaderAt (P.Proxy :: P.Proxy p) r m
+
 type XDoAsked = XImpl "doAsked"
 
 instance
@@ -952,6 +987,80 @@ instance
 
 px :: forall @k. P.Proxy k
 px = P.Proxy
+
+--------------- fns ------------------------------------------------
+---------------          eff''fns ----------------------------------
+eff''permit :: forall v. Generable XRunTaggable GDefault v => v
+eff''permit = g @XRunTaggable
+
+eff'permit :: forall @at v. Generable XRunTaggable (G1 at) v => v
+eff'permit = g1 @XRunTaggable @at
+
+---------------          r''fns ------------------------------------
+
+r''run :: forall v. Generable XRunR GDefault v => v
+r''run = g @XRunR
+
+r'run :: forall @at v. Generable XRunR (G1 at) v => v
+r'run = g1 @XRunR @at
+
+r''ask :: forall v. Generable XAsk GDefault v => v
+r''ask = g @XAsk
+
+r'ask :: forall @at v. Generable XAsk (G1 at) v => v
+r'ask = g1 @XAsk @at
+
+r''act :: forall v. Generable XDoAsked GDefault v => v
+r''act = g @XDoAsked
+
+r'act :: forall @at v. Generable XDoAsked (G1 at) v => v
+r'act = g1 @XDoAsked @at
+
+r''encapsulate :: forall v. Generable XEncapsulateR GDefault v => v
+r''encapsulate = g @XEncapsulateR
+
+r'encapsulate :: forall @at v. Generable XEncapsulateR (G1 at) v => v
+r'encapsulate = g1 @XEncapsulateR @at
+
+---------------          s''fns ------------------------------------
+
+s''sets :: forall @s v. Generable (XSet_ s) GDefault v => v
+s''sets = g @(XSet_ s)
+
+s'sets :: forall @at @s v. Generable (XSet_ s) (G1 at) v => v
+s'sets = g1 @(XSet_ s) @at
+
+s''plus :: forall @s v. Generable (XPlusS s) GDefault v => v
+s''plus = g @(XPlusS s)
+
+s'plus :: forall @at @s v. Generable (XPlusS s) (G1 at) v => v
+s'plus = g1 @(XPlusS s) @at
+
+s''views :: forall @s v. Generable (XViewS_ s) GDefault v => v
+s''views = g @(XViewS_ s)
+
+s'views :: forall @at @s v. Generable (XViewS_ s) (G1 at) v => v
+s'views = g1 @(XViewS_ s) @at
+
+---------------          w''fns ------------------------------------
+
+w''exec :: forall v. Generable XExecW GDefault v => v
+w''exec = g @XExecW
+
+w'exec :: forall @at v. Generable XExecW (G1 at) v => v
+w'exec = g1 @XExecW @at
+
+w''tell :: forall v. Generable XTell GDefault v => v
+w''tell = g @XTell
+
+w'tell :: forall @at v. Generable XTell (G1 at) v => v
+w'tell = g1 @XTell @at
+
+w''say :: forall v. Generable XSay GDefault v => v
+w''say = g @XSay
+
+w'say :: forall @at v. Generable XSay (G1 at) v => v
+w'say = g1 @XSay @at
 
 --------------- EVAL -------------------------------------------------------
 

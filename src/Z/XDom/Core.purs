@@ -128,9 +128,15 @@ type GDomFn'
   -> Type
   -> Type
 type GDomFn' wx x fx a =
-  Run
-    (fx (xDomSelf :: (R' (XSelf (wx x))) | (Wa ReactEl (wx x))))
-    a
+  Run (fx (xDomSelf :: (R' (XSelf (wx x))) | (Wa ReactEl (wx x)))) a
+
+type MDomV sx de = (self :: R' $ XSelf sx, effEnv :: R' de | sx)
+
+type MElAttrV x = (attr :: W' $ Array PropWF | x)
+
+type MDom sx de a = Run (Wa ReactEl $ MDomV sx de) a
+
+type MDomEl sx de a = Run (MElAttrV $ Wa ReactEl $ MDomV sx de) a
 
 type XDomFn' x fx a = GDomFn' XBASE x fx a
 type XDomFn x a = GDomFn' XBASE x IdT a
@@ -244,10 +250,17 @@ type XEl x = Wa ReactEl + XPROPS x
 type XProps_ = "xProps"
 _xProps = Proxy :: Proxy XProps_
 
-type XDOMEFF x = (xDomEff :: XRunsEffTagged | x)
+type XDOMEFF x =
+  ( xDomEff :: XRunsEffTagged
+  | x
+  )
 
 type DuseEff =
-  forall x a. Eq a => a -> Run (XDOMEFF x) (Run' (XDOMEFF x)) -> RDom x
+  forall x a
+   . Eq a
+  => a
+  -> Run (XDOMEFF x) (Run (XDOMEFF x) Unit)
+  -> Run (xDomSelf :: R' (XSelf x) | Wa ReactEl x) Unit
 
 type Duse1Eff = forall x. Run (XDOMEFF x) (Run' (XDOMEFF x)) -> RDom x
 type DuseEveryEff = forall x. Run (XDOMEFF x) (Run' (XDOMEFF x)) -> RDom x
@@ -257,9 +270,11 @@ type DuseEveryEff' = forall x. Run' (XDOMEFF x) -> RDom x
 
 duseEff :: DuseEff
 duseEff v m = do
-  r <- xSelfExtendX' (g1 @XRunTaggable @"xDomEff")
+  r' <- xSelfExtendX' (g1 @XRunTaggable @"xDomEff")
+  -- g1 @XRunTaggable @"xDomEff" $ g1 @XRunR @XSelf_ r do
+  --   r' <- xSelfExtendX' (g1 @XRunR @XSelf_ r)
   g @XSay $ js_effComponent eq v
-    (\_ -> let runD' = runDisposable r m in \_ -> runUnit r (runD' unit))
+    (\_ -> let runD' = runDisposable r' m in \_ -> runUnit r' (runD' unit))
     ((#) unit)
 
 duse1Eff :: Duse1Eff

@@ -20,6 +20,7 @@ module Web.Z.Web.DOM
   , xPushState
   , xSetDocumentTitle
   , xStopPropagation
+  , xWebR
   , xWindow
   ) where
 
@@ -42,6 +43,7 @@ import Web.HTML.Window as Window
 type XEffWeb a = XEffTagged "xWeb" a
 type XWebV x = (xWeb :: R' XWebR | x)
 type XWeb x a = XRun (XWebV x) a
+type RWeb x a = Run (XWebV x) a
 type XWebEA e x = EA e (XWebV x)
 type XWebR =
   { window :: XEffWeb Window.Window
@@ -51,7 +53,7 @@ type XWebR =
   , closest :: String -> WET.EventTarget -> XEffWeb (Maybe T.Element)
   , preventDefault :: WET.Event -> XEffWeb Unit
   , stopPropagation :: WET.Event -> XEffWeb Unit
-  , pushState :: Foreign -> String -> String -> XEffWeb Unit
+  , pushState :: String -> Maybe String -> XEffWeb Unit
   , setDocumentTitle :: String -> XEffWeb Unit
   , addEventListener ::
       WebEvent.EventType
@@ -66,6 +68,12 @@ type XWebR =
       -> WebEventT.EventListener
       -> XEffWeb Unit
   , getAttribute :: String -> T.Element -> XEffWeb (Maybe String)
+  , subToEvent ::
+      WebEvent.EventType
+      -> WebEventT.EventTarget
+      -> Edit EventListenerOpts
+      -> (WebEvent.Event -> Run () Unit)
+      -> XEffWeb (XEffWeb Unit)
   }
 
 evTarget :: WET.Event -> Maybe WET.EventTarget
@@ -83,25 +91,23 @@ instance IsEventTarget HTML.Window where
 getElementById :: String -> HTMLDoc.HTMLDocument -> Effect (Maybe T.Element)
 getElementById s = NEPN.getElementById s <<< HTMLDoc.toNonElementParentNode
 
-xDoAskedWeb = g1 @XDoAsked @"xWeb"
+xWindow :: forall x. RWeb x Window.Window
+xWindow = r'act @"xWeb" _.window
 
-xWindow :: forall x. XWeb x Window.Window
-xWindow = xDoAskedWeb _.window
+xLocationUrl :: forall x. RWeb x URL
+xLocationUrl = r'act @"xWeb" \r -> r.locationUrl
 
-xLocationUrl :: forall x. XWeb x URL
-xLocationUrl = xDoAskedWeb \r -> r.locationUrl
+xDocument :: forall x. RWeb x HTMLDoc.HTMLDocument
+xDocument = r'act @"xWeb" \r -> r.document
 
-xDocument :: forall x. XWeb x HTMLDoc.HTMLDocument
-xDocument = xDoAskedWeb \r -> r.document
+xGetElementById :: forall x. String -> RWeb x (Maybe T.Element)
+xGetElementById s = r'act @"xWeb" \r -> r.getElementById s
 
-xGetElementById :: forall x. String -> XWeb x (Maybe T.Element)
-xGetElementById s = xDoAskedWeb \r -> r.getElementById s
+xClosest :: forall x. WET.EventTarget -> String -> RWeb x (Maybe T.Element)
+xClosest et qs = r'act @"xWeb" \r -> r.closest qs et
 
-xClosest :: forall x. WET.EventTarget -> String -> XWeb x (Maybe T.Element)
-xClosest et qs = xDoAskedWeb \r -> r.closest qs et
-
-xGetAttribute :: forall x. T.Element -> String -> XWeb x (Maybe String)
-xGetAttribute el attr = xDoAskedWeb \r -> r.getAttribute attr el
+xGetAttribute :: forall x. T.Element -> String -> RWeb x (Maybe String)
+xGetAttribute el attr = r'act @"xWeb" \r -> r.getAttribute attr el
 
 eventType
   :: { click :: WebEvent.EventType
@@ -127,14 +133,14 @@ xAddEventListener
   => WebEvent.EventType
   -> t
   -> Edit EventListenerOpts
-  -> (WebEvent.Event -> XWeb () Unit)
-  -> XWeb x (XWeb x Unit)
+  -> (WebEvent.Event -> Run () Unit)
+  -> RWeb x (RWeb x Unit)
 xAddEventListener eType target opts onE = do
   let o = edit defaultEventListenerOpts opts
   let tgt = toEventTarget target
-  let evalEvent = evalX <<< runXWeb <<< onE
-  el <- xDoAskedWeb \r -> r.addEventListener eType tgt o evalEvent
-  pure $ xDoAskedWeb \r -> r.rmEventListener eType tgt o.capture el
+  let evalEvent = eval_ <<< onE
+  el <- r'act @"xWeb" \r -> r.addEventListener eType tgt o evalEvent
+  pure $ r'act @"xWeb" \r -> r.rmEventListener eType tgt o.capture el
 
 xPushState
   :: forall x
@@ -145,26 +151,61 @@ xPushState url titleOr_ = do
   let title = jOr' titleOr_
   let hasTitle = isJust titleOr_
   let opts = if hasTitle then (encodeForeign { title }) else (encodeForeign {})
-  xDoAskedWeb \r -> r.pushState opts title url
+  r'act @"xWeb" \r -> r.pushState url titleOr_
 
 xSetDocumentTitle
   :: forall x
    . String
   -> XWeb x Unit
 xSetDocumentTitle title = do
-  xDoAskedWeb \r -> r.setDocumentTitle title
+  r'act @"xWeb" \r -> r.setDocumentTitle title
 
-xPreventDefault :: forall x. WET.Event -> XWeb x Unit
-xPreventDefault e = xDoAskedWeb \r -> r.preventDefault e
+xPreventDefault :: forall x. WET.Event -> RWeb x Unit
+xPreventDefault e = r'act @"xWeb" \r -> r.preventDefault e
 
-xStopPropagation :: forall x. WET.Event -> XWeb x Unit
-xStopPropagation e = xDoAskedWeb \r -> r.stopPropagation e
+xStopPropagation :: forall x. WET.Event -> RWeb x Unit
+xStopPropagation e = r'act @"xWeb" \r -> r.stopPropagation e
 
 tagEffWebX :: forall a. Effect a -> XEffTagged "xWeb" a
 tagEffWebX = tagEffX @"xWeb"
 
-runXWeb :: forall r. Run (XWebV + r) ~> Run r
-runXWeb = g1 @XRunR @"xWeb"
+raw_addEventListener
+  :: WebEvent.EventType
+  -> WebEventT.EventTarget
+  -> EventListenerOpts
+  -> (WebEvent.Event -> Unit)
+  -> Effect WebEventT.EventListener
+raw_addEventListener et t o h = do
+  el <- WebEventT.eventListener \e -> pure $ h e
+  WebEventT.addEventListenerWithOptions et el o t
+  pure el
+
+raw_rmEventListener
+  :: WebEvent.EventType
+  -> WebEventT.EventTarget
+  -> Boolean
+  -> WebEventT.EventListener
+  -> Effect Unit
+raw_rmEventListener et t c l = do
+  traceM "removing event..."
+  traceM { et, l, c, t }
+  WebEventT.removeEventListener et l c t
+
+raw_subToEvent
+  :: WebEvent.EventType
+  -> WebEventT.EventTarget
+  -> Edit EventListenerOpts
+  -> (WebEvent.Event -> Run () Unit)
+  -> Effect (XEffWeb Unit)
+raw_subToEvent eType target opts onE = do
+  let o = edit defaultEventListenerOpts opts
+  let tgt = target
+  let evalEvent = eval_ <<< onE
+  el <- raw_addEventListener eType tgt o evalEvent
+  pure $ tagEffWebX $ raw_rmEventListener eType tgt o.capture el
+
+xWebR :: XWebR
+xWebR =
   { window: tagEffWebX HTML.window
   , document: tagEffWebX $ HTML.window >>= Window.document
   , locationUrl: tagEffWebX do
@@ -193,24 +234,27 @@ runXWeb = g1 @XRunR @"xWeb"
       whenJust orEl $ Element.closest (PN.QuerySelector qs)
   , preventDefault: tagEffWebX <<< WebEvent.preventDefault
   , stopPropagation: tagEffWebX <<< WebEvent.stopPropagation
-  , pushState: \f t u -> tagEffWebX do
+  , pushState: \url titleOr_ -> tagEffWebX do
+      let title = jOr' titleOr_
+      let hasTitle = isJust titleOr_
+      let
+        opts =
+          if hasTitle then (encodeForeign { title }) else (encodeForeign {})
       w <- HTML.window
       h <- Window.history w
-      History.pushState f (History.DocumentTitle t) (History.URL u) h
+      History.pushState opts (History.DocumentTitle title) (History.URL url) h
   , setDocumentTitle: \t -> tagEffWebX do
       w <- HTML.window
       d <- Window.document w
       HTMLDoc.setTitle t d
-  , addEventListener: \et t o h -> tagEffWebX do
-      el <- WebEventT.eventListener \e -> pure $ h e
-      WebEventT.addEventListenerWithOptions et el o t
-      pure el
-  , rmEventListener: \et t c l -> tagEffWebX do
-      traceM "removing event..."
-      traceM { et, l, c, t }
-      WebEventT.removeEventListener et l c t
+  , addEventListener: \et t o h -> tagEffWebX $ raw_addEventListener et t o h
+  , subToEvent: \et t o h -> tagEffWebX $ raw_subToEvent et t o h
+  , rmEventListener: \et t c l -> tagEffWebX $ raw_rmEventListener et t c l
   , getAttribute: \attr el -> tagEffWebX $ Element.getAttribute attr el
   }
+
+runXWeb :: forall r. Run (XWebV + r) ~> Run r
+runXWeb = g1 @XRunR @"xWeb" xWebR
 
 type XWebRunner = forall a. XWeb () a -> a
 
