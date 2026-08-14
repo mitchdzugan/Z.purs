@@ -23,9 +23,6 @@ xOnE message = do
       el'onClick $ \_ -> domS'dispatch'' @"count" Reset
       dom'text "reset"
 
-app :: forall dr x. XDom dr x Unit
-app = dom'div $ dom'text "Hello!"
-
 xApp :: forall dr x. UrlSt.XProvider dr x -> XDom dr x Unit
 xApp = router'run'' @"router" printRoute parseUrl mkTitleOr_ do
   r <- router'routeOrE'' @"router"

@@ -26,16 +26,16 @@ xProvideHistoryX
    . (URL -> Maybe String)
   -> (UrlSt.T -> XD.MDom dr (XWebV x) Unit)
   -> XD.MDom dr (XWebV x) Unit
-xProvideHistoryX toTitleOr_ fx = do
+xProvideHistoryX toTitleOr_ urlStateToDom = do
   locUrl <- DOM.xLocationUrl
   let baseUrlState = UrlSt.mk toTitleOr_ locUrl
   let origin = urlOrigin locUrl
-  XD.dom'withNewState baseUrlState \st setSt -> do
+  XD.dom'withNewState baseUrlState \urlState setUrlState -> do
     XD.domUseEff unit do
       doc <- DOM.xDocument
       win <- DOM.xWindow
-      xUpUrl <- pure $ eff'do'' @"domEff" <<< setSt <<< UrlSt.mk toTitleOr_ =<<
-        DOM.xLocationUrl
+      let mkUrlState = UrlSt.mk toTitleOr_ <$> DOM.xLocationUrl
+      let xUpUrl = XD.domEff'do <<< setUrlState =<< mkUrlState
       let { pushState, popState, click } = eventType
       self <- XD.domEff'getSelf
       let pureRun = pure <<< XD.eval'self self
@@ -52,13 +52,10 @@ xProvideHistoryX toTitleOr_ fx = do
                 DOM.xPreventDefault e
                 DOM.xStopPropagation e
                 let fullHref = origin <> href
-                let newUrl = UrlSt.update toTitleOr_ st fullHref
-                when (not (eq st newUrl)) do
+                let newUrl = UrlSt.update toTitleOr_ urlState fullHref
+                whenNot (urlState == newUrl) do
                   DOM.xPushState href newUrl.titleOr_
                   whenJust newUrl.titleOr_ DOM.xSetDocumentTitle
-                  eff'do'' @"domEff" $ setSt newUrl
-      pure do
-        d'pop
-        d'push
-        d'click
-    fx st
+                  XD.domEff'do $ setUrlState newUrl
+      pure $ d'pop *> d'push *> d'click
+    urlStateToDom urlState

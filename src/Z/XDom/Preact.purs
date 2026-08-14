@@ -25,10 +25,7 @@ foreign import js_propsFromPropWs
   :: (PropWF -> String) -> (PropWF -> JsAny) -> Array PropWF -> Json
 
 foreign import js_withState
-  :: forall s
-   . (s -> (s -> Effect Unit) -> Array ReactEl)
-  -> s
-  -> ReactEl
+  :: forall s. (s -> (s -> Effect Unit) -> Array ReactEl) -> s -> ReactEl
 
 foreign import js_withKey :: String -> ReactEl -> ReactEl
 foreign import js_effComponent

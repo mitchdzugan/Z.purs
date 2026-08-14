@@ -8,9 +8,9 @@ module Z.Z.Core
   , P
   , ParseError
   , T'_
-  , T'useAsSym
   , T'comp
   , T'flip
+  , T'useAsSym
   , antiUnit
   , arrDrop
   , arrEmpty
@@ -83,6 +83,7 @@ module Z.Z.Core
   , simpleHash
   , stext
   , tryParseInt
+  , whenNot
   ) where
 
 import Prelude
@@ -125,6 +126,9 @@ rec'set = Record.set
 rec'insert = Record.insert
 rec'merge = Record.merge
 rec'union = Record.union
+
+whenNot :: forall m. Monad m => Boolean -> m Unit -> m Unit
+whenNot b = when (not b)
 
 routePrint :: forall i o. Dup.RouteDuplex i o -> i -> String
 routePrint = Dup.print

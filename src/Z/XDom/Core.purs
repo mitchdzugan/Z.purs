@@ -10,6 +10,7 @@ module Z.XDom.Core
   , MDomV
   , R'Self
   , Self
+  , UseEffTag
   , XDom
   , XDomA
   , XDomE
@@ -20,7 +21,6 @@ module Z.XDom.Core
   , dom'button
   , dom'div
   , dom'element
-  , dom'getEffSelf
   , dom'iframe
   , dom'pre
   , dom'span
@@ -32,7 +32,10 @@ module Z.XDom.Core
   , domE'bind''
   , domE'fail
   , domE'fail''
+  , domEff'do
   , domEff'getSelf
+  , domEff'use
+  , domEff'use''
   , domR'run
   , domR'run''
   , domS'dispatch
@@ -148,20 +151,17 @@ dom'withAdapter fm m = do
   w'tell els
   pure res
 
-domEff'getSelf
-  :: forall x
-   . MDomEff x (Self () (domEff :: Eff'Permit | x))
+domEff'getSelf :: forall x. MDomEff x (Self () (domEff :: Eff'Permit | x))
 domEff'getSelf = r'ask'' @"self"
 
-dom'getEffSelf
-  :: forall dr x
-   . MDom dr x (Self () (domEff :: Eff'Permit | x))
+domEff'do :: forall x a. Eff'At "domEff" a -> Run (domEff :: Eff'Permit | x) a
+domEff'do = eff'do'' @"domEff"
+
+dom'getEffSelf :: forall dr x. MDom dr x (Self () (domEff :: Eff'Permit | x))
 dom'getEffSelf =
   r'ask'' @"self" <#> selfDomless <#> selfExtend (eff'permit'' @"domEff")
 
-el'getEffSelf
-  :: forall dr x
-   . MDomEl dr x (Self () (domEff :: Eff'Permit | x))
+el'getEffSelf :: forall dr x. MDomEl dr x (Self () (domEff :: Eff'Permit | x))
 el'getEffSelf =
   r'ask'' @"self" <#> selfDomless <#> selfExtend (eff'permit'' @"domEff")
 
@@ -286,64 +286,53 @@ domUseEff comp on = do
   w'say $ D.js_effComponent eq comp $ \_ ->
     let r' = eval'self self on in \_ -> eval'self self r'
 
-{- foreign import data DUEffT :: forall k. k -> Type
+foreign import data UseEffTag :: forall k. k -> Type
 
-instance
-  ( Eq a
-  ) =>
-  Generable (DUEffT "")
-    GDefault
-    (a -> Run (MDomEffV sx de) (Run (MDomEffV sx de) Unit) -> MDom sx de Unit) where
+type MD_ dx x = MDom dx x Unit
+type MDE_ x = MDomEff x Unit
+type MDE_D x = MDomEff_D x
+type UEF = UseEffTag ""
+type UEF1 = UseEffTag "1"
+type UEFAll = UseEffTag "*"
+type UEFOn = UseEffTag "+"
+type UEF1On = UseEffTag "+1"
+type UEFAllOn = UseEffTag "+*"
+type UEFOff = UseEffTag "-"
+type UEF1Off = UseEffTag "1-"
+type UEFAllOff = UseEffTag "*-"
+
+instance (Eq a) => Generable UEF GDefault (a -> MDE_D x -> MD_ dx x) where
   mkGenerable = domUseEff
 
-instance
-  Generable (DUEffT "1")
-    GDefault
-    (Run (MDomEffV sx de) (Run (MDomEffV sx de) Unit) -> MDom sx de Unit) where
+instance Generable UEF1 GDefault (MDE_D x -> MD_ dx x) where
   mkGenerable = domUseEff unit
 
-instance
-  Generable (DUEffT "*")
-    GDefault
-    (Run (MDomEffV sx de) (Run (MDomEffV sx de) Unit) -> MDom sx de Unit) where
+instance Generable UEFAll GDefault (MDE_D x -> MD_ dx x) where
   mkGenerable = domUseEff antiUnit
 
-instance
-  ( Eq a
-  ) =>
-  Generable (DUEffT "+") GDefault (a -> MDomEff sx de Unit -> MDom sx de Unit) where
+instance (Eq a) => Generable UEFOn GDefault (a -> MDE_ x -> MD_ dx x) where
   mkGenerable a m = domUseEff a $ m *> pure (pure unit)
 
-instance
-  Generable (DUEffT "+1") GDefault (MDomEff sx de Unit -> MDom sx de Unit) where
+instance Generable UEF1On GDefault (MDE_ x -> MD_ dx x) where
   mkGenerable m = domUseEff unit $ m *> pure (pure unit)
 
-instance
-  Generable
-    (DUEffT "+*'")
-    GDefault
-    (MDomEff sx de Unit -> MDom sx de Unit) where
+instance Generable UEFAllOn GDefault (MDE_ x -> MD_ dx x) where
   mkGenerable m = domUseEff antiUnit $ m *> pure (pure unit)
 
-instance
-  ( Eq a
-  ) =>
-  Generable (DUEffT "-") GDefault (a -> MDomEff sx de Unit -> MDom sx de Unit) where
+instance (Eq a) => Generable UEFOff GDefault (a -> MDE_ x -> MD_ dx x) where
   mkGenerable a m = domUseEff a $ pure m
 
-instance
-  Generable (DUEffT "1-") GDefault (MDomEff sx de Unit -> MDom sx de Unit) where
+instance Generable UEF1Off GDefault (MDE_ x -> MD_ dx x) where
   mkGenerable m = domUseEff unit $ pure m
 
-instance
-  Generable (DUEffT "*-'") GDefault (MDomEff sx de Unit -> MDom sx de Unit) where
+instance Generable UEFAllOff GDefault (MDE_ x -> MD_ dx x) where
   mkGenerable m = domUseEff antiUnit $ pure m
 
-dom'eff :: forall v. Generable (DUEffT "") GDefault v => v
-dom'eff = g @(DUEffT "")
+domEff'use :: forall v. Generable (UseEffTag "") GDefault v => v
+domEff'use = g @(UseEffTag "")
 
-dom'eff'' :: forall @at v. Generable (DUEffT at) GDefault v => v
-dom'eff'' = g @(DUEffT at) -}
+domEff'use'' :: forall @at v. Generable (UseEffTag at) GDefault v => v
+domEff'use'' = g @(UseEffTag at)
 
 type XDom_domElement_ = forall dr x. MDomEl dr x Unit -> MDom dr x Unit
 
