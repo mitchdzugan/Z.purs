@@ -64,8 +64,9 @@ export const js_effComponent = (eq) => (v) => (onNew) =>
   h(EffComponent, { eq, v, onNew });
 
 class BoundedError {
-  constructor(error) {
+  constructor(at, error) {
     this.error = error;
+    this.at = at;
   }
 }
 
@@ -73,16 +74,16 @@ function BoundedErrorComponent(props) {
   try {
     return props.renderChild();
   } catch (err) {
-    if (!(err instanceof BoundedError)) {
+    if (!(err instanceof BoundedError) || err.at !== props.at) {
       throw err;
     }
-    return props.renderError(err.error);
+    return props.renderError(err.error)();
   }
 }
 
-export const js_withBoundedError = (renderError) => (renderChild) =>
-  h(BoundedErrorComponent, { renderError, renderChild });
+export const js_withBoundedError = (at) => (renderError) => (renderChild) =>
+  h(BoundedErrorComponent, { at, renderError, renderChild });
 
-export const js_throwBoundedError = (e) => {
-  throw new BoundedError(e);
+export const js_throwBoundedError = (at) => (e) => {
+  throw new BoundedError(at, e);
 };

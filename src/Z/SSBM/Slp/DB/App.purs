@@ -1,8 +1,8 @@
 module Z.SSBM.Slp.DB.App where
 
-import Z.XDom3.Prelude
+import Z.XDom.Prelude
 
-import Z.XDom3.UrlState as UrlSt
+import Z.XDom.UrlState as UrlSt
 
 data CountAction = Inc | Dec | Reset
 

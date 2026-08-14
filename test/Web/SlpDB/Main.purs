@@ -2,7 +2,7 @@ module Test.Web.SlpDB.Main where
 
 import Web.Z.Prelude
 
-import Web.Z.XDom3 as XDom
+import Web.Z.XDom as XDom
 import Z.SSBM.Slp.DB.App (xApp)
 
 main :: Effect Unit

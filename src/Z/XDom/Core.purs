@@ -1,437 +1,292 @@
 module Z.XDom.Core
-  ( DSRRdc(..)
-  , DUEffT
-  , DomBindE(..)
-  , DomEffAct(..)
-  , DomEffAsk(..)
-  , DomPlusEnv(..)
-  , DomRunR(..)
-  , DomStateDispatch(..)
-  , DomStateSet(..)
+  ( ATTR
+  , DomA
+  , DomATag
+  , DomE
+  , DomETag
   , MDom
   , MDomEff
-  , MDomEffV
   , MDomEl
   , MDomV
-  , MElAttrV
+  , R'Self
+  , Self
   , XDom
-  , XDomEff
-  , XDomEl
-  , dom
-  , dom'bindE
-  , dom'bindE''
-  , dom'eff
-  , dom'eff''
-  , dom'runR
-  , dom'runR''
-  , domEffR'act
-  , domEffR'act''
-  , domEffR'ask
-  , domEffR'ask''
-  , domEffR'do
-  , domEffR'encapsulate
-  , domEffR'run
-  , domEffR'run''
-  , domSelfExtend'
-  , domState'dispatch
-  , domState'dispatch''
-  , domState'get
-  , domState'get''
-  , domState'run
-  , domState'run''
-  , domState'runReducer
-  , domState'set
-  , domState'set''
+  , XDomA
+  , XDomE
+  , XDomEA
+  , class DomXCons
+  , dom'a
+  , dom'article
+  , dom'button
+  , dom'div
+  , dom'element
+  , dom'getEffSelf
+  , dom'iframe
+  , dom'pre
+  , dom'span
+  , dom'text
+  , dom'withAdapter
+  , dom'withKey
+  , dom'withNewState
+  , domE'bind
+  , domE'bind''
+  , domE'fail
+  , domE'fail''
+  , domEff'getSelf
+  , domR'run
+  , domR'run''
+  , domS'dispatch
+  , domS'dispatch''
+  , domS'get
+  , domS'get''
+  , domS'runReducer
+  , domS'runReducer''
+  , domS'runState
+  , domS'runState''
+  , domS'set
+  , domS'set''
   , domUseEff
-  , el
-  , renderM
+  , el'cn
+  , el'cnW
+  , el'href
+  , el'key
+  , el'onClick
+  , eval'self
+  , exec'xdom
   ) where
 
 import Z.Prelude
-import Z.XDom.Preact
-import Z.XDom.XSelf
 
-import Record (get, insert)
+import Z.XDom.Preact as D
 
-type MDomV sx de = (self :: R' $ XSelf sx, effEnv :: R' de | sx)
-type MDom sx de a = Run (Wa ReactEl $ MDomV sx de) a
+data Runner x = Runner (forall a. Run x a -> Run () a)
 
-type MElAttrV x = (attr :: W' $ Array PropWF | x)
-type MDomEl sx de a = Run (MElAttrV $ Wa ReactEl $ Wa ReactEl $ MDomV sx de) a
+data Self dx x = Self (Runner dx) (Runner x)
+type EffSelf x = Self () x
 
-type MDomEffV sx de = (domEff :: Eff'Permit, effEnv :: R' de | sx)
-type MDomEff sx de a = Run (MDomEffV sx de) a
+type R'Self dx x = R' (Self dx x)
 
-type XDom sx de a = MDom (XBASE sx) de a
-type XDomEff sx de a = MDomEff (XBASE sx) de a
-type XDomEl sx de a = MDomEl (XBASE sx) de a
+eval'self :: forall dr x a. Self dr x -> Run (MDomV dr x) a -> a
+eval'self self@(Self _ (Runner rn)) m =
+  eval_ $ rn $ r'run'' @"self" self $ m
 
-dom
-  :: { render :: XDom () {} Unit -> ReactEl
-     , withKey :: XDom_withKey
-     , withNewState :: XDom_withNewState
-     , text :: forall t sx de. SText t => t -> MDom sx de Unit
-     , div :: XDom_domElement_
-     , button :: XDom_domElement_
-     , a :: XDom_domElement_
-     , iframe :: XDom_domElement_
-     , article :: XDom_domElement_
-     , pre :: XDom_domElement_
-     , span :: XDom_domElement_
-     , doEff ::
-         forall x a
-          . Eff'At "domEff" a
-         -> Run (domEff :: Eff'Permit | x) a
-     }
-dom =
-  { render: renderMEl baseXSelf {}
-  , withKey
-  , withNewState
-  , text: w'say <<< js_textEl <<< stext
-  , div: domElement "div"
-  , button: domElement "button"
-  , a: domElement "a"
-  , iframe: domElement "iframe"
-  , article: domElement "article"
-  , pre: domElement "pre"
-  , span: domElement "span"
-  , doEff: g1 @XDoTagged @"domEff"
-  }
+selfExtend
+  :: forall dr x' x. (forall a. Run x a -> Run x' a) -> Self dr x' -> Self dr x
+selfExtend fm (Self dr (Runner rn)) = Self dr (Runner (rn <<< fm))
 
-el
-  :: { key :: forall sx de. String -> MDomEl sx de Unit
-     , cn :: forall sx de. String -> MDomEl sx de Unit
-     , cnW :: forall sx de. ((String -> StrW) -> StrW) -> MDomEl sx de Unit
-     , href :: forall sx de. String -> MDomEl sx de Unit
-     , onClick :: forall sx de. (Int -> MDomEff sx de Unit) -> MDomEl sx de Unit
-     }
-el =
-  { key: w'tell'' @"attr" <<< pure <<< PKey
-  , cn: w'tell'' @"attr" <<< pure <<< ClassName
-  , cnW: \fm -> w'tell'' @"attr" $ pure $ ClassName $ joinStrW " " $ fm $
-      w'say
-  , href: w'tell'' @"attr" <<< pure <<< Href
-  , onClick: \f -> do
-      effEnv <- r'ask'' @"effEnv"
-      self' <- elSelfExtend'
-        (eff'permit'' @"domEff" <<< r'run'' @"effEnv" effEnv)
-      w'tell'' @"attr" $ pure $ OnClick $ \e -> runUnit self' $ f e
-  }
+selfExtendDom
+  :: forall dx' dx x
+   . (forall a. Run dx a -> Run dx' a)
+  -> Self dx' x
+  -> Self dx x
+selfExtendDom fm (Self (Runner rn) r) = Self (Runner (rn <<< fm)) r
+
+selfDomless :: forall dx x. Self dx x -> Self () x
+selfDomless (Self _ r) = Self (Runner id) r
+
+type MDomV dx x = (self :: R'Self dx x | x)
+
+type MDom dr x a = Run (Wa D.ReactEl (MDomV dr x)) a
+
+type ATTR x = (attr :: W' $ Array D.PropWF | x)
+type MDomEl fdx x a = Run (ATTR (Wa D.ReactEl (Wa D.ReactEl (MDomV fdx x)))) a
+type MDomEff x a = Run (MDomV () (domEff :: Eff'Permit | x)) a
+
+foreign import data DomETag :: Type
+foreign import data DomATag :: Type
+
+type DomE e = R' $ Proxy $ DomETag /\ e
+type DomA = R' $ Proxy DomATag
+
+--------------------------------------------------------------------------------
+type MDomVX x = Wa D.ReactEl x
+
+class Cons p f (MDomVX x') (MDomVX x) <= DomXCons p f x' x
 
 --------------------------------------------------------------------------------
 
-renderM :: forall sx de. XSelf sx -> de -> MDom sx de Unit -> Array ReactEl
-renderM self effEnv m = runEls self
-  $ w'exec
-  $ r'run'' @"self" self
-  $ r'run'' @"effEnv" effEnv
-  $ m
+renderM
+  :: forall dr x. Self dr x -> MDom dr x Unit -> Array D.ReactEl
+renderM self m = eval'self self $ w'exec m
 
-renderMEl :: forall sx de. XSelf sx -> de -> MDom sx de Unit -> ReactEl
-renderMEl self effEnv = js_renderFragment <<< renderM self effEnv
+renderMEl :: forall dr x. Self dr x -> MDom dr x Unit -> D.ReactEl
+renderMEl self = D.js_renderFragment <<< renderM self
 
-type XDom_withKey = forall sx de. String -> MDom sx de Unit -> MDom sx de Unit
-
-withKey :: XDom_withKey
-withKey k m = do
+domRenderM :: forall dr x. MDom dr x Unit -> MDom dr x (Array D.ReactEl)
+domRenderM m = do
   self <- r'ask'' @"self"
-  effEnv <- r'ask'' @"effEnv"
-  w'say $ js_withKey k $ renderMEl self effEnv m
+  pure $ renderM self m
 
-type XDom_withNewState =
-  forall sx de s
+domRenderMEl :: forall dr x. MDom dr x Unit -> MDom dr x D.ReactEl
+domRenderMEl m = domRenderM m <#> D.js_renderFragment
+
+--------------------------------------------------------------------------------
+
+dom'withKey :: forall dr x. String -> MDom dr x Unit -> MDom dr x Unit
+dom'withKey k m = domRenderMEl m >>= w'say <<< D.js_withKey k
+
+dom'withNewState
+  :: forall sx de s
    . s
   -> (s -> (s -> Eff'At "domEff" Unit) -> MDom sx de Unit)
   -> MDom sx de Unit
-
-withNewState :: XDom_withNewState
-withNewState initalState fm = do
+dom'withNewState initalState fm = do
   self <- r'ask'' @"self"
-  effEnv <- r'ask'' @"effEnv"
-  w'say $ js_withState (renderFn self effEnv) initalState
+  w'say $ D.js_withState (renderFn self) initalState
   where
-  renderFn self effEnv s ss = renderM self effEnv $ fm s (w ss)
+  renderFn self s ss = renderM self $ fm s (w ss)
   w ss s = tagEffX @"domEff" $ ss s
 
---------------------------------------------------------------------------------
+dom'withAdapter
+  :: forall dr x' x ret
+   . (forall a. Run x a -> Run x' a)
+  -> MDom dr x ret
+  -> MDom dr x' ret
+dom'withAdapter fm m = do
+  self <- r'ask'' @"self" <#> selfExtend fm
+  let els /\ res = eval'self self $ w'run m
+  w'tell els
+  pure res
 
-domSelfExtend'
-  :: forall sx' sx de
-   . (forall a. Run sx a -> Run sx' a)
-  -> MDom sx' de (XSelf sx)
-domSelfExtend' m = r'ask'' @"self" <#> xSelfExtend' m
+domEff'getSelf
+  :: forall x
+   . MDomEff x (Self () (domEff :: Eff'Permit | x))
+domEff'getSelf = r'ask'' @"self"
 
-elSelfExtend'
-  :: forall sx' sx de
-   . (forall a. Run sx a -> Run sx' a)
-  -> MDomEl sx' de (XSelf sx)
-elSelfExtend' m = r'ask'' @"self" <#> xSelfExtend' m
+dom'getEffSelf
+  :: forall dr x
+   . MDom dr x (Self () (domEff :: Eff'Permit | x))
+dom'getEffSelf =
+  r'ask'' @"self" <#> selfDomless <#> selfExtend (eff'permit'' @"domEff")
 
---------------------------------------------------------------------------------
-
-data DomRunR
-
-instance
-  ( GOrDefault "reader" gdesc rp
-  , IsSymbol rp
-  , Cons rp (R' r) sx' sx
-  ) =>
-  Generable DomRunR gdesc (r -> MDom sx de Unit -> MDom sx' de Unit) where
-  mkGenerable env m = do
-    effEnv <- r'ask'' @"effEnv"
-    self' <- domSelfExtend' (r'run'' @rp env)
-    w'tell $ renderM self' effEnv m
-
-dom'runR :: forall v. Generable DomRunR GDefault v => v
-dom'runR = g @DomRunR
-
-dom'runR'' :: forall @at v. Generable DomRunR (G1 at) v => v
-dom'runR'' = g1 @DomRunR @at
+el'getEffSelf
+  :: forall dr x
+   . MDomEl dr x (Self () (domEff :: Eff'Permit | x))
+el'getEffSelf =
+  r'ask'' @"self" <#> selfDomless <#> selfExtend (eff'permit'' @"domEff")
 
 --------------------------------------------------------------------------------
 
-data DomPlusEnv
-
-instance
-  ( GOrDefault "reader" gdesc rp
-  , IsSymbol rp
-  , Cons rp r de' de
-  , Lacks rp de'
-  ) =>
-  Generable DomPlusEnv
-    gdesc
-    ( r
-      -> MDom sx { | de } Unit
-      -> MDom sx { | de' } Unit
-    ) where
-  mkGenerable env m = do
-    currEnv <- r'ask'' @"effEnv"
-    let nextEnv = insert (p @rp) env currEnv
-    self <- r'ask'' @"self"
-    w'tell $ renderM self nextEnv m
-
-domEffR'run :: forall v. Generable DomPlusEnv GDefault v => v
-domEffR'run = g @DomPlusEnv
-
-domEffR'run'' :: forall @at v. Generable DomPlusEnv (G1 at) v => v
-domEffR'run'' = g1 @DomPlusEnv @at
-
-data DomEffAsk
-
-instance
-  ( GOrDefault "reader" gdesc rp
-  , IsSymbol rp
-  , Cons rp r de' de
-  ) =>
-  Generable DomEffAsk gdesc (Run (effEnv :: R' { | de } | x) r) where
-  mkGenerable = r'ask'' @"effEnv" <#> get (p @rp)
-
-domEffR'ask :: forall v. Generable DomEffAsk GDefault v => v
-domEffR'ask = g @DomEffAsk
-
-domEffR'ask'' :: forall @at v. Generable DomEffAsk (G1 at) v => v
-domEffR'ask'' = g1 @DomEffAsk @at
-
-data DomEffAct
-
-instance
-  ( GOrDefault "reader" gdesc rp
-  , IsSymbol rp
-  , Cons rp r de' de
-  ) =>
-  Generable DomEffAct
-    gdesc
-    ((r -> Eff'At rp a) -> Run (effEnv :: R' { | de } | x) a) where
-  mkGenerable getEff =
-    r'ask'' @"effEnv" <#> get (p @rp) <#> getEff <#> (#) <#> useTag @rp
-
-domEffR'act :: forall v. Generable DomEffAct GDefault v => v
-domEffR'act = g @DomEffAct
-
-domEffR'act'' :: forall @at v. Generable DomEffAct (G1 at) v => v
-domEffR'act'' = g1 @DomEffAct @at
-
-domEffR'encapsulate
-  :: forall a de x. Run (effEnv :: R' { | de } | x) (XDomEff () { | de } a -> a)
-domEffR'encapsulate =
-  r'encapsulate'' @"effEnv" <#> flip (<<<) (eff'permit'' @"domEff")
-
-domEffR'do
-  :: forall p x dx' dx r a
+type T'domR'run p =
+  forall r x' x dr ret
    . IsSymbol p
-  => Cons p r dx' dx
-  => Eff'At p a
-  -> Run (effEnv :: R' { | dx } | x) a
-domEffR'do eff = domEffR'act'' @p (const eff)
+  => Cons p (R' r) x' x
+  => r
+  -> MDom dr x ret
+  -> MDom dr x' ret
+
+domR'run'' :: forall @p. T'domR'run p
+domR'run'' env m = dom'withAdapter (r'run'' @p env) m
+
+domR'run :: forall p. T'use'r'AsSym p T'domR'run
+domR'run = domR'run'' @p
 
 --------------------------------------------------------------------------------
 
-data DomBindE
+type T'domE'bind e p =
+  forall dx' dx x
+   . IsSymbol p
+  => Cons p (DomE e) dx' dx
+  => (->) e $ MDom dx' x Unit
+  -> MDom dx x Unit
+  -> MDom dx' x Unit
 
-instance
-  ( Cons ep (E' e) sx' sx
-  , IsSymbol ep
-  , GOrDefault "except" gdesc ep
-  ) =>
-  Generable DomBindE
-    gdesc
-    ((e -> MDom sx' de Unit) -> MDom sx de Unit -> MDom sx' de Unit) where
-  mkGenerable em m = do
-    effEnv <- r'ask'' @"effEnv"
-    self <- r'ask'' @"self"
-    self' <- r'ask'' @"self" <#> xSelfExtend @(Either e)
-      (g1 @XTry @ep)
-      ( \eOr -> case eOr of
-          (Left e) -> js_throwBoundedError e
-          (Right v) -> v
-      )
-      ( \eOr -> case eOr of
-          (Left _) -> unit
-          (Right v) -> v
-      )
-      ( \eOr -> case eOr of
-          (Left _) -> pure unit
-          (Right v) -> v
-      )
-    w'say $ js_withBoundedError (rErr self effEnv) (rMain self' effEnv)
-    where
-    rMain self effEnv = \_ -> renderMEl self effEnv m
-    rErr self effEnv e = renderMEl self effEnv $ em e
+domE'bind'' :: forall @p e. T'domE'bind e p
+domE'bind'' em m = do
+  oldSelf <- r'ask'' @"self"
+  let self = selfExtendDom (r'run'' @p (Proxy @(DomETag /\ e))) oldSelf
+  w'say $ D.js_withBoundedError (reflectSymbol $ p @p)
+    (\e _ -> renderMEl oldSelf $ em e)
+    (\_ -> renderMEl self m)
 
-dom'bindE :: forall v. Generable DomBindE GDefault v => v
-dom'bindE = g @DomBindE
+domE'bind :: forall e p. T'use'e'AsSym p $ T'domE'bind e
+domE'bind = domE'bind'' @p
 
-dom'bindE'' :: forall @at v. Generable DomBindE (G1 at) v => v
-dom'bindE'' = g1 @DomBindE @at
+type T'domE'fail p =
+  forall e dx' dx x xx a
+   . IsSymbol p
+  => Cons p (DomE e) dx' dx
+  => e
+  -> Run (self :: R'Self dx x | xx) a
+
+domE'fail'' :: forall @p. T'domE'fail p
+domE'fail'' e = r'ask'' @"self" <#> \_ ->
+  D.js_throwBoundedError (reflectSymbol $ Proxy @p) e
+
+domE'fail :: forall p. T'use'e'AsSym p $ T'domE'fail
+domE'fail = domE'fail'' @p
 
 --------------------------------------------------------------------------------
 
-data DSRRdc
+type T'domS'runable s a tf p =
+  forall dr x' x
+   . IsSymbol p
+  => Cons p (R'Rec (get :: s, update :: a -> Eff'At "domEff" Unit)) x' x
+  => (tf (MDom dr x Unit -> MDom dr x' Unit))
 
-instance
-  ( GOrDefault "reader" gspec rp
-  , IsSymbol rp
-  , Cons rp (R' { get :: s, update :: a -> Eff'At "domEff" Unit }) sx' sx
-  ) =>
-  Generable DSRRdc
-    gdesc
-    (s -> (s -> a -> s) -> MDom sx de Unit -> MDom sx' de Unit) where
-  mkGenerable initState act m = do
-    dom.withNewState initState \state set -> do
-      let env = { update: set <<< act state, get: state }
-      dom'runR'' @rp env m
+type Tf'reducer s a res = s -> (s -> a -> s) -> res
+type T'domS'runReducer p = forall s a. T'domS'runable s a (Tf'reducer s a) p
 
-domStateRunReducerImpl :: forall v. Generable DSRRdc GDefault v => v
-domStateRunReducerImpl = g @DSRRdc
+domS'runReducer'' :: forall @p. T'domS'runReducer p
+domS'runReducer'' inits ups m = dom'withNewState inits \s sets -> do
+  domR'run'' @p { get: s, update: sets <<< ups s } m
 
-domState'runReducer
-  :: forall @rp sx' sx de s a
-   . IsSymbol rp
-  => Cons rp (R' { get :: s, update :: a -> Eff'At "domEff" Unit }) sx' sx
-  => s
-  -> (s -> a -> s)
-  -> MDom sx de Unit
-  -> MDom sx' de Unit
-domState'runReducer initState act m = do
-  dom.withNewState initState \state set -> do
-    let env = { update: set <<< act state, get: state }
-    dom'runR'' @rp env m
+domS'runReducer :: forall @p. T'useAsSym "state" p T'domS'runReducer
+domS'runReducer = domS'runReducer'' @p
 
-domState'run
-  :: forall s r. Generable DSRRdc GDefault (s -> (s -> s -> s) -> r) => s -> r
-domState'run initState = domStateRunReducerImpl initState (\_ newS -> newS)
+type Tf'state s res = s -> res
+type T'domS'run p = forall s. T'domS'runable s s (Tf'state s) p
 
-domState'run''
-  :: forall @rp sx' sx de s
-   . IsSymbol rp
-  => Cons rp (R' { get :: s, update :: s -> Eff'At "domEff" Unit }) sx' sx
-  => s
-  -> MDom sx de Unit
-  -> MDom sx' de Unit
-domState'run'' initState = domState'runReducer @rp initState (\_ newS -> newS)
+domS'runState'' :: forall @p. T'domS'run p
+domS'runState'' inits m = dom'withNewState inits \s sets -> do
+  domR'run'' @p { get: s, update: sets } m
 
-data DomStateDispatch
+domS'runState :: forall @p. T'use's'AsSym p T'domS'run
+domS'runState = domS'runState'' @p
 
-instance
-  ( GOrDefault "reader" gspec rp
-  , IsSymbol rp
-  , Cons rp (R' { update :: a -> Eff'At "domEff" Unit | rs })
-      (domEff :: Eff'Permit | x')
-      (domEff :: Eff'Permit | x)
-  ) =>
-  Generable DomStateDispatch
-    gdesc
-    (a -> Run (domEff :: Eff'Permit | x) Unit) where
-  mkGenerable a = do
-    r <- r'ask'' @rp
-    dom.doEff $ r.update a
+type T'domS'get p =
+  forall s x' x r. IsSymbol p => Cons p (R'Rec (get :: s | r)) x' x => Run x s
 
-domState'dispatch :: forall v. Generable DomStateDispatch GDefault v => v
-domState'dispatch = g @DomStateDispatch
+domS'get'' :: forall @p. T'domS'get p
+domS'get'' = r'ask'' @p <#> _.get
 
-domState'dispatch''
-  :: forall @rp a rs x' x
-   . IsSymbol rp
-  => Cons rp (R' { update :: a -> Eff'At "domEff" Unit | rs })
+domS'get :: forall p. T'use's'AsSym p T'domS'get
+domS'get = domS'get'' @p
+
+type T'domS'setable s a p =
+  forall x' x r
+   . IsSymbol p
+  => Cons p (R'Rec (get :: s, update :: a -> Eff'At "domEff" Unit | r))
        (domEff :: Eff'Permit | x')
        (domEff :: Eff'Permit | x)
   => a
   -> Run (domEff :: Eff'Permit | x) Unit
-domState'dispatch'' a = do
-  r <- r'ask'' @rp
-  dom.doEff $ r.update a
 
-data DomStateSet
+type T'domS'dispatch p = forall s a. T'domS'setable s a p
 
-instance
-  ( GOrDefault "reader" gspec rp
-  , IsSymbol rp
-  , Cons rp (R' { get :: s, update :: s -> Eff'At "domEff" Unit | rs })
-      (domEff :: Eff'Permit | x')
-      (domEff :: Eff'Permit | x)
-  ) =>
-  Generable DomStateSet
-    gdesc
-    (s -> Run (domEff :: Eff'Permit | x) Unit) where
-  mkGenerable a = do
-    r <- r'ask'' @rp
-    dom.doEff $ r.update a
+domS'dispatch'' :: forall @p. T'domS'dispatch p
+domS'dispatch'' a = r'ask'' @p >>= \r -> eff'do'' @"domEff" (r.update a)
 
-domState'set :: forall v. Generable DomStateSet GDefault v => v
-domState'set = g @DomStateSet
+domS'dispatch :: forall p. T'use's'AsSym p T'domS'dispatch
+domS'dispatch = domS'dispatch'' @p
 
-domState'set'' :: forall @at v. Generable DomStateSet (G1 at) v => v
-domState'set'' = g1 @DomStateSet @at
+type T'domS'set p = forall s. T'domS'setable s s p
 
-type DomState'get rp =
-  forall s rs x' x
-   . IsSymbol rp
-  => Cons rp (R' { get :: s | rs }) x' x
-  => Run x s
+domS'set'' :: forall @p. T'domS'set p
+domS'set'' = domS'dispatch'' @p
 
-type WithSymAs s p t = IsSymbol p => TypeEquals p s => t p
+domS'set :: forall p. T'use's'AsSym p T'domS'set
+domS'set = domS'set'' @p
 
-domState'get :: forall p. WithSymAs "reader" p DomState'get
-domState'get = domState'get'' @p
+type MDomEff_D x = MDomEff x (MDomEff x Unit)
 
-domState'get'' :: forall @rp. DomState'get rp
-domState'get'' = r'ask'' @rp <#> _.get
-
---------------------------------------------------------------------------------
-
-domUseEff
-  :: forall sx de a
-   . Eq a
-  => a
-  -> Run (MDomEffV sx de) (Run (MDomEffV sx de) Unit)
-  -> MDom sx de Unit
+domUseEff :: forall dr x a. Eq a => a -> MDomEff_D x -> MDom dr x Unit
 domUseEff comp on = do
-  effEnv <- r'ask'' @"effEnv"
-  self' <- domSelfExtend' (eff'permit'' @"domEff" <<< r'run'' @"effEnv" effEnv)
-  w'say $ js_effComponent eq comp $ \_ ->
-    let r' = runDisposable self' on in \_ -> runUnit self' (r' unit)
+  self <- dom'getEffSelf
+  w'say $ D.js_effComponent eq comp $ \_ ->
+    let r' = eval'self self on in \_ -> eval'self self r'
 
-foreign import data DUEffT :: forall k. k -> Type
+{- foreign import data DUEffT :: forall k. k -> Type
 
 instance
   ( Eq a
@@ -488,13 +343,69 @@ dom'eff :: forall v. Generable (DUEffT "") GDefault v => v
 dom'eff = g @(DUEffT "")
 
 dom'eff'' :: forall @at v. Generable (DUEffT at) GDefault v => v
-dom'eff'' = g @(DUEffT at)
+dom'eff'' = g @(DUEffT at) -}
 
-type XDom_domElement_ = forall sx de. MDomEl sx de Unit -> MDom sx de Unit
+type XDom_domElement_ = forall dr x. MDomEl dr x Unit -> MDom dr x Unit
 
-domElement :: String -> XDom_domElement_
-domElement s m = do
+dom'element :: String -> XDom_domElement_
+dom'element s m = do
   (propWFs /\ elBuild) <- g1 @XRunW @"attr" $ w'exec m
-  let props = js_propsFromPropWs propWFKey propWFVal propWFs
-  w'say $ js_renderEl s (encodeOpts props) elBuild
+  let props = D.js_propsFromPropWs D.propWFKey D.propWFVal propWFs
+  w'say $ D.js_renderEl s (encodeOpts props) elBuild
 
+dom'text :: forall t dr x. SText t => t -> MDom dr x Unit
+dom'text = w'say <<< D.js_textEl <<< stext
+
+el'key :: forall dr x. String -> MDomEl dr x Unit
+el'key = w'tell'' @"attr" <<< pure <<< D.PKey
+
+el'href :: forall dr x. String -> MDomEl dr x Unit
+el'href = w'tell'' @"attr" <<< pure <<< D.Href
+
+el'cn :: forall dr x. String -> MDomEl dr x Unit
+el'cn = w'tell'' @"attr" <<< pure <<< D.ClassName
+
+el'cnW :: forall dr x. ((String -> StrW) -> StrW) -> MDomEl dr x Unit
+el'cnW fm = el'cn $ joinStrW " " $ fm $ w'say
+
+el'onClick :: forall dr x. (Int -> MDomEff x Unit) -> MDomEl dr x Unit
+el'onClick f = do
+  self <- el'getEffSelf
+  w'tell'' @"attr" $ pure $ D.OnClick $ \e -> eval'self self $ f e
+
+type XDom dr x a = MDom dr (XBASE x) a
+type XDomA dx x a = XDom (async :: DomA | dx) x a
+type XDomE e dx x a = XDom (except :: (DomE e) | dx) x a
+type XDomEA e dx x a = XDom (except :: (DomE e), async :: DomA | dx) x a
+
+type XDom_ dr x = T'_ $ XDom dr x
+type XDomA_ dr x = T'_ $ XDom dr x
+type XDomE_ e dr x = T'_ $ XDomE e dr x
+type XDomEA_ e dr x = T'_ $ XDomEA e dr x
+
+baseSelf :: Self () ()
+baseSelf = Self (Runner id) (Runner id)
+
+exec'xdom :: XDom_ () () -> D.ReactEl
+exec'xdom = renderMEl $ selfDomless $ selfExtend runXBase baseSelf
+
+dom'div :: XDom_domElement_
+dom'div = dom'element "div"
+
+dom'a :: XDom_domElement_
+dom'a = dom'element "a"
+
+dom'button :: XDom_domElement_
+dom'button = dom'element "button"
+
+dom'pre :: XDom_domElement_
+dom'pre = dom'element "pre"
+
+dom'span :: XDom_domElement_
+dom'span = dom'element "span"
+
+dom'article :: XDom_domElement_
+dom'article = dom'element "article"
+
+dom'iframe :: XDom_domElement_
+dom'iframe = dom'element "iframe"

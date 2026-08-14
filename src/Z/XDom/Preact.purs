@@ -39,9 +39,9 @@ foreign import js_effComponent
   -> ReactEl
 
 foreign import js_withBoundedError
-  :: forall e. (e -> ReactEl) -> (Unit -> ReactEl) -> ReactEl
+  :: forall e. String -> (e -> Unit -> ReactEl) -> (Unit -> ReactEl) -> ReactEl
 
-foreign import js_throwBoundedError :: forall e a. e -> a
+foreign import js_throwBoundedError :: forall e a. String -> e -> a
 
 data PropWF
   = Href String

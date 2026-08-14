@@ -6,7 +6,6 @@ module Web.Z.XDom.Preact
 
 import Web.Z.Prelude
 
-import Debug (traceM)
 import Web.Z.Web.DOM as DOM
 import Z.XDom.Prelude as XD
 import Z.XDom.UrlState as UrlSt
@@ -17,63 +16,49 @@ xPreactHydrate :: forall x. Element -> XD.ReactEl -> EA JsError x #> Unit
 xPreactHydrate d r = g @XRunEffPromise $ js_renderIn r d
 
 xDomRunWeb
-  :: forall sx de
-   . Lacks "xWeb" de
-  => XD.MDom sx { xWeb :: XWebR | de } Unit
-  -> XD.MDom sx { | de } Unit
-xDomRunWeb = XD.domEffR'run'' @"xWeb" DOM.xWebR
+  :: forall dr x
+   . XD.MDom dr (XWebV x) Unit
+  -> XD.MDom dr x Unit
+xDomRunWeb = XD.dom'withAdapter DOM.runXWeb
 
 xProvideHistoryX
-  :: forall sx de
+  :: forall dr x
    . (URL -> Maybe String)
-  -> (UrlSt.T -> XD.MDom (sx) { xWeb :: XWebR | de } Unit)
-  -> XD.MDom (sx) { xWeb :: XWebR | de } Unit
+  -> (UrlSt.T -> XD.MDom dr (XWebV x) Unit)
+  -> XD.MDom dr (XWebV x) Unit
 xProvideHistoryX toTitleOr_ fx = do
-  locUrl <- XD.domEffR'act'' @"xWeb" _.locationUrl
+  locUrl <- DOM.xLocationUrl
   let baseUrlState = UrlSt.mk toTitleOr_ locUrl
   let origin = urlOrigin locUrl
-  XD.dom.withNewState baseUrlState \st setSt -> do
-    XD.dom'eff'' @"1" do
-      let actWeb = XD.domEffR'act'' @"xWeb"
-      doc <- actWeb _.document
-      win <- actWeb _.window
-      xUpUrl <- pure $ XD.dom.doEff <<< setSt <<< UrlSt.mk toTitleOr_ =<<
-        actWeb _.locationUrl
-      let { pushState, popState } = eventType
-      runner <- XD.domEffR'encapsulate
-      d'pop <- actWeb \r -> r.subToEvent popState
-        (toEventTarget win)
-        pass
-        \_ -> pure $ runner xUpUrl
-      d'push <- actWeb \r -> r.subToEvent pushState
-        (toEventTarget win)
-        pass
-        \_ -> pure $ runner xUpUrl
-      d'click <- actWeb \r -> r.subToEvent eventType.click
-        (toEventTarget doc)
-        pass
-        \e -> pure $ runner do
-          let orTarget = evTarget e
-          whenJust orTarget \target -> do
-            orClosest <- actWeb \r -> r.closest "a" target
-            whenJust orClosest \closest -> do
-              orHref <- actWeb \r -> r.getAttribute "href" closest
-              whenJust orHref \href -> do
-                when (strStartsWith "/" href) do
-                  actWeb \r -> r.preventDefault e
-                  actWeb \r -> r.stopPropagation e
-                  let fullHref = origin <> href
-                  let newUrl = UrlSt.update toTitleOr_ st fullHref
-                  when (not (eq st newUrl)) do
-                    actWeb \r -> r.pushState href newUrl.titleOr_
-                    xOut newUrl.titleOr_
-                    whenJust newUrl.titleOr_ $ \s -> actWeb \r ->
-                      r.setDocumentTitle s
-                    XD.dom.doEff $ setSt newUrl
-      traceM "IN PURE ON"
+  XD.dom'withNewState baseUrlState \st setSt -> do
+    XD.domUseEff unit do
+      doc <- DOM.xDocument
+      win <- DOM.xWindow
+      xUpUrl <- pure $ eff'do'' @"domEff" <<< setSt <<< UrlSt.mk toTitleOr_ =<<
+        DOM.xLocationUrl
+      let { pushState, popState, click } = eventType
+      self <- XD.domEff'getSelf
+      let pureRun = pure <<< XD.eval'self self
+      d'pop <- DOM.xAddEventListener popState win pass \_ -> pureRun xUpUrl
+      d'push <- DOM.xAddEventListener pushState win pass \_ -> pureRun xUpUrl
+      d'click <- DOM.xAddEventListener click doc pass \e -> pureRun do
+        let orTarget = evTarget e
+        whenJust orTarget \target -> do
+          orClosest <- DOM.xClosest target "a"
+          whenJust orClosest \closest -> do
+            orHref <- DOM.xGetAttribute closest "href"
+            whenJust orHref \href -> do
+              when (strStartsWith "/" href) do
+                DOM.xPreventDefault e
+                DOM.xStopPropagation e
+                let fullHref = origin <> href
+                let newUrl = UrlSt.update toTitleOr_ st fullHref
+                when (not (eq st newUrl)) do
+                  DOM.xPushState href newUrl.titleOr_
+                  whenJust newUrl.titleOr_ DOM.xSetDocumentTitle
+                  eff'do'' @"domEff" $ setSt newUrl
       pure do
-        traceM "IN PURE OFF"
-        XD.domEffR'do d'pop
-        XD.domEffR'do d'push
-        XD.domEffR'do d'click
+        d'pop
+        d'push
+        d'click
     fx st

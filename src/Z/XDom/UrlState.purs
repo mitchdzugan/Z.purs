@@ -47,7 +47,7 @@ update toTitleOr_ state s = onParse $ urlFromString s
     , titleOr_: toTitleOr_ state.url
     }
 
-type RProvider sx de =
-  (URL -> Maybe String) -> (T -> XD.MDom sx de Unit) -> XD.MDom sx de Unit
+type RProvider dr x =
+  (URL -> Maybe String) -> (T -> XD.MDom dr x Unit) -> XD.MDom dr x Unit
 
-type XProvider sx de = RProvider (XBASE sx) de
+type XProvider dr x = RProvider dr (XBASE x)
