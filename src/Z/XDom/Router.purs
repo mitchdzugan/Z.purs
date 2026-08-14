@@ -9,11 +9,11 @@ module Z.XDom.Router
   , class ConsR
   , router''href
   , router''routeOrE
-  , router''run
+  , router'run
   , router''urlState
   , router'href
   , router'routeOrE
-  , router'run
+  , router'run''
   , router'urlState
   ) where
 
@@ -50,7 +50,7 @@ instance
   mkGenerable print parse mkTitle m provider = do
     provider toTitleOr_ \urlState -> do
       let routeOrE = parse urlState.url
-      XDom.dom'runR @p { routeOrE, print, urlState } m
+      XDom.dom'runR'' @p { routeOrE, print, urlState } m
     where
     toTitleOr_ url = finTitle url $ parse url
     finTitle url routeOrE = mkTitle { url, routeOrE }
@@ -92,7 +92,7 @@ instance
     (r -> Run' (attr :: W' (Array PropWF) | x)) where
   mkGenerable route = do
     href <- g1 @XAsk @p <#> _.print <#> (#) route
-    w'tell @"attr" $ pure $ Href href
+    w'tell'' @"attr" $ pure $ Href href
 
 -------------------------------------------------------------------------------
 
@@ -114,8 +114,8 @@ router''routeOrE = g @XDomRouteOrE
 router'routeOrE :: forall @at v. Generable XDomRouteOrE (G1 at) v => v
 router'routeOrE = g1 @XDomRouteOrE @at
 
-router''run :: forall v. Generable XDomRunRouter GDefault v => v
-router''run = g @XDomRunRouter
+router'run :: forall v. Generable XDomRunRouter GDefault v => v
+router'run = g @XDomRunRouter
 
-router'run :: forall @at v. Generable XDomRunRouter (G1 at) v => v
-router'run = g1 @XDomRunRouter @at
+router'run'' :: forall @at v. Generable XDomRunRouter (G1 at) v => v
+router'run'' = g1 @XDomRunRouter @at

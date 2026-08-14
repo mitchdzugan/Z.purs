@@ -5,7 +5,9 @@ module Z.Z.X.Core
   , E
   , EA
   , Edit
+  , Eff'Permit
   , R
+  , R'Rec
   , RA
   , RE
   , REA
@@ -35,6 +37,10 @@ module Z.Z.X.Core
   , SE
   , SEA
   , StrW
+  , T'use'e'AsSym
+  , T'use'r'AsSym
+  , T'use's'AsSym
+  , T'use'w'AsSym
   , W
   , WA
   , WE
@@ -61,7 +67,6 @@ module Z.Z.X.Core
   , XEvalS
   , XEvalW
   , XExecS
-  , XExecW
   , XFail
   , XFromE
   , XGet
@@ -97,8 +102,6 @@ module Z.Z.X.Core
   , XRunTaggable
   , XRunW
   , XRunWA
-  , XRunsEffTagged
-  , XSay
   , XSet
   , XSet_
   , XTell
@@ -128,34 +131,41 @@ module Z.Z.X.Core
   , class GOrW
   , class XGetterTypes
   , edit
-  , eff''permit
+  , eff'do
+  , eff'do''
   , eff'permit
+  , eff'permit''
+  , eff'withPermit
   , evalX
   , evalXA
   , joinStrW
-  , r''act
-  , r''ask
-  , r''encapsulate
-  , r''run
   , r'act
+  , r'act''
   , r'ask
+  , r'ask''
   , r'encapsulate
+  , r'encapsulate''
   , r'run
+  , r'run''
   , runX
   , runXA
   , runXBase
-  , s''plus
-  , s''sets
-  , s''views
   , s'plus
+  , s'plus''
   , s'sets
+  , s'sets''
   , s'views
-  , w''exec
-  , w''say
-  , w''tell
+  , s'views''
+  , w'eval
+  , w'eval''
   , w'exec
+  , w'exec''
+  , w'run
+  , w'run''
   , w'say
+  , w'say''
   , w'tell
+  , w'tell''
   , xGetter
   , xInfo
   , xLogError
@@ -190,8 +200,9 @@ import Effect.Class as EffC
 import Effect.Now as Now
 import Effect.Unsafe as Unsafe
 import Parsing as Parsing
-import Prim.Row (class Cons)
+import Prim.Row (class Cons, class Lacks)
 import Prim.Row as Row
+import Record (insert)
 import Record as Rec
 import Run as R
 import Run.Except as RunE
@@ -203,6 +214,7 @@ import Type.Proxy (Proxy(..))
 import Type.Proxy as P
 import Type.Row (type (+))
 import Z.Z.Barlow as Bl
+import Z.Z.Core (T'useAsSym)
 import Z.Z.Core as Z
 import Z.Z.DateTime (DateTime(..), dateTimeAsMS, fromRawDateTime)
 import Z.Z.Defaultable
@@ -478,7 +490,7 @@ instance
   ) =>
   Generable (XImpl "unresult") gspec (Result w e a -> R.Run x a) where
   mkGenerable { w, v } = do
-    g1 @XTell @wp w
+    w'tell'' @wp w
     g1 @XOk @ep v
 
 ------------------------------ w ----------------------------------------
@@ -576,7 +588,7 @@ instance
     ((e -> w) -> R.Run x d -> R.Run x' d) where
   mkGenerable mapW m = g1 @XTry @ep m >>= onDone
     where
-    onDone (Eor.Left e) = g1 @XSay @wp (mapW e) <#> const (ZD.default @d)
+    onDone (Eor.Left e) = w'say'' @wp (mapW e) <#> const (ZD.default @d)
     onDone (Eor.Right r) = pure $ r
 
 type XTellMappedMHush = XImpl "tellMappedMHush"
@@ -597,7 +609,7 @@ instance
     ((e -> m w) -> R.Run x d -> R.Run x' d) where
   mkGenerable mapW m = g1 @XTry @ep m >>= onDone
     where
-    onDone (Eor.Left e) = g1 @XTell @wp (mapW e) <#> const (ZD.default @d)
+    onDone (Eor.Left e) = w'tell'' @wp (mapW e) <#> const (ZD.default @d)
     onDone (Eor.Right r) = pure $ r
 
 ------------------------------- R ------------------------------------
@@ -632,19 +644,19 @@ instance
   , IsSymbol p
   , Cons p (RunR.Reader r) x' x
   ) =>
-  Generable (XImpl "doAsked") gspec ((r -> XEffTagged p a) -> R.Run x a) where
+  Generable (XImpl "doAsked") gspec ((r -> Eff'At p a) -> R.Run x a) where
   mkGenerable getEff = g1 @XAsk @p <#> getEff <#> (#) <#> useTag @p
 
 data XEffTagLabel = XEffTagLabel
 
-type XRunsEffTagged = RunR.Reader XEffTagLabel
+type Eff'Permit = RunR.Reader XEffTagLabel
 
 type XRunTaggable = XImpl "runTaggable"
 
 instance
   ( GOrDefault "taggedEff" gspec p
   , IsSymbol p
-  , Cons p XRunsEffTagged x' x
+  , Cons p Eff'Permit x' x
   ) =>
   Generable (XImpl "runTaggable") gspec (R.Run x a -> R.Run x' a) where
   mkGenerable = g1 @XRunR @p XEffTagLabel
@@ -654,9 +666,9 @@ type XDoTagged = XImpl "doTagged"
 instance
   ( GOrDefault "taggedEff" gspec p
   , IsSymbol p
-  , Cons p XRunsEffTagged x' x
+  , Cons p Eff'Permit x' x
   ) =>
-  Generable (XImpl "doTagged") gspec (XEffTagged p a -> R.Run x a) where
+  Generable (XImpl "doTagged") gspec (Eff'At p a -> R.Run x a) where
   mkGenerable eff = g1 @XDoAsked @p (const eff)
 
 ------------------------------- S ------------------------------------
@@ -990,77 +1002,118 @@ px = P.Proxy
 
 --------------- fns ------------------------------------------------
 ---------------          eff''fns ----------------------------------
-eff''permit :: forall v. Generable XRunTaggable GDefault v => v
-eff''permit = g @XRunTaggable
 
-eff'permit :: forall @at v. Generable XRunTaggable (G1 at) v => v
-eff'permit = g1 @XRunTaggable @at
+eff'permit'' :: forall @at v. Generable XRunTaggable (G1 at) v => v
+eff'permit'' = g1 @XRunTaggable @at
+
+eff'permit
+  :: forall @p x r' r a
+   . IsSymbol p
+  => Cons p XEffTagLabel r' r
+  => Lacks p r'
+  => R.Run (permitted :: R'Rec r, permitted :: R'Rec r' | x) a
+  -> R.Run (permitted :: R'Rec r' | x) a
+eff'permit m = do
+  pCurr <- r'ask'' @"permitted"
+  let pNext = insert (px @p) XEffTagLabel pCurr
+  r'run'' @"permitted" pNext m
+
+eff'withPermit :: forall x a. R.Run (permitted :: R'Rec () | x) a -> R.Run x a
+eff'withPermit m = r'run'' @"permitted" {} m
+
+eff'do''
+  :: forall @p x' x a
+   . IsSymbol p
+  => Cons p (RunR.Reader XEffTagLabel) x' x
+  => Eff'At p a
+  -> R.Run x a
+eff'do'' eff = pure $ useTag @p \r -> r eff
+
+eff'do
+  :: forall p x px' px a
+   . IsSymbol p
+  => Cons p XEffTagLabel px' px
+  => Eff'At p a
+  -> R.Run (permitted :: RunR.Reader { | px } | x) a
+eff'do eff = pure $ useTag @p \r -> r eff
 
 ---------------          r''fns ------------------------------------
 
-r''run :: forall v. Generable XRunR GDefault v => v
-r''run = g @XRunR
+r'run :: forall v. Generable XRunR GDefault v => v
+r'run = g @XRunR
 
-r'run :: forall @at v. Generable XRunR (G1 at) v => v
-r'run = g1 @XRunR @at
+r'run'' :: forall @at v. Generable XRunR (G1 at) v => v
+r'run'' = g1 @XRunR @at
 
-r''ask :: forall v. Generable XAsk GDefault v => v
-r''ask = g @XAsk
+r'ask :: forall v. Generable XAsk GDefault v => v
+r'ask = g @XAsk
 
-r'ask :: forall @at v. Generable XAsk (G1 at) v => v
-r'ask = g1 @XAsk @at
+r'ask'' :: forall @at v. Generable XAsk (G1 at) v => v
+r'ask'' = g1 @XAsk @at
 
-r''act :: forall v. Generable XDoAsked GDefault v => v
-r''act = g @XDoAsked
+r'act :: forall v. Generable XDoAsked GDefault v => v
+r'act = g @XDoAsked
 
-r'act :: forall @at v. Generable XDoAsked (G1 at) v => v
-r'act = g1 @XDoAsked @at
+r'act'' :: forall @at v. Generable XDoAsked (G1 at) v => v
+r'act'' = g1 @XDoAsked @at
 
-r''encapsulate :: forall v. Generable XEncapsulateR GDefault v => v
-r''encapsulate = g @XEncapsulateR
+r'encapsulate :: forall v. Generable XEncapsulateR GDefault v => v
+r'encapsulate = g @XEncapsulateR
 
-r'encapsulate :: forall @at v. Generable XEncapsulateR (G1 at) v => v
-r'encapsulate = g1 @XEncapsulateR @at
+r'encapsulate'' :: forall @at v. Generable XEncapsulateR (G1 at) v => v
+r'encapsulate'' = g1 @XEncapsulateR @at
 
 ---------------          s''fns ------------------------------------
 
-s''sets :: forall @s v. Generable (XSet_ s) GDefault v => v
-s''sets = g @(XSet_ s)
+s'sets'' :: forall @at @s v. Generable (XSet_ s) (G1 at) v => v
+s'sets'' = g1 @(XSet_ s) @at
 
-s'sets :: forall @at @s v. Generable (XSet_ s) (G1 at) v => v
-s'sets = g1 @(XSet_ s) @at
+s'sets :: forall @s v. Generable (XSet_ s) GDefault v => v
+s'sets = g @(XSet_ s)
 
-s''plus :: forall @s v. Generable (XPlusS s) GDefault v => v
-s''plus = g @(XPlusS s)
+s'plus :: forall @s v. Generable (XPlusS s) GDefault v => v
+s'plus = g @(XPlusS s)
 
-s'plus :: forall @at @s v. Generable (XPlusS s) (G1 at) v => v
-s'plus = g1 @(XPlusS s) @at
+s'plus'' :: forall @at @s v. Generable (XPlusS s) (G1 at) v => v
+s'plus'' = g1 @(XPlusS s) @at
 
-s''views :: forall @s v. Generable (XViewS_ s) GDefault v => v
-s''views = g @(XViewS_ s)
+s'views :: forall @s v. Generable (XViewS_ s) GDefault v => v
+s'views = g @(XViewS_ s)
 
-s'views :: forall @at @s v. Generable (XViewS_ s) (G1 at) v => v
-s'views = g1 @(XViewS_ s) @at
+s'views'' :: forall @at @s v. Generable (XViewS_ s) (G1 at) v => v
+s'views'' = g1 @(XViewS_ s) @at
 
 ---------------          w''fns ------------------------------------
 
-w''exec :: forall v. Generable XExecW GDefault v => v
-w''exec = g @XExecW
+w'exec :: forall v. Generable XExecW GDefault v => v
+w'exec = g @XExecW
 
-w'exec :: forall @at v. Generable XExecW (G1 at) v => v
-w'exec = g1 @XExecW @at
+w'exec'' :: forall @at v. Generable XExecW (G1 at) v => v
+w'exec'' = g1 @XExecW @at
 
-w''tell :: forall v. Generable XTell GDefault v => v
-w''tell = g @XTell
+w'eval :: forall v. Generable XEvalW GDefault v => v
+w'eval = g @XEvalW
 
-w'tell :: forall @at v. Generable XTell (G1 at) v => v
-w'tell = g1 @XTell @at
+w'eval'' :: forall @at v. Generable XEvalW (G1 at) v => v
+w'eval'' = g1 @XEvalW @at
 
-w''say :: forall v. Generable XSay GDefault v => v
-w''say = g @XSay
+w'run :: forall v. Generable XRunW GDefault v => v
+w'run = g @XRunW
 
-w'say :: forall @at v. Generable XSay (G1 at) v => v
-w'say = g1 @XSay @at
+w'run'' :: forall @at v. Generable XRunW (G1 at) v => v
+w'run'' = g1 @XRunW @at
+
+w'tell :: forall v. Generable XTell GDefault v => v
+w'tell = g @XTell
+
+w'tell'' :: forall @at v. Generable XTell (G1 at) v => v
+w'tell'' = g1 @XTell @at
+
+w'say :: forall v. Generable XSay GDefault v => v
+w'say = g @XSay
+
+w'say'' :: forall @at v. Generable XSay (G1 at) v => v
+w'say'' = g1 @XSay @at
 
 --------------- EVAL -------------------------------------------------------
 
@@ -1192,6 +1245,15 @@ xNow = R.lift _eff (NowCmd identity)
 
 xNowMS :: forall x. XRun x Number
 xNowMS = xNow <#> dateTimeAsMS
+
+-----------------------------------------------------------------------------
+
+type R'Rec dr = RunR.Reader { | dr }
+
+type T'use'r'AsSym p f = T'useAsSym "reader" p f
+type T'use'w'AsSym p f = T'useAsSym "writer" p f
+type T'use's'AsSym p f = T'useAsSym "state" p f
+type T'use'e'AsSym p f = T'useAsSym "except" p f
 
 --------------- XBuilders ---------------------------------------------------
 

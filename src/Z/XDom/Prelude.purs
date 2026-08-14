@@ -16,4 +16,4 @@ import Z.XDom.UrlState as UrlSt
 type XurlStProviderX sx de = UrlSt.XProvider sx de
 
 type Reducer a s =
-  (Z.R' { get :: s, update :: a -> Z.XEffTagged "domEff" Z.Unit })
+  (Z.R' { get :: s, update :: a -> Z.Eff'At "domEff" Z.Unit })

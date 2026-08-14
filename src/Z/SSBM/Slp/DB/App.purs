@@ -1,6 +1,8 @@
 module Z.SSBM.Slp.DB.App where
 
-import Z.XDom.Prelude
+import Z.XDom3.Prelude
+
+import Z.XDom3.UrlState as UrlSt
 
 data CountAction = Inc | Dec | Reset
 
@@ -10,47 +12,51 @@ countAct n Dec = n - 1
 countAct _ Reset = 3
 
 xOnE
-  :: forall sx de
+  :: forall dr x
    . String
-  -> XDom (count :: Reducer CountAction Int | sx) de Unit
+  -> XDom dr (count :: Reducer CountAction Int | x) Unit
 xOnE message = do
-  dom.div do
-    dom.text message
-    dom.button do
-      el.cn "btn btn-soft"
-      el.onClick $ \_ -> domState'dispatch @"count" Reset
-      dom.text "reset"
+  dom'div do
+    dom'text message
+    dom'button do
+      el'cn "btn btn-soft"
+      el'onClick $ \_ -> domS'dispatch'' @"count" Reset
+      dom'text "reset"
 
-xApp :: forall sx de. XurlStProviderX sx de -> XDom sx de Unit
-xApp = router''run printRoute parseUrl (Just <<< urlToString <<< _.url) do
-  r <- router''routeOrE
+app :: forall dr x. XDom dr x Unit
+app = dom'div $ dom'text "Hello!"
+
+xApp :: forall dr x. UrlSt.XProvider dr x -> XDom dr x Unit
+xApp = router'run'' @"router" printRoute parseUrl mkTitleOr_ do
+  r <- router'routeOrE'' @"router"
   xOut $ show r
-  dom.div do
-    el.cn "flex flex-col gap-4"
-    dom.iframe $ pure unit
-    dom.div $ dom.a do
-      el.cn "btn link btn-primary"
-      router''href $ Profile "Jimmy"
-      dom.text "profile link"
-    dom.div $ domState'runReducer @"count" 3 countAct $ dom''bindE xOnE do
-      count <- domState'get @"count"
-      dom.div $ dom.text "Hellllooooooo"
-      dom.div do
-        el.key "asdfasdfasdfasdf..."
-        when (count < 0) do g @XFail "negative number invalid"
+  dom'div do
+    el'cn "flex flex-col gap-4"
+    dom'iframe $ pure unit
+    dom'div $ dom'a do
+      router'href $ Profile "Jimmy"
+      el'cn "btn link btn-primary"
+      dom'text "profile link"
+    dom'div $ domS'runReducer'' @"count" 3 countAct $ domE'bind xOnE do
+      count <- domS'get'' @"count"
+      dom'div $ dom'text "Hellllooooooo"
+      dom'div do
+        el'key "asdfasdfasdfasdf..."
+        when (count < 0) do domE'fail "negative number invalid"
         -- dom.span %%-& \t -> t "div with stuff" *> t unit *> t "!"
-        dom.button do
-          el.cnW \w -> do
+        dom'button do
+          el'cnW \w -> do
             w "btn btn-soft" *> when (count > 5) do w "btn-accent"
-          el.onClick $ (\_ -> domState'dispatch @"count" Dec)
-          dom.text "dec"
-        dom.div $ dom.text ("Count:" <-> count)
-        dom.withKey "asdfasdf" $ dom.button do
-          el.cnW \w -> do
+          el'onClick $ (\_ -> domS'dispatch'' @"count" Dec)
+          dom'text "dec"
+        dom'div $ dom'text ("Count:" <-> count)
+        dom'withKey "asdfasdf" $ dom'button do
+          el'cnW \w -> do
             w "btn btn-soft" *> when (count > 5) do w "btn-accent"
-          el.onClick $ const $ domState'dispatch @"count" Inc
-          dom.text "inc"
+          el'onClick $ const $ domS'dispatch'' @"count" Inc
+          dom'text "inc"
   where
+  mkTitleOr_ = Just <<< urlToString <<< _.url
   parseRouteL Nil = pure Home
   parseRouteL (Cons "profile" (Cons slug Nil)) = pure $ Profile slug
   parseRouteL _ = Left "Invalid Route"

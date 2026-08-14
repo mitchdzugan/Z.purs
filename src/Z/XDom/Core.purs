@@ -18,30 +18,30 @@ module Z.XDom.Core
   , XDomEff
   , XDomEl
   , dom
-  , dom''bindE
-  , dom''eff
-  , dom''runR
   , dom'bindE
+  , dom'bindE''
   , dom'eff
+  , dom'eff''
   , dom'runR
-  , domEffR''act
-  , domEffR''ask
-  , domEffR''run
+  , dom'runR''
   , domEffR'act
+  , domEffR'act''
   , domEffR'ask
+  , domEffR'ask''
+  , domEffR'do
   , domEffR'encapsulate
   , domEffR'run
+  , domEffR'run''
   , domSelfExtend'
-  , domState''dispatch
-  , domState''get
-  , domState''run
-  , domState''runReducer
-  , domState''set
   , domState'dispatch
+  , domState'dispatch''
   , domState'get
+  , domState'get''
   , domState'run
+  , domState'run''
   , domState'runReducer
   , domState'set
+  , domState'set''
   , domUseEff
   , el
   , renderM
@@ -59,7 +59,7 @@ type MDom sx de a = Run (Wa ReactEl $ MDomV sx de) a
 type MElAttrV x = (attr :: W' $ Array PropWF | x)
 type MDomEl sx de a = Run (MElAttrV $ Wa ReactEl $ Wa ReactEl $ MDomV sx de) a
 
-type MDomEffV sx de = (domEff :: XRunsEffTagged, effEnv :: R' de | sx)
+type MDomEffV sx de = (domEff :: Eff'Permit, effEnv :: R' de | sx)
 type MDomEff sx de a = Run (MDomEffV sx de) a
 
 type XDom sx de a = MDom (XBASE sx) de a
@@ -80,14 +80,14 @@ dom
      , span :: XDom_domElement_
      , doEff ::
          forall x a
-          . XEffTagged "domEff" a
-         -> Run (domEff :: XRunsEffTagged | x) a
+          . Eff'At "domEff" a
+         -> Run (domEff :: Eff'Permit | x) a
      }
 dom =
   { render: renderMEl baseXSelf {}
   , withKey
   , withNewState
-  , text: w''say <<< js_textEl <<< stext
+  , text: w'say <<< js_textEl <<< stext
   , div: domElement "div"
   , button: domElement "button"
   , a: domElement "a"
@@ -106,23 +106,25 @@ el
      , onClick :: forall sx de. (Int -> MDomEff sx de Unit) -> MDomEl sx de Unit
      }
 el =
-  { key: w'tell @"attr" <<< pure <<< PKey
-  , cn: w'tell @"attr" <<< pure <<< ClassName
-  , cnW: \fm -> w'tell @"attr" $ pure $ ClassName $ joinStrW " " $ fm $ w''say
-  , href: w'tell @"attr" <<< pure <<< Href
+  { key: w'tell'' @"attr" <<< pure <<< PKey
+  , cn: w'tell'' @"attr" <<< pure <<< ClassName
+  , cnW: \fm -> w'tell'' @"attr" $ pure $ ClassName $ joinStrW " " $ fm $
+      w'say
+  , href: w'tell'' @"attr" <<< pure <<< Href
   , onClick: \f -> do
-      effEnv <- r'ask @"effEnv"
-      self' <- elSelfExtend' (eff'permit @"domEff" <<< r'run @"effEnv" effEnv)
-      w'tell @"attr" $ pure $ OnClick $ \e -> runUnit self' $ f e
+      effEnv <- r'ask'' @"effEnv"
+      self' <- elSelfExtend'
+        (eff'permit'' @"domEff" <<< r'run'' @"effEnv" effEnv)
+      w'tell'' @"attr" $ pure $ OnClick $ \e -> runUnit self' $ f e
   }
 
 --------------------------------------------------------------------------------
 
 renderM :: forall sx de. XSelf sx -> de -> MDom sx de Unit -> Array ReactEl
 renderM self effEnv m = runEls self
-  $ w''exec
-  $ r'run @"self" self
-  $ r'run @"effEnv" effEnv
+  $ w'exec
+  $ r'run'' @"self" self
+  $ r'run'' @"effEnv" effEnv
   $ m
 
 renderMEl :: forall sx de. XSelf sx -> de -> MDom sx de Unit -> ReactEl
@@ -132,21 +134,21 @@ type XDom_withKey = forall sx de. String -> MDom sx de Unit -> MDom sx de Unit
 
 withKey :: XDom_withKey
 withKey k m = do
-  self <- r'ask @"self"
-  effEnv <- r'ask @"effEnv"
-  w''say $ js_withKey k $ renderMEl self effEnv m
+  self <- r'ask'' @"self"
+  effEnv <- r'ask'' @"effEnv"
+  w'say $ js_withKey k $ renderMEl self effEnv m
 
 type XDom_withNewState =
   forall sx de s
    . s
-  -> (s -> (s -> XEffTagged "domEff" Unit) -> MDom sx de Unit)
+  -> (s -> (s -> Eff'At "domEff" Unit) -> MDom sx de Unit)
   -> MDom sx de Unit
 
 withNewState :: XDom_withNewState
 withNewState initalState fm = do
-  self <- r'ask @"self"
-  effEnv <- r'ask @"effEnv"
-  w''say $ js_withState (renderFn self effEnv) initalState
+  self <- r'ask'' @"self"
+  effEnv <- r'ask'' @"effEnv"
+  w'say $ js_withState (renderFn self effEnv) initalState
   where
   renderFn self effEnv s ss = renderM self effEnv $ fm s (w ss)
   w ss s = tagEffX @"domEff" $ ss s
@@ -157,13 +159,13 @@ domSelfExtend'
   :: forall sx' sx de
    . (forall a. Run sx a -> Run sx' a)
   -> MDom sx' de (XSelf sx)
-domSelfExtend' m = r'ask @"self" <#> xSelfExtend' m
+domSelfExtend' m = r'ask'' @"self" <#> xSelfExtend' m
 
 elSelfExtend'
   :: forall sx' sx de
    . (forall a. Run sx a -> Run sx' a)
   -> MDomEl sx' de (XSelf sx)
-elSelfExtend' m = r'ask @"self" <#> xSelfExtend' m
+elSelfExtend' m = r'ask'' @"self" <#> xSelfExtend' m
 
 --------------------------------------------------------------------------------
 
@@ -176,15 +178,15 @@ instance
   ) =>
   Generable DomRunR gdesc (r -> MDom sx de Unit -> MDom sx' de Unit) where
   mkGenerable env m = do
-    effEnv <- r'ask @"effEnv"
-    self' <- domSelfExtend' (r'run @rp env)
-    w''tell $ renderM self' effEnv m
+    effEnv <- r'ask'' @"effEnv"
+    self' <- domSelfExtend' (r'run'' @rp env)
+    w'tell $ renderM self' effEnv m
 
-dom''runR :: forall v. Generable DomRunR GDefault v => v
-dom''runR = g @DomRunR
+dom'runR :: forall v. Generable DomRunR GDefault v => v
+dom'runR = g @DomRunR
 
-dom'runR :: forall @at v. Generable DomRunR (G1 at) v => v
-dom'runR = g1 @DomRunR @at
+dom'runR'' :: forall @at v. Generable DomRunR (G1 at) v => v
+dom'runR'' = g1 @DomRunR @at
 
 --------------------------------------------------------------------------------
 
@@ -203,16 +205,16 @@ instance
       -> MDom sx { | de' } Unit
     ) where
   mkGenerable env m = do
-    currEnv <- r'ask @"effEnv"
+    currEnv <- r'ask'' @"effEnv"
     let nextEnv = insert (p @rp) env currEnv
-    self <- r'ask @"self"
-    w''tell $ renderM self nextEnv m
+    self <- r'ask'' @"self"
+    w'tell $ renderM self nextEnv m
 
-domEffR''run :: forall v. Generable DomPlusEnv GDefault v => v
-domEffR''run = g @DomPlusEnv
+domEffR'run :: forall v. Generable DomPlusEnv GDefault v => v
+domEffR'run = g @DomPlusEnv
 
-domEffR'run :: forall @at v. Generable DomPlusEnv (G1 at) v => v
-domEffR'run = g1 @DomPlusEnv @at
+domEffR'run'' :: forall @at v. Generable DomPlusEnv (G1 at) v => v
+domEffR'run'' = g1 @DomPlusEnv @at
 
 data DomEffAsk
 
@@ -222,13 +224,13 @@ instance
   , Cons rp r de' de
   ) =>
   Generable DomEffAsk gdesc (Run (effEnv :: R' { | de } | x) r) where
-  mkGenerable = r'ask @"effEnv" <#> get (p @rp)
+  mkGenerable = r'ask'' @"effEnv" <#> get (p @rp)
 
-domEffR''ask :: forall v. Generable DomEffAsk GDefault v => v
-domEffR''ask = g @DomEffAsk
+domEffR'ask :: forall v. Generable DomEffAsk GDefault v => v
+domEffR'ask = g @DomEffAsk
 
-domEffR'ask :: forall @at v. Generable DomEffAsk (G1 at) v => v
-domEffR'ask = g1 @DomEffAsk @at
+domEffR'ask'' :: forall @at v. Generable DomEffAsk (G1 at) v => v
+domEffR'ask'' = g1 @DomEffAsk @at
 
 data DomEffAct
 
@@ -239,20 +241,28 @@ instance
   ) =>
   Generable DomEffAct
     gdesc
-    ((r -> XEffTagged rp a) -> Run (effEnv :: R' { | de } | x) a) where
+    ((r -> Eff'At rp a) -> Run (effEnv :: R' { | de } | x) a) where
   mkGenerable getEff =
-    r'ask @"effEnv" <#> get (p @rp) <#> getEff <#> (#) <#> useTag @rp
+    r'ask'' @"effEnv" <#> get (p @rp) <#> getEff <#> (#) <#> useTag @rp
 
-domEffR''act :: forall v. Generable DomEffAct GDefault v => v
-domEffR''act = g @DomEffAct
+domEffR'act :: forall v. Generable DomEffAct GDefault v => v
+domEffR'act = g @DomEffAct
 
-domEffR'act :: forall @at v. Generable DomEffAct (G1 at) v => v
-domEffR'act = g1 @DomEffAct @at
+domEffR'act'' :: forall @at v. Generable DomEffAct (G1 at) v => v
+domEffR'act'' = g1 @DomEffAct @at
 
 domEffR'encapsulate
   :: forall a de x. Run (effEnv :: R' { | de } | x) (XDomEff () { | de } a -> a)
 domEffR'encapsulate =
-  r'encapsulate @"effEnv" <#> flip (<<<) (eff'permit @"domEff")
+  r'encapsulate'' @"effEnv" <#> flip (<<<) (eff'permit'' @"domEff")
+
+domEffR'do
+  :: forall p x dx' dx r a
+   . IsSymbol p
+  => Cons p r dx' dx
+  => Eff'At p a
+  -> Run (effEnv :: R' { | dx } | x) a
+domEffR'do eff = domEffR'act'' @p (const eff)
 
 --------------------------------------------------------------------------------
 
@@ -267,9 +277,9 @@ instance
     gdesc
     ((e -> MDom sx' de Unit) -> MDom sx de Unit -> MDom sx' de Unit) where
   mkGenerable em m = do
-    effEnv <- r'ask @"effEnv"
-    self <- r'ask @"self"
-    self' <- r'ask @"self" <#> xSelfExtend @(Either e)
+    effEnv <- r'ask'' @"effEnv"
+    self <- r'ask'' @"self"
+    self' <- r'ask'' @"self" <#> xSelfExtend @(Either e)
       (g1 @XTry @ep)
       ( \eOr -> case eOr of
           (Left e) -> js_throwBoundedError e
@@ -283,16 +293,16 @@ instance
           (Left _) -> pure unit
           (Right v) -> v
       )
-    g @XSay $ js_withBoundedError (rErr self effEnv) (rMain self' effEnv)
+    w'say $ js_withBoundedError (rErr self effEnv) (rMain self' effEnv)
     where
     rMain self effEnv = \_ -> renderMEl self effEnv m
     rErr self effEnv e = renderMEl self effEnv $ em e
 
-dom''bindE :: forall v. Generable DomBindE GDefault v => v
-dom''bindE = g @DomBindE
+dom'bindE :: forall v. Generable DomBindE GDefault v => v
+dom'bindE = g @DomBindE
 
-dom'bindE :: forall @at v. Generable DomBindE (G1 at) v => v
-dom'bindE = g1 @DomBindE @at
+dom'bindE'' :: forall @at v. Generable DomBindE (G1 at) v => v
+dom'bindE'' = g1 @DomBindE @at
 
 --------------------------------------------------------------------------------
 
@@ -301,7 +311,7 @@ data DSRRdc
 instance
   ( GOrDefault "reader" gspec rp
   , IsSymbol rp
-  , Cons rp (R' { get :: s, update :: a -> XEffTagged "domEff" Unit }) sx' sx
+  , Cons rp (R' { get :: s, update :: a -> Eff'At "domEff" Unit }) sx' sx
   ) =>
   Generable DSRRdc
     gdesc
@@ -309,15 +319,15 @@ instance
   mkGenerable initState act m = do
     dom.withNewState initState \state set -> do
       let env = { update: set <<< act state, get: state }
-      dom'runR @rp env m
+      dom'runR'' @rp env m
 
-domState''runReducer :: forall v. Generable DSRRdc GDefault v => v
-domState''runReducer = g @DSRRdc
+domStateRunReducerImpl :: forall v. Generable DSRRdc GDefault v => v
+domStateRunReducerImpl = g @DSRRdc
 
 domState'runReducer
   :: forall @rp sx' sx de s a
    . IsSymbol rp
-  => Cons rp (R' { get :: s, update :: a -> XEffTagged "domEff" Unit }) sx' sx
+  => Cons rp (R' { get :: s, update :: a -> Eff'At "domEff" Unit }) sx' sx
   => s
   -> (s -> a -> s)
   -> MDom sx de Unit
@@ -325,50 +335,50 @@ domState'runReducer
 domState'runReducer initState act m = do
   dom.withNewState initState \state set -> do
     let env = { update: set <<< act state, get: state }
-    dom'runR @rp env m
-
-domState''run
-  :: forall s r. Generable DSRRdc GDefault (s -> (s -> s -> s) -> r) => s -> r
-domState''run initState = domState''runReducer initState (\_ newS -> newS)
+    dom'runR'' @rp env m
 
 domState'run
+  :: forall s r. Generable DSRRdc GDefault (s -> (s -> s -> s) -> r) => s -> r
+domState'run initState = domStateRunReducerImpl initState (\_ newS -> newS)
+
+domState'run''
   :: forall @rp sx' sx de s
    . IsSymbol rp
-  => Cons rp (R' { get :: s, update :: s -> XEffTagged "domEff" Unit }) sx' sx
+  => Cons rp (R' { get :: s, update :: s -> Eff'At "domEff" Unit }) sx' sx
   => s
   -> MDom sx de Unit
   -> MDom sx' de Unit
-domState'run initState = domState'runReducer @rp initState (\_ newS -> newS)
+domState'run'' initState = domState'runReducer @rp initState (\_ newS -> newS)
 
 data DomStateDispatch
 
 instance
   ( GOrDefault "reader" gspec rp
   , IsSymbol rp
-  , Cons rp (R' { update :: a -> XEffTagged "domEff" Unit | rs })
-      (domEff :: XRunsEffTagged | x')
-      (domEff :: XRunsEffTagged | x)
+  , Cons rp (R' { update :: a -> Eff'At "domEff" Unit | rs })
+      (domEff :: Eff'Permit | x')
+      (domEff :: Eff'Permit | x)
   ) =>
   Generable DomStateDispatch
     gdesc
-    (a -> Run (domEff :: XRunsEffTagged | x) Unit) where
+    (a -> Run (domEff :: Eff'Permit | x) Unit) where
   mkGenerable a = do
-    r <- r'ask @rp
+    r <- r'ask'' @rp
     dom.doEff $ r.update a
 
-domState''dispatch :: forall v. Generable DomStateDispatch GDefault v => v
-domState''dispatch = g @DomStateDispatch
+domState'dispatch :: forall v. Generable DomStateDispatch GDefault v => v
+domState'dispatch = g @DomStateDispatch
 
-domState'dispatch
+domState'dispatch''
   :: forall @rp a rs x' x
    . IsSymbol rp
-  => Cons rp (R' { update :: a -> XEffTagged "domEff" Unit | rs })
-       (domEff :: XRunsEffTagged | x')
-       (domEff :: XRunsEffTagged | x)
+  => Cons rp (R' { update :: a -> Eff'At "domEff" Unit | rs })
+       (domEff :: Eff'Permit | x')
+       (domEff :: Eff'Permit | x)
   => a
-  -> Run (domEff :: XRunsEffTagged | x) Unit
-domState'dispatch a = do
-  r <- r'ask @rp
+  -> Run (domEff :: Eff'Permit | x) Unit
+domState'dispatch'' a = do
+  r <- r'ask'' @rp
   dom.doEff $ r.update a
 
 data DomStateSet
@@ -376,22 +386,22 @@ data DomStateSet
 instance
   ( GOrDefault "reader" gspec rp
   , IsSymbol rp
-  , Cons rp (R' { get :: s, update :: s -> XEffTagged "domEff" Unit | rs })
-      (domEff :: XRunsEffTagged | x')
-      (domEff :: XRunsEffTagged | x)
+  , Cons rp (R' { get :: s, update :: s -> Eff'At "domEff" Unit | rs })
+      (domEff :: Eff'Permit | x')
+      (domEff :: Eff'Permit | x)
   ) =>
   Generable DomStateSet
     gdesc
-    (s -> Run (domEff :: XRunsEffTagged | x) Unit) where
+    (s -> Run (domEff :: Eff'Permit | x) Unit) where
   mkGenerable a = do
-    r <- r'ask @rp
+    r <- r'ask'' @rp
     dom.doEff $ r.update a
 
-domState''set :: forall v. Generable DomStateSet GDefault v => v
-domState''set = g @DomStateSet
+domState'set :: forall v. Generable DomStateSet GDefault v => v
+domState'set = g @DomStateSet
 
-domState'set :: forall @at v. Generable DomStateSet (G1 at) v => v
-domState'set = g1 @DomStateSet @at
+domState'set'' :: forall @at v. Generable DomStateSet (G1 at) v => v
+domState'set'' = g1 @DomStateSet @at
 
 type DomState'get rp =
   forall s rs x' x
@@ -401,67 +411,90 @@ type DomState'get rp =
 
 type WithSymAs s p t = IsSymbol p => TypeEquals p s => t p
 
-domState''get :: forall p. WithSymAs "reader" p DomState'get
-domState''get = domState'get @p
+domState'get :: forall p. WithSymAs "reader" p DomState'get
+domState'get = domState'get'' @p
 
-domState'get :: forall @rp. DomState'get rp
-domState'get = r'ask @rp <#> _.get
+domState'get'' :: forall @rp. DomState'get rp
+domState'get'' = r'ask'' @rp <#> _.get
 
 --------------------------------------------------------------------------------
 
-type DUEffFn sx de =
-  Run (MDomEffV sx de) (Run (MDomEffV sx de) Unit) -> MDom sx de Unit
-
 domUseEff
-  :: forall sx de a. Eq a => a -> DUEffFn sx de
+  :: forall sx de a
+   . Eq a
+  => a
+  -> Run (MDomEffV sx de) (Run (MDomEffV sx de) Unit)
+  -> MDom sx de Unit
 domUseEff comp on = do
-  effEnv <- r'ask @"effEnv"
-  self' <- domSelfExtend' (eff'permit @"domEff" <<< r'run @"effEnv" effEnv)
-  w''say $ js_effComponent eq comp $ \_ ->
+  effEnv <- r'ask'' @"effEnv"
+  self' <- domSelfExtend' (eff'permit'' @"domEff" <<< r'run'' @"effEnv" effEnv)
+  w'say $ js_effComponent eq comp $ \_ ->
     let r' = runDisposable self' on in \_ -> runUnit self' (r' unit)
 
 foreign import data DUEffT :: forall k. k -> Type
 
-type DUEffFn_ sx de = MDomEff sx de Unit -> MDom sx de Unit
-
-instance (Eq a) => Generable (DUEffT "") GDefault (a -> DUEffFn sx de) where
+instance
+  ( Eq a
+  ) =>
+  Generable (DUEffT "")
+    GDefault
+    (a -> Run (MDomEffV sx de) (Run (MDomEffV sx de) Unit) -> MDom sx de Unit) where
   mkGenerable = domUseEff
 
-instance (Eq a) => Generable (DUEffT "1") GDefault (DUEffFn sx de) where
+instance
+  Generable (DUEffT "1")
+    GDefault
+    (Run (MDomEffV sx de) (Run (MDomEffV sx de) Unit) -> MDom sx de Unit) where
   mkGenerable = domUseEff unit
 
-instance (Eq a) => Generable (DUEffT "*") GDefault (DUEffFn sx de) where
+instance
+  Generable (DUEffT "*")
+    GDefault
+    (Run (MDomEffV sx de) (Run (MDomEffV sx de) Unit) -> MDom sx de Unit) where
   mkGenerable = domUseEff antiUnit
 
-instance (Eq a) => Generable (DUEffT "+") GDefault (a -> DUEffFn_ sx de) where
+instance
+  ( Eq a
+  ) =>
+  Generable (DUEffT "+") GDefault (a -> MDomEff sx de Unit -> MDom sx de Unit) where
   mkGenerable a m = domUseEff a $ m *> pure (pure unit)
 
-instance (Eq a) => Generable (DUEffT "+1") GDefault (DUEffFn_ sx de) where
+instance
+  Generable (DUEffT "+1") GDefault (MDomEff sx de Unit -> MDom sx de Unit) where
   mkGenerable m = domUseEff unit $ m *> pure (pure unit)
 
-instance (Eq a) => Generable (DUEffT "+*'") GDefault (DUEffFn_ sx de) where
+instance
+  Generable
+    (DUEffT "+*'")
+    GDefault
+    (MDomEff sx de Unit -> MDom sx de Unit) where
   mkGenerable m = domUseEff antiUnit $ m *> pure (pure unit)
 
-instance (Eq a) => Generable (DUEffT "-") GDefault (a -> DUEffFn_ sx de) where
+instance
+  ( Eq a
+  ) =>
+  Generable (DUEffT "-") GDefault (a -> MDomEff sx de Unit -> MDom sx de Unit) where
   mkGenerable a m = domUseEff a $ pure m
 
-instance (Eq a) => Generable (DUEffT "1-") GDefault (DUEffFn_ sx de) where
+instance
+  Generable (DUEffT "1-") GDefault (MDomEff sx de Unit -> MDom sx de Unit) where
   mkGenerable m = domUseEff unit $ pure m
 
-instance (Eq a) => Generable (DUEffT "*-'") GDefault (DUEffFn_ sx de) where
+instance
+  Generable (DUEffT "*-'") GDefault (MDomEff sx de Unit -> MDom sx de Unit) where
   mkGenerable m = domUseEff antiUnit $ pure m
 
-dom''eff :: forall v. Generable (DUEffT "") GDefault v => v
-dom''eff = g @(DUEffT "")
+dom'eff :: forall v. Generable (DUEffT "") GDefault v => v
+dom'eff = g @(DUEffT "")
 
-dom'eff :: forall @at v. Generable (DUEffT at) GDefault v => v
-dom'eff = g @(DUEffT at)
+dom'eff'' :: forall @at v. Generable (DUEffT at) GDefault v => v
+dom'eff'' = g @(DUEffT at)
 
 type XDom_domElement_ = forall sx de. MDomEl sx de Unit -> MDom sx de Unit
 
 domElement :: String -> XDom_domElement_
 domElement s m = do
-  (propWFs /\ elBuild) <- g1 @XRunW @"attr" $ g @XExecW m
+  (propWFs /\ elBuild) <- g1 @XRunW @"attr" $ w'exec m
   let props = js_propsFromPropWs propWFKey propWFVal propWFs
-  g @XSay $ js_renderEl s (encodeOpts props) elBuild
+  w'say $ js_renderEl s (encodeOpts props) elBuild
 

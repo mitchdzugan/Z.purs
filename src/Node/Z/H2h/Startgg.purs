@@ -65,7 +65,7 @@ getEventData = B.adaptBuilder $ g @XEvalS initState do
       { placement: standing.placement, isFinal: standing.isFinal }
 
   let rawPgs = arrSortWith (g_ @"id") event.phaseGroups
-  pgs <- forM rawPgs $ \pg -> s''plus @"sets" (mapEmpty @Int) do
+  pgs <- forM rawPgs $ \pg -> s'plus @"sets" (mapEmpty @Int) do
     { phaseGroup } <- fetchRawPhaseGroupData pg.id
     forM_ phaseGroup.sets.nodes $ \set -> do
       let

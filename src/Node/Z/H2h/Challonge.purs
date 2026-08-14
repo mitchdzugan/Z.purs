@@ -50,7 +50,7 @@ getEventDataImpl = do
     { slug } <- g @XAsk
     let url = "https://challonge.com/" <> slug
     xInfo { op: "xGoto", url }
-    pDo "xGoto" url $ P.xGoto page url $ s''sets @"waitUntil" $ Just
+    pDo "xGoto" url $ P.xGoto page url $ s'sets @"waitUntil" $ Just
       P.DOMContentLoaded
     pWaitFor page ".redesigned-meta-list .item .text"
     pWaitFor page ".title #title"
@@ -74,20 +74,20 @@ getEventDataImpl = do
       when (itemLabel == "Start Time" || itemLabel == "Start") do
         date <- g @XMapE H2hE.ParseTime $ g @XRunParser itemText
           parseDate
-        s''sets @"dateOrE" $ Right date
+        s'sets @"dateOrE" $ Right date
         pure unit
       when (itemLabel == "Game") do
-        s''sets @"nameOrE" $ Right itemText
+        s'sets @"nameOrE" $ Right itemText
       when (itemLabel == "Format") do
-        s''sets @"isDE" $ itemText == "Double Elimination"
-    name <- s''views @"nameOrE" >>= g @XOk
-    date <- s''views @"dateOrE" >>= g @XOk
-    isDE <- s''views @"isDE"
+        s'sets @"isDE" $ itemText == "Double Elimination"
+    name <- s'views @"nameOrE" >>= g @XOk
+    date <- s'views @"dateOrE" >>= g @XOk
+    isDE <- s'views @"isDE"
     tournamentName <- pEl page ".title #title" >>= pInnerText
     bracketEls <- pEls page ".bracket-svg"
     forM_ bracketEls $ \bracketEl -> do
       matchEls <- pEls bracketEl ".match"
-      forM_ matchEls $ \matchEl -> s''plus @"winnerId" Nothing do
+      forM_ matchEls $ \matchEl -> s'plus @"winnerId" Nothing do
         setId <- pReadDataAttr matchEl "match" >>= \s -> g @XMapE
           H2hE.ParseTime
           (g @XRunParser s parseInt)
@@ -101,7 +101,7 @@ getEventDataImpl = do
           score <- g @XMapE H2hE.ParseTime do
             g @XRunParser scoreS parseInt <#> H2h.mkScoreCount
           forM_ (strSplit (Pattern " ") scoreClass) $ \cn -> do
-            when (cn == "-winner") $ s''sets @"winnerId" $ Just entrantId
+            when (cn == "-winner") $ s'sets @"winnerId" $ Just entrantId
           g @XSet (_o @"entrants" $ at entrantId) $ Just
             { id: entrantId
             , standing: { placement: 0, isFinal: false }
@@ -125,7 +125,7 @@ getEventDataImpl = do
         let emptySlot = { entrantId: Nothing, score: H2h.NoScore }
         let slotA = jOr emptySlot (nth slots 0)
         let slotB = jOr emptySlot (nth slots 1)
-        winnerId <- s''views @"winnerId"
+        winnerId <- s'views @"winnerId"
         let
           winner =
             if isNothing winnerId then Nothing
@@ -133,7 +133,7 @@ getEventDataImpl = do
             else Just Neg
         let baseSet = { winner, id: setId, slots: slotA ~ slotB }
         g @(XOver_ "baseSets") (mapSet setId baseSet)
-    baseSetList <- s''views @"baseSets"
+    baseSetList <- s'views @"baseSets"
       <#> arrReverse
       <<< arrSortWith (g_ @"id")
       <<< arrFromFoldable
@@ -160,7 +160,7 @@ getEventDataImpl = do
         let wasLosers = jOrF $ prevRound <#> Round.isLosers
         let sameSlots = (slotsKey baseSet) == mSlotsKey prevSet
         let isGrands = isNothing prev && isDE || (wasGrands && sameSlots)
-        when (isGrands && wasGrands) $ s'sets @"setsLoop" @"hasReset" true
+        when (isGrands && wasGrands) $ s'sets'' @"setsLoop" @"hasReset" true
         forM_ (arrFromFoldable baseSet.slots) $ \slot -> do
           whenJust slot.entrantId $ \entrantId -> do
             setAdd entrantId #
@@ -174,9 +174,8 @@ getEventDataImpl = do
         let nowLosers = (not isGrands) && (wasGrands || wasLosers)
         let isLosers = nowLosers && not seenAllGFEntrants
         when ((not isLosers && wasLosers) || (not isGrands && wasGrands)) do
-          s'sets @"setsLoop" @"depth" 0
-          s'sets @"setsLoop" @"roundInd" 0
-        setDepth <- s'views @"setsLoop" @"depth"
+          s'sets'' @"setsLoop" @"depth" 0
+        setDepth <- s'views'' @"setsLoop" @"depth"
         let round = elimRound isDE setDepth isGrands isLosers isDropRound
         let slotA ~ slotB = baseSet.slots
         whenJust slotA.entrantId \eA -> whenJust slotB.entrantId \eB -> do
@@ -201,14 +200,14 @@ getEventDataImpl = do
         g1 @(XOver_ "roundInd") @"setsLoop" inc
         { depth, roundInd } <- g1 @XGet @"setsLoop"
         when (p2 depth <= roundInd) do
-          s'sets @"setsLoop" @"roundInd" 0
+          s'sets'' @"setsLoop" @"roundInd" 0
           if (isDropRound && isLosers) then do
-            s'sets @"setsLoop" @"isDropRound" false
+            s'sets'' @"setsLoop" @"isDropRound" false
           else do
-            s'sets @"setsLoop" @"isDropRound" true
+            s'sets'' @"setsLoop" @"isDropRound" true
             g1 @(XOver_ "depth") @"setsLoop" inc
-        s'sets @"setsLoop" @"prev" $ Just { base: baseSet, round }
-        s'sets @"setsLoop" @"prev" $ Just { base: baseSet, round }
+        s'sets'' @"setsLoop" @"prev" $ Just { base: baseSet, round }
+        s'sets'' @"setsLoop" @"prev" $ Just { base: baseSet, round }
         pure $
           { round
           , set:
@@ -258,7 +257,7 @@ getEventDataImpl = do
       }
   browserOpts = do
     let uaOpt = "--user-agent=" <> userAgent
-    s''sets @"args" [ uaOpt, "--no-sandbox", "--disable-setuid-sandbox" ]
+    s'sets @"args" [ uaOpt, "--no-sandbox", "--disable-setuid-sandbox" ]
   mSlotsKey (Just { slots: (eA ~ eB) }) =
     strJoinWith "|" $ arrSort
       [ mEntrantIdKey eA.entrantId, mEntrantIdKey eB.entrantId ]
@@ -325,7 +324,7 @@ getEventDataImpl = do
   pReadIdDataAttr e n = pReadDataAttr e n <#> sOrN
   pWaitFor page sel = pDo "waitFor" sel do
     xInfo { op: "waitFor", sel }
-    P.xWaitForSelector page sel $ s''sets @"timeout" $ Just 120000
+    P.xWaitForSelector page sel $ s'sets @"timeout" $ Just 120000
 
 userAgent :: String
 userAgent =

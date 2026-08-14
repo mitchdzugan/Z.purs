@@ -2,12 +2,12 @@ module Test.Web.SlpDB.Main where
 
 import Web.Z.Prelude
 
-import Web.Z.XDom as XDom
+import Web.Z.XDom3 as XDom
 import Z.SSBM.Slp.DB.App (xApp)
 
 main :: Effect Unit
 main = runXAThenExit do
   let notFoundError = jsError "element not found!" "#root"
   domEl <- xGetElementById "root" <#> jOrE notFoundError >>= g @XOk
-  XDom.xPreactHydrate domEl $ XDom.dom.render $ XDom.xDomRunWeb do
-    xApp XDom.xProvideHistoryX
+  XDom.xPreactHydrate domEl $ XDom.exec'xdom do
+    XDom.xDomRunWeb $ xApp XDom.xProvideHistoryX

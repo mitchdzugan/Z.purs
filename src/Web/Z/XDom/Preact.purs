@@ -21,7 +21,7 @@ xDomRunWeb
    . Lacks "xWeb" de
   => XD.MDom sx { xWeb :: XWebR | de } Unit
   -> XD.MDom sx { | de } Unit
-xDomRunWeb = XD.domEffR'run @"xWeb" DOM.xWebR
+xDomRunWeb = XD.domEffR'run'' @"xWeb" DOM.xWebR
 
 xProvideHistoryX
   :: forall sx de
@@ -29,12 +29,12 @@ xProvideHistoryX
   -> (UrlSt.T -> XD.MDom (sx) { xWeb :: XWebR | de } Unit)
   -> XD.MDom (sx) { xWeb :: XWebR | de } Unit
 xProvideHistoryX toTitleOr_ fx = do
-  locUrl <- XD.domEffR'act @"xWeb" _.locationUrl
+  locUrl <- XD.domEffR'act'' @"xWeb" _.locationUrl
   let baseUrlState = UrlSt.mk toTitleOr_ locUrl
   let origin = urlOrigin locUrl
   XD.dom.withNewState baseUrlState \st setSt -> do
-    XD.domUseEff unit do
-      let actWeb = XD.domEffR'act @"xWeb"
+    XD.dom'eff'' @"1" do
+      let actWeb = XD.domEffR'act'' @"xWeb"
       doc <- actWeb _.document
       win <- actWeb _.window
       xUpUrl <- pure $ XD.dom.doEff <<< setSt <<< UrlSt.mk toTitleOr_ =<<
@@ -73,8 +73,7 @@ xProvideHistoryX toTitleOr_ fx = do
       traceM "IN PURE ON"
       pure do
         traceM "IN PURE OFF"
-        XD.domEffR'act @"xWeb" \_ -> d'pop
-        XD.domEffR'act @"xWeb" \_ -> d'push
-        XD.domEffR'act @"xWeb" \_ -> d'click
-
+        XD.domEffR'do d'pop
+        XD.domEffR'do d'push
+        XD.domEffR'do d'click
     fx st

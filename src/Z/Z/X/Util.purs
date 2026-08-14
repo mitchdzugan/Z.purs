@@ -2,7 +2,7 @@ module Z.Z.X.Util
   ( Run'
   , Run_
   , XEffTag
-  , XEffTagged
+  , Eff'At
   , evalTagged
   , eval_
   , tagEffX
@@ -23,17 +23,17 @@ type Run' x = R.Run x Unit
 
 type Run_ a = R.Run () a
 
-data XEffTagged :: forall k. k -> Type -> Type
-data XEffTagged t a = XEffTagged (Effect a)
+data Eff'At :: forall k. k -> Type -> Type
+data Eff'At t a = Eff'At (Effect a)
 
 data XEffTag :: forall @k. k -> Type
 data XEffTag t = XEffTag
 
-evalTagged :: forall t a. XEffTag t -> XEffTagged t a -> a
-evalTagged _ (XEffTagged eff) = Unsafe.unsafePerformEffect eff
+evalTagged :: forall t a. XEffTag t -> Eff'At t a -> a
+evalTagged _ (Eff'At eff) = Unsafe.unsafePerformEffect eff
 
-useTag :: forall @t v a. ((XEffTagged t a -> a) -> v) -> v
+useTag :: forall @t v a. ((Eff'At t a -> a) -> v) -> v
 useTag runTagged = runTagged $ evalTagged $ XEffTag @t
 
-tagEffX :: forall @tag a. Effect a -> XEffTagged tag a
-tagEffX eff = XEffTagged eff
+tagEffX :: forall @tag a. Effect a -> Eff'At tag a
+tagEffX eff = Eff'At eff

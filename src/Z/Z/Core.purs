@@ -3,11 +3,14 @@ module Z.Z.Core
   , (<$$>)
   , AntiUnit
   , HashSet
-  , IdT
   , JsAny
   , JsError(..)
   , P
   , ParseError
+  , T'_
+  , T'useAsSym
+  , T'comp
+  , T'flip
   , antiUnit
   , arrDrop
   , arrEmpty
@@ -58,6 +61,11 @@ module Z.Z.Core
   , parseString_
   , parseTry
   , pureF
+  , rec'get
+  , rec'insert
+  , rec'merge
+  , rec'set
+  , rec'union
   , reduce
   , reduceM
   , resultVal
@@ -97,6 +105,7 @@ import Data.Ord as Ord
 import Data.Ring as Ring
 import Data.Semiring as Semiring
 import Data.Set as Set
+import Data.Symbol (class IsSymbol)
 import Data.Traversable as Traversable
 import Data.Tuple.Nested as TupN
 import Effect.Exception as Exc
@@ -105,9 +114,17 @@ import Parsing as Parsing
 import Parsing.Combinators as Prc
 import Parsing.String as Prs
 import Parsing.String.Basic as Prsb
+import Record as Record
 import Routing.Duplex as Dup
 import Routing.Duplex.Parser as DupP
+import Type.Equality (class TypeEquals)
 import Type.Proxy (Proxy(..)) as Proxy
+
+rec'get = Record.get
+rec'set = Record.set
+rec'insert = Record.insert
+rec'merge = Record.merge
+rec'union = Record.union
 
 routePrint :: forall i o. Dup.RouteDuplex i o -> i -> String
 routePrint = Dup.print
@@ -116,8 +133,18 @@ routeParse
   :: forall i o. Dup.RouteDuplex i o -> String -> Eor.Either DupP.RouteError o
 routeParse = Dup.parse
 
-type IdT :: forall k. k -> k
-type IdT a = a
+type T'id :: forall k. k -> k
+type T'id a = a
+
+type T'comp :: forall k1 k2 k3. (k1 -> k2) -> (k3 -> k1) -> k3 -> k2
+type T'comp f g x = f (g x)
+
+type T'flip :: forall k1 k2 k3. (k1 -> k2 -> k3) -> k2 -> k1 -> k3
+type T'flip f a b = f b a
+
+type T'_ (f :: Type -> Type) = f Unit
+
+type T'useAsSym s p f = TypeEquals s p => IsSymbol p => f p
 
 class SText a where
   stext :: a -> String
