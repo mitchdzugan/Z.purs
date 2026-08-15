@@ -15,7 +15,6 @@ module Z.XDom.Core
   , XDomA
   , XDomE
   , XDomEA
-  , class DomXCons
   , dom'a
   , dom'article
   , dom'button
@@ -101,11 +100,6 @@ foreign import data DomATag :: Type
 
 type DomE e = R' $ Proxy $ DomETag /\ e
 type DomA = R' $ Proxy DomATag
-
---------------------------------------------------------------------------------
-type MDomVX x = Wa D.ReactEl x
-
-class Cons p f (MDomVX x') (MDomVX x) <= DomXCons p f x' x
 
 --------------------------------------------------------------------------------
 
