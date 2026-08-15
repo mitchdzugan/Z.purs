@@ -4,10 +4,10 @@ module Z.XDom.Core
   , DomATag
   , DomE
   , DomETag
+  , DomEffPermit
   , MDom
   , MDomEff
   , MDomEl
-  , MDomV
   , R'Self
   , Self
   , UseEffTag
@@ -69,7 +69,7 @@ type EffSelf x = Self () x
 
 type R'Self dx x = R' (Self dx x)
 
-eval'self :: forall dr x a. Self dr x -> Run (MDomV dr x) a -> a
+eval'self :: forall dx x a. Self dx x -> Run (self :: R'Self dx x | x) a -> a
 eval'self self@(Self _ (Runner rn)) m =
   eval_ $ rn $ r'run'' @"self" self $ m
 
@@ -87,13 +87,14 @@ selfExtendDom fm (Self (Runner rn) r) = Self (Runner (rn <<< fm)) r
 selfDomless :: forall dx x. Self dx x -> Self () x
 selfDomless (Self _ r) = Self (Runner id) r
 
-type MDomV dx x = (self :: R'Self dx x | x)
+type DomEffPermit x = (domEff :: Eff'Permit | x)
 
-type MDom dr x a = Run (Wa D.ReactEl (MDomV dr x)) a
+type MDom dx x a = Run (Wa D.ReactEl (self :: R'Self dx x | x)) a
 
 type ATTR x = (attr :: W' $ Array D.PropWF | x)
-type MDomEl fdx x a = Run (ATTR (Wa D.ReactEl (Wa D.ReactEl (MDomV fdx x)))) a
-type MDomEff x a = Run (MDomV () (domEff :: Eff'Permit | x)) a
+type MDomEff x a = Run (self :: R'Self () (DomEffPermit x) | DomEffPermit x) a
+type MDomEl dx x a =
+  Run (ATTR $ Wa D.ReactEl $ Wa D.ReactEl (self :: R'Self dx x | x)) a
 
 foreign import data DomETag :: Type
 foreign import data DomATag :: Type
@@ -116,9 +117,7 @@ renderMEl :: forall dr x. Self dr x -> MDom dr x Unit -> D.ReactEl
 renderMEl self = D.js_renderFragment <<< renderM self
 
 domRenderM :: forall dr x. MDom dr x Unit -> MDom dr x (Array D.ReactEl)
-domRenderM m = do
-  self <- r'ask'' @"self"
-  pure $ renderM self m
+domRenderM m = r'ask'' @"self" <#> flip renderM m
 
 domRenderMEl :: forall dr x. MDom dr x Unit -> MDom dr x D.ReactEl
 domRenderMEl m = domRenderM m <#> D.js_renderFragment
@@ -151,17 +150,17 @@ dom'withAdapter fm m = do
   w'tell els
   pure res
 
-domEff'getSelf :: forall x. MDomEff x (Self () (domEff :: Eff'Permit | x))
+domEff'getSelf :: forall x. MDomEff x (Self () (DomEffPermit x))
 domEff'getSelf = r'ask'' @"self"
 
-domEff'do :: forall x a. Eff'At "domEff" a -> Run (domEff :: Eff'Permit | x) a
+domEff'do :: forall x a. Eff'At "domEff" a -> Run (DomEffPermit x) a
 domEff'do = eff'do'' @"domEff"
 
-dom'getEffSelf :: forall dr x. MDom dr x (Self () (domEff :: Eff'Permit | x))
+dom'getEffSelf :: forall dr x. MDom dr x (Self () (DomEffPermit x))
 dom'getEffSelf =
   r'ask'' @"self" <#> selfDomless <#> selfExtend (eff'permit'' @"domEff")
 
-el'getEffSelf :: forall dr x. MDomEl dr x (Self () (domEff :: Eff'Permit | x))
+el'getEffSelf :: forall dr x. MDomEl dr x (Self () (DomEffPermit x))
 el'getEffSelf =
   r'ask'' @"self" <#> selfDomless <#> selfExtend (eff'permit'' @"domEff")
 
@@ -257,10 +256,10 @@ type T'domS'setable s a p =
   forall x' x r
    . IsSymbol p
   => Cons p (R'Rec (get :: s, update :: a -> Eff'At "domEff" Unit | r))
-       (domEff :: Eff'Permit | x')
-       (domEff :: Eff'Permit | x)
+       (DomEffPermit x')
+       (DomEffPermit x)
   => a
-  -> Run (domEff :: Eff'Permit | x) Unit
+  -> Run (DomEffPermit x) Unit
 
 type T'domS'dispatch p = forall s a. T'domS'setable s a p
 
@@ -301,31 +300,21 @@ type UEFOff = UseEffTag "-"
 type UEF1Off = UseEffTag "1-"
 type UEFAllOff = UseEffTag "*-"
 
-instance (Eq a) => Generable UEF GDefault (a -> MDE_D x -> MD_ dx x) where
-  mkGenerable = domUseEff
-
 instance Generable UEF1 GDefault (MDE_D x -> MD_ dx x) where
   mkGenerable = domUseEff unit
-
-instance Generable UEFAll GDefault (MDE_D x -> MD_ dx x) where
+else instance Generable UEFAll GDefault (MDE_D x -> MD_ dx x) where
   mkGenerable = domUseEff antiUnit
-
-instance (Eq a) => Generable UEFOn GDefault (a -> MDE_ x -> MD_ dx x) where
+else instance (Eq a) => Generable UEFOn GDefault (a -> MDE_ x -> MD_ dx x) where
   mkGenerable a m = domUseEff a $ m *> pure (pure unit)
-
-instance Generable UEF1On GDefault (MDE_ x -> MD_ dx x) where
+else instance Generable UEF1On GDefault (MDE_ x -> MD_ dx x) where
   mkGenerable m = domUseEff unit $ m *> pure (pure unit)
-
-instance Generable UEFAllOn GDefault (MDE_ x -> MD_ dx x) where
+else instance Generable UEFAllOn GDefault (MDE_ x -> MD_ dx x) where
   mkGenerable m = domUseEff antiUnit $ m *> pure (pure unit)
-
-instance (Eq a) => Generable UEFOff GDefault (a -> MDE_ x -> MD_ dx x) where
+else instance (Eq a) => Generable UEFOff GDefault (a -> MDE_ x -> MD_ dx x) where
   mkGenerable a m = domUseEff a $ pure m
-
-instance Generable UEF1Off GDefault (MDE_ x -> MD_ dx x) where
+else instance Generable UEF1Off GDefault (MDE_ x -> MD_ dx x) where
   mkGenerable m = domUseEff unit $ pure m
-
-instance Generable UEFAllOff GDefault (MDE_ x -> MD_ dx x) where
+else instance Generable UEFAllOff GDefault (MDE_ x -> MD_ dx x) where
   mkGenerable m = domUseEff antiUnit $ pure m
 
 domEff'use :: forall v. Generable (UseEffTag "") GDefault v => v

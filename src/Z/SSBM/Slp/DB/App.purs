@@ -50,7 +50,9 @@ xApp = router'run'' @"router" printRoute parseUrl mkTitleOr_ do
         dom'withKey "asdfasdf" $ dom'button do
           el'cnW \w -> do
             w "btn btn-soft" *> when (count > 5) do w "btn-accent"
-          el'onClick $ const $ domS'dispatch'' @"count" Inc
+          el'onClick \e -> do
+            xOut e
+            domS'dispatch'' @"count" Inc
           dom'text "inc"
   where
   mkTitleOr_ = Just <<< urlToString <<< _.url

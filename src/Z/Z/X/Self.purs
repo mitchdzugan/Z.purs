@@ -1,13 +1,12 @@
-module Z.Z.X.Self
-  ( Self
-  , run
-  ) where
+module Z.Z.X.Self where
 
 import Z.Prelude
 
 import Z.XDom.Preact (ReactEl)
 
-data Self x = Self (forall a. Run x a -> Run () a)
+data Self__________ x = Self (forall a. Run x a -> Run () a)
+
+{-
 
 run :: forall x a. Self x -> Run x a -> a
 run (Self runner) m = eval_ $ runner m
@@ -18,7 +17,6 @@ extendSelf (Self runner) fm = Self (runner <<< fm)
 baseSelf :: Self ()
 baseSelf = Self id
 
-{-
 
 data MComp :: forall k1 k2. (k1 -> Type) -> (k2 -> k1) -> k2 -> Type
 data MComp m' m x = MComp (m' (m x))

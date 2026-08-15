@@ -15,10 +15,7 @@ foreign import js_renderIn :: XD.ReactEl -> Element -> Effect (Promise Unit)
 xPreactHydrate :: forall x. Element -> XD.ReactEl -> EA JsError x #> Unit
 xPreactHydrate d r = g @XRunEffPromise $ js_renderIn r d
 
-xDomRunWeb
-  :: forall dr x
-   . XD.MDom dr (XWebV x) Unit
-  -> XD.MDom dr x Unit
+xDomRunWeb :: forall dr x. XD.MDom dr (XWebV x) Unit -> XD.MDom dr x Unit
 xDomRunWeb = XD.dom'withAdapter DOM.runXWeb
 
 xProvideHistoryX
@@ -42,12 +39,9 @@ xProvideHistoryX toTitleOr_ urlStateToDom = do
       d'pop <- DOM.xAddEventListener popState win pass \_ -> pureRun xUpUrl
       d'push <- DOM.xAddEventListener pushState win pass \_ -> pureRun xUpUrl
       d'click <- DOM.xAddEventListener click doc pass \e -> pureRun do
-        let orTarget = evTarget e
-        whenJust orTarget \target -> do
-          orClosest <- DOM.xClosest target "a"
-          whenJust orClosest \closest -> do
-            orHref <- DOM.xGetAttribute closest "href"
-            whenJust orHref \href -> do
+        whenJust (evTarget e) \target -> do
+          DOM.xClosest target "a" >>= flip whenJust \closest -> do
+            DOM.xGetAttribute closest "href" >>= flip whenJust \href -> do
               when (strStartsWith "/" href) do
                 DOM.xPreventDefault e
                 DOM.xStopPropagation e
