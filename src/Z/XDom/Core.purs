@@ -340,7 +340,7 @@ el'cn = w'tell'' @"attr" <<< pure <<< D.ClassName
 el'cnW :: forall dr x. ((String -> StrW) -> StrW) -> MDomEl dr x Unit
 el'cnW fm = el'cn $ joinStrW " " $ fm $ w'say
 
-el'onClick :: forall dr x. (Int -> MDomEff x Unit) -> MDomEl dr x Unit
+el'onClick :: forall dr x. (D.DomEvent -> MDomEff x Unit) -> MDomEl dr x Unit
 el'onClick f = do
   self <- el'getEffSelf
   w'tell'' @"attr" $ pure $ D.OnClick $ \e -> eval'self self $ f e

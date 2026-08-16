@@ -1,5 +1,6 @@
 module Z.XDom.Preact
-  ( PropWF(..)
+  ( DomEvent
+  , PropWF(..)
   , ReactEl
   , js_effComponent
   , js_propsFromPropWs
@@ -40,10 +41,12 @@ foreign import js_withBoundedError
 
 foreign import js_throwBoundedError :: forall e a. String -> e -> a
 
+foreign import data DomEvent :: Type
+
 data PropWF
   = Href String
   | ClassName String
-  | OnClick (Int -> Unit)
+  | OnClick (DomEvent -> Unit)
   | PKey String
 
 propWFKey :: PropWF -> String
