@@ -11,11 +11,10 @@ countAct n Inc = n + 1
 countAct n Dec = n - 1
 countAct _ Reset = 3
 
-xOnE
-  :: forall dr x
-   . String
-  -> XDom dr (count :: Reducer CountAction Int | x) Unit
-xOnE message = do
+type COUNT x = (count :: Reducer CountAction Int | x)
+
+app'onE :: forall dr x. String -> XDom dr (COUNT x) Unit
+app'onE message = do
   dom'div do
     dom'text message
     dom'button do
@@ -23,8 +22,31 @@ xOnE message = do
       el'onClick $ \_ -> domS'dispatch'' @"count" Reset
       dom'text "reset"
 
-xApp :: forall dr x. UrlSt.XProvider dr x -> XDom dr x Unit
-xApp = router'run'' @"router" printRoute parseUrl mkTitleOr_ do
+app'body :: forall dr x. XDomE String dr (COUNT x) Unit
+app'body = do
+  count <- domS'get'' @"count"
+  dom'div $ dom'text "Hellllooooooo"
+  dom'div do
+    el'key "asdfasdfasdfasdf..."
+    when (count < 0) do domE'fail "negative number invalid"
+    dom'span %% w'str \t -> t "div with stuff" *> t (stext unit) *> t "!"
+    dom'br $ pass
+    dom'button do
+      el'cnW \w -> do
+        w "btn btn-soft" *> when (count > 5) do w "btn-accent"
+      el'onClick $ (\_ -> domS'dispatch'' @"count" Dec)
+      dom'text "dec"
+    dom'div $ dom'text ("Count:" <-> count)
+    dom'withKey "asdfasdf" $ dom'button do
+      el'cnW \w -> do
+        w "btn btn-soft" *> when (count > 5) do w "btn-accent"
+      el'onClick \e -> do
+        xOut e
+        domS'dispatch'' @"count" Inc
+      dom'text "inc"
+
+app'mk :: forall dr x. UrlSt.XProvider dr x -> XDom dr x Unit
+app'mk = router'run'' @"router" printRoute parseUrl mkTitleOr_ do
   r <- router'routeOrE'' @"router"
   xOut $ show r
   dom'div do
@@ -34,26 +56,7 @@ xApp = router'run'' @"router" printRoute parseUrl mkTitleOr_ do
       router'href $ Profile "Jimmy"
       el'cn "btn link btn-primary"
       dom'text "profile link"
-    dom'div $ domS'runReducer'' @"count" 3 countAct $ domE'bind xOnE do
-      count <- domS'get'' @"count"
-      dom'div $ dom'text "Hellllooooooo"
-      dom'div do
-        el'key "asdfasdfasdfasdf..."
-        when (count < 0) do domE'fail "negative number invalid"
-        -- dom.span %%-& \t -> t "div with stuff" *> t unit *> t "!"
-        dom'button do
-          el'cnW \w -> do
-            w "btn btn-soft" *> when (count > 5) do w "btn-accent"
-          el'onClick $ (\_ -> domS'dispatch'' @"count" Dec)
-          dom'text "dec"
-        dom'div $ dom'text ("Count:" <-> count)
-        dom'withKey "asdfasdf" $ dom'button do
-          el'cnW \w -> do
-            w "btn btn-soft" *> when (count > 5) do w "btn-accent"
-          el'onClick \e -> do
-            xOut e
-            domS'dispatch'' @"count" Inc
-          dom'text "inc"
+    domS'runReducer'' @"count" 3 countAct $ domE'bind app'onE app'body
   where
   mkTitleOr_ = Just <<< urlToString <<< _.url
   parseRouteL Nil = pure Home

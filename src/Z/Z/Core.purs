@@ -2,6 +2,7 @@ module Z.Z.Core
   ( (<##>)
   , (<$$>)
   , AntiUnit
+  , Deferred
   , HashSet
   , JsAny
   , JsError(..)
@@ -22,6 +23,7 @@ module Z.Z.Core
   , class RtError
   , class SText
   , dec
+  , deferred'run
   , encodeForeign
   , encodeOpts
   , fDiscard
@@ -120,6 +122,13 @@ import Routing.Duplex as Dup
 import Routing.Duplex.Parser as DupP
 import Type.Equality (class TypeEquals)
 import Type.Proxy (Proxy(..)) as Proxy
+
+type Deferred a = Void -> a
+
+foreign import js_runDeferred :: forall a. Deferred a -> a
+
+deferred'run :: forall a. Deferred a -> a
+deferred'run = js_runDeferred
 
 rec'get = Record.get
 rec'set = Record.set

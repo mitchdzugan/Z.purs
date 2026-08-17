@@ -21,3 +21,4 @@ export const js_removeNils = (o) => {
   }
   return res;
 };
+export const js_runDeferred = (f) => f();

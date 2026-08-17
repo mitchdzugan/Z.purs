@@ -32,6 +32,8 @@ module Z.Z.X.Core
   , RWaSE
   , RWaSEA
   , Result
+  , RunMW
+  , Runner
   , S
   , SA
   , SE
@@ -138,7 +140,6 @@ module Z.Z.X.Core
   , eff'withPermit
   , evalX
   , evalXA
-  , joinStrW
   , r'act
   , r'act''
   , r'ask
@@ -150,6 +151,11 @@ module Z.Z.X.Core
   , runX
   , runXA
   , runXBase
+  , runner'_
+  , runner'eval
+  , runner'extend
+  , runner'mk
+  , runner'mkDeferred
   , s'plus
   , s'plus''
   , s'sets
@@ -164,6 +170,8 @@ module Z.Z.X.Core
   , w'run''
   , w'say
   , w'say''
+  , w'str
+  , w'str''
   , w'tell
   , w'tell''
   , xGetter
@@ -183,7 +191,7 @@ import Z.Z.X.UtilPrelude
 import Control.Monad as Monad
 import Control.Promise as Promise
 import Data.Either as Eor
-import Data.Lens (Forget)
+import Data.Lens (Forget, Lens', view)
 import Data.Lens as Lens
 import Data.List.Types as ListT
 import Data.Maybe as May
@@ -191,7 +199,7 @@ import Data.Maybe.First as MayFirst
 import Data.Monoid as Monoid
 import Data.Monoid.Endo as Endo
 import Data.String.Common as StrCommon
-import Data.Symbol (class IsSymbol)
+import Data.Symbol (class IsSymbol, reflectSymbol)
 import Data.Tuple as Tup
 import Data.Tuple.Nested as TupN
 import Effect as Eff
@@ -242,6 +250,27 @@ instance (GOrDefault "except" gspec p) => GOrE gspec p
 
 data XImpl :: forall k. k -> Type
 data XImpl xFn
+
+------------------------------- runner --------------------------------
+
+type RunMW x x' = forall a. R.Run x a -> R.Run x' a
+
+newtype Runner x = Runner (RunMW x ())
+
+runner'eval :: forall x a. Runner x -> R.Run x a -> a
+runner'eval (Runner r) m = eval_ $ r m
+
+runner'mkDeferred :: forall x a. Runner x -> R.Run x a -> Z.Deferred a
+runner'mkDeferred runner m = \_ -> runner'eval runner m
+
+runner'_ :: Runner ()
+runner'_ = Runner identity
+
+runner'mk :: forall x. (forall a. R.Run x a -> R.Run () a) -> Runner x
+runner'mk f = Runner f
+
+runner'extend :: forall x x'. RunMW x x' -> Runner x' -> Runner x
+runner'extend fm (Runner r) = Runner (r <<< fm)
 
 ------------------------------- e -------------------------------------
 
@@ -1139,8 +1168,14 @@ edit init m = R.extract $ RunS.execState init $
 
 type StrW = XRun (Wa String ()) Unit
 
-joinStrW :: String -> StrW -> String
-joinStrW s m = StrCommon.joinWith s $ evalX $ g @XExecW m
+type T'w'str p = IsSymbol p => ((String -> StrW) -> StrW) -> String
+
+w'str'' :: forall @p. T'w'str p
+w'str'' fm =
+  StrCommon.joinWith (reflectSymbol (px @p)) $ evalX $ g @XExecW (fm w'say)
+
+w'str :: forall p. T'useAsSym "" p T'w'str
+w'str = w'str'' @p
 
 --------------- E FNS -----------------------------------------------------
 

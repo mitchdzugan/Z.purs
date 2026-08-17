@@ -1,5 +1,6 @@
 module Z.XDom.Core
-  ( ATTR
+  ( (%%)
+  , ATTR
   , DomA
   , DomATag
   , DomE
@@ -10,13 +11,13 @@ module Z.XDom.Core
   , MDomEl
   , R'Self
   , Self
-  , UseEffTag
   , XDom
   , XDomA
   , XDomE
   , XDomEA
   , dom'a
   , dom'article
+  , dom'br
   , dom'button
   , dom'div
   , dom'element
@@ -32,9 +33,18 @@ module Z.XDom.Core
   , domE'fail
   , domE'fail''
   , domEff'do
+  , domEff'getRunner
+  , domEff'getRunner'
   , domEff'getSelf
-  , domEff'use
-  , domEff'use''
+  , domEff'on
+  , domEff'on'1
+  , domEff'on'1'post
+  , domEff'on'1'pre
+  , domEff'on'all
+  , domEff'on'all'post
+  , domEff'on'all'pre
+  , domEff'on'post
+  , domEff'on'pre
   , domR'run
   , domR'run''
   , domS'dispatch
@@ -47,21 +57,18 @@ module Z.XDom.Core
   , domS'runState''
   , domS'set
   , domS'set''
-  , domUseEff
   , el'cn
   , el'cnW
   , el'href
   , el'key
   , el'onClick
-  , eval'self
   , exec'xdom
+  , op'el'text
   ) where
 
 import Z.Prelude
 
 import Z.XDom.Preact as D
-
-data Runner x = Runner (forall a. Run x a -> Run () a)
 
 data Self dx x = Self (Runner dx) (Runner x)
 type EffSelf x = Self () x
@@ -69,22 +76,16 @@ type EffSelf x = Self () x
 type R'Self dx x = R' (Self dx x)
 
 eval'self :: forall dx x a. Self dx x -> Run (self :: R'Self dx x | x) a -> a
-eval'self self@(Self _ (Runner rn)) m =
-  eval_ $ rn $ r'run'' @"self" self $ m
+eval'self self@(Self _ rn) m = runner'eval rn $ r'run'' @"self" self $ m
 
-selfExtend
-  :: forall dr x' x. (forall a. Run x a -> Run x' a) -> Self dr x' -> Self dr x
-selfExtend fm (Self dr (Runner rn)) = Self dr (Runner (rn <<< fm))
+selfExtend :: forall dr x' x. RunMW x x' -> Self dr x' -> Self dr x
+selfExtend fm (Self drn rn) = Self drn (runner'extend fm rn)
 
-selfExtendDom
-  :: forall dx' dx x
-   . (forall a. Run dx a -> Run dx' a)
-  -> Self dx' x
-  -> Self dx x
-selfExtendDom fm (Self (Runner rn) r) = Self (Runner (rn <<< fm)) r
+selfExtendDom :: forall dx' dx x. RunMW dx dx' -> Self dx' x -> Self dx x
+selfExtendDom fm (Self drn r) = Self (runner'extend fm drn) r
 
 selfDomless :: forall dx x. Self dx x -> Self () x
-selfDomless (Self _ r) = Self (Runner id) r
+selfDomless (Self _ r) = Self runner'_ r
 
 type DomEffPermit x = (domEff :: Eff'Permit | x)
 
@@ -146,6 +147,16 @@ dom'withAdapter fm m = do
 
 domEff'getSelf :: forall x. MDomEff x (Self () (DomEffPermit x))
 domEff'getSelf = r'ask'' @"self"
+
+domEff'getRunner :: forall x a. MDomEff x (MDomEff x a -> a)
+domEff'getRunner = r'ask'' @"self" <#> eval'self
+
+domEff'getRunner'
+  :: forall x
+   . MDomEff x (Runner (self :: R'Self () (DomEffPermit x) | DomEffPermit x))
+domEff'getRunner' = do
+  self <- domEff'getSelf
+  pure $ runner'mk \m -> pure $ eval'self self $ m
 
 domEff'do :: forall x a. Eff'At "domEff" a -> Run (DomEffPermit x) a
 domEff'do = eff'do'' @"domEff"
@@ -211,10 +222,12 @@ domE'fail = domE'fail'' @p
 
 --------------------------------------------------------------------------------
 
+type ReducerR s a r = (get :: s, update :: a -> Eff'At "domEff" Unit | r)
+
 type T'domS'runable s a tf p =
   forall dr x' x
    . IsSymbol p
-  => Cons p (R'Rec (get :: s, update :: a -> Eff'At "domEff" Unit)) x' x
+  => Cons p (R'Rec $ ReducerR s a ()) x' x
   => (tf (MDom dr x Unit -> MDom dr x' Unit))
 
 type Tf'reducer s a res = s -> (s -> a -> s) -> res
@@ -249,9 +262,7 @@ domS'get = domS'get'' @p
 type T'domS'setable s a p =
   forall x' x r
    . IsSymbol p
-  => Cons p (R'Rec (get :: s, update :: a -> Eff'At "domEff" Unit | r))
-       (DomEffPermit x')
-       (DomEffPermit x)
+  => Cons p (R'Rec $ ReducerR s a r) (DomEffPermit x') (DomEffPermit x)
   => a
   -> Run (DomEffPermit x) Unit
 
@@ -273,57 +284,35 @@ domS'set = domS'set'' @p
 
 type MDomEff_D x = MDomEff x (MDomEff x Unit)
 
-domUseEff :: forall dr x a. Eq a => a -> MDomEff_D x -> MDom dr x Unit
-domUseEff comp on = do
+domEff'on :: forall a dx x. Eq a => a -> MDomEff_D x -> MDom dx x Unit
+domEff'on comp on = do
   self <- dom'getEffSelf
   w'say $ D.js_effComponent eq comp $ \_ ->
     let r' = eval'self self on in \_ -> eval'self self r'
 
-foreign import data UseEffTag :: forall k. k -> Type
+domEff'on'1 :: forall dx x. MDomEff_D x -> MDom dx x Unit
+domEff'on'1 = domEff'on unit
 
-type MD_ dx x = MDom dx x Unit
-type MDE_ x = MDomEff x Unit
-type MDE_D x = MDomEff_D x
-type UEF = UseEffTag ""
-type UEF1 = UseEffTag "1"
-type UEFAll = UseEffTag "*"
-type UEFOn = UseEffTag "+"
-type UEF1On = UseEffTag "+1"
-type UEFAllOn = UseEffTag "+*"
-type UEFOff = UseEffTag "-"
-type UEF1Off = UseEffTag "1-"
-type UEFAllOff = UseEffTag "*-"
+domEff'on'all :: forall dx x. MDomEff_D x -> MDom dx x Unit
+domEff'on'all = domEff'on antiUnit
 
-instance Generable UEF1 GDefault (MDE_D x -> MD_ dx x) where
-  mkGenerable = domUseEff unit
-else instance Generable UEFAll GDefault (MDE_D x -> MD_ dx x) where
-  mkGenerable = domUseEff antiUnit
-else instance (Eq a) => Generable UEFOn GDefault (a -> MDE_ x -> MD_ dx x) where
-  mkGenerable a m = domUseEff a $ m *> pure (pure unit)
-else instance Generable UEF1On GDefault (MDE_ x -> MD_ dx x) where
-  mkGenerable m = domUseEff unit $ m *> pure (pure unit)
-else instance Generable UEFAllOn GDefault (MDE_ x -> MD_ dx x) where
-  mkGenerable m = domUseEff antiUnit $ m *> pure (pure unit)
-else instance (Eq a) => Generable UEFOff GDefault (a -> MDE_ x -> MD_ dx x) where
-  mkGenerable a m = domUseEff a $ pure m
-else instance Generable UEF1Off GDefault (MDE_ x -> MD_ dx x) where
-  mkGenerable m = domUseEff unit $ pure m
-else instance Generable UEFAllOff GDefault (MDE_ x -> MD_ dx x) where
-  mkGenerable m = domUseEff antiUnit $ pure m
+domEff'on'pre :: forall a dx x. Eq a => a -> MDomEff x Unit -> MDom dx x Unit
+domEff'on'pre a m = domEff'on a $ m *> pure (pure unit)
 
-domEff'use :: forall v. Generable (UseEffTag "") GDefault v => v
-domEff'use = g @(UseEffTag "")
+domEff'on'1'pre :: forall dx x. MDomEff x Unit -> MDom dx x Unit
+domEff'on'1'pre m = domEff'on unit $ m *> pure (pure unit)
 
-domEff'use'' :: forall @at v. Generable (UseEffTag at) GDefault v => v
-domEff'use'' = g @(UseEffTag at)
+domEff'on'all'pre :: forall dx x. MDomEff x Unit -> MDom dx x Unit
+domEff'on'all'pre m = domEff'on antiUnit $ m *> pure (pure unit)
 
-type XDom_domElement_ = forall dr x. MDomEl dr x Unit -> MDom dr x Unit
+domEff'on'post :: forall a dx x. Eq a => a -> MDomEff x Unit -> MDom dx x Unit
+domEff'on'post a m = domEff'on a $ pure m
 
-dom'element :: String -> XDom_domElement_
-dom'element s m = do
-  (propWFs /\ elBuild) <- g1 @XRunW @"attr" $ w'exec m
-  let props = D.js_propsFromPropWs D.propWFKey D.propWFVal propWFs
-  w'say $ D.js_renderEl s (encodeOpts props) elBuild
+domEff'on'1'post :: forall dx x. MDomEff x Unit -> MDom dx x Unit
+domEff'on'1'post m = domEff'on unit $ pure m
+
+domEff'on'all'post :: forall dx x. MDomEff x Unit -> MDom dx x Unit
+domEff'on'all'post m = domEff'on antiUnit $ pure m
 
 dom'text :: forall t dr x. SText t => t -> MDom dr x Unit
 dom'text = w'say <<< D.js_textEl <<< stext
@@ -338,12 +327,28 @@ el'cn :: forall dr x. String -> MDomEl dr x Unit
 el'cn = w'tell'' @"attr" <<< pure <<< D.ClassName
 
 el'cnW :: forall dr x. ((String -> StrW) -> StrW) -> MDomEl dr x Unit
-el'cnW fm = el'cn $ joinStrW " " $ fm $ w'say
+el'cnW fm = el'cn $ w'str'' @" " fm
 
 el'onClick :: forall dr x. (D.DomEvent -> MDomEff x Unit) -> MDomEl dr x Unit
 el'onClick f = do
   self <- el'getEffSelf
   w'tell'' @"attr" $ pure $ D.OnClick $ \e -> eval'self self $ f e
+
+type XDom_domElement_ = forall dr x. MDomEl dr x Unit -> MDom dr x Unit
+
+dom'element :: String -> XDom_domElement_
+dom'element s m = do
+  (propWFs /\ elBuild) <- w'run'' @"attr" $ w'exec m
+  let props = D.js_propsFromPropWs D.propWFKey D.propWFVal propWFs
+  w'say $ D.js_renderEl s (encodeOpts props) elBuild
+
+type XDom_domElement_NoCh = forall dr x. XRun (ATTR ()) Unit -> MDom dr x Unit
+
+dom'element_noCh :: String -> XDom_domElement_NoCh
+dom'element_noCh s m = do
+  let propWFs = eval_ $ w'exec'' @"attr" $ runXBase m
+  let props = D.js_propsFromPropWs D.propWFKey D.propWFVal propWFs
+  w'say $ D.js_renderEl s (encodeOpts props) []
 
 type XDom dr x a = MDom dr (XBASE x) a
 type XDomA dx x a = XDom (async :: DomA | dx) x a
@@ -356,7 +361,7 @@ type XDomE_ e dr x = T'_ $ XDomE e dr x
 type XDomEA_ e dr x = T'_ $ XDomEA e dr x
 
 baseSelf :: Self () ()
-baseSelf = Self (Runner id) (Runner id)
+baseSelf = Self runner'_ runner'_
 
 exec'xdom :: XDom_ () () -> D.ReactEl
 exec'xdom = renderMEl $ selfDomless $ selfExtend runXBase baseSelf
@@ -381,3 +386,11 @@ dom'article = dom'element "article"
 
 dom'iframe :: XDom_domElement_
 dom'iframe = dom'element "iframe"
+
+dom'br :: XDom_domElement_NoCh
+dom'br = dom'element_noCh "br"
+
+op'el'text :: forall t dr x. SText t => XDom_domElement_ -> t -> MDom dr x Unit
+op'el'text el t = el $ dom'text t
+
+infixr 0 op'el'text as %%

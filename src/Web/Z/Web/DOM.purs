@@ -133,12 +133,12 @@ xAddEventListener
   => WebEvent.EventType
   -> t
   -> Edit EventListenerOpts
-  -> (WebEvent.Event -> Run () Unit)
+  -> (WebEvent.Event -> Deferred Unit)
   -> RWeb x (RWeb x Unit)
 xAddEventListener eType target opts onE = do
   let o = edit defaultEventListenerOpts opts
   let tgt = toEventTarget target
-  let evalEvent = eval_ <<< onE
+  let evalEvent = deferred'run <<< onE
   el <- r'act'' @"xWeb" \r -> r.addEventListener eType tgt o evalEvent
   pure $ r'act'' @"xWeb" \r -> r.rmEventListener eType tgt o.capture el
 

@@ -28,17 +28,17 @@ xProvideHistoryX toTitleOr_ urlStateToDom = do
   let baseUrlState = UrlSt.mk toTitleOr_ locUrl
   let origin = urlOrigin locUrl
   XD.dom'withNewState baseUrlState \urlState setUrlState -> do
-    XD.domUseEff unit do
+    XD.domEff'on'1 do
       doc <- DOM.xDocument
       win <- DOM.xWindow
       let mkUrlState = UrlSt.mk toTitleOr_ <$> DOM.xLocationUrl
       let xUpUrl = XD.domEff'do <<< setUrlState =<< mkUrlState
       let { pushState, popState, click } = eventType
-      self <- XD.domEff'getSelf
-      let pureRun = pure <<< XD.eval'self self
-      d'pop <- DOM.xAddEventListener popState win pass \_ -> pureRun xUpUrl
-      d'push <- DOM.xAddEventListener pushState win pass \_ -> pureRun xUpUrl
-      d'click <- DOM.xAddEventListener click doc pass \e -> pureRun do
+      runner <- XD.domEff'getRunner'
+      let deferring = runner'mkDeferred runner
+      d'pop <- DOM.xAddEventListener popState win pass \_ -> deferring xUpUrl
+      d'push <- DOM.xAddEventListener pushState win pass \_ -> deferring xUpUrl
+      d'click <- DOM.xAddEventListener click doc pass \e -> deferring do
         whenJust (evTarget e) \target -> do
           DOM.xClosest target "a" >>= flip whenJust \closest -> do
             DOM.xGetAttribute closest "href" >>= flip whenJust \href -> do
