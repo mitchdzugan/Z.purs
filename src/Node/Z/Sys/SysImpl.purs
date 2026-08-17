@@ -198,7 +198,7 @@ runXAThenExit
   :: forall @w @e a. RtError e => XRunWA w (XNodeEA e) a -> Effect Unit
 runXAThenExit m = effAffThenExit $ runXA $ do
   w /\ res <- g @XRunW $ expand $ runXNode m
-  when (arrSize w > 0) do
+  when (arr'size w > 0) do
     xLogWarning "collected warnings ⌄"
     xLogWarning w
   pure res
@@ -224,7 +224,7 @@ toPlatform "openbsd" = OpenBSD
 toPlatform _ = Unknown
 
 xArgv :: forall x. XNode x (Array String)
-xArgv = lift _xNode (FullArgvCmd (arrDrop 2))
+xArgv = lift _xNode (FullArgvCmd (arr'drop 2))
 
 xWd :: forall x. XNode x Path
 xWd = lift _xNode (WdCmd Path)

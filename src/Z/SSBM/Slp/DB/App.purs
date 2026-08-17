@@ -64,7 +64,7 @@ app'mk = router'run'' @"router" printRoute parseUrl mkTitleOr_ do
   parseRouteL _ = Left "Invalid Route"
 
   parseUrl :: URL -> Either String Route
-  parseUrl u = parseRouteL $ listFromFoldable $ urlPathSegments u
+  parseUrl u = parseRouteL $ list'fromFoldable $ urlPathSegments u
 
   printRoute :: Route -> String
   printRoute Home = "/"

@@ -6,6 +6,7 @@ module Z.XDom.Core
   , DomE
   , DomETag
   , DomEffPermit
+  , MDOMEFF
   , MDom
   , MDomEff
   , MDomEl
@@ -34,7 +35,6 @@ module Z.XDom.Core
   , domE'fail''
   , domEff'do
   , domEff'getRunner
-  , domEff'getRunner'
   , domEff'getSelf
   , domEff'on
   , domEff'on'1
@@ -92,7 +92,8 @@ type DomEffPermit x = (domEff :: Eff'Permit | x)
 type MDom dx x a = Run (Wa D.ReactEl (self :: R'Self dx x | x)) a
 
 type ATTR x = (attr :: W' $ Array D.PropWF | x)
-type MDomEff x a = Run (self :: R'Self () (DomEffPermit x) | DomEffPermit x) a
+type MDOMEFF x = (self :: R'Self () (DomEffPermit x) | DomEffPermit x)
+type MDomEff x a = Run (MDOMEFF x) a
 type MDomEl dx x a =
   Run (ATTR $ Wa D.ReactEl $ Wa D.ReactEl (self :: R'Self dx x | x)) a
 
@@ -148,15 +149,8 @@ dom'withAdapter fm m = do
 domEff'getSelf :: forall x. MDomEff x (Self () (DomEffPermit x))
 domEff'getSelf = r'ask'' @"self"
 
-domEff'getRunner :: forall x a. MDomEff x (MDomEff x a -> a)
-domEff'getRunner = r'ask'' @"self" <#> eval'self
-
-domEff'getRunner'
-  :: forall x
-   . MDomEff x (Runner (self :: R'Self () (DomEffPermit x) | DomEffPermit x))
-domEff'getRunner' = do
-  self <- domEff'getSelf
-  pure $ runner'mk \m -> pure $ eval'self self $ m
+domEff'getRunner :: forall x. MDomEff x (Runner (MDOMEFF x))
+domEff'getRunner = domEff'getSelf <#> \s -> runner'mk (pure <<< eval'self s)
 
 domEff'do :: forall x a. Eff'At "domEff" a -> Run (DomEffPermit x) a
 domEff'do = eff'do'' @"domEff"

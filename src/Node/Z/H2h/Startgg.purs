@@ -23,9 +23,9 @@ mapOfJsonElsWithFieldsTypeAnd_t
   => ConstructBarlow ttypeLns (Forget String) { | r } { | r } String String
   => Array { | r }
   -> Map String String
-mapOfJsonElsWithFieldsTypeAnd_t = reduce reducer mapEmpty
+mapOfJsonElsWithFieldsTypeAnd_t = reduce reducer map'empty
   where
-  reducer m i = mapSet (g_ @ttype i) (g_ @t i) m
+  reducer m i = map'set (g_ @ttype i) (g_ @t i) m
 
 getEventData :: forall x. B.GetDataFn x
 getEventData = B.adaptBuilder $ g @XEvalS initState do
@@ -58,14 +58,14 @@ getEventData = B.adaptBuilder $ g @XEvalS initState do
         , participants
         , standing: { placement: 0, isFinal: false }
         }
-    g @(XOver_ "entrants") $ mapSet entrantId entrant
+    g @(XOver_ "entrants") $ map'set entrantId entrant
   forM_ event.standings.nodes $ \standing -> do
     let entrantId = sOrN standing.entrant.id
     g @XSet (_o_ @"entrants" @"standing" (ix entrantId))
       { placement: standing.placement, isFinal: standing.isFinal }
 
   let rawPgs = arrSortWith (g_ @"id") event.phaseGroups
-  pgs <- forM rawPgs $ \pg -> s'plus @"sets" (mapEmpty @Int) do
+  pgs <- forM rawPgs $ \pg -> s'plus @"sets" (map'empty @Int) do
     { phaseGroup } <- fetchRawPhaseGroupData pg.id
     forM_ phaseGroup.sets.nodes $ \set -> do
       let
@@ -82,9 +82,9 @@ getEventData = B.adaptBuilder $ g @XEvalS initState do
       slotScoreA /\ slotScoreB <- g @XWithReturn \xReturn -> do
         let games = orDefault set.games
         let winnerIds = games <#> _.winnerId
-        let doneGames = arrSize $ arrFilter isJust winnerIds
-        when (arrSize games == doneGames && doneGames > 0) do
-          let w1Games = arrSize $ arrFilter (eq eIdA) winnerIds
+        let doneGames = arr'size $ arrFilter isJust winnerIds
+        when (arr'size games == doneGames && doneGames > 0) do
+          let w1Games = arr'size $ arrFilter (eq eIdA) winnerIds
           let w2Games = doneGames - w1Games
           xReturn $ H2h.mkScoreCount w1Games /\ H2h.mkScoreCount w2Games
         whenJust set.displayScore $ \displayScore -> do
@@ -135,7 +135,7 @@ getEventData = B.adaptBuilder $ g @XEvalS initState do
         }
     }
   where
-  initState = { entrants: mapEmpty @SorN @H2h.Entrant }
+  initState = { entrants: map'empty @SorN @H2h.Entrant }
   fetchRawPhaseGroupData phaseGroupId = do
     { client, networkControl } <- g @XAsk
     let initVars = { page: 0, phaseGroupId }

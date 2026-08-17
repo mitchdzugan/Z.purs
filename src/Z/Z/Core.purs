@@ -13,12 +13,12 @@ module Z.Z.Core
   , T'flip
   , T'useAsSym
   , antiUnit
-  , arrDrop
-  , arrEmpty
+  , arr'drop
+  , arr'empty
   , arrFilter
-  , arrFromFoldable
-  , arrSize
-  , arrSlice
+  , arr'fromFoldable
+  , arr'size
+  , arr'slice
   , class Resulting
   , class RtError
   , class SText
@@ -42,13 +42,16 @@ module Z.Z.Core
   , jsErrorStack
   , jsonRmNils
   , jsonStr
-  , listFromFoldable
-  , mapEmpty
-  , mapFromFoldable
+  , list'fromFoldable
+  , map'empty
+  , map'fromFoldable
   , mapL
   , mapM
-  , mapSet
-  , mapSize
+  , map'set
+  , map'size
+  , obj'empty
+  , obj'insert
+  , obj'lookup
   , p
   , p2
   , parseEof
@@ -77,11 +80,11 @@ module Z.Z.Core
   , rtErrMessage
   , rtErrName
   , runParser
-  , setAdd
-  , setEmpty
-  , setFromFoldable
-  , setHas
-  , setSize
+  , set'add
+  , set'empty
+  , set'fromFoldable
+  , set'has
+  , set'size
   , simpleHash
   , stext
   , tryParseInt
@@ -113,6 +116,7 @@ import Data.Traversable as Traversable
 import Data.Tuple.Nested as TupN
 import Effect.Exception as Exc
 import Foreign as Foreign
+import Foreign.Object as Obj
 import Parsing as Parsing
 import Parsing.Combinators as Prc
 import Parsing.String as Prs
@@ -301,61 +305,70 @@ inc s = Semiring.add s Semiring.one
 dec :: forall r. Ring r => r -> r
 dec s = Ring.sub s Semiring.one
 
-mapEmpty :: forall @k @v. Ord k => Map.Map k v
-mapEmpty = Map.empty
+obj'empty :: forall t. Obj.Object t
+obj'empty = Obj.empty
 
-mapSize :: forall k v. Map.Map k v -> Int
-mapSize = Map.size
+obj'insert :: forall t. String -> t -> Obj.Object t -> Obj.Object t
+obj'insert = Obj.insert
 
-mapSet :: forall @k @v. Ord k => k -> v -> Map.Map k v -> Map.Map k v
-mapSet = Map.insert
+obj'lookup :: forall t. String -> Obj.Object t -> May.Maybe t
+obj'lookup = Obj.lookup
 
-mapFromFoldable
+map'empty :: forall @k @v. Ord k => Map.Map k v
+map'empty = Map.empty
+
+map'size :: forall k v. Map.Map k v -> Int
+map'size = Map.size
+
+map'set :: forall @k @v. Ord k => k -> v -> Map.Map k v -> Map.Map k v
+map'set = Map.insert
+
+map'fromFoldable
   :: forall @k @v f
    . Foldable.Foldable f
   => Ord k
   => f (k TupN./\ v)
   -> Map.Map k v
-mapFromFoldable = Map.fromFoldable
+map'fromFoldable = Map.fromFoldable
 
 type HashSet a = Set.Set a
 
-setEmpty :: forall @a. HashSet a
-setEmpty = Set.empty
+set'empty :: forall @a. HashSet a
+set'empty = Set.empty
 
-setHas :: forall a. Ord.Ord a => a -> HashSet a -> Boolean
-setHas = Set.member
+set'has :: forall a. Ord.Ord a => a -> HashSet a -> Boolean
+set'has = Set.member
 
-setAdd :: forall a. Ord.Ord a => a -> HashSet a -> HashSet a
-setAdd = Set.insert
+set'add :: forall a. Ord.Ord a => a -> HashSet a -> HashSet a
+set'add = Set.insert
 
-setSize :: forall a. HashSet a -> Int
-setSize = Set.size
+set'size :: forall a. HashSet a -> Int
+set'size = Set.size
 
-setFromFoldable
+set'fromFoldable
   :: forall a f. Foldable.Foldable f => Ord.Ord a => f a -> HashSet a
-setFromFoldable = Set.fromFoldable
+set'fromFoldable = Set.fromFoldable
 
-arrSlice :: forall a. Int -> Int -> Array a -> Array a
-arrSlice = Arr.slice
+arr'slice :: forall a. Int -> Int -> Array a -> Array a
+arr'slice = Arr.slice
 
-arrDrop :: forall a. Int -> Array a -> Array a
-arrDrop n a = Arr.slice n (arrSize a) a
+arr'drop :: forall a. Int -> Array a -> Array a
+arr'drop n a = Arr.slice n (arr'size a) a
 
-arrSize :: forall a. Array a -> Int
-arrSize = Arr.length
+arr'size :: forall a. Array a -> Int
+arr'size = Arr.length
 
 arrFilter :: forall a. (a -> Boolean) -> Array a -> Array a
 arrFilter = Arr.filter
 
-arrEmpty :: forall @a. Array a
-arrEmpty = []
+arr'empty :: forall @a. Array a
+arr'empty = []
 
-arrFromFoldable :: forall a f. Foldable.Foldable f => f a -> Array a
-arrFromFoldable = Arr.fromFoldable
+arr'fromFoldable :: forall a f. Foldable.Foldable f => f a -> Array a
+arr'fromFoldable = Arr.fromFoldable
 
-listFromFoldable :: forall a f. Foldable.Foldable f => f a -> List.List a
-listFromFoldable = List.fromFoldable
+list'fromFoldable :: forall a f. Foldable.Foldable f => f a -> List.List a
+list'fromFoldable = List.fromFoldable
 
 invert :: forall e r. Eor.Either e r -> Eor.Either r e
 invert (Eor.Left e) = Eor.Right e

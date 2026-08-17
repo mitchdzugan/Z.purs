@@ -61,8 +61,8 @@ getEventDataImpl = do
     { isDE: false
     , nameOrE: Left $ H2hE.MissingData "event.name"
     , dateOrE: Left $ H2hE.MissingData "event.date"
-    , baseSets: mapEmpty @Int @BaseSet
-    , entrants: mapEmpty @SorN @H2h.Entrant
+    , baseSets: map'empty @Int @BaseSet
+    , entrants: map'empty @SorN @H2h.Entrant
     }
 
   readPageData page = do
@@ -115,8 +115,8 @@ getEventDataImpl = do
                       , prefix: Nothing
                       , pronouns: Nothing
                       , name: Nothing
-                      , socials: mapEmpty
-                      , images: mapEmpty
+                      , socials: map'empty
+                      , images: map'empty
                       }
                   }
                 ]
@@ -132,11 +132,11 @@ getEventDataImpl = do
             else if winnerId == slotA.entrantId then Just Pos
             else Just Neg
         let baseSet = { winner, id: setId, slots: slotA ~ slotB }
-        g @(XOver_ "baseSets") (mapSet setId baseSet)
+        g @(XOver_ "baseSets") (map'set setId baseSet)
     baseSetList <- s'views @"baseSets"
       <#> arrReverse
       <<< arrSortWith (g_ @"id")
-      <<< arrFromFoldable
+      <<< arr'fromFoldable
     isComplete <- g @XWithReturn \xReturn -> do
       forM_ baseSetList $ \baseSet -> do
         when (isNothing baseSet.winner) (xReturn false)
@@ -148,8 +148,8 @@ getEventDataImpl = do
         , roundInd: 0
         , isDropRound: true
         , hasReset: false
-        , gfEIds: setEmpty @SorN
-        , nonGfEIds: setEmpty @SorN
+        , gfEIds: set'empty @SorN
+        , nonGfEIds: set'empty @SorN
         }
     roundSets <- g1 @XEvalS @"setsLoop" setsLoopState $ do
       roundSets' <- forM baseSetList $ \baseSet -> do
@@ -161,15 +161,15 @@ getEventDataImpl = do
         let sameSlots = (slotsKey baseSet) == mSlotsKey prevSet
         let isGrands = isNothing prev && isDE || (wasGrands && sameSlots)
         when (isGrands && wasGrands) $ s'sets'' @"setsLoop" @"hasReset" true
-        forM_ (arrFromFoldable baseSet.slots) $ \slot -> do
+        forM_ (arr'fromFoldable baseSet.slots) $ \slot -> do
           whenJust slot.entrantId $ \entrantId -> do
-            setAdd entrantId #
+            set'add entrantId #
               g1 @XOver @"setsLoop"
                 (if isGrands then __ @"gfEIds" else __ @"nonGfEIds")
         { gfEIds, nonGfEIds } <- g1 @XGet @"setsLoop"
         seenAllGFEntrants <- g @XWithReturn \xReturn -> do
-          forM_ (arrFromFoldable gfEIds) $ \id -> do
-            when (not (setHas id nonGfEIds)) (xReturn false)
+          forM_ (arr'fromFoldable gfEIds) $ \id -> do
+            when (not (set'has id nonGfEIds)) (xReturn false)
           pure true
         let nowLosers = (not isGrands) && (wasGrands || wasLosers)
         let isLosers = nowLosers && not seenAllGFEntrants
@@ -233,7 +233,7 @@ getEventDataImpl = do
     let
       mkSet = \rs -> rs.set `(~.) @"roundText"` roundLabel rs.round maxWR maxLR
     let mkSetT = \rs -> Tuple rs.set.id $ mkSet rs
-    let sets = mapFromFoldable $ roundSets <#> mkSetT
+    let sets = map'fromFoldable $ roundSets <#> mkSetT
     pure
       { id: sOrN $ "Challonge-" <> slug <> "-eventId"
       , name
@@ -251,7 +251,7 @@ getEventDataImpl = do
       , tournament:
           { id: sOrN $ "Challonge-" <> slug <> "-tournamentId"
           , name: tournamentName
-          , images: mapFromFoldable [ "profile" /\ profileImageUrl ]
+          , images: map'fromFoldable [ "profile" /\ profileImageUrl ]
           , date: date
           }
       }

@@ -224,7 +224,7 @@ xWebR =
         , password: Nothing
         , protocol
         , host
-        , query: mapEmpty
+        , query: map'empty
         , path: urlPathFromString pathname
         }
   , getElementById: \id -> tagEffWebX $ HTML.window >>= Window.document >>=
@@ -278,7 +278,7 @@ runXAThenExit
   :: forall @w @e a. RtError e => XRunWA w (XWebEA e) a -> Effect Unit
 runXAThenExit m = effAffThenExit $ runXA $ do
   w /\ res <- g @XRunW $ expand $ runXWeb m
-  when (arrSize w > 0) do
+  when (arr'size w > 0) do
     xLogWarning "collected warnings ⌄"
     xLogWarning w
   pure res

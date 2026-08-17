@@ -57,8 +57,8 @@ xRun args = do
       , ffmpegBin: "ffmpeg"
       }
   xArgParse "slp-rec" (slpRecInfo wd) args \opts -> do
-    let optConfigs = arrFromFoldable $ g_ @"!.configPaths" opts
-    let noOptConfigs = arrSize optConfigs == 0
+    let optConfigs = arr'fromFoldable $ g_ @"!.configPaths" opts
+    let noOptConfigs = arr'size optConfigs == 0
     let baseConfigPath = show $ cfgPath /./ "config"
     let configs = if noOptConfigs then [ baseConfigPath ] else optConfigs
     envState <- g @XExecS envStateInit $ addConfigs noOptConfigs wd configs
@@ -80,7 +80,7 @@ mergeMListOps l (Just ops) = mergeListOps l ops
 
 arrMergeListOpts
   :: forall a f. Foldable f => List a -> f (ListOp a) -> Array a
-arrMergeListOpts a b = arrFromFoldable $ mergeListOps a b
+arrMergeListOpts a b = arr'fromFoldable $ mergeListOps a b
 
 updateEnv :: RecordConfig -> EnvBuildState -> EnvBuildState
 updateEnv cfg st =
@@ -111,7 +111,7 @@ finalizeEnv st (CliOpts opts) defaultOutputPath = do
     , geckoCodes: arrMergeListOpts st.geckoCodes opts.geckoCodes
     , geckoEnables: arrMergeListOpts st.geckoEnables opts.geckoEnables
     , geckoDisables: arrMergeListOpts st.geckoDisables opts.geckoDisables
-    , colorOverrides: mapFromFoldable $ unwrap
+    , colorOverrides: map'fromFoldable $ unwrap
         <$> mergeListOps Nil opts.colorOverrides
     , slippiPlaybackBin: jOr st.slippiPlaybackBin opts.slippiPlaybackBin
     , ffmpegBin: jOr st.ffmpegBin opts.ffmpegBin
