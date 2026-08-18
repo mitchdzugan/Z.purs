@@ -6,6 +6,7 @@ module Z.Z.Core
   , HashSet
   , JsAny
   , JsError(..)
+  , Object
   , P
   , ParseError
   , T'_
@@ -15,10 +16,11 @@ module Z.Z.Core
   , antiUnit
   , arr'drop
   , arr'empty
-  , arrFilter
   , arr'fromFoldable
   , arr'size
   , arr'slice
+  , arr'withInd
+  , arr'filter
   , class Resulting
   , class RtError
   , class SText
@@ -31,6 +33,7 @@ module Z.Z.Core
   , ffmapFlipped
   , forM
   , forM_
+  , idLens
   , inc
   , intFromString
   , invert
@@ -45,10 +48,10 @@ module Z.Z.Core
   , list'fromFoldable
   , map'empty
   , map'fromFoldable
-  , mapL
-  , mapM
   , map'set
   , map'size
+  , mapL
+  , mapM
   , obj'empty
   , obj'insert
   , obj'lookup
@@ -69,6 +72,7 @@ module Z.Z.Core
   , rec'get
   , rec'insert
   , rec'merge
+  , rec'modify
   , rec'set
   , rec'union
   , reduce
@@ -104,6 +108,7 @@ import Data.Foldable as Foldable
 import Data.Functor as F
 import Data.Functor.Flip (Flip)
 import Data.Int as Int
+import Data.Lens (Lens', lens')
 import Data.List as List
 import Data.Map as Map
 import Data.Maybe as May
@@ -139,6 +144,10 @@ rec'set = Record.set
 rec'insert = Record.insert
 rec'merge = Record.merge
 rec'union = Record.union
+rec'modify = Record.modify
+
+idLens :: forall a. Lens' a a
+idLens = lens' \a -> a TupN./\ identity
 
 whenNot :: forall m. Monad m => Boolean -> m Unit -> m Unit
 whenNot b = when (not b)
@@ -305,6 +314,8 @@ inc s = Semiring.add s Semiring.one
 dec :: forall r. Ring r => r -> r
 dec s = Ring.sub s Semiring.one
 
+type Object t = Obj.Object t
+
 obj'empty :: forall t. Obj.Object t
 obj'empty = Obj.empty
 
@@ -349,6 +360,12 @@ set'fromFoldable
   :: forall a f. Foldable.Foldable f => Ord.Ord a => f a -> HashSet a
 set'fromFoldable = Set.fromFoldable
 
+foreign import js_arrWithInd
+  :: forall v. (v -> Int -> v TupN./\ Int) -> Array v -> Array (v TupN./\ Int)
+
+arr'withInd :: forall v. Array v -> Array (v TupN./\ Int)
+arr'withInd = js_arrWithInd TupN.(/\)
+
 arr'slice :: forall a. Int -> Int -> Array a -> Array a
 arr'slice = Arr.slice
 
@@ -358,8 +375,8 @@ arr'drop n a = Arr.slice n (arr'size a) a
 arr'size :: forall a. Array a -> Int
 arr'size = Arr.length
 
-arrFilter :: forall a. (a -> Boolean) -> Array a -> Array a
-arrFilter = Arr.filter
+arr'filter :: forall a. (a -> Boolean) -> Array a -> Array a
+arr'filter = Arr.filter
 
 arr'empty :: forall @a. Array a
 arr'empty = []

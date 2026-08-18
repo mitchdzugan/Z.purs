@@ -2,6 +2,7 @@ module Z.Z.Util
   ( JsonDecodeError(..)
   , JsonDecodeFn
   , JsonEncodeFn
+  , RawJsonDecodeError
   , ResourceStage(..)
   , SorN(..)
   , Type_Ap
@@ -132,6 +133,8 @@ jsonLookup k = Arg.caseJsonObject Maybe.Nothing (FO.lookup k)
 
 id :: forall a. a -> a
 id a = a
+
+type RawJsonDecodeError = JDE.JsonDecodeError
 
 newtype JsonDecodeError = JsonDecodeError JDE.JsonDecodeError
 

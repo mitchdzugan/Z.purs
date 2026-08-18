@@ -224,8 +224,8 @@ getEventDataImpl = do
       { hasReset } <- g1 @XGet @"setsLoop"
       if (not hasReset) then pure roundSets'
       else pure $ set (ix 0 # o_ @"round") (Round.Grands true) roundSets'
-    let lSets = arrFilter (Round.isLosers <<< g_ @"round") roundSets
-    let wSets = arrFilter (Round.isWinners <<< g_ @"round") roundSets
+    let lSets = arr'filter (Round.isLosers <<< g_ @"round") roundSets
+    let wSets = arr'filter (Round.isWinners <<< g_ @"round") roundSets
     let maxWR = jOr0 $ maximum $ wSets <#> Round.roundTypeInd <<< g_ @"round"
     let maxLR = jOr0 $ maximum $ lSets <#> Round.roundTypeInd <<< g_ @"round"
     { entrants } <- g @XGet

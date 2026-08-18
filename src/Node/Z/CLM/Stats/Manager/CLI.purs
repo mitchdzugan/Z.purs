@@ -1,13 +1,19 @@
-module Test.Scratch where
+module Node.Z.CLM.Stats.Manager.CLI where
 
 import Node.Z.Prelude
 
-import Foreign.Object as Obj
-import Z.SSBM.Slp.Read.Impl as SlpRead
-import Z.Z.Dict (dictEmpty, dictInsert)
+import Node.Z.CLM.Stats.Manager.Error as ClmStE
+import Node.Z.CLM.Stats.Manager.Warning as ClmStW
+import Node.Z.CLM.Stats.Queries as Q
+import Node.Z.Gql as Gql
+import Node.Z.H2h as H2h
+import Node.Z.H2h.Startgg.All as All
 
-testCachePath :: String
-testCachePath = "/home/dz/Repo/PS-WS/.cache-path"
+wrapH2hWE
+  :: forall x a
+   . Run (WaE H2h.Warning H2h.Error $ WaE ClmStW.T ClmStE.T x) a
+  -> Run (WaE ClmStW.T ClmStE.T x) a
+wrapH2hWE = g @XMapWE ClmStW.H2h ClmStE.H2h
 
 type CLMStatsLegacyBlob'SetSummary =
   { id :: Maybe String
@@ -22,9 +28,9 @@ type CLMStatsLegacyBlob'SetSummary =
   }
 
 type CLMStatsLegacyBlob =
-  { nameDataByPlayerId :: Obj.Object { name :: String, ident :: String }
+  { nameDataByPlayerId :: Object { name :: String, ident :: String }
   , nextIdTry :: Int
-  , "IDENT_CLM_IDS" :: Obj.Object Int
+  , "IDENT_CLM_IDS" :: Object Int
   , timeline ::
       Array
         { periodId :: Int
@@ -33,7 +39,7 @@ type CLMStatsLegacyBlob =
         , season :: String
         }
   , events ::
-      Obj.Object
+      Object
         { eventName :: String
         , numEntrants :: Int
         , date :: Int
@@ -44,7 +50,7 @@ type CLMStatsLegacyBlob =
         , eventId :: Int
         }
   , players ::
-      Obj.Object $ Obj.Object
+      Object $ Object
         { pid :: String
         , clmId :: Maybe Int
         , events ::
@@ -71,14 +77,14 @@ type CLMStatsLegacyBlob =
               }
         }
   , periods ::
-      Obj.Object
+      Object
         { periodId :: Int
         , title :: String
         , isAll :: Boolean
-        , others :: Obj.Object Int
-        , events :: Obj.Object { eventId :: Int }
+        , others :: Object Int
+        , events :: Object { eventId :: Int }
         , players ::
-            Obj.Object
+            Object
               { playerId :: Int
               , image :: String
               , name :: String
@@ -103,15 +109,45 @@ type CLMStatsLegacyBlob =
         }
   }
 
-main :: Effect Unit
-main = runXAThenExit @Void @Void do
-  -- b <- xReadFile "/home/dz/Slippi/Game_20260709T183630.slp"
-  -- parsed <- g @XMapE un' $ SlpRead.xParse b
-  -- xOut $ key parsed
-  xOut $ encode $ dictInsert 1 2 dictEmpty
-  let jsonPath = "/home/dz/FULL_LEGACY.json"
-  res <- g @XTry $ xDecodeTextFile @CLMStatsLegacyBlob jsonPath
-  case res of
-    Left e -> xOut $ encode e
-    Right r -> xOut r
-  xOut $ encodeJson $ dictInsert "asdf" 2 dictEmpty
+type EnvR r =
+  { isDevEnv :: String
+  , ggAuth :: String
+  , dataRoot :: String
+  , appCOPath :: String
+  , pagesCOPath :: String
+  | r
+  }
+
+doStuff :: forall r x. XRun (RWaEA (EnvR r) ClmStW.T ClmStE.T x) Unit
+doStuff = do
+  { ggAuth, dataRoot } <- r'ask
+  before <- xNowMS <#>
+    \n -> (60 * 60 * floor (n / 1000.0 / 60.0 / 60.0)) + (24 * 60 * 60)
+  let after = 1767225600
+  xOut { before, after }
+  let pSpecs = [ All.ggPageSpec (__ @"page") (__ @"tournaments") ]
+  let initVars = { after, before, page: 0 }
+  client <- pure $ H2h.mkClient do
+    s'sets @"authToken" (Just ggAuth)
+    s'sets @"cachePath" (Just $ pathStr $ dataRoot /./ "startgg.gqlCache")
+  clmEvents <- wrapH2hWE $
+    All.ggQueryAll Q.clmEvents initVars pSpecs client Gql.CacheFirst
+  xInfo $ clmEvents
+  let legacyDataPath = dataRoot /./ "FULL_LEGACY.json"
+  legacyData <- g @XMapE ClmStE.LoadLegacyData $
+    xDecodeTextFile @CLMStatsLegacyBlob legacyDataPath
+  xInfo legacyData
+
+xRun :: forall x. Array String -> EA JsError x ##> Unit
+xRun args = do
+  xInfo args
+  isDevEnv <- getEnv "CLM_STATS_IS_DEV"
+  ggAuth <- getEnv "CLM_STATS_GG_AUTH"
+  dataRoot <- getEnv "CLM_STATS_DATA_DIR"
+  appCOPath <- getEnv "CLM_STATS_APP_CO"
+  pagesCOPath <- getEnv "CLM_STATS_PAGES_CO"
+  let env = { isDevEnv, ggAuth, dataRoot, appCOPath, pagesCOPath }
+  res <- g @XRunResult $ g @XRunR env doStuff
+  xInfo res
+  where
+  getEnv s = xLookupEnv s >>= g @XUnwrap (jsError "Required Env Var Missing" s)

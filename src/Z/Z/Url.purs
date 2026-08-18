@@ -39,9 +39,8 @@ module Z.Z.Url
 
 import Prelude
 
-import Control.Monad.Error.Class (liftEither, liftMaybe)
+import Control.Monad.Error.Class (liftMaybe)
 import Data.Array as Array
-import Data.Bifunctor (lmap)
 import Data.Either (Either(..), note)
 import Data.Filterable (filter)
 import Data.Foldable (class Foldable, foldl, intercalate)
@@ -58,7 +57,6 @@ import Data.Show.Generic (genericShow)
 import Data.String (null, replace, split) as String
 import Data.String.Utils (startsWith) as String
 import Data.Tuple.Nested (type (/\), (/\))
-import Foreign (ForeignError(..))
 import Partial.Unsafe (unsafePartial)
 
 class QueryParam a where

@@ -82,9 +82,9 @@ getEventData = B.adaptBuilder $ g @XEvalS initState do
       slotScoreA /\ slotScoreB <- g @XWithReturn \xReturn -> do
         let games = orDefault set.games
         let winnerIds = games <#> _.winnerId
-        let doneGames = arr'size $ arrFilter isJust winnerIds
+        let doneGames = arr'size $ arr'filter isJust winnerIds
         when (arr'size games == doneGames && doneGames > 0) do
-          let w1Games = arr'size $ arrFilter (eq eIdA) winnerIds
+          let w1Games = arr'size $ arr'filter (eq eIdA) winnerIds
           let w2Games = doneGames - w1Games
           xReturn $ H2h.mkScoreCount w1Games /\ H2h.mkScoreCount w2Games
         whenJust set.displayScore $ \displayScore -> do
@@ -140,8 +140,7 @@ getEventData = B.adaptBuilder $ g @XEvalS initState do
     { client, networkControl } <- g @XAsk
     let initVars = { page: 0, phaseGroupId }
     let pSpecs = [ All.ggPageSpec (__ @"page") (__ @"phaseGroup.sets") ]
-    g @XMapWE H2hW.Gql H2hE.Gql do
-      All.ggQueryAll Q.phaseGroup initVars pSpecs client networkControl
+    All.ggQueryAll Q.phaseGroup initVars pSpecs client networkControl
   fetchRawEventData = g @XTryUntil
     (f' Q.eventMaxDataPerReq $ Just Gql.CacheOnly)
     [ const (f' Q.evenMinComplexityPerReq $ Just Gql.CacheOnly)
@@ -156,5 +155,4 @@ getEventData = B.adaptBuilder $ g @XEvalS initState do
       let eSpec = All.ggPageSpec (__ @"pageE") (__ @"event.entrants")
       let sSpec = All.ggPageSpec (__ @"pageS") (__ @"event.standings")
       let pSpecs = [ eSpec, sSpec ]
-      g @XMapWE H2hW.Gql H2hE.Gql do
-        All.ggQueryAll q initVars pSpecs client nc
+      All.ggQueryAll q initVars pSpecs client nc

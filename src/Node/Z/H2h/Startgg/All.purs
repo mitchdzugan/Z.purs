@@ -8,6 +8,8 @@ import Z.Prelude
 
 import Node.Z.Gql as Gql
 import Node.Z.H2h.Startgg.Queries as GGQ
+import Z.H2h.Error as H2hE
+import Z.H2h.Warning as H2hW
 
 data GGPageSpecF v r pnr = GGPageSpecF
   (Lens' { | v } Int)
@@ -29,14 +31,16 @@ ggQueryAll
   -> Array (GGPageSpec v r)
   -> Gql.Client
   -> Gql.NetworkControl
-  -> WaEA Gql.Warning Gql.Error x #> { | r }
-ggQueryAll op initVars pageSpecs client networkControl = do
+  -> WaEA H2hW.T H2hE.T x #> { | r }
+ggQueryAll op initVars pageSpecs client networkControl = wrapWE do
   let r = { client, networkControl, op }
   initRes <- Gql.xOperate op initVars client networkControl
   let initS = { vars: initVars, res: initRes }
   { res } <- g @XRunR r $ g @XExecS initS $ forM_ pageSpecs
     ggPageSpecHandle
   pure res
+  where
+  wrapWE = g @XMapWE H2hW.Gql H2hE.Gql
 
 type QAllR v r =
   { client :: Gql.Client
@@ -71,5 +75,5 @@ ggPageSpecHandleImpl (GGPageSpecF pageL dataL) = do
       res <- Gql.xOperate op vars client networkControl
       let nodes = view (dataL # o_ @"nodes") res
       g @XOver (_o_ @"res" @"nodes" dataL)
-        (flip (<>) $ arrFilter (\{ id } -> not $ set'has id seenIds) nodes)
+        (flip (<>) $ arr'filter (\{ id } -> not $ set'has id seenIds) nodes)
       loop op client networkControl
