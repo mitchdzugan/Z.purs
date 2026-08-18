@@ -17,6 +17,8 @@ package:
     - exceptions
     - exists
     - filterable
+    - foreign-object
+    - heterogeneous
     - json
     - maybe
     - node-process

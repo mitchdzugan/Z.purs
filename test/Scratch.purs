@@ -2,116 +2,21 @@ module Test.Scratch where
 
 import Node.Z.Prelude
 
-import Foreign.Object as Obj
+import Heterogeneous.Mapping (hmap)
 import Z.SSBM.Slp.Read.Impl as SlpRead
-import Z.Z.Dict (dictEmpty, dictInsert)
+import Z.Z.Buildable as B
 
 testCachePath :: String
 testCachePath = "/home/dz/Repo/PS-WS/.cache-path"
 
-type CLMStatsLegacyBlob'SetSummary =
-  { id :: Maybe String
-  , won :: Boolean
-  , dq :: Boolean
-  , round :: String
-  , wonGames :: String
-  , lostGames :: String
-  , opponentName :: Maybe String
-  , winnerName :: Maybe String
-  , loserName :: Maybe String
-  }
-
-type CLMStatsLegacyBlob =
-  { nameDataByPlayerId :: Obj.Object { name :: String, ident :: String }
-  , nextIdTry :: Int
-  , "IDENT_CLM_IDS" :: Obj.Object Int
-  , timeline ::
-      Array
-        { periodId :: Int
-        , title :: String
-        , timelineInd :: Int
-        , season :: String
-        }
-  , events ::
-      Obj.Object
-        { eventName :: String
-        , numEntrants :: Int
-        , date :: Int
-        , slug :: String
-        , prEligible :: Boolean
-        , tournamentName :: String
-        , imageUrl :: String
-        , eventId :: Int
-        }
-  , players ::
-      Obj.Object $ Obj.Object
-        { pid :: String
-        , clmId :: Maybe Int
-        , events ::
-            Array
-              { event :: { eventId :: Int }
-              , placingString :: String
-              , setSummaries :: Array CLMStatsLegacyBlob'SetSummary
-              , numWins :: Int
-              , numLosses :: Int
-              , losses :: Array String
-              , "DQ" :: Boolean
-              }
-        , h2hs ::
-            Array
-              { opponent :: String
-              , rank :: Int
-              , sets ::
-                  Array
-                    { setInfo :: CLMStatsLegacyBlob'SetSummary
-                    , tournamentName :: String
-                    , date :: String
-                    , slug :: String
-                    }
-              }
-        }
-  , periods ::
-      Obj.Object
-        { periodId :: Int
-        , title :: String
-        , isAll :: Boolean
-        , others :: Obj.Object Int
-        , events :: Obj.Object { eventId :: Int }
-        , players ::
-            Obj.Object
-              { playerId :: Int
-              , image :: String
-              , name :: String
-              , realName :: Maybe String
-              , id :: Int
-              , clmId :: Int
-              }
-        , ranks ::
-            Array
-              { rank :: Int
-              , winrate :: Maybe Int
-              , placing :: Int
-              , placingString :: String
-              , wins :: Int
-              , losses :: Int
-              , prEvents :: Int
-              , rating :: Int
-              , conservativeRating :: Number
-              , playerIdent :: String
-              , eventId :: Int
-              }
-        }
-  }
-
 main :: Effect Unit
 main = runXAThenExit @Void @Void do
   -- b <- xReadFile "/home/dz/Slippi/Game_20260709T183630.slp"
-  -- parsed <- g @XMapE un' $ SlpRead.xParse b
+  -- parsed <- e'map un' $ SlpRead.xParse b
   -- xOut $ key parsed
-  xOut $ encode $ dictInsert 1 2 dictEmpty
-  let jsonPath = "/home/dz/FULL_LEGACY.json"
-  res <- g @XTry $ xDecodeTextFile @CLMStatsLegacyBlob jsonPath
-  case res of
-    Left e -> xOut $ encode e
-    Right r -> xOut r
-  xOut $ encodeJson $ dictInsert "asdf" 2 dictEmpty
+  let
+    bspec =
+      { i: Cons (B.Const'Set unit) Nil
+      , s: Cons (B.Const'Set "curr") (Cons (B.Const'Set "prev") Nil)
+      }
+  xOut $ hmap B.BuildableMapper bspec

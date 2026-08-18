@@ -2,6 +2,8 @@ module Node.Z.CLM.Stats.Manager.Action where
 
 import Z.Prelude
 
+import Node.Z.CLM.Stats.Manager.Spec (MapOp(..), SetOp(..), Spec, SpecB)
+
 data Action r
   = Undo { targetId :: Int | r }
   | Bulk { actions :: Array (Action r) | r }
@@ -83,3 +85,19 @@ ejectEphemerals actions = arr'filter isEphemeral actions <#> case _ of
 
 impurifyActions :: Array PureAction -> Array (Action (id :: String))
 impurifyActions a = assignIds "" $ a <#> un'
+
+handleAction :: forall r. Action r -> Edit SpecB
+handleAction (OverrideName { slug, name }) =
+  g @(XOver_ "tournamentNameOverrides") $ Cons $ MapSet slug name
+handleAction (MarkChallonge { slug }) =
+  g @(XOver_ "challongeSlugs") $ Cons $ SetAdd slug
+handleAction (AddEvent { slug }) =
+  g @(XOver_ "eventSlugs") $ Cons $ SetAdd slug
+handleAction (SetIsPrEligible { slug, isEligible }) =
+  g @(XOver_ "eventSlugs") $ Cons $ (if isEligible then SetAdd else SetRm) slug
+handleAction (MarkDoneUpdating { slug }) =
+  g @(XOver_ "doneUpdating") $ Cons $ SetAdd slug
+handleAction (BustCache { slug }) =
+  g @(XOver_ "eventsToRefetch") $ Cons $ SetAdd slug
+handleAction (Bulk { actions }) = forM_ actions handleAction
+handleAction (Undo _) = pure unit

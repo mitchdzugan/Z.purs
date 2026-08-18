@@ -32,7 +32,7 @@ ggQueryAll
   -> Gql.Client
   -> Gql.NetworkControl
   -> WaEA H2hW.T H2hE.T x #> { | r }
-ggQueryAll op initVars pageSpecs client networkControl = wrapWE do
+ggQueryAll op initVars pageSpecs client networkControl = we'liftGql do
   let r = { client, networkControl, op }
   initRes <- Gql.xOperate op initVars client networkControl
   let initS = { vars: initVars, res: initRes }
@@ -40,7 +40,7 @@ ggQueryAll op initVars pageSpecs client networkControl = wrapWE do
     ggPageSpecHandle
   pure res
   where
-  wrapWE = g @XMapWE H2hW.Gql H2hE.Gql
+  we'liftGql = we'map H2hW.Gql H2hE.Gql
 
 type QAllR v r =
   { client :: Gql.Client

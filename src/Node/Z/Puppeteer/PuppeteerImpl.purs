@@ -36,9 +36,9 @@ xUseBrowser
 xUseBrowser mapE optsEdit fm = do
   let baseOpts = { exe: Nothing, args: [] }
   let opts = encodeOpts $ edit baseOpts optsEdit
-  browser <- g @XMapE (mapE Acquire) $ launch opts
+  browser <- e'map (mapE Acquire) $ launch opts
   res <- g @XTry (fm browser)
-  g @XMapE (mapE Release) $ close browser
+  e'map (mapE Release) $ close browser
   g @XOk res
 
 xUseBrowser'

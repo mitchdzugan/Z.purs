@@ -76,9 +76,9 @@ derive instance Newtype SlpParseAndShaFail _
 xParseData :: forall x. Buffer -> E Err.T x #> SlpGameData
 xParseData buffer = do
   let game = js_gameOfBuffer buffer
-  rawSettings <- g @XMapE Err.DecodeSettings $ g @XOk $ slpSettings game
-  rawMeta <- g @XMapE Err.DecodeMeta $ g @XOk $ slpMeta game
-  rawStats <- g @XMapE Err.DecodeStats $ g @XOk $ slpStats game
+  rawSettings <- e'map Err.DecodeSettings $ g @XOk $ slpSettings game
+  rawMeta <- e'map Err.DecodeMeta $ g @XOk $ slpMeta game
+  rawStats <- e'map Err.DecodeStats $ g @XOk $ slpStats game
   let startAtNOr_ = js_startAt Nothing Just game
   let startAtIOr_ = startAtNOr_ <#> toNumber <#> Milliseconds >>= instant
   let startAtOr_ = startAtIOr_ <#> toDateTime

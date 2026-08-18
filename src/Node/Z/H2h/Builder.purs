@@ -13,9 +13,7 @@ adaptBuilder
   :: forall x
    . BuildX x #> H2h.Event
   -> GetDataFn x
-adaptBuilder b source client networkControl = g @XRunResult $ g @XRunR
-  env
-  b
+adaptBuilder b source client networkControl = we'runResult $ r'run env b
   where
   env = { slug: source.slug, client, networkControl }
 

@@ -13,7 +13,7 @@ wrapH2hWE
   :: forall x a
    . Run (WaE H2h.Warning H2h.Error $ WaE ClmStW.T ClmStE.T x) a
   -> Run (WaE ClmStW.T ClmStE.T x) a
-wrapH2hWE = g @XMapWE ClmStW.H2h ClmStE.H2h
+wrapH2hWE = we'map ClmStW.H2h ClmStE.H2h
 
 type CLMStatsLegacyBlob'SetSummary =
   { id :: Maybe String
@@ -134,7 +134,7 @@ doStuff = do
     All.ggQueryAll Q.clmEvents initVars pSpecs client Gql.CacheFirst
   xInfo $ clmEvents
   let legacyDataPath = dataRoot /./ "FULL_LEGACY.json"
-  legacyData <- g @XMapE ClmStE.LoadLegacyData $
+  legacyData <- e'map ClmStE.LoadLegacyData $
     xDecodeTextFile @CLMStatsLegacyBlob legacyDataPath
   xInfo legacyData
 
@@ -147,7 +147,7 @@ xRun args = do
   appCOPath <- getEnv "CLM_STATS_APP_CO"
   pagesCOPath <- getEnv "CLM_STATS_PAGES_CO"
   let env = { isDevEnv, ggAuth, dataRoot, appCOPath, pagesCOPath }
-  res <- g @XRunResult $ g @XRunR env doStuff
+  res <- we'runResult $ r'run env doStuff
   xInfo res
   where
-  getEnv s = xLookupEnv s >>= g @XUnwrap (jsError "Required Env Var Missing" s)
+  getEnv s = xLookupEnv s >>= e'unwrap (jsError "Required Env Var Missing" s)

@@ -132,6 +132,12 @@ module Z.Z.X.Core
   , class GOrS
   , class GOrW
   , class XGetterTypes
+  , e'map
+  , e'map''
+  , e'unwrap
+  , e'unwrap''
+  , e'unwrap_
+  , e'unwrap_''
   , edit
   , eff'do
   , eff'do''
@@ -174,6 +180,10 @@ module Z.Z.X.Core
   , w'str''
   , w'tell
   , w'tell''
+  , we'map
+  , we'map''
+  , we'runResult
+  , we'runResult''
   , xGetter
   , xInfo
   , xLogError
@@ -1143,6 +1153,40 @@ w'say = g @XSay
 
 w'say'' :: forall @at v. Generable XSay (G1 at) v => v
 w'say'' = g1 @XSay @at
+
+---------------          we''fns -----------------------------------
+
+we'map :: forall v. Generable XMapWE GDefault v => v
+we'map = g @XMapWE
+
+we'map'' :: forall @at v. Generable XMapWE (G1 at) v => v
+we'map'' = g1 @XMapWE @at
+
+we'runResult :: forall v. Generable XRunResult GDefault v => v
+we'runResult = g @XRunResult
+
+we'runResult'' :: forall @at v. Generable XRunResult (G1 at) v => v
+we'runResult'' = g1 @XRunResult @at
+
+---------------          e''fns ------------------------------------
+
+e'map :: forall v. Generable XMapE GDefault v => v
+e'map = g @XMapE
+
+e'map'' :: forall @at v. Generable XMapE (G1 at) v => v
+e'map'' = g1 @XMapE @at
+
+e'unwrap :: forall v. Generable XUnwrap GDefault v => v
+e'unwrap = g @XUnwrap
+
+e'unwrap'' :: forall @at v. Generable XUnwrap (G1 at) v => v
+e'unwrap'' = g1 @XUnwrap @at
+
+e'unwrap_ :: forall v. Generable XUnwrap' GDefault v => v
+e'unwrap_ = g @XUnwrap'
+
+e'unwrap_'' :: forall @at v. Generable XUnwrap' (G1 at) v => v
+e'unwrap_'' = g1 @XUnwrap' @at
 
 --------------- EVAL -------------------------------------------------------
 

@@ -117,7 +117,7 @@ getEventData = B.adaptBuilder $ g @XEvalS initState do
       }
   { entrants } <- g @XGet
   let { endAt } = event.tournament
-  date <- g @XUnwrap (H2hE.InvalidInstant endAt) do
+  date <- e'unwrap (H2hE.InvalidInstant endAt) do
     instant (Milliseconds (toNumber endAt)) <#> toDateTime
   pure
     { id: sOrN event.id

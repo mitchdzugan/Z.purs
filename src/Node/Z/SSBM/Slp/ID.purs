@@ -9,7 +9,7 @@ xRun :: forall x. Array String -> EA JsError x ##> Unit
 xRun args = do
   xArgParse "slp-id" cliInfo args \(CliOpts opts) -> do
     buffer <- xReadFile opts.filename
-    parsed <- g @XMapE un' $ SlpRead.xParse buffer
+    parsed <- e'map un' $ SlpRead.xParse buffer
     xOut $ key parsed
 
 newtype CliOpts = CliOpts { filename :: String }

@@ -21,6 +21,8 @@
             "exceptions",
             "exists",
             "filterable",
+            "foreign-object",
+            "heterogeneous",
             "json",
             "maybe",
             "node-process",
@@ -1235,6 +1237,20 @@
         "tailrec",
         "tuples",
         "unfoldable"
+      ]
+    },
+    "heterogeneous": {
+      "type": "registry",
+      "version": "0.7.0",
+      "integrity": "sha256-pQwcFvhWL8noktxaoD7FlLs2F2lYf3QHoyO0VOWO3I0=",
+      "dependencies": [
+        "either",
+        "foldable-traversable",
+        "functors",
+        "prelude",
+        "record",
+        "tuples",
+        "variant"
       ]
     },
     "identity": {
