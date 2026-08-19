@@ -80,8 +80,8 @@ getEventDataImpl = do
         s'sets @"nameOrE" $ Right itemText
       when (itemLabel == "Format") do
         s'sets @"isDE" $ itemText == "Double Elimination"
-    name <- s'views @"nameOrE" >>= g @XOk
-    date <- s'views @"dateOrE" >>= g @XOk
+    name <- s'views @"nameOrE" >>= e'ok
+    date <- s'views @"dateOrE" >>= e'ok
     isDE <- s'views @"isDE"
     tournamentName <- pEl page ".title #title" >>= pInnerText
     bracketEls <- pEls page ".bracket-svg"
@@ -99,7 +99,7 @@ getEventDataImpl = do
           scoreS <- pInnerHtml scoreEl
           score <- e'map H2hE.ParseTime do
             g @XRunParser scoreS parseInt <#> H2h.mkScoreCount
-          forM_ (strSplit (Pattern " ") scoreClass) $ \cn -> do
+          forM_ (str'split (Pattern " ") scoreClass) $ \cn -> do
             when (cn == "-winner") $ s'sets @"winnerId" $ Just entrantId
           g @XSet (_o @"entrants" $ at entrantId) $ Just
             { id: entrantId
@@ -131,10 +131,10 @@ getEventDataImpl = do
             else if winnerId == slotA.entrantId then Just Pos
             else Just Neg
         let baseSet = { winner, id: setId, slots: slotA ~ slotB }
-        g @(XOver_ "baseSets") (map'set setId baseSet)
+        s'overs @"baseSets" (map'set setId baseSet)
     baseSetList <- s'views @"baseSets"
-      <#> arrReverse
-      <<< arrSortWith (g_ @"id")
+      <#> arr'reverse
+      <<< arr'sortWith (g_ @"id")
       <<< arr'fromFoldable
     isComplete <- g @XWithReturn \xReturn -> do
       forM_ baseSetList $ \baseSet -> do
@@ -196,7 +196,7 @@ getEventDataImpl = do
             else if isDE then do
               setFinStanding lId $ inc $ p2 setDepth
             else pure unit
-        g1 @(XOver_ "roundInd") @"setsLoop" inc
+        s'overs'' @"setsLoop" @"roundInd" inc
         { depth, roundInd } <- g1 @XGet @"setsLoop"
         when (p2 depth <= roundInd) do
           s'sets'' @"setsLoop" @"roundInd" 0
@@ -204,7 +204,7 @@ getEventDataImpl = do
             s'sets'' @"setsLoop" @"isDropRound" false
           else do
             s'sets'' @"setsLoop" @"isDropRound" true
-            g1 @(XOver_ "depth") @"setsLoop" inc
+            s'overs'' @"setsLoop" @"depth" inc
         s'sets'' @"setsLoop" @"prev" $ Just { base: baseSet, round }
         s'sets'' @"setsLoop" @"prev" $ Just { base: baseSet, round }
         pure $
@@ -258,7 +258,7 @@ getEventDataImpl = do
     let uaOpt = "--user-agent=" <> userAgent
     s'sets @"args" [ uaOpt, "--no-sandbox", "--disable-setuid-sandbox" ]
   mSlotsKey (Just { slots: (eA ~ eB) }) =
-    strJoinWith "|" $ arrSort
+    str'joinWith "|" $ arr'sort
       [ mEntrantIdKey eA.entrantId, mEntrantIdKey eB.entrantId ]
   mSlotsKey _ = "__"
   slotsKey s = mSlotsKey $ Just s

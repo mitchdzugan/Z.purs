@@ -22,6 +22,7 @@ module Z.Z.Ext
   , module Foldable
   , module Foreign
   , module Generic
+  , module HetMap
   , module Identity
   , module Int
   , module Lens
@@ -151,7 +152,8 @@ import Effect (Effect) as Effect
 import Effect.Aff (Aff, launchAff, launchAff_, runAff, runAff_) as Aff
 import Effect.Class (liftEffect) as EffectClass
 import Foreign (Foreign) as Foreign
-import Parsing (ParserT) as Parsing
+import Heterogeneous.Mapping (class Mapping, hmap, hmapWithIndex) as HetMap
+import Parsing (Parser, ParserT) as Parsing
 import Parsing.Combinators ((<|>)) as Prc
 import Prim.Row (class Cons, class Lacks, class Nub, class Union) as Row
 import Record (merge) as Record

@@ -2,16 +2,17 @@ module Node.Z.CLM.Stats.Manager.Action where
 
 import Z.Prelude
 
-import Node.Z.CLM.Stats.Manager.Spec (MapOp(..), SetOp(..), Spec, SpecB)
+import Node.Z.CLM.Stats.Manager.Spec (Spec, Spec'ListOp)
 
 data Action r
-  = Undo { targetId :: Int | r }
+  = Undo { targetId :: String | r }
   | Bulk { actions :: Array (Action r) | r }
   | OverrideName { slug :: String, name :: String | r }
   | MarkChallonge { slug :: String | r }
   | AddEvent { slug :: String | r }
   | SetIsPrEligible { slug :: String, isEligible :: Boolean | r }
   | MarkDoneUpdating { slug :: String | r }
+  | SetCurrentPeriodId { periodId :: Int | r }
   | BustCache { slug :: String | r }
 
 -- | AddAltId { baseId :: String, newId :: String }
@@ -36,6 +37,7 @@ encodePureAction action = case action of
   (PureAction (SetIsPrEligible p)) -> "SetIsPrEligible" /\ encodeJson p
   (PureAction (MarkDoneUpdating p)) -> "MarkDoneUpdating" /\ encodeJson p
   (PureAction (BustCache p)) -> "BustCache" /\ encodeJson p
+  (PureAction (SetCurrentPeriodId p)) -> "SetCurrentPeriodId" /\ encodeJson p
   (PureAction (Bulk p)) -> (/\) "Bulk" $ encodeJson (PureAction <$> p.actions)
 
 decodePureAction :: String /\ Json -> Either RawJsonDecodeError PureAction
@@ -47,6 +49,7 @@ decodePureAction = case _ of
   ("SetIsPrEligible" /\ p) -> d p <#> PureAction <<< SetIsPrEligible
   ("MarkDoneUpdating" /\ p) -> d p <#> PureAction <<< MarkDoneUpdating
   ("BustCache" /\ p) -> d p <#> PureAction <<< BustCache
+  ("SetCurrentPeriodId" /\ p) -> d p <#> PureAction <<< SetCurrentPeriodId
   ("Bulk" /\ p) -> d p <#> finishBulk
   (actionLbl /\ _) -> decodeFailTypeMismatch $ "Unknown Action: " <> actionLbl
   where
@@ -67,11 +70,12 @@ assignIds idBase actionsIn =
     SetIsPrEligible props -> SetIsPrEligible $ plusId props locId
     MarkDoneUpdating props -> MarkDoneUpdating $ plusId props locId
     BustCache props -> BustCache $ plusId props locId
+    SetCurrentPeriodId props -> SetCurrentPeriodId $ plusId props locId
     Bulk { actions } ->
       Bulk { actions: assignIds (extId locId) actions, id: extId locId }
   where
   plusId :: forall p. T'useAsSym "id" p T'plusId
-  plusId props locId = rec'insert (p @p) (extId locId) props
+  plusId props locId = rec'insert @p (extId locId) props
   extId locId = idBase <> "|" <> show locId
 
 isEphemeral :: forall r. Action r -> Boolean
@@ -80,24 +84,54 @@ isEphemeral _ = false
 
 ejectEphemerals :: forall r. Array (Action r) -> Array (Action r)
 ejectEphemerals actions = arr'filter isEphemeral actions <#> case _ of
-  (Bulk props) -> Bulk $ rec'modify (p @"actions") ejectEphemerals props
+  (Bulk props) -> Bulk $ rec'modify @"actions" ejectEphemerals props
   other -> other
 
 impurifyActions :: Array PureAction -> Array (Action (id :: String))
 impurifyActions a = assignIds "" $ a <#> un'
 
-handleAction :: forall r. Action r -> Edit SpecB
+handleAction :: forall r. Action r -> Edit $ Spec'ListOp
 handleAction (OverrideName { slug, name }) =
-  g @(XOver_ "tournamentNameOverrides") $ Cons $ MapSet slug name
+  s'overs @"tournamentNameOverrides" $ Cons $ B'Map'set slug name
 handleAction (MarkChallonge { slug }) =
-  g @(XOver_ "challongeSlugs") $ Cons $ SetAdd slug
+  s'overs @"challongeSlugs" $ Cons $ B'HashSet'add slug
 handleAction (AddEvent { slug }) =
-  g @(XOver_ "eventSlugs") $ Cons $ SetAdd slug
+  s'overs @"eventSlugs" $ Cons $ B'HashSet'add slug
 handleAction (SetIsPrEligible { slug, isEligible }) =
-  g @(XOver_ "eventSlugs") $ Cons $ (if isEligible then SetAdd else SetRm) slug
+  s'overs @"eventSlugs" $ Cons $
+    (if isEligible then B'HashSet'add else B'HashSet'rm) slug
 handleAction (MarkDoneUpdating { slug }) =
-  g @(XOver_ "doneUpdating") $ Cons $ SetAdd slug
+  s'overs @"doneUpdating" $ Cons $ B'HashSet'add slug
 handleAction (BustCache { slug }) =
-  g @(XOver_ "eventsToRefetch") $ Cons $ SetAdd slug
+  s'overs @"eventsToRefetch" $ Cons $ B'HashSet'add slug
+handleAction (SetCurrentPeriodId { periodId }) =
+  s'overs @"currentPeriodId" $ Cons $ B'ConstVia'is periodId
 handleAction (Bulk { actions }) = forM_ actions handleAction
 handleAction (Undo _) = pure unit
+
+actionId :: Action (id :: String) -> String
+actionId (Undo props) = props.id
+actionId (OverrideName props) = props.id
+actionId (MarkChallonge props) = props.id
+actionId (AddEvent props) = props.id
+actionId (SetIsPrEligible props) = props.id
+actionId (MarkDoneUpdating props) = props.id
+actionId (BustCache props) = props.id
+actionId (SetCurrentPeriodId props) = props.id
+actionId (Bulk props) = props.id
+
+buildSpec :: Array PureAction -> Spec
+buildSpec actions = b'run do
+  let impureActions = impurifyActions actions
+  let revActions = arr'reverse impureActions
+  undone <- pure $ b'finish @(B'HashSet'Op String) @String $ objST'run do
+    init <- objST'new
+    reducer <- pure \undone' action -> case action of
+      (Undo { id, targetId }) -> do
+        isUndone <- objST'has id undone'
+        if isUndone then pure undone'
+        else objST'poke targetId targetId undone'
+      _ -> pure undone'
+    reduceM reducer init revActions
+  forM_ impureActions \action -> do
+    when (not $ set'has (actionId action) undone) $ handleAction action

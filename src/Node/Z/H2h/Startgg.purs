@@ -29,7 +29,7 @@ mapOfJsonElsWithFieldsTypeAnd_t = reduce reducer map'empty
 
 getEventData :: forall x. B.GetDataFn x
 getEventData = B.adaptBuilder $ g @XEvalS initState do
-  { slug } <- g @XAsk
+  { slug } <- r'ask
   { event } <- fetchRawEventData
   let entrantNodes = event.entrants.nodes
   forM_ entrantNodes $ \entrantNode -> do
@@ -58,13 +58,13 @@ getEventData = B.adaptBuilder $ g @XEvalS initState do
         , participants
         , standing: { placement: 0, isFinal: false }
         }
-    g @(XOver_ "entrants") $ map'set entrantId entrant
+    s'overs @"entrants" $ map'set entrantId entrant
   forM_ event.standings.nodes $ \standing -> do
     let entrantId = sOrN standing.entrant.id
     g @XSet (_o_ @"entrants" @"standing" (ix entrantId))
       { placement: standing.placement, isFinal: standing.isFinal }
 
-  let rawPgs = arrSortWith (g_ @"id") event.phaseGroups
+  let rawPgs = arr'sortWith (g_ @"id") event.phaseGroups
   pgs <- forM rawPgs $ \pg -> s'plus @"sets" (map'empty @Int) do
     { phaseGroup } <- fetchRawPhaseGroupData pg.id
     forM_ phaseGroup.sets.nodes $ \set -> do

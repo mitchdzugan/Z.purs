@@ -16,11 +16,11 @@ module Z.Z.Core
   , antiUnit
   , arr'drop
   , arr'empty
+  , arr'filter
   , arr'fromFoldable
   , arr'size
   , arr'slice
   , arr'withInd
-  , arr'filter
   , class Resulting
   , class RtError
   , class SText
@@ -53,10 +53,20 @@ module Z.Z.Core
   , mapL
   , mapM
   , obj'empty
+  , obj'has
   , obj'insert
+  , obj'keys
   , obj'lookup
+  , obj'vals
+  , objST'delete
+  , objST'has
+  , objST'new
+  , objST'peek
+  , objST'poke
+  , objST'run
   , p
   , p2
+  , parseAnyAroundString
   , parseEof
   , parseFail
   , parseFailWithPosition
@@ -106,7 +116,6 @@ import Data.Array as Arr
 import Data.Either as Eor
 import Data.Foldable as Foldable
 import Data.Functor as F
-import Data.Functor.Flip (Flip)
 import Data.Int as Int
 import Data.Lens (Lens', lens')
 import Data.List as List
@@ -122,10 +131,12 @@ import Data.Tuple.Nested as TupN
 import Effect.Exception as Exc
 import Foreign as Foreign
 import Foreign.Object as Obj
+import Foreign.Object.ST as ObjSt
 import Parsing as Parsing
 import Parsing.Combinators as Prc
 import Parsing.String as Prs
 import Parsing.String.Basic as Prsb
+import Prim.Row (class Cons, class Lacks)
 import Record as Record
 import Routing.Duplex as Dup
 import Routing.Duplex.Parser as DupP
@@ -139,12 +150,41 @@ foreign import js_runDeferred :: forall a. Deferred a -> a
 deferred'run :: forall a. Deferred a -> a
 deferred'run = js_runDeferred
 
-rec'get = Record.get
-rec'set = Record.set
-rec'insert = Record.insert
+rec'get ∷ forall r r' @l a. IsSymbol l ⇒ Cons l a r' r ⇒ Record r → a
+rec'get = Record.get (Proxy.Proxy @l)
+
+rec'set
+  ∷ forall r1 r2 r @l a b
+   . IsSymbol l
+  ⇒ Cons l a r r1
+  ⇒ Cons l b r r2
+  ⇒ b
+  → Record r1
+  → Record r2
+rec'set = Record.set (Proxy.Proxy @l)
+
+rec'insert
+  ∷ forall r1 r2 @l a
+   . IsSymbol l
+  ⇒ Lacks l r1
+  ⇒ Cons l a r1 r2
+  ⇒ a
+  → Record r1
+  → Record r2
+rec'insert = Record.insert (Proxy.Proxy @l)
+
 rec'merge = Record.merge
 rec'union = Record.union
-rec'modify = Record.modify
+
+rec'modify
+  ∷ forall r1 r2 r @l a b
+   . IsSymbol l
+  ⇒ Cons l a r r1
+  ⇒ Cons l b r r2
+  ⇒ (a → b)
+  → Record r1
+  → Record r2
+rec'modify = Record.modify (Proxy.Proxy @l)
 
 idLens :: forall a. Lens' a a
 idLens = lens' \a -> a TupN./\ identity
@@ -325,6 +365,24 @@ obj'insert = Obj.insert
 obj'lookup :: forall t. String -> Obj.Object t -> May.Maybe t
 obj'lookup = Obj.lookup
 
+obj'has :: forall t. String -> Obj.Object t -> Boolean
+obj'has k = May.isJust <<< Obj.lookup k
+
+obj'keys = Obj.keys
+obj'vals = Obj.values
+
+objST'new = ObjSt.new
+
+objST'run = Obj.runST
+
+objST'delete = ObjSt.delete
+
+objST'poke = ObjSt.poke
+
+objST'peek = ObjSt.peek
+
+objST'has k o = May.isJust <$> ObjSt.peek k o
+
 map'empty :: forall @k @v. Ord k => Map.Map k v
 map'empty = Map.empty
 
@@ -477,6 +535,13 @@ parseEof = Prs.eof
 
 parseRest :: forall m. Parsing.ParserT String m String
 parseRest = Prs.rest
+
+parseAnyAroundString
+  :: forall m
+   . Monad m
+  => String
+  -> Parsing.ParserT String m (String TupN./\ String)
+parseAnyAroundString t = Prs.anyTill (parseString t *> parseRest)
 
 parseString :: forall m. String -> Parsing.ParserT String m String
 parseString = Prs.string

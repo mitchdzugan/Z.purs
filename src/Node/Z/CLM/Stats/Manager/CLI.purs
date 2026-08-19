@@ -2,6 +2,10 @@ module Node.Z.CLM.Stats.Manager.CLI where
 
 import Node.Z.Prelude
 
+import Data.Array (concat)
+import Debug (traceM)
+import Node.Z.CLM.Stats.Manager.Action (buildSpec)
+import Node.Z.CLM.Stats.Manager.Action as Act
 import Node.Z.CLM.Stats.Manager.Error as ClmStE
 import Node.Z.CLM.Stats.Manager.Warning as ClmStW
 import Node.Z.CLM.Stats.Queries as Q
@@ -118,8 +122,70 @@ type EnvR r =
   | r
   }
 
+type ClmV r x = (RWaEA (EnvR r) ClmStW.T ClmStE.T x)
+
+type PureActions = Array Act.PureAction
+
+type ActionData = { manual :: PureActions, auto :: PureActions }
+
+type AutoActionDef =
+  (Parser String Unit) /\ (Parser String Unit) /\ (String -> Act.PureAction)
+
+defAutoAction
+  :: forall s1 s2
+   . Parser String s1
+  -> Parser String s2
+  -> (String -> Act.Action ())
+  -> AutoActionDef
+defAutoAction p1 p2 f =
+  (p1 <#> const unit) /\ (p2 <#> const unit) /\ (Act.PureAction <<< f)
+
+autoActionDefs :: Array AutoActionDef
+autoActionDefs =
+  [ defAutoAction parseRest parseRest \slug -> Act.AddEvent { slug }
+  , defAutoAction (parseAnyAroundString "bunker") (parseAnyAroundString "crazy")
+      \slug -> Act.SetIsPrEligible { slug, isEligible: false }
+  ]
+
+getActions :: forall r x. PureActions -> Boolean -> ClmV r x #> ActionData
+getActions newActions usePrevAuto = do
+  buildDataPath <- r'ask <#> \r -> r.pagesCOPath /./ "build.json"
+  baseRes <- xDecodeTextFile @ActionData buildDataPath # e'try <#> case _ of
+    Left _ -> { manual: newActions, auto: [] }
+    Right d -> { manual: d.manual <> newActions, auto: d.auto }
+  if usePrevAuto then pure baseRes
+  else do
+    { ggAuth, dataRoot } <- r'ask
+    before <- xNowMS <#>
+      \n -> (60 * 60 * floor (n / 1000.0 / 60.0 / 60.0)) + (24 * 60 * 60)
+    let after = 1767225600
+    let pSpecs = [ All.ggPageSpec (__ @"page") (__ @"tournaments") ]
+    let initVars = { after, before, page: 0 }
+    client <- pure $ H2h.mkClient do
+      s'sets @"authToken" (Just ggAuth)
+      s'sets @"cachePath" (Just $ pathStr $ dataRoot /./ "startgg.gqlCache")
+    clmEvents <- wrapH2hWE $
+      All.ggQueryAll Q.clmEvents initVars pSpecs client Gql.CacheFirst
+    let slugs = clmEvents.tournaments.nodes <#> _.events # concat <#> _.slug
+    newAuto <- pure do
+      slug <- slugs
+      let pieces = str'split (Pattern "/") slug
+      case pieces of
+        [ "tournament", tslug, "event", eslug ] -> do
+          tparse /\ eparse /\ mkAction <- autoActionDefs
+          case (runParser tslug tparse /\ runParser eslug eparse) of
+            (Right _ /\ Right _) -> pure $ mkAction slug
+            _ -> []
+        _ -> []
+    pure $ rec'set @"auto" newAuto baseRes
+
 doStuff :: forall r x. XRun (RWaEA (EnvR r) ClmStW.T ClmStE.T x) Unit
 doStuff = do
+  actionData <- getActions [] false
+  let spec = buildSpec $ concat [ actionData.manual, actionData.auto ]
+  xOut $ show spec
+
+{-
   { ggAuth, dataRoot } <- r'ask
   before <- xNowMS <#>
     \n -> (60 * 60 * floor (n / 1000.0 / 60.0 / 60.0)) + (24 * 60 * 60)
@@ -137,6 +203,7 @@ doStuff = do
   legacyData <- e'map ClmStE.LoadLegacyData $
     xDecodeTextFile @CLMStatsLegacyBlob legacyDataPath
   xInfo legacyData
+-}
 
 xRun :: forall x. Array String -> EA JsError x ##> Unit
 xRun args = do

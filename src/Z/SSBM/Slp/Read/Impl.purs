@@ -76,9 +76,9 @@ derive instance Newtype SlpParseAndShaFail _
 xParseData :: forall x. Buffer -> E Err.T x #> SlpGameData
 xParseData buffer = do
   let game = js_gameOfBuffer buffer
-  rawSettings <- e'map Err.DecodeSettings $ g @XOk $ slpSettings game
-  rawMeta <- e'map Err.DecodeMeta $ g @XOk $ slpMeta game
-  rawStats <- e'map Err.DecodeStats $ g @XOk $ slpStats game
+  rawSettings <- e'map Err.DecodeSettings $ e'ok $ slpSettings game
+  rawMeta <- e'map Err.DecodeMeta $ e'ok $ slpMeta game
+  rawStats <- e'map Err.DecodeStats $ e'ok $ slpStats game
   let startAtNOr_ = js_startAt Nothing Just game
   let startAtIOr_ = startAtNOr_ <#> toNumber <#> Milliseconds >>= instant
   let startAtOr_ = startAtIOr_ <#> toDateTime
@@ -96,9 +96,9 @@ xParseData buffer = do
   pure { rawSettings, rawMeta, rawStats, startAtOr_, key: key keys }
 
 xParse :: forall x. Buffer -> EA SlpParseAndShaFail x #> SlpGame
-xParse b = g @XTry (xParseData b) >>= case _ of
+xParse b = e'try (xParseData b) >>= case _ of
   (Right v) -> pure $ SlpGame v
-  (Left e) -> g @XTry (sha256BytesOfBuffer b) >>= case _ of
+  (Left e) -> e'try (sha256BytesOfBuffer b) >>= case _ of
     (Left shaE) -> g @XFail $ SlpParseAndShaFail shaE
     (Right sha256) -> pure $ SlpParseFail e sha256
 

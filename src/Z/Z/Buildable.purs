@@ -1,32 +1,128 @@
 module Z.Z.Buildable
-  ( BuildableMapper(..)
-  , ConstOp(..)
-  , HashSetOp(..)
-  , build
-  , class BuildsTo
-  , js_mk
+  ( B'Const'Def
+  , B'Const'Op(..)
+  , B'ConstVia'Def
+  , B'ConstVia'Op(..)
+  , B'Def'Built
+  , B'Def'ListOp
+  , B'HMap'Tag
+  , B'HashSet'Def
+  , B'HashSet'Op(..)
+  , B'Map'Def
+  , B'Map'Op(..)
+  , b'build
+  , b'finish
+  , b'update
+  , b'run
+  , class B'Builds
+  , class B'Builds'ForeignSt
   ) where
 
 import Prelude
 
+import Control.Monad.ST (ST)
 import Data.List (List(..))
-import Heterogeneous.Mapping (class Mapping)
-import Z.Z.Defaultable (class Generable, GDefault, default)
+import Data.Map (Map)
+import Data.Tuple.Nested (type (/\), (/\))
+import Foreign.Object (Object, runST, values)
+import Foreign.Object.ST (STObject, delete, new, poke)
+import Heterogeneous.Mapping (class HMap, class Mapping, hmap)
+import Z.Z.Core (HashSet, map'fromFoldable, set'fromFoldable)
+import Z.Z.Defaultable (class Generable, GDefault, default, g)
+import Z.Z.Key (class Keyed, keyStr)
+import Z.Z.X (Edit, edit)
 
-data BuildableMapper = BuildableMapper
+data B'HMap'Tag = B'HMap'Tag
 
-class BuildsTo f g | g -> g where
-  build :: List f -> g
+type T'b'run'h tIn tOut = Generable tIn GDefault tIn => Edit tIn -> tOut
 
-instance (BuildsTo f g) => Mapping BuildableMapper (List f) (g) where
-  mapping _ = build
+b'run ∷ forall tIn tOut. HMap B'HMap'Tag tIn tOut => T'b'run'h tIn tOut
+b'run = hmap B'HMap'Tag <<< edit (default @tIn)
 
-data ConstOp t = Const'Set t
+class B'Builds f g | g -> g where
+  b'build :: List f -> g
 
-instance (Generable t GDefault t) => BuildsTo (ConstOp t) t where
-  build (Cons (Const'Set finalVal) _) = finalVal
-  build _ = js_mk $ default
+class B'Builds'ForeignSt f i g | f i -> g where
+  b'update :: forall r. f -> STObject r i -> ST r (STObject r i)
+  b'finish :: Object i -> g
 
-data HashSetOp a = HashSet'add a | HashSet'rm a
+instance (B'Builds f g) => Mapping B'HMap'Tag (List f) (g) where
+  mapping _ = b'build
 
-foreign import js_mk :: forall a. a -> a
+buildForeignStUpdate
+  :: forall r f i g
+   . B'Builds'ForeignSt f i g
+  => List f
+  -> STObject r i
+  -> ST r (STObject r i)
+buildForeignStUpdate Nil st = pure st
+buildForeignStUpdate (Cons next rest) st = b'update next st >>=
+  buildForeignStUpdate rest
+
+buildForeignStRun :: forall @f @i @g. B'Builds'ForeignSt f i g => List f -> g
+buildForeignStRun l = b'finish @f @i $ runST (new >>= buildForeignStUpdate l)
+
+type B'Def'ListOp :: forall k. Type -> k -> Type
+type B'Def'ListOp a b = List a
+
+type B'Def'Built :: forall k1 k2. k1 -> k2 -> k2
+type B'Def'Built a b = b
+
+------------------------------------------------------------------------------
+
+data B'Const'Op t = B'Const'reset | B'Const'is t
+
+type B'Const'Def :: forall k1. (Type -> Type -> k1) -> Type -> k1
+type B'Const'Def sel t = sel (B'Const'Op t) t
+
+instance (Generable t GDefault t) => B'Builds (B'Const'Op t) t where
+  b'build (Cons (B'Const'is finalVal) _) = finalVal
+  b'build _ = default
+
+------------------------------------------------------------------------------
+
+data B'ConstVia'Op :: Type -> Type -> Type
+data B'ConstVia'Op tag t = B'ConstVia'reset | B'ConstVia'is t
+
+type B'ConstVia'Def :: forall k. (Type -> Type -> k) -> Type -> Type -> k
+type B'ConstVia'Def sel tag t = sel (B'ConstVia'Op tag t) t
+
+instance (Generable tag GDefault t) => B'Builds (B'ConstVia'Op tag t) t where
+  b'build (Cons (B'ConstVia'is finalVal) _) = finalVal
+  b'build _ = g @tag
+
+------------------------------------------------------------------------------
+
+data B'HashSet'Op a = B'HashSet'reset | B'HashSet'add a | B'HashSet'rm a
+
+type B'HashSet'Def :: forall k1. (Type -> Type -> k1) -> Type -> k1
+type B'HashSet'Def sel a = sel (B'HashSet'Op a) (HashSet a)
+
+instance (Keyed a, Ord a) => B'Builds'ForeignSt (B'HashSet'Op a) a (HashSet a) where
+  b'update (B'HashSet'rm a) st = delete (keyStr a) st
+  b'update (B'HashSet'add a) st = poke (keyStr a) a st
+  b'update B'HashSet'reset _ = new
+  b'finish o = set'fromFoldable $ values o
+
+instance (Keyed a, Ord a) => B'Builds (B'HashSet'Op a) (HashSet a) where
+  b'build = buildForeignStRun @(B'HashSet'Op a) @a @(HashSet a)
+
+------------------------------------------------------------------------------
+
+data B'Map'Op k v = B'Map'reset | B'Map'set k v | B'Map'rm k
+
+type B'Map'Def :: forall k1. (Type -> Type -> k1) -> Type -> Type -> k1
+type B'Map'Def sel k v = sel (B'Map'Op k v) (Map k v)
+
+instance
+  ( Keyed k
+  , Ord k
+  ) =>
+  B'Builds'ForeignSt (B'Map'Op k v) (k /\ v) (Map k v) where
+  b'update (B'Map'rm k) st = delete (keyStr k) st
+  b'update (B'Map'set k v) st = poke (keyStr k) (k /\ v) st
+  b'update (B'Map'reset) _ = new
+  b'finish o = map'fromFoldable $ values o
+
+instance (Keyed k, Ord k) => B'Builds (B'Map'Op k v) (Map k v) where
+  b'build = buildForeignStRun @(B'Map'Op k v) @(k /\ v) @(Map k v)

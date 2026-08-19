@@ -2,6 +2,7 @@ module Z.Prelude
   ( module Prelude
   , module ZBl
   , module ZBuffer
+  , module ZBuildable
   , module ZCore
   , module ZDateTime
   , module ZDefaultable
@@ -138,6 +139,7 @@ import Z.Z.Barlow
   , barlow
   ) as ZBl
 import Z.Z.Buffer as ZBuffer
+import Z.Z.Buildable as ZBuildable
 import Z.Z.Core as ZCore
 import Z.Z.DateTime as ZDateTime
 import Z.Z.Defaultable as ZDefaultable

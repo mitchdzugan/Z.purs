@@ -69,18 +69,18 @@ xOperateUnknown opString vars client nc = g @XWithReturn \xReturn -> do
   where
   { cachePath, authToken, url } = client
   authTokenJson = encodeJson authToken
-  sortedPairs = arrSort $ jsonSortedPairs vars
+  sortedPairs = arr'sort $ jsonSortedPairs vars
   -- reverse in specific case to match my old startgg cache
   strVals = map jsonStr $ map snd $ case map fst sortedPairs of
-    [ "page", "phaseGroupId" ] -> arrReverse sortedPairs
+    [ "page", "phaseGroupId" ] -> arr'reverse sortedPairs
     _ -> sortedPairs
-  opHeader = slice 0 1 $ strSplit (Pattern "\n") opString
-  opKeyStr = strJoinWith "|" [ opString, strJoinWith "|" strVals ]
+  opHeader = slice 0 1 $ str'split (Pattern "\n") opString
+  opKeyStr = str'joinWith "|" [ opString, str'joinWith "|" strVals ]
   opKey = show $ simpleHash opKeyStr
   filenameParts 0 = [ opKey, "json" ]
   filenameParts collisionCount = [ opKey, show collisionCount, "json" ]
   cacheFilename cachePath =
-    (/./) cachePath <<< strJoinWith "." <<< filenameParts
+    (/./) cachePath <<< str'joinWith "." <<< filenameParts
   getCachedRec cachePath collisionCount = do
     let filename = cacheFilename cachePath collisionCount
     parsed <- g @XTellMappedMHush mapMDecodeErr $ xDecodeTextFile filename
@@ -125,4 +125,4 @@ xOperate
   -> WEA (Array GqlW.T) GqlE.T x #> res
 xOperate (Operation opString encode decode) vars client networkControl = do
   json <- xOperateUnknown opString (encode vars) client networkControl
-  e'map GqlE.ResponseTypeError $ g @XOk $ decode json
+  e'map GqlE.ResponseTypeError $ e'ok $ decode json

@@ -17,7 +17,7 @@ addConfigs
 addConfigs allowFNF wd configPaths = do
   forM_ configPaths \configPath -> do
     let fullPath = wd /.|// configPath
-    g @XTry (xDecodeAnyYamlExt @RecordConfig fullPath) >>= onDecode fullPath
+    e'try (xDecodeAnyYamlExt @RecordConfig fullPath) >>= onDecode fullPath
   where
   onDecode fullPath (Right c) = do
     g @XModify $ updateEnv c
@@ -41,8 +41,7 @@ xRun args = do
         /./ "Slippi Launcher"
         /./ "Settings"
   launcherSettings <-
-    g @XTry (xDecodeTextFile @LauncherSettings' launcherSettingsPath) <#>
-      hush
+    e'try (xDecodeTextFile @LauncherSettings' launcherSettingsPath) <#> hush
   let isoPath = launcherSettings <#> g_ @"settings.isoPath"
   let
     envStateInit =
@@ -98,7 +97,7 @@ updateEnv cfg st =
 finalizeEnv
   :: forall x. EnvBuildState -> CliOpts -> String -> E Error x #> RecordEnv
 finalizeEnv st (CliOpts opts) defaultOutputPath = do
-  isoPath <- g @XOk $ jOrE NoIso st.isoPath
+  isoPath <- e'ok $ jOrE NoIso st.isoPath
   pure
     { isoPath
     , outputPath: jOr defaultOutputPath opts.outputPath
@@ -202,10 +201,10 @@ iniModToStr (IniMod i p v) = i <> ":" <> p <> "=" <> v
 
 iniModOfStr :: String -> Either String IniMod
 iniModOfStr s = do
-  let csplit = strSplit (Pattern ":") s
+  let csplit = str'split (Pattern ":") s
   i <- jOrE emsg $ nth csplit 0
   rest <- jOrE emsg $ nth csplit 1
-  let rsplit = strSplit (Pattern "=") rest
+  let rsplit = str'split (Pattern "=") rest
   p <- jOrE emsg $ nth rsplit 0
   v <- jOrE emsg $ nth rsplit 1
   pure $ IniMod i p v
@@ -234,7 +233,7 @@ portCostumeToStr (PortCostume (p /\ c)) = (show $ Port.asInt p) <> "=" <> show c
 
 portCostumeOfStr :: String -> Either String PortCostume
 portCostumeOfStr s = do
-  let esplit = strSplit (Pattern "=") s
+  let esplit = str'split (Pattern "=") s
   p <- jOrE emsg $ nth esplit 0 >>= intFromString
   c <- jOrE emsg $ nth esplit 1 >>= intFromString
   pure $ PortCostume $ (Port.ofInt p) /\ c

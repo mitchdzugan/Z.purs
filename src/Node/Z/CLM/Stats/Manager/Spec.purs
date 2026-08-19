@@ -1,44 +1,20 @@
-module Node.Z.CLM.Stats.Manager.Spec where
+module Node.Z.CLM.Stats.Manager.Spec
+  ( Spec
+  , Spec'B'Def
+  , Spec'ListOp
+  ) where
 
 import Z.Prelude
 
-import Heterogeneous.Mapping (class Mapping)
-
-type Spec =
-  { eventSlugs :: HashSet String
-  , challongeSlugs :: HashSet String
-  , ineligibleSlugs :: HashSet String
-  , doneUpdating :: HashSet String
-  , eventsToRefetch :: HashSet String
-  , currentPeriodId :: Int
-  , tournamentNameOverrides :: Map String String
+type Spec'B'Def k =
+  { eventSlugs :: B'HashSet'Def k String
+  , challongeSlugs :: B'HashSet'Def k String
+  , ineligibleSlugs :: B'HashSet'Def k String
+  , doneUpdating :: B'HashSet'Def k String
+  , eventsToRefetch :: B'HashSet'Def k String
+  , tournamentNameOverrides :: B'Map'Def k String String
+  , currentPeriodId :: B'ConstVia'Def k D'Int'0 Int
   }
 
-data SetOp a = SetRm a | SetAdd a
-
-data MapOp k v = MapRm k | MapSet k v
-
-type SpecB =
-  { eventSlugs :: List $ SetOp String
-  , challongeSlugs :: List $ SetOp String
-  , ineligibleSlugs :: List $ SetOp String
-  , doneUpdating :: List $ SetOp String
-  , eventsToRefetch :: List $ SetOp String
-  , currentPeriodId :: Int
-  , tournamentNameOverrides :: List $ MapOp String String
-  }
-
-data SetDef a
-data MapDef k v
-data ConstDef t
-
-type SpecF f =
-  { eventSlugs :: SetDef String -> f
-  , challongeSlugs :: SetDef String -> f
-  , ineligibleSlugs :: SetDef String -> f
-  , ineligibleSlugs :: SetDef String -> f
-  , doneUpdating :: SetDef String -> f
-  , eventsToRefetch :: SetDef String -> f
-  , tournamentNameOverrides :: MapDef String String -> f
-  , currentPeriodId :: ConstDef Int
-  }
+type Spec'ListOp = Spec'B'Def B'Def'ListOp
+type Spec = Spec'B'Def B'Def'Built

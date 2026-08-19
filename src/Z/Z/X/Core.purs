@@ -134,6 +134,10 @@ module Z.Z.X.Core
   , class XGetterTypes
   , e'map
   , e'map''
+  , e'ok
+  , e'ok''
+  , e'try
+  , e'try''
   , e'unwrap
   , e'unwrap''
   , e'unwrap_
@@ -162,6 +166,8 @@ module Z.Z.X.Core
   , runner'extend
   , runner'mk
   , runner'mkDeferred
+  , s'overs
+  , s'overs''
   , s'plus
   , s'plus''
   , s'sets
@@ -319,7 +325,7 @@ instance
   , Cons ep (RunE.Except Z.ParseError) x' x
   ) =>
   Generable (XImpl "runParser") gspec (s -> Parsing.Parser s a -> R.Run x a) where
-  mkGenerable s pr = g1 @XOk @ep $ Z.runParser s pr
+  mkGenerable s pr = e'ok'' @ep $ Z.runParser s pr
 
 type XBindE = XImpl "bindE"
 
@@ -332,7 +338,7 @@ instance
   Generable (XImpl "bindE")
     gspec
     ((e1 -> R.Run x' f) -> R.Run x f -> R.Run x' f) where
-  mkGenerable be m = g1 @XTry @ep m >>= onDone
+  mkGenerable be m = e'try'' @ep m >>= onDone
     where
     onDone (Eor.Left e) = be e
     onDone (Eor.Right v) = pure v
@@ -378,7 +384,7 @@ instance
   , Generable d GDefault d
   ) =>
   Generable (XImpl "hush") gspec (R.Run x d -> R.Run x' d) where
-  mkGenerable m = (<$>) ZD.orDefault $ g1 @XTry @ep m <#> Eor.hush
+  mkGenerable m = (<$>) ZD.orDefault $ e'try'' @ep m <#> Eor.hush
 
 type XInvert = XImpl "invert"
 
@@ -389,7 +395,7 @@ instance
   , Cons ep (RunE.Except r) x' x
   ) =>
   Generable (XImpl "invert") gspec (R.Run x e -> R.Run x' r) where
-  mkGenerable m = g1 @XTry @ep m <#> Z.invert >>= g1 @XOk @ep
+  mkGenerable m = e'try'' @ep m <#> Z.invert >>= e'ok'' @ep
 
 type XTryUntil = XImpl "tryUntil"
 
@@ -530,7 +536,7 @@ instance
   Generable (XImpl "unresult") gspec (Result w e a -> R.Run x a) where
   mkGenerable { w, v } = do
     w'tell'' @wp w
-    g1 @XOk @ep v
+    e'ok'' @ep v
 
 ------------------------------ w ----------------------------------------
 
@@ -625,7 +631,7 @@ instance
   Generable (XImpl "tellMappedHush")
     gspec
     ((e -> w) -> R.Run x d -> R.Run x' d) where
-  mkGenerable mapW m = g1 @XTry @ep m >>= onDone
+  mkGenerable mapW m = e'try'' @ep m >>= onDone
     where
     onDone (Eor.Left e) = w'say'' @wp (mapW e) <#> const (ZD.default @d)
     onDone (Eor.Right r) = pure $ r
@@ -646,7 +652,7 @@ instance
   Generable (XImpl "tellMappedMHush")
     gspec
     ((e -> m w) -> R.Run x d -> R.Run x' d) where
-  mkGenerable mapW m = g1 @XTry @ep m >>= onDone
+  mkGenerable mapW m = e'try'' @ep m >>= onDone
     where
     onDone (Eor.Left e) = w'tell'' @wp (mapW e) <#> const (ZD.default @d)
     onDone (Eor.Right r) = pure $ r
@@ -1110,6 +1116,12 @@ s'sets'' = g1 @(XSet_ s) @at
 s'sets :: forall @s v. Generable (XSet_ s) GDefault v => v
 s'sets = g @(XSet_ s)
 
+s'overs'' :: forall @at @s v. Generable (XOver_ s) (G1 at) v => v
+s'overs'' = g1 @(XOver_ s) @at
+
+s'overs :: forall @s v. Generable (XOver_ s) GDefault v => v
+s'overs = g @(XOver_ s)
+
 s'plus :: forall @s v. Generable (XPlusS s) GDefault v => v
 s'plus = g @(XPlusS s)
 
@@ -1170,6 +1182,18 @@ we'runResult'' = g1 @XRunResult @at
 
 ---------------          e''fns ------------------------------------
 
+e'ok :: forall v. Generable XOk GDefault v => v
+e'ok = g @XOk
+
+e'ok'' :: forall @at v. Generable XOk (G1 at) v => v
+e'ok'' = g1 @XOk @at
+
+e'try :: forall v. Generable XTry GDefault v => v
+e'try = g @XTry
+
+e'try'' :: forall @at v. Generable XTry (G1 at) v => v
+e'try'' = g1 @XTry @at
+
 e'map :: forall v. Generable XMapE GDefault v => v
 e'map = g @XMapE
 
@@ -1194,13 +1218,13 @@ evalX :: forall a. XRun () a -> a
 evalX m = Unsafe.unsafePerformEffect $ R.runBaseEffect $ R.expand $ runXBase m
 
 runX :: forall e a. XRun (E e ()) a -> Eor.Either e a
-runX = evalX <<< g @XTry
+runX = evalX <<< e'try
 
 evalXA :: forall a. XRun (A ()) a -> Aff.Aff a
 evalXA m = R.match { aff: \(AffCmd a) -> a } # R.run $ runXBase m
 
 runXA :: forall e a. XRun (EA e ()) a -> Aff.Aff (Eor.Either e a)
-runXA = evalXA <<< g @XTry
+runXA = evalXA <<< e'try
 
 --------------- OTHER ------------------------------------------------------
 
@@ -1236,7 +1260,7 @@ effectPromiseToAff :: forall a. Eff.Effect (Promise.Promise a) -> Aff.Aff a
 effectPromiseToAff e = EffC.liftEffect e >>= promiseToAff
 
 xTimeout :: forall x. Int -> XRun (A x) Unit
-xTimeout ms = Z.fDiscard $ g @XTry $ g @XRunEffPromise $ js_timeout ms
+xTimeout ms = Z.fDiscard $ e'try $ g @XRunEffPromise $ js_timeout ms
 
 --------------- CORE TYPE ---------------------------------------------------
 

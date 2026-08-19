@@ -1,9 +1,9 @@
 module Z.Z.String
-  ( strEndsWith
-  , strJoinWith
-  , strLength
-  , strSplit
-  , strStartsWith
+  ( str'endsWith
+  , str'joinWith
+  , str'length
+  , str'split
+  , str'startsWith
   ) where
 
 import Data.String as Str
@@ -11,17 +11,17 @@ import Data.String.CodeUnits as StrCU
 import Data.String.Common as StrCommon
 import Data.String.Utils as StrUtils
 
-strJoinWith :: String -> Array String -> String
-strJoinWith = StrCommon.joinWith
+str'joinWith :: String -> Array String -> String
+str'joinWith = StrCommon.joinWith
 
-strSplit ∷ Str.Pattern -> String -> Array String
-strSplit = StrCommon.split
+str'split ∷ Str.Pattern -> String -> Array String
+str'split = StrCommon.split
 
-strLength :: String -> Int
-strLength = StrCU.length
+str'length :: String -> Int
+str'length = StrCU.length
 
-strStartsWith :: String -> String -> Boolean
-strStartsWith = StrUtils.startsWith
+str'startsWith :: String -> String -> Boolean
+str'startsWith = StrUtils.startsWith
 
-strEndsWith :: String -> String -> Boolean
-strEndsWith = StrUtils.endsWith
+str'endsWith :: String -> String -> Boolean
+str'endsWith = StrUtils.endsWith

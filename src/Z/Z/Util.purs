@@ -10,10 +10,10 @@ module Z.Z.Util
   , arg2'
   , arg3'
   , arg4'
-  , arrReverse
-  , arrSort
-  , arrSortBy
-  , arrSortWith
+  , arr'reverse
+  , arr'sort
+  , arr'sortBy
+  , arr'sortWith
   , baseDecodeJson
   , class IsStringOrNum
   , class RevSym
@@ -104,17 +104,17 @@ urlPathSegments u = Url.pathSegments $ Url.path u
 nth :: forall a. Array a -> Int -> Maybe.Maybe a
 nth = Array.index
 
-arrSort :: forall a. Ord.Ord a => Array a -> Array a
-arrSort = Array.sort
+arr'sort :: forall a. Ord.Ord a => Array a -> Array a
+arr'sort = Array.sort
 
-arrSortBy :: forall a. (a -> a -> Ordering.Ordering) -> Array a -> Array a
-arrSortBy = Array.sortBy
+arr'sortBy :: forall a. (a -> a -> Ordering.Ordering) -> Array a -> Array a
+arr'sortBy = Array.sortBy
 
-arrSortWith :: forall a b. Ord.Ord b => (a -> b) -> Array a -> Array a
-arrSortWith = Array.sortWith
+arr'sortWith :: forall a b. Ord.Ord b => (a -> b) -> Array a -> Array a
+arr'sortWith = Array.sortWith
 
-arrReverse :: forall a. Array a -> Array a
-arrReverse = Array.reverse
+arr'reverse :: forall a. Array a -> Array a
+arr'reverse = Array.reverse
 
 jsonKeys :: Arg.Json -> Array String
 jsonKeys = Arg.caseJsonObject [] FO.keys

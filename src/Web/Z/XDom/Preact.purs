@@ -42,7 +42,7 @@ xProvideHistoryX toTitleOr_ urlStateToDom = do
         whenJust (evTarget e) \target -> do
           DOM.xClosest target "a" >>= flip whenJust \closest -> do
             DOM.xGetAttribute closest "href" >>= flip whenJust \href -> do
-              when (strStartsWith "/" href) do
+              when (str'startsWith "/" href) do
                 DOM.xPreventDefault e
                 DOM.xStopPropagation e
                 let fullHref = origin <> href

@@ -1,7 +1,10 @@
 module Z.Z.Defaultable.Generable
-  ( G1
+  ( D'Int'0
+  , D'Int'1
+  , G1
   , G2
   , GDefault
+  , class DefaultValueRecord
   , class G2OrDefault
   , class GOrDefault
   , class Generable
@@ -9,12 +12,19 @@ module Z.Z.Defaultable.Generable
   , g'
   , g1
   , g2
+  , mkDefaultRecord
   , mkGenerable
   ) where
 
 import Prelude
 
+import Data.List (List(..))
 import Data.Maybe as May
+import Data.Symbol (class IsSymbol, reflectSymbol)
+import Prim.Row (class Cons)
+import Prim.RowList as RL
+import Record.Unsafe (unsafeSet)
+import Type.Proxy (Proxy(..))
 
 data G2 :: forall @k1 @k2. k1 -> k2 -> Type
 data G2 t1 t2 = G2
@@ -65,6 +75,36 @@ instance Generable (Array a) _gdesc (Array a) where
 instance Generable (May.Maybe a) _gdesc (May.Maybe a) where
   mkGenerable = May.Nothing
 
+instance Generable (List a) _gdesc (List a) where
+  mkGenerable = Nil
+
+class DefaultValueRecord :: RL.RowList Type -> Row Type -> Constraint
+class DefaultValueRecord rowList row | rowList -> row where
+  mkDefaultRecord :: Proxy rowList -> Record row
+
+instance DefaultValueRecord RL.Nil () where
+  mkDefaultRecord _ = {}
+
+instance
+  ( IsSymbol key
+  , Generable focus GDefault focus
+  , Cons key focus rowTail row
+  , DefaultValueRecord rowListTail rowTail
+  ) =>
+  DefaultValueRecord (RL.Cons key focus rowListTail) row where
+  mkDefaultRecord _ = insert (mkGenerable @focus @GDefault) tail
+    where
+    key = reflectSymbol (Proxy :: Proxy key)
+    insert = unsafeSet key :: focus -> Record rowTail -> Record row
+    tail = mkDefaultRecord (Proxy :: Proxy rowListTail)
+
+instance defaultValueForRecord ::
+  ( RL.RowToList row list
+  , DefaultValueRecord list row
+  ) =>
+  Generable (Record row) gdesc (Record row) where
+  mkGenerable = mkDefaultRecord (Proxy :: Proxy list)
+
 g
   :: forall @tag v
    . Generable tag GDefault v
@@ -86,3 +126,14 @@ g2
    . Generable tag (G2 t1 t2) v
   => v
 g2 = mkGenerable @tag @(G2 t1 t2)
+
+---------------------------------------------------------------------
+
+foreign import data D'Int'0 :: Type
+foreign import data D'Int'1 :: Type
+
+instance Generable D'Int'1 _gdesc Int where
+  mkGenerable = 1
+
+instance Generable D'Int'0 _gdesc Int where
+  mkGenerable = 0

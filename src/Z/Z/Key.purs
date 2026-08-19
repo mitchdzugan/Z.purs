@@ -9,7 +9,7 @@ import Prelude
 
 import Z.Z.Ext as Z
 import Z.Z.Pair as ZP
-import Z.Z.String (strLength)
+import Z.Z.String (str'length)
 
 foreign import js_keyOfStr :: String -> String
 
@@ -46,11 +46,11 @@ instance Keyed a => Keyed (Z.Maybe a) where
 
 instance (Keyed a, Keyed b) => Keyed (a Z./\ b) where
   key (a Z./\ b) =
-    let ka = keyStr a in Key $ "P" <> show (strLength ka) <> ka <> keyStr b
+    let ka = keyStr a in Key $ "P" <> show (str'length ka) <> ka <> keyStr b
 
 instance (Keyed a) => Keyed (ZP.Pair a) where
   key (a ZP.~ b) =
-    let ka = keyStr a in Key $ "P" <> show (strLength ka) <> ka <> keyStr b
+    let ka = keyStr a in Key $ "P" <> show (str'length ka) <> ka <> keyStr b
 
 instance Keyed (Array Z.Byte) where
   key a = Key $ "X" <> js_keyOfBytes (a <#> Z.fromByte)
