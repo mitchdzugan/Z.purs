@@ -124,7 +124,7 @@ buildSpec :: Array PureAction -> Spec
 buildSpec actions = b'run do
   let impureActions = impurifyActions actions
   let revActions = arr'reverse impureActions
-  undone <- pure $ b'finish @(B'HashSet'Op String) @String $ objST'run do
+  undone <- pure $ b'finish @(B'HashSet'Op String) $ objST'run do
     init <- objST'new
     reducer <- pure \undone' action -> case action of
       (Undo { id, targetId }) -> do

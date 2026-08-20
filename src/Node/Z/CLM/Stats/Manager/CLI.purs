@@ -4,9 +4,9 @@ import Node.Z.Prelude
 
 import Data.Array (concat)
 import Debug (traceM)
-import Node.Z.CLM.Stats.Manager.Action (buildSpec)
 import Node.Z.CLM.Stats.Manager.Action as Act
 import Node.Z.CLM.Stats.Manager.Error as ClmStE
+import Node.Z.CLM.Stats.Manager.Spec as Spec
 import Node.Z.CLM.Stats.Manager.Warning as ClmStW
 import Node.Z.CLM.Stats.Queries as Q
 import Node.Z.Gql as Gql
@@ -166,7 +166,7 @@ getActions newActions usePrevAuto = do
       s'sets @"cachePath" (Just $ pathStr $ dataRoot /./ "startgg.gqlCache")
     clmEvents <- wrapH2hWE $
       All.ggQueryAll Q.clmEvents initVars pSpecs client Gql.CacheFirst
-    let slugs = clmEvents.tournaments.nodes <#> _.events # concat <#> _.slug
+    let slugs = clmEvents.tournaments.nodes <#> _.events # arr'concat <#> _.slug
     newAuto <- pure do
       slug <- slugs
       let pieces = str'split (Pattern "/") slug
@@ -179,31 +179,20 @@ getActions newActions usePrevAuto = do
         _ -> []
     pure $ rec'set @"auto" newAuto baseRes
 
-doStuff :: forall r x. XRun (RWaEA (EnvR r) ClmStW.T ClmStE.T x) Unit
-doStuff = do
-  actionData <- getActions [] false
-  let spec = buildSpec $ concat [ actionData.manual, actionData.auto ]
-  xOut $ show spec
-
-{-
-  { ggAuth, dataRoot } <- r'ask
-  before <- xNowMS <#>
-    \n -> (60 * 60 * floor (n / 1000.0 / 60.0 / 60.0)) + (24 * 60 * 60)
-  let after = 1767225600
-  xOut { before, after }
-  let pSpecs = [ All.ggPageSpec (__ @"page") (__ @"tournaments") ]
-  let initVars = { after, before, page: 0 }
-  client <- pure $ H2h.mkClient do
-    s'sets @"authToken" (Just ggAuth)
-    s'sets @"cachePath" (Just $ pathStr $ dataRoot /./ "startgg.gqlCache")
-  clmEvents <- wrapH2hWE $
-    All.ggQueryAll Q.clmEvents initVars pSpecs client Gql.CacheFirst
-  xInfo $ clmEvents
-  let legacyDataPath = dataRoot /./ "FULL_LEGACY.json"
-  legacyData <- e'map ClmStE.LoadLegacyData $
-    xDecodeTextFile @CLMStatsLegacyBlob legacyDataPath
-  xInfo legacyData
--}
+getH2hData :: forall r x. Spec.Spec -> Boolean -> ClmV r x #> Unit
+getH2hData spec allowRefetch = do
+  forM_ (arr'fromFoldable spec.eventSlugs) \slug -> do
+    let
+      isDone = set'has slug spec.doneUpdating
+      needsRefetch = set'has slug spec.eventsToRefetch
+      wantsRefetch = not isDone || needsRefetch
+      shouldRefetchEvent = allowRefetch && wantsRefetch
+      networkControl = case (isDone /\ needsRefetch) of
+        (true /\ _) -> Gql.CacheOnly
+        (_ /\ true) -> Gql.ForceFetch
+        _ -> default
+    xOut $ { slug, shouldRefetchEvent, networkControl }
+    pure unit
 
 xRun :: forall x. Array String -> EA JsError x ##> Unit
 xRun args = do
@@ -214,7 +203,10 @@ xRun args = do
   appCOPath <- getEnv "CLM_STATS_APP_CO"
   pagesCOPath <- getEnv "CLM_STATS_PAGES_CO"
   let env = { isDevEnv, ggAuth, dataRoot, appCOPath, pagesCOPath }
-  res <- we'runResult $ r'run env doStuff
+  res <- we'runResult $ r'run env do
+    actionData <- getActions [] false
+    let spec = Act.buildSpec $ actionData.manual <> actionData.auto
+    getH2hData spec true
   xInfo res
   where
   getEnv s = xLookupEnv s >>= e'unwrap (jsError "Required Env Var Missing" s)

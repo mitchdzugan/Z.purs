@@ -9,7 +9,7 @@ module Z.H2h.Module
   , PhaseGroup
   , Player
   , Score(..)
-  , Match
+  , H2hSet
   , Slot
   , Standing
   , Tournament
@@ -60,7 +60,7 @@ type Slot =
   , score :: Score
   }
 
-type Match =
+type H2hSet =
   { id :: Int
   , isDQ :: Boolean
   , isBye :: Boolean
@@ -80,7 +80,7 @@ type Phase =
 type PhaseGroup =
   { id :: SorN
   , displayIdentifier :: String
-  , sets :: Map Int Match
+  , sets :: Map Int H2hSet
   , phase :: Phase
   }
 

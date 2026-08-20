@@ -14,6 +14,7 @@ module Z.Z.Core
   , T'flip
   , T'useAsSym
   , antiUnit
+  , arr'concat
   , arr'drop
   , arr'empty
   , arr'filter
@@ -156,21 +157,21 @@ rec'get = Record.get (Proxy.Proxy @l)
 rec'set
   ∷ forall r1 r2 r @l a b
    . IsSymbol l
-  ⇒ Cons l a r r1
-  ⇒ Cons l b r r2
-  ⇒ b
-  → Record r1
-  → Record r2
+  => Cons l a r r1
+  => Cons l b r r2
+  => b
+  -> Record r1
+  -> Record r2
 rec'set = Record.set (Proxy.Proxy @l)
 
 rec'insert
   ∷ forall r1 r2 @l a
    . IsSymbol l
-  ⇒ Lacks l r1
-  ⇒ Cons l a r1 r2
-  ⇒ a
-  → Record r1
-  → Record r2
+  => Lacks l r1
+  => Cons l a r1 r2
+  => a
+  -> Record r1
+  -> Record r2
 rec'insert = Record.insert (Proxy.Proxy @l)
 
 rec'merge = Record.merge
@@ -179,11 +180,11 @@ rec'union = Record.union
 rec'modify
   ∷ forall r1 r2 r @l a b
    . IsSymbol l
-  ⇒ Cons l a r r1
-  ⇒ Cons l b r r2
-  ⇒ (a → b)
-  → Record r1
-  → Record r2
+  => Cons l a r r1
+  => Cons l b r r2
+  => (a → b)
+  -> Record r1
+  -> Record r2
 rec'modify = Record.modify (Proxy.Proxy @l)
 
 idLens :: forall a. Lens' a a
@@ -441,6 +442,9 @@ arr'empty = []
 
 arr'fromFoldable :: forall a f. Foldable.Foldable f => f a -> Array a
 arr'fromFoldable = Arr.fromFoldable
+
+arr'concat :: forall a. Array (Array a) -> Array a
+arr'concat = Arr.concat
 
 list'fromFoldable :: forall a f. Foldable.Foldable f => f a -> List.List a
 list'fromFoldable = List.fromFoldable
