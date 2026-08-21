@@ -10,22 +10,28 @@ import Z.H2h.Error as H2hE
 import Z.H2h.Module as H2h
 import Z.H2h.Warning as H2hW
 
+class ConstructBarlow p (Forget a) s s a a <= ConstructBarlowGet' p s a
+
+instance (ConstructBarlow p (Forget a) s s a a) => ConstructBarlowGet' p s a
+
 mapOfJsonElsWithFieldsTypeAnd_t
   :: forall @t ttype tLns ttypeLns tr' ttyper' r
    . IsSymbol t
   => IsSymbol ttype
   => TypeEquals ttype "type"
   => Cons ttype String ttyper' r
-  => Cons t String tr' r
+  => Cons t (Maybe String) tr' r
   => ParseSymbol t tLns
-  => ConstructBarlow tLns (Forget String) { | r } { | r } String String
+  => ConstructBarlowGet' tLns { | r } (Maybe String)
   => ParseSymbol ttype ttypeLns
-  => ConstructBarlow ttypeLns (Forget String) { | r } { | r } String String
+  => ConstructBarlowGet' ttypeLns { | r } String
   => Array { | r }
-  -> Map String String
+  -> Map String (String)
 mapOfJsonElsWithFieldsTypeAnd_t = reduce reducer map'empty
   where
-  reducer m i = map'set (g_ @ttype i) (g_ @t i) m
+  reducer m i = case (g_ @t i) of
+    Nothing -> m
+    (Just s) -> map'set (g_ @ttype i) s m
 
 getEventData :: forall x. B.GetDataFn x
 getEventData = B.adaptBuilder $ g @XEvalS initState do
@@ -74,7 +80,8 @@ getEventData = B.adaptBuilder $ g @XEvalS initState do
         isBye = reduce (\a s -> a || isNothing s.entrant) false set.slots
         eIdA = preview (ix 0 # o_ @"entrant?.id") set.slots
         eIdB = preview (ix 1 # o_ @"entrant?.id") set.slots
-        isWinA = eIdA == set.winnerId && isJust set.winnerId
+        isComplete = isJust set.winnerId
+        isWinA = eIdA == set.winnerId && isComplete
         winner =
           if isNothing set.winnerId then Nothing
           else if isWinA then Just Pos
@@ -90,8 +97,17 @@ getEventData = B.adaptBuilder $ g @XEvalS initState do
         whenJust set.displayScore $ \displayScore -> do
           when (displayScore == "DQ") do
             xReturn $ H2h.mkScoreDQ isWinA /\ H2h.mkScoreDQ (not isWinA)
-          xLogWarning { warn: "UNMADE SCORES", displayScore }
-        pure $ H2h.NoScore /\ H2h.NoScore
+          flip whenJust xReturn $ hush $ runParser displayScore do
+            parseAnyTill_ do
+              parseString_ " "
+              scoreA <- H2h.mkScoreCount <$> parseInt <* parseString_ " -"
+              scoreB <- parseAnyTill_ do
+                parseString_ " "
+                H2h.mkScoreCount <$> parseInt <* parseEof
+              pure $ scoreA /\ scoreB
+          xLogWarning { warn: "UNMADE SCORES", slug, displayScore }
+        let completeScores = H2h.mkScoreWL isWinA /\ H2h.mkScoreWL (not isWinA)
+        pure if isComplete then completeScores else H2h.NoScore /\ H2h.NoScore
       let slotA = { entrantId: eIdA <#> sOrN, score: slotScoreA }
       let slotB = { entrantId: eIdB <#> sOrN, score: slotScoreB }
       g @XSet (_o @"sets" $ at setId) $ Just

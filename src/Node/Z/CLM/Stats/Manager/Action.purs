@@ -10,6 +10,7 @@ data Action r
   | OverrideName { slug :: String, name :: String | r }
   | MarkChallonge { slug :: String | r }
   | AddEvent { slug :: String | r }
+  | RemoveEvent { slug :: String | r }
   | SetIsPrEligible { slug :: String, isEligible :: Boolean | r }
   | MarkDoneUpdating { slug :: String | r }
   | SetCurrentPeriodId { periodId :: Int | r }
@@ -34,6 +35,7 @@ encodePureAction action = case action of
   (PureAction (OverrideName p)) -> "OverrideName" /\ encodeJson p
   (PureAction (MarkChallonge p)) -> "MarkChallonge" /\ encodeJson p
   (PureAction (AddEvent p)) -> "AddEvent" /\ encodeJson p
+  (PureAction (RemoveEvent p)) -> "RemoveEvent" /\ encodeJson p
   (PureAction (SetIsPrEligible p)) -> "SetIsPrEligible" /\ encodeJson p
   (PureAction (MarkDoneUpdating p)) -> "MarkDoneUpdating" /\ encodeJson p
   (PureAction (BustCache p)) -> "BustCache" /\ encodeJson p
@@ -67,6 +69,7 @@ assignIds idBase actionsIn =
     OverrideName props -> OverrideName $ plusId props locId
     MarkChallonge props -> MarkChallonge $ plusId props locId
     AddEvent props -> AddEvent $ plusId props locId
+    RemoveEvent props -> RemoveEvent $ plusId props locId
     SetIsPrEligible props -> SetIsPrEligible $ plusId props locId
     MarkDoneUpdating props -> MarkDoneUpdating $ plusId props locId
     BustCache props -> BustCache $ plusId props locId
@@ -92,11 +95,13 @@ impurifyActions a = assignIds "" $ a <#> un'
 
 handleAction :: forall r. Action r -> Edit $ Spec'ListOp
 handleAction (OverrideName { slug, name }) =
-  s'overs @"tournamentNameOverrides" $ Cons $ B'Map'set slug name
+  s'overs @"tournamentNameOverrides" $ Cons $ B'HashMap'set slug name
 handleAction (MarkChallonge { slug }) =
   s'overs @"challongeSlugs" $ Cons $ B'HashSet'add slug
 handleAction (AddEvent { slug }) =
   s'overs @"eventSlugs" $ Cons $ B'HashSet'add slug
+handleAction (RemoveEvent { slug }) =
+  s'overs @"eventSlugs" $ Cons $ B'HashSet'rm slug
 handleAction (SetIsPrEligible { slug, isEligible }) =
   s'overs @"eventSlugs" $ Cons $
     (if isEligible then B'HashSet'add else B'HashSet'rm) slug
@@ -114,6 +119,7 @@ actionId (Undo props) = props.id
 actionId (OverrideName props) = props.id
 actionId (MarkChallonge props) = props.id
 actionId (AddEvent props) = props.id
+actionId (RemoveEvent props) = props.id
 actionId (SetIsPrEligible props) = props.id
 actionId (MarkDoneUpdating props) = props.id
 actionId (BustCache props) = props.id
@@ -133,5 +139,6 @@ buildSpec actions = b'run do
         else objST'poke targetId targetId undone'
       _ -> pure undone'
     reduceM reducer init revActions
+  s'overs @"undone" $ Cons $ B'Const'is undone
   forM_ impureActions \action -> do
-    when (not $ set'has (actionId action) undone) $ handleAction action
+    when (not $ hs'has (actionId action) undone) $ handleAction action

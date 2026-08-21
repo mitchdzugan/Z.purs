@@ -5,5 +5,10 @@ export const js_requestGql =
     const headers = { authorization: `Bearer ${authToken}` };
     const grClient = new GraphQLClient(apiUrl, !authToken ? {} : { headers });
     const document = gql(query.split("\n"));
-    return grClient.request({ document, ...(vars ? { variables: vars } : {}) });
+    return grClient
+      .request({ document, ...(vars ? { variables: vars } : {}) })
+      .catch((e) => {
+        console.log(e);
+        throw e;
+      });
   };

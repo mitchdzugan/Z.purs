@@ -4,12 +4,16 @@ module Z.Z.Bin
   , bin'fromFoldable
   , bin'insert
   , bin'lookup
+  , bin'size
+  , bin'vals
   ) where
 
 import Prelude
 
 import Data.Argonaut.Decode (class DecodeJson, decodeJson)
+import Data.Tuple.Nested (type (/\), (/\))
 import Z.Z.Core (arr'fromFoldable, mapM)
+import Z.Z.Defaultable (class Generable)
 import Z.Z.Ext
   ( class EncodeJson
   , class Generic
@@ -36,6 +40,10 @@ foreign import js_lookup
 
 foreign import js_fromKVs :: forall v. EncodedBin v -> Bin v
 
+foreign import js_binSize :: forall v. Bin v -> Int
+
+foreign import js_binVals :: forall v. Bin v -> Array v
+
 type EncodedBin v = Array { k :: String, v :: v }
 newtype JsonEncodedBin = JsonEncodedBin (EncodedBin Z.Json)
 
@@ -51,6 +59,12 @@ bin'insert k = js_insert (keyStr k)
 bin'fromFoldable :: forall k v f. Keyed k => Foldable f => f (k Z./\ v) -> Bin v
 bin'fromFoldable =
   js_fromKVs <<< map (\(k Z./\ v) -> { k: keyStr k, v }) <<< arr'fromFoldable
+
+bin'size :: forall v. Bin v -> Int
+bin'size = js_binSize
+
+bin'vals :: forall v. Bin v -> Array v
+bin'vals = js_binVals
 
 derive instance Z.Generic JsonEncodedBin _
 
@@ -68,3 +82,6 @@ instance DecodeJson v => DecodeJson (Bin v) where
 
 instance Z.EncodeJson v => Z.EncodeJson (Bin v) where
   encodeJson x = js_encode (Z.encodeJson) x
+
+instance Generable (Bin v) gdesc (Bin v) where
+  mkGenerable = bin'empty

@@ -237,7 +237,7 @@ getEventDataImpl = do
       { id: sOrN $ "Challonge-" <> slug <> "-eventId"
       , name
       , slug
-      , state: if isComplete then "COMPLETE" else "ACTIVE"
+      , state: if isComplete then "COMPLETED" else "ACTIVE"
       , site: H2h.Challonge
       , phaseGroups:
           [ { id: sOrN 1

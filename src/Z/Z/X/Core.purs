@@ -190,6 +190,8 @@ module Z.Z.X.Core
   , we'map''
   , we'runResult
   , we'runResult''
+  , we'unresult
+  , we'unresult''
   , xGetter
   , xInfo
   , xLogError
@@ -246,9 +248,11 @@ import Z.Z.Defaultable
   , class GOrDefault
   , class Generable
   , G1
+  , G2
   , GDefault
   , g
   , g1
+  , g2
   , mkGenerable
   )
 import Z.Z.Defaultable as ZD
@@ -1171,14 +1175,20 @@ w'say'' = g1 @XSay @at
 we'map :: forall v. Generable XMapWE GDefault v => v
 we'map = g @XMapWE
 
-we'map'' :: forall @at v. Generable XMapWE (G1 at) v => v
-we'map'' = g1 @XMapWE @at
+we'map'' :: forall @w @e v. Generable XMapWE (G2 w e) v => v
+we'map'' = g2 @XMapWE @w @e
 
 we'runResult :: forall v. Generable XRunResult GDefault v => v
 we'runResult = g @XRunResult
 
-we'runResult'' :: forall @at v. Generable XRunResult (G1 at) v => v
-we'runResult'' = g1 @XRunResult @at
+we'runResult'' :: forall @w @e v. Generable XRunResult (G2 w e) v => v
+we'runResult'' = g2 @XRunResult @w @e
+
+we'unresult :: forall v. Generable XUnresult GDefault v => v
+we'unresult = g @XUnresult
+
+we'unresult'' :: forall @w @e v. Generable XUnresult (G2 w e) v => v
+we'unresult'' = g2 @XUnresult @w @e
 
 ---------------          e''fns ------------------------------------
 

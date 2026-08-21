@@ -12,8 +12,9 @@ type Spec'B'Def k =
   , ineligibleSlugs :: B'HashSet'Def k String
   , doneUpdating :: B'HashSet'Def k String
   , eventsToRefetch :: B'HashSet'Def k String
-  , tournamentNameOverrides :: B'Map'Def k String String
+  , tournamentNameOverrides :: B'HashMap'Def k String String
   , currentPeriodId :: B'ConstVia'Def k D'Int'0 Int
+  , undone :: B'Const'Def k (HashSet String)
   }
 
 type Spec'ListOp = Spec'B'Def B'Def'ListOp

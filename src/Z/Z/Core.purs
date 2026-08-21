@@ -3,12 +3,12 @@ module Z.Z.Core
   , (<$$>)
   , AntiUnit
   , Deferred
-  , HashSet
   , JsAny
   , JsError(..)
   , Object
   , P
   , ParseError
+  , Set
   , T'_
   , T'comp
   , T'flip
@@ -68,6 +68,8 @@ module Z.Z.Core
   , p
   , p2
   , parseAnyAroundString
+  , parseAnyTill
+  , parseAnyTill_
   , parseEof
   , parseFail
   , parseFailWithPosition
@@ -103,6 +105,7 @@ module Z.Z.Core
   , simpleHash
   , stext
   , tryParseInt
+  , var'inj
   , whenNot
   ) where
 
@@ -128,7 +131,9 @@ import Data.Semiring as Semiring
 import Data.Set as Set
 import Data.Symbol (class IsSymbol)
 import Data.Traversable as Traversable
+import Data.Tuple as Tup
 import Data.Tuple.Nested as TupN
+import Data.Variant as Var
 import Effect.Exception as Exc
 import Foreign as Foreign
 import Foreign.Object as Obj
@@ -186,6 +191,9 @@ rec'modify
   -> Record r1
   -> Record r2
 rec'modify = Record.modify (Proxy.Proxy @l)
+
+var'inj :: forall v' v @l a. IsSymbol l => Cons l a v' v => a -> Var.Variant v
+var'inj = Var.inj (Proxy.Proxy @l)
 
 idLens :: forall a. Lens' a a
 idLens = lens' \a -> a TupN./\ identity
@@ -401,22 +409,22 @@ map'fromFoldable
   -> Map.Map k v
 map'fromFoldable = Map.fromFoldable
 
-type HashSet a = Set.Set a
+type Set a = Set.Set a
 
-set'empty :: forall @a. HashSet a
+set'empty :: forall @a. Set a
 set'empty = Set.empty
 
-set'has :: forall a. Ord.Ord a => a -> HashSet a -> Boolean
+set'has :: forall a. Ord.Ord a => a -> Set a -> Boolean
 set'has = Set.member
 
-set'add :: forall a. Ord.Ord a => a -> HashSet a -> HashSet a
+set'add :: forall a. Ord.Ord a => a -> Set a -> Set a
 set'add = Set.insert
 
-set'size :: forall a. HashSet a -> Int
+set'size :: forall a. Set a -> Int
 set'size = Set.size
 
 set'fromFoldable
-  :: forall a f. Foldable.Foldable f => Ord.Ord a => f a -> HashSet a
+  :: forall a f. Foldable.Foldable f => Ord.Ord a => f a -> Set a
 set'fromFoldable = Set.fromFoldable
 
 foreign import js_arrWithInd
@@ -539,6 +547,20 @@ parseEof = Prs.eof
 
 parseRest :: forall m. Parsing.ParserT String m String
 parseRest = Prs.rest
+
+parseAnyTill
+  ∷ forall m a
+   . Monad m
+  => Parsing.ParserT String m a
+  -> Parsing.ParserT String m (String TupN./\ a)
+parseAnyTill = Prs.anyTill
+
+parseAnyTill_
+  ∷ forall m a
+   . Monad m
+  => Parsing.ParserT String m a
+  -> Parsing.ParserT String m a
+parseAnyTill_ m = Prs.anyTill m <#> Tup.snd
 
 parseAnyAroundString
   :: forall m

@@ -8,6 +8,8 @@ module Z.Prelude
   , module ZDefaultable
   , module ZExt
   , module ZKey
+  , module ZMashMap
+  , module ZMashSet
   , module ZPair
   , module ZPairKey
   , module ZString
@@ -144,6 +146,8 @@ import Z.Z.Core as ZCore
 import Z.Z.DateTime as ZDateTime
 import Z.Z.Defaultable as ZDefaultable
 import Z.Z.Ext as ZExt
+import Z.Z.HashMap as ZMashMap
+import Z.Z.HashSet as ZMashSet
 import Z.Z.Key (class Keyed, Key, key, keyStr) as ZKey
 import Z.Z.Pair (Pair(..), (~)) as ZPair
 import Z.Z.PairKey (PairKey(..)) as ZPairKey

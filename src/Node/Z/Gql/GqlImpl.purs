@@ -70,10 +70,7 @@ xOperateUnknown opString vars client nc = g @XWithReturn \xReturn -> do
   { cachePath, authToken, url } = client
   authTokenJson = encodeJson authToken
   sortedPairs = arr'sort $ jsonSortedPairs vars
-  -- reverse in specific case to match my old startgg cache
-  strVals = map jsonStr $ map snd $ case map fst sortedPairs of
-    [ "page", "phaseGroupId" ] -> arr'reverse sortedPairs
-    _ -> sortedPairs
+  strVals = map jsonStr $ map snd sortedPairs
   opHeader = slice 0 1 $ str'split (Pattern "\n") opString
   opKeyStr = str'joinWith "|" [ opString, str'joinWith "|" strVals ]
   opKey = show $ simpleHash opKeyStr

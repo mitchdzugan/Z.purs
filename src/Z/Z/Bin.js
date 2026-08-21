@@ -2,6 +2,17 @@ class Bin {
   constructor(d) {
     this._ = d;
   }
+
+  get entries() {
+    if (!this.entriesRef) {
+      this.entriesRef = [Object.entries(this._)];
+    }
+    return this.entriesRef[0];
+  }
+
+  get size() {
+    return this.entries.length;
+  }
 }
 
 const maybe = (J, N, ref) => (ref ? J(ref[0]) : N);
@@ -17,3 +28,5 @@ export const js_fromKVs = (encoded) => {
   }
   return new Bin(res);
 };
+export const js_binSize = (b) => b.size;
+export const js_binVals = (b) => b.entries.map(([k, v]) => v);

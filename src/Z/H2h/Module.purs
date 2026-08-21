@@ -4,12 +4,12 @@ module Z.H2h.Module
   , Error
   , Event
   , EventSource
+  , H2hSet
   , Participant
   , Phase
   , PhaseGroup
   , Player
   , Score(..)
-  , H2hSet
   , Slot
   , Standing
   , Tournament
@@ -17,6 +17,7 @@ module Z.H2h.Module
   , challongeSource
   , mkScoreCount
   , mkScoreDQ
+  , mkScoreWL
   , startggSource
   ) where
 
@@ -39,10 +40,16 @@ instance DecodeJson BracketingSite where
 instance EncodeJson BracketingSite where
   encodeJson x = genericEncodeJson x
 
-data Score = DQ Boolean | Count Int | NoScore
+data Score
+  = Count Int
+  | WLBinary { isSetWinner :: Boolean, setHasDQ :: Boolean }
+  | NoScore
+
+mkScoreWL :: Boolean -> Score
+mkScoreWL isSetWinner = WLBinary { isSetWinner, setHasDQ: false }
 
 mkScoreDQ :: Boolean -> Score
-mkScoreDQ isDQd = DQ isDQd
+mkScoreDQ isSetWinner = WLBinary { isSetWinner, setHasDQ: true }
 
 mkScoreCount :: Int -> Score
 mkScoreCount count = Count count

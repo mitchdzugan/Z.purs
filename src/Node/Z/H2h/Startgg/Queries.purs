@@ -13,6 +13,7 @@ module Node.Z.H2h.Startgg.Queries
   ) where
 
 import Z.Prelude
+
 import Node.Z.Gql as Gql
 import Node.Z.H2h.Startgg.Queries.PhaseGroupData as PGDQ
 import Node.Z.H2h.Startgg.Queries.TourneyData as TDQ
@@ -44,11 +45,10 @@ type EventDataRes =
           , images :: ImagesStub
           }
       , standings ::
-          PageInfo
-            (placement :: Int, isFinal :: Boolean, entrant :: IdStub)
+          PageInfo (placement :: Int, isFinal :: Boolean, entrant :: IdStub)
       , entrants ::
           PageInfo
-            ( initialSeedNum :: Int
+            ( initialSeedNum :: Maybe Int
             , participants ::
                 Array
                   { gamerTag :: String
@@ -65,7 +65,7 @@ type EventDataRes =
                             , authorizations ::
                                 Maybe
                                   ( Array
-                                      { externalUsername :: String
+                                      { externalUsername :: Maybe String
                                       , type :: String
                                       }
                                   )
@@ -102,8 +102,8 @@ type PhaseGroupDataRes =
                   ( Array
                       { winnerId :: Maybe Int
                       , orderNum :: Maybe Int
-                      , entrant1Score :: Int
-                      , entrant2Score :: Int
+                      , entrant1Score :: Maybe Int
+                      , entrant2Score :: Maybe Int
                       , selections ::
                           Maybe
                             ( Array
@@ -120,7 +120,7 @@ type PhaseGroupDataRes =
       }
   }
 
-type ImagesStub = Array { url :: String, type :: String }
+type ImagesStub = Array { url :: Maybe String, type :: String }
 
 type PageNode rest = { id :: Int | rest }
 

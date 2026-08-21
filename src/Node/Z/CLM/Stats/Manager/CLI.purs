@@ -119,6 +119,7 @@ type EnvR r =
   , dataRoot :: String
   , appCOPath :: String
   , pagesCOPath :: String
+  , client :: Gql.Client
   | r
   }
 
@@ -147,23 +148,55 @@ autoActionDefs =
       \slug -> Act.SetIsPrEligible { slug, isEligible: false }
   ]
 
+-- tournament/the-bunker-12/event/crazy-doubles'
+
+ggSlug :: String -> String -> String
+ggSlug t e = "tournament/" <> t <> "/event/" <> e
+
+initialManual :: PureActions
+initialManual = map Act.PureAction
+  [ Act.AddEvent
+      { slug: ggSlug "the-botlane-show-5-yolk-grunker" "melee-singles" }
+  , Act.AddEvent
+      { slug: ggSlug "the-botlane-show-6-jess-dang3r" "melee-singles" }
+  , Act.AddEvent
+      { slug: ggSlug "the-botlane-show-7-kadence" "melee-singles" }
+  , Act.AddEvent
+      { slug: ggSlug "the-botlane-show-8-dz" "melee-singles" }
+  , Act.AddEvent
+      { slug: ggSlug "the-botlane-show-9-unsure" "melee-singles" }
+  , Act.AddEvent
+      { slug: ggSlug "the-botlane-show-10-jair-the-creator" "melee-singles" }
+  , Act.AddEvent
+      { slug: ggSlug "the-botlane-show-11-jisp" "melee-singles" }
+  , Act.AddEvent
+      { slug: ggSlug "the-botlane-show-12-fluid-lucinasd" "melee-singles" }
+  , Act.AddEvent { slug: "fgzs2x09" }
+  , Act.MarkChallonge { slug: "fgzs2x09" }
+  , Act.RemoveEvent
+      { slug: ggSlug "the-bunker-11" "crazy-doubles" }
+  , Act.MarkDoneUpdating
+      { slug: ggSlug "the-bunker-12" "crazy-doubles" }
+  , Act.MarkDoneUpdating
+      { slug: ggSlug "fudds-house-17-last-fudds" "melee-singles" }
+  , Act.MarkDoneUpdating
+      { slug: ggSlug "fudds-house-17-last-fudds" "melee-amateur-bracket" }
+  ]
+
 getActions :: forall r x. PureActions -> Boolean -> ClmV r x #> ActionData
 getActions newActions usePrevAuto = do
   buildDataPath <- r'ask <#> \r -> r.pagesCOPath /./ "build.json"
   baseRes <- xDecodeTextFile @ActionData buildDataPath # e'try <#> case _ of
-    Left _ -> { manual: newActions, auto: [] }
+    Left _ -> { manual: initialManual <> newActions, auto: [] }
     Right d -> { manual: d.manual <> newActions, auto: d.auto }
   if usePrevAuto then pure baseRes
   else do
-    { ggAuth, dataRoot } <- r'ask
+    { client } <- r'ask
     before <- xNowMS <#>
       \n -> (60 * 60 * floor (n / 1000.0 / 60.0 / 60.0)) + (24 * 60 * 60)
     let after = 1767225600
     let pSpecs = [ All.ggPageSpec (__ @"page") (__ @"tournaments") ]
     let initVars = { after, before, page: 0 }
-    client <- pure $ H2h.mkClient do
-      s'sets @"authToken" (Just ggAuth)
-      s'sets @"cachePath" (Just $ pathStr $ dataRoot /./ "startgg.gqlCache")
     clmEvents <- wrapH2hWE $
       All.ggQueryAll Q.clmEvents initVars pSpecs client Gql.CacheFirst
     let slugs = clmEvents.tournaments.nodes <#> _.events # arr'concat <#> _.slug
@@ -179,20 +212,33 @@ getActions newActions usePrevAuto = do
         _ -> []
     pure $ rec'set @"auto" newAuto baseRes
 
-getH2hData :: forall r x. Spec.Spec -> Boolean -> ClmV r x #> Unit
+getH2hData
+  :: forall r x. Spec.Spec -> Boolean -> ClmV r x #> HashMap String H2h.Event
 getH2hData spec allowRefetch = do
-  forM_ (arr'fromFoldable spec.eventSlugs) \slug -> do
+  { client } <- r'ask
+  xInfo { numEvents: hs'size spec.eventSlugs }
+  ops <- forM (hs'vals spec.eventSlugs) \slug -> do
     let
-      isDone = set'has slug spec.doneUpdating
-      needsRefetch = set'has slug spec.eventsToRefetch
+      isChallonge = hs'has slug spec.challongeSlugs
+      sourceFn = if isChallonge then H2h.challongeSource else H2h.startggSource
+      source = sourceFn slug
+      isDone = hs'has slug spec.doneUpdating
+      needsRefetch = hs'has slug spec.eventsToRefetch
       wantsRefetch = not isDone || needsRefetch
-      shouldRefetchEvent = allowRefetch && wantsRefetch
+      canRefetchEvent = allowRefetch && wantsRefetch
       networkControl = case (isDone /\ needsRefetch) of
         (true /\ _) -> Gql.CacheOnly
         (_ /\ true) -> Gql.ForceFetch
         _ -> default
-    xOut $ { slug, shouldRefetchEvent, networkControl }
-    pure unit
+      getEventData nc =
+        wrapH2hWE $ we'unresult =<< H2h.getEventData source client nc
+    eventData' <- getEventData networkControl
+    let shouldRefetchEvent = eventData'.state /= "COMPLETED" && canRefetchEvent
+    eventData <-
+      if shouldRefetchEvent then getEventData Gql.ForceFetch
+      else pure eventData'
+    pure $ B'HashMap'set slug eventData
+  pure $ b'build $ list'fromFoldable ops
 
 xRun :: forall x. Array String -> EA JsError x ##> Unit
 xRun args = do
@@ -202,11 +248,17 @@ xRun args = do
   dataRoot <- getEnv "CLM_STATS_DATA_DIR"
   appCOPath <- getEnv "CLM_STATS_APP_CO"
   pagesCOPath <- getEnv "CLM_STATS_PAGES_CO"
-  let env = { isDevEnv, ggAuth, dataRoot, appCOPath, pagesCOPath }
+  client <- pure $ H2h.mkClient do
+    s'sets @"authToken" $ Just ggAuth
+    let cachePath = dataRoot /./ "cache" /./ "startgg.gqlCache"
+    s'sets @"cachePath" $ Just $ pathStr $ cachePath
+  let env = { isDevEnv, ggAuth, dataRoot, appCOPath, pagesCOPath, client }
   res <- we'runResult $ r'run env do
     actionData <- getActions [] false
     let spec = Act.buildSpec $ actionData.manual <> actionData.auto
     getH2hData spec true
-  xInfo res
+  xInfo $ case res.v of
+    Left e -> encode e
+    Right _ -> "data intake: success"
   where
   getEnv s = xLookupEnv s >>= e'unwrap (jsError "Required Env Var Missing" s)

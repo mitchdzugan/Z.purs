@@ -1,11 +1,12 @@
 module Z.Bk.Elimination.Round
   ( T(..)
+  , depth
   , isDE
   , isDropRound
   , isGrands
   , isLosers
-  , isWinners
   , isReset
+  , isWinners
   , roundInd
   , roundTypeInd
   ) where
@@ -37,6 +38,12 @@ isDropRound _ = false
 isDE :: T -> Boolean
 isDE (Winners ide _) = ide
 isDE _ = true
+
+depth :: T -> Int
+depth (Grands true) = -2
+depth (Grands _) = -1
+depth (Winners _ d) = d
+depth (Losers _ d) = d
 
 roundTypeInd :: T -> Int
 roundTypeInd (Grands ir) = if ir then 0 - 1 else 0
