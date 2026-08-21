@@ -16,7 +16,7 @@ module Z.Z.Buildable
   , B'Set'Op(..)
   , b'build
   , b'finish
-  , b'run
+  , b'hmapBuild
   , b'update
   , class B'Builds
   , class B'Builds'ForeignSt
@@ -41,10 +41,11 @@ import Z.Z.X (Edit, edit)
 
 data B'HMap'Tag = B'HMap'Tag
 
-type T'b'run'h tIn tOut = Generable tIn GDefault tIn => Edit tIn -> tOut
+type T'b'hmapBuild'h tIn tOut = Generable tIn GDefault tIn => Edit tIn -> tOut
 
-b'run ∷ forall tIn tOut. HMap B'HMap'Tag tIn tOut => T'b'run'h tIn tOut
-b'run = hmap B'HMap'Tag <<< edit (default @tIn)
+b'hmapBuild
+  ∷ forall tIn tOut. HMap B'HMap'Tag tIn tOut => T'b'hmapBuild'h tIn tOut
+b'hmapBuild = hmap B'HMap'Tag <<< edit (default @tIn)
 
 class B'Builds f g | g -> g where
   b'build :: List f -> g

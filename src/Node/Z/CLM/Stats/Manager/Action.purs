@@ -127,7 +127,7 @@ actionId (SetCurrentPeriodId props) = props.id
 actionId (Bulk props) = props.id
 
 buildSpec :: Array PureAction -> Spec
-buildSpec actions = b'run do
+buildSpec actions = b'hmapBuild do
   let impureActions = impurifyActions actions
   let revActions = arr'reverse impureActions
   undone <- pure $ b'finish @(B'HashSet'Op String) $ objST'run do

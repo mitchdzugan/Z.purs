@@ -148,40 +148,26 @@ autoActionDefs =
       \slug -> Act.SetIsPrEligible { slug, isEligible: false }
   ]
 
--- tournament/the-bunker-12/event/crazy-doubles'
-
-ggSlug :: String -> String -> String
-ggSlug t e = "tournament/" <> t <> "/event/" <> e
-
 initialManual :: PureActions
 initialManual = map Act.PureAction
-  [ Act.AddEvent
-      { slug: ggSlug "the-botlane-show-5-yolk-grunker" "melee-singles" }
-  , Act.AddEvent
-      { slug: ggSlug "the-botlane-show-6-jess-dang3r" "melee-singles" }
-  , Act.AddEvent
-      { slug: ggSlug "the-botlane-show-7-kadence" "melee-singles" }
-  , Act.AddEvent
-      { slug: ggSlug "the-botlane-show-8-dz" "melee-singles" }
-  , Act.AddEvent
-      { slug: ggSlug "the-botlane-show-9-unsure" "melee-singles" }
-  , Act.AddEvent
-      { slug: ggSlug "the-botlane-show-10-jair-the-creator" "melee-singles" }
-  , Act.AddEvent
-      { slug: ggSlug "the-botlane-show-11-jisp" "melee-singles" }
-  , Act.AddEvent
-      { slug: ggSlug "the-botlane-show-12-fluid-lucinasd" "melee-singles" }
+  [ Act.AddEvent $ ggD "the-botlane-show-5-yolk-grunker" "melee-singles" {}
+  , Act.AddEvent $ ggD "the-botlane-show-6-jess-dang3r" "melee-singles" {}
+  , Act.AddEvent $ ggD "the-botlane-show-7-kadence" "melee-singles" {}
+  , Act.AddEvent $ ggD "the-botlane-show-8-dz" "melee-singles" {}
+  , Act.AddEvent $ ggD "the-botlane-show-9-unsure" "melee-singles" {}
+  , Act.AddEvent $ ggD "the-botlane-show-10-jair-the-creator" "melee-singles" {}
+  , Act.AddEvent $ ggD "the-botlane-show-11-jisp" "melee-singles" {}
+  , Act.AddEvent $ ggD "the-botlane-show-12-fluid-lucinasd" "melee-singles" {}
   , Act.AddEvent { slug: "fgzs2x09" }
   , Act.MarkChallonge { slug: "fgzs2x09" }
-  , Act.RemoveEvent
-      { slug: ggSlug "the-bunker-11" "crazy-doubles" }
-  , Act.MarkDoneUpdating
-      { slug: ggSlug "the-bunker-12" "crazy-doubles" }
-  , Act.MarkDoneUpdating
-      { slug: ggSlug "fudds-house-17-last-fudds" "melee-singles" }
-  , Act.MarkDoneUpdating
-      { slug: ggSlug "fudds-house-17-last-fudds" "melee-amateur-bracket" }
+  , Act.RemoveEvent $ ggD "the-bunker-11" "crazy-doubles" {}
+  , Act.MarkDoneUpdating $ ggD "the-bunker-12" "crazy-doubles" {}
+  , Act.MarkDoneUpdating $ ggD lastFudds "melee-singles" {}
+  , Act.MarkDoneUpdating $ ggD lastFudds "melee-amateur-bracket" {}
   ]
+  where
+  lastFudds = "fudds-house-17-last-fudds"
+  ggD t e r = rec'insert @"slug" ("tournament/" <> t <> "/event/" <> e) r
 
 getActions :: forall r x. PureActions -> Boolean -> ClmV r x #> ActionData
 getActions newActions usePrevAuto = do
