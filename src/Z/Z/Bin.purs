@@ -52,7 +52,7 @@ import Z.Z.Core (arr'fromFoldable, mapM)
 import Z.Z.Defaultable (class Generable, g, g1)
 import Z.Z.Ext (class IsSymbol, Maybe, Run)
 import Z.Z.Ext as Z
-import Z.Z.Key (class HasKey, keyStr)
+import Z.Z.Id (class Identable, ident'key)
 import Z.Z.X (class EffAdapter, Eff'At, XDoAsked, adapter'run, tagEffX)
 
 newtype Bin a = Bin (Fo.Object a)
@@ -66,16 +66,16 @@ newtype JsonEncodedBin = JsonEncodedBin (EncodedBin Z.Json)
 bin'empty :: forall v. Bin v
 bin'empty = Bin Fo.empty
 
-bin'lookup :: forall k v. HasKey k => k -> Bin v -> Z.Maybe v
-bin'lookup k = Fo.lookup (keyStr k) <<< Z.unwrap
+bin'lookup :: forall k v. Identable k => k -> Bin v -> Z.Maybe v
+bin'lookup k = Fo.lookup (ident'key k) <<< Z.unwrap
 
-bin'insert :: forall k v. HasKey k => k -> v -> Bin v -> Bin v
-bin'insert k v (Bin o) = Bin $ Fo.insert (keyStr k) v o
+bin'insert :: forall k v. Identable k => k -> v -> Bin v -> Bin v
+bin'insert k v (Bin o) = Bin $ Fo.insert (ident'key k) v o
 
 bin'fromFoldable
-  :: forall k v f. HasKey k => Z.Foldable f => f (k Z./\ v) -> Bin v
+  :: forall k v f. Identable k => Z.Foldable f => f (k Z./\ v) -> Bin v
 bin'fromFoldable f = Bin $ Fo.fromFoldable $ flip map (arr'fromFoldable f)
-  \(k Z./\ v) -> keyStr k Z./\ v
+  \(k Z./\ v) -> ident'key k Z./\ v
 
 bin'size :: forall v. Bin v -> Int
 bin'size = Fo.size <<< Z.unwrap
@@ -199,7 +199,7 @@ type XBin_h' p t x' x rest =
 
 type XBin_hk p t k x rest =
   forall x'
-   . HasKey k
+   . Identable k
   => IsSymbol p
   => Cons p (Z.Reader (Bin'Eff'R t p)) x' x
   => rest
@@ -214,13 +214,13 @@ xbin'run :: forall @p @t x' x a. XBin_h' p t x' x (Run x a -> Run x' a)
 xbin'run = adapter'run @(Bin'Eff'T t) @p
 
 xbin'lookup :: forall @p t x k. XBin_hk p t k x (k -> Run x (Z.Maybe t))
-xbin'lookup k = g1 @XDoAsked @p \r -> r.lookup (keyStr k)
+xbin'lookup k = g1 @XDoAsked @p \r -> r.lookup (ident'key k)
 
 xbin'insert :: forall @p t x k. XBin_hk p t k x (k -> t -> Run x Unit)
-xbin'insert k v = g1 @XDoAsked @p \r -> r.insert (keyStr k) v
+xbin'insert k v = g1 @XDoAsked @p \r -> r.insert (ident'key k) v
 
 xbin'delete :: forall @p t x k. XBin_hk p t k x (k -> Run x Unit)
-xbin'delete k = g1 @XDoAsked @p \r -> r.delete (keyStr k)
+xbin'delete k = g1 @XDoAsked @p \r -> r.delete (ident'key k)
 
 xbin'clear :: forall @p t x. XBin_h_ p t x (Run x Unit)
 xbin'clear = g1 @XDoAsked @p \r -> r.clear
@@ -359,15 +359,19 @@ xbin2d'run = adapter'run @(Bin'Eff'2d'T t) @p
 
 xbin2d'lookup
   :: forall @p t x k1 k2. XBin2d_hk p t k1 k2 x (k1 -> k2 -> Run x (Z.Maybe t))
-xbin2d'lookup k1 k2 = g1 @XDoAsked @p \r -> r.lookup (keyStr k1) (keyStr k2)
+xbin2d'lookup k1 k2 = g1 @XDoAsked @p \r -> r.lookup (ident'key k1)
+  (ident'key k2)
 
 xbin2d'insert
   :: forall @p t x k1 k2. XBin2d_hk p t k1 k2 x (k1 -> k2 -> t -> Run x Unit)
-xbin2d'insert k1 k2 v = g1 @XDoAsked @p \r -> r.insert (keyStr k1) (keyStr k2) v
+xbin2d'insert k1 k2 v = g1 @XDoAsked @p \r -> r.insert (ident'key k1)
+  (ident'key k2)
+  v
 
 xbin2d'delete
   :: forall @p t x k1 k2. XBin2d_hk p t k1 k2 x (k1 -> k2 -> Run x Unit)
-xbin2d'delete k1 k2 = g1 @XDoAsked @p \r -> r.delete (keyStr k1) (keyStr k2)
+xbin2d'delete k1 k2 = g1 @XDoAsked @p \r -> r.delete (ident'key k1)
+  (ident'key k2)
 
 xbin2d'clear :: forall @p t x. XBin2d_h_ p t x (Run x Unit)
 xbin2d'clear = g1 @XDoAsked @p \r -> r.clear
@@ -376,22 +380,22 @@ xbin2d'size :: forall @p t x. XBin2d_h_ p t x (Run x Int)
 xbin2d'size = g1 @XDoAsked @p _.size
 
 xbin2d'clearAt :: forall @p t k x. XBin2d_hk1 p t k x (k -> Run x Unit)
-xbin2d'clearAt k = g1 @XDoAsked @p \r -> r.clearAt (keyStr k)
+xbin2d'clearAt k = g1 @XDoAsked @p \r -> r.clearAt (ident'key k)
 
 xbin2d'sizeAt :: forall @p t k x. XBin2d_hk1 p t k x (k -> Run x Int)
-xbin2d'sizeAt k = g1 @XDoAsked @p \r -> r.sizeAt (keyStr k)
+xbin2d'sizeAt k = g1 @XDoAsked @p \r -> r.sizeAt (ident'key k)
 
 xbin2d'valsAt :: forall @p t k x. XBin2d_hk1 p t k x (k -> Run x (Array t))
-xbin2d'valsAt k = g1 @XDoAsked @p \r -> r.valsAt (keyStr k)
+xbin2d'valsAt k = g1 @XDoAsked @p \r -> r.valsAt (ident'key k)
 
 xbin2d'all :: forall @p t x. XBin2d_h_ p t x (Run x (Array t))
 xbin2d'all = g1 @XDoAsked @p _.all
 
 xbin2d'mergeAt :: forall @p t k x. XBin2d_hk1 p t k x (k -> Bin t -> Run x Unit)
-xbin2d'mergeAt k (Bin obj) = g1 @XDoAsked @p \r -> r.addAt (keyStr k) obj
+xbin2d'mergeAt k (Bin obj) = g1 @XDoAsked @p \r -> r.addAt (ident'key k) obj
 
 xbin2d'freezeAt :: forall @p t k x. XBin2d_hk1 p t k x (k -> Run x (Bin t))
-xbin2d'freezeAt k = Bin <$> g1 @XDoAsked @p \r -> r.freezeAt (keyStr k)
+xbin2d'freezeAt k = Bin <$> g1 @XDoAsked @p \r -> r.freezeAt (ident'key k)
 
 xbin2d'start :: forall @p t k x. XBin2d_hk1 p t k x (Run x Int)
 xbin2d'start = g1 @XDoAsked @p \r -> r.start
@@ -400,26 +404,27 @@ xbin2d'setStart :: forall @p t k x. XBin2d_hk1 p t k x (Int -> Run x Unit)
 xbin2d'setStart start = g1 @XDoAsked @p \r -> r.setStart start
 
 xbin2d'startAt :: forall @p t k x. XBin2d_hk1 p t k x (k -> Run x Int)
-xbin2d'startAt k = g1 @XDoAsked @p \r -> r.startAt (keyStr k)
+xbin2d'startAt k = g1 @XDoAsked @p \r -> r.startAt (ident'key k)
 
 xbin2d'setStartAt
   :: forall @p t k x. XBin2d_hk1 p t k x (k -> Int -> Run x Unit)
-xbin2d'setStartAt k start = g1 @XDoAsked @p \r -> r.setStartAt (keyStr k) start
+xbin2d'setStartAt k start = g1 @XDoAsked @p \r -> r.setStartAt (ident'key k)
+  start
 
 type XBin2d_h' p t x' x rest =
   IsSymbol p => Cons p (Z.Reader (Bin'Eff'2d'R t p)) x' x => rest
 
 type XBin2d_hk p t k1 k2 x rest =
   forall x'
-   . HasKey k1
-  => HasKey k2
+   . Identable k1
+  => Identable k2
   => IsSymbol p
   => Cons p (Z.Reader (Bin'Eff'2d'R t p)) x' x
   => rest
 
 type XBin2d_hk1 p t k x rest =
   forall x'
-   . HasKey k
+   . Identable k
   => IsSymbol p
   => Cons p (Z.Reader (Bin'Eff'2d'R t p)) x' x
   => rest

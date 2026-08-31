@@ -72,7 +72,7 @@ import Foreign.Object as FO
 import Prim.Symbol as Symbol
 import Type.Proxy as Proxy
 import Z.Z.Core as Z
-import Z.Z.Key (class HasKey, key)
+import Z.Z.Id (class Identable, id'of, ident'get)
 import Z.Z.Url as Url
 
 urlFromParts :: Url.Parts -> Url.URL
@@ -275,8 +275,8 @@ instance Show SorN where
   show (SorN_S s) = s
   show (SorN_I i) = show i
 
-instance HasKey SorN where
-  key = key <<< show
+instance Identable SorN where
+  ident'get = id'of <<< show
 
 arg2' :: forall a1 a2 r. a2 -> (a1 -> a2 -> r) -> (a1 -> r)
 arg2' a2 f a1 = f a1 a2

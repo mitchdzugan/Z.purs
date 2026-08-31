@@ -1,8 +1,9 @@
 module Z.Z.Id
-  ( IdVF
+  ( IdV
+  , IdVF(..)
   , Idented
-  , class IsId
   , class Identable
+  , class IsId
   , id'bytes
   , id'bytesImpl
   , id'char
@@ -10,12 +11,12 @@ module Z.Z.Id
   , id'keyImpl
   , id'of
   , id'via
-  , idented'mk
-  , idented'v
   , ident'bytes
   , ident'get
   , ident'key
   , ident'uuid
+  , idented'mk
+  , idented'v
   ) where
 
 import Prelude

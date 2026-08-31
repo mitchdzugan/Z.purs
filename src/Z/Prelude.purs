@@ -7,9 +7,9 @@ module Z.Prelude
   , module ZDateTime
   , module ZDefaultable
   , module ZExt
-  , module ZKey
   , module ZMashMap
   , module ZMashSet
+  , module ZId
   , module ZPair
   , module ZPairKey
   , module ZString
@@ -138,7 +138,7 @@ import Z.Z.Defaultable as ZDefaultable
 import Z.Z.Ext as ZExt
 import Z.Z.HashMap as ZMashMap
 import Z.Z.HashSet as ZMashSet
-import Z.Z.Key (class HasKey, Key, key, keyStr) as ZKey
+import Z.Z.Id as ZId
 import Z.Z.Pair (Pair(..), (~)) as ZPair
 import Z.Z.PairKey (PairKey(..)) as ZPairKey
 import Z.Z.Passable as ZPassable

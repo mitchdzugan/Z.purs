@@ -39,4 +39,4 @@ main = runXAThenExit do
     xOut { v1, v2, s1, s2 }
   b <- xReadFile "/home/dz/Slippi/Game_20260709T183630.slp"
   parsed <- e'map un' $ SlpRead.xParse b
-  xOut $ key parsed
+  xOut $ ident'key parsed

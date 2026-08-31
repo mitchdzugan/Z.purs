@@ -71,7 +71,7 @@ import Z.Z.HashSet
   , xhs2d'freezeAt
   , xhs2d'keys
   )
-import Z.Z.Key (class HasKey, Keyed(..), key, keyed'v)
+import Z.Z.Id (class Identable, Idented, ident'key, idented'mk, idented'v)
 import Z.Z.X (eval_)
 
 newtype HashMap k v = HashMap (Bin.Bin { k :: k, v :: v })
@@ -81,7 +81,7 @@ derive instance Newtype (HashMap k v) _
 instance Functor (HashMap k) where
   map f (HashMap hm) = HashMap $ hm <#> \d -> { k: d.k, v: f d.v }
 
-instance HasKey k => Generable (HashMap k v) gdesc (HashMap k v) where
+instance Identable k => Generable (HashMap k v) gdesc (HashMap k v) where
   mkGenerable = hm'empty
 
 instance (Z.EncodeJson { k :: k, v :: v }) => Z.EncodeJson (HashMap k v) where
@@ -90,34 +90,34 @@ instance (Z.EncodeJson { k :: k, v :: v }) => Z.EncodeJson (HashMap k v) where
 instance (Z.DecodeJson { k :: k, v :: v }) => Z.DecodeJson (HashMap k v) where
   decodeJson v = Z.wrap <$> Dec.decodeJson v
 
-hm'empty :: forall @k @v. HasKey k => HashMap k v
+hm'empty :: forall @k @v. Identable k => HashMap k v
 hm'empty = Z.wrap Bin.bin'empty
 
-hm'set :: forall @k @v. HasKey k => k -> v -> HashMap k v -> HashMap k v
+hm'set :: forall @k @v. Identable k => k -> v -> HashMap k v -> HashMap k v
 hm'set k v = Z.wrap <<< Bin.bin'insert k { k, v } <<< Z.unwrap
 
 hm'fromFoldable
-  :: forall @f @k @v. HasKey k => Foldable f => f (k /\ v) -> HashMap k v
+  :: forall @f @k @v. Identable k => Foldable f => f (k /\ v) -> HashMap k v
 hm'fromFoldable f =
   Z.wrap $ Bin.bin'fromFoldable $ arr'fromFoldable f <#> \(k /\ v) -> k /\
     { k, v }
 
-hm'size :: forall @k @v. HasKey k => HashMap k v -> Int
+hm'size :: forall @k @v. Identable k => HashMap k v -> Int
 hm'size = Bin.bin'size <<< Z.unwrap
 
-hm'lookup :: forall @k @v. HasKey k => k -> HashMap k v -> Maybe v
+hm'lookup :: forall @k @v. Identable k => k -> HashMap k v -> Maybe v
 hm'lookup v (HashMap hm) = Bin.bin'lookup v hm <#> _.v
 
-hm'has :: forall @k @v. HasKey k => k -> HashMap k v -> Boolean
+hm'has :: forall @k @v. Identable k => k -> HashMap k v -> Boolean
 hm'has v (HashMap hm) = isJust $ Bin.bin'lookup v hm
 
-hm'entries :: forall @k @v. HasKey k => HashMap k v -> Array (k /\ v)
+hm'entries :: forall @k @v. Identable k => HashMap k v -> Array (k /\ v)
 hm'entries (HashMap hm) = Bin.bin'vals hm <#> \{ k, v } -> k /\ v
 
-hm'keys :: forall @k @v. HasKey k => HashMap k v -> Array k
+hm'keys :: forall @k @v. Identable k => HashMap k v -> Array k
 hm'keys (HashMap hm) = Bin.bin'vals hm <#> \{ k } -> k
 
-hm'vals :: forall @k @v. HasKey k => HashMap k v -> Array v
+hm'vals :: forall @k @v. Identable k => HashMap k v -> Array v
 hm'vals (HashMap hm) = Bin.bin'vals hm <#> \{ v } -> v
 
 type XHM_h' p k v x' x rest =
@@ -127,7 +127,7 @@ type XHM_h' p k v x' x rest =
 
 type XHM_hk p k v x rest =
   forall x'
-   . HasKey k
+   . Identable k
   => IsSymbol p
   => Cons p (Z.Reader (Bin.Bin'Eff'R { k :: k, v :: v } p)) x' x
   => rest
@@ -189,15 +189,15 @@ type XHM'R p k v = Z.Reader (Bin.Bin'Eff'R { k :: k, v :: v } p)
 
 type XHM2d_h' p k1 k2 v x' x rest =
   IsSymbol p
-  => HasKey k1
-  => HasKey k2
+  => Identable k1
+  => Identable k2
   => Cons p (Z.Reader (Bin.Bin'Eff'2d'R { k1 :: k1, k2 :: k2, v :: v } p)) x' x
   => rest
 
 type XHM2d_hk p k1 k2 v x rest =
   forall x'
-   . HasKey k1
-  => HasKey k2
+   . Identable k1
+  => Identable k2
   => IsSymbol p
   => Cons p (Z.Reader (Bin.Bin'Eff'2d'R { k1 :: k1, k2 :: k2, v :: v } p)) x' x
   => rest
@@ -246,8 +246,8 @@ xhs2d'exec m = xhs2d'run @p @k @a m <#> Z.fst
 hs2d'fromFoldable
   :: forall f k a
    . Foldable f
-  => HasKey k
-  => HasKey a
+  => Identable k
+  => Identable a
   => f (k /\ a)
   -> HashMap k (HashSet a)
 hs2d'fromFoldable f =
@@ -316,27 +316,22 @@ type XHM2d'R p k1 k2 v = Z.Reader
 
 hm'keyBy
   :: forall f t k
-   . HasKey k
+   . Identable k
   => Foldable f
   => (t -> k)
   -> f t
   -> HashMap k t
 hm'keyBy f c = hm'fromFoldable $ arr'fromFoldable c <#> \t -> f t /\ t
 
-newtype HasKey k v = HasKey (k /\ v)
-
-instance (HasKey k) => HasKey (HasKey k v) where
-  key (HasKey e) = key $ fst e
-
 hm'groupBy
   :: forall f t k
-   . HasKey k
+   . Identable k
   => Foldable f
   => (t -> k)
   -> f t
   -> HashMap k (Array t)
 hm'groupBy f c = arr'fromFoldable c
   # arr'withInd
-  # map (\e -> f (snd e) /\ Keyed e)
+  # map (\(ind /\ v) -> f v /\ idented'mk ind v)
   # hs2d'fromFoldable
-  <#> map keyed'v <<< hs'vals
+  <#> map idented'v <<< hs'vals

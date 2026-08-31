@@ -53,7 +53,7 @@ type SlpGameData =
   , rawMeta :: SlpMeta
   , rawStats :: SlpStats
   , startAtOr_ :: Maybe DateTime
-  , key :: Key
+  , key :: IdV
   }
 
 slpSettings :: Game -> Either JsonDecodeError SlpSettings
@@ -84,16 +84,16 @@ xParseData buffer = do
   let startAtOr_ = startAtIOr_ <#> toDateTime
   keys <- x'withReturn \xReturn -> do
     whenJust startAtOr_ \startAt -> xReturn $
-      [ key "@", key $ dateTime'toMS startAt, key rawSettings.randomSeed ]
+      [ id'of "@", id'of $ dateTime'toMS startAt, id'of rawSettings.randomSeed ]
     whenJust rawSettings.matchInfo \mi -> xReturn $
-      [ key "M"
-      , key rawSettings.randomSeed
-      , key mi.sessionId
-      , key mi.gameNumber
-      , key mi.tiebreakerNumber
+      [ id'of "M"
+      , id'of rawSettings.randomSeed
+      , id'of mi.sessionId
+      , id'of mi.gameNumber
+      , id'of mi.tiebreakerNumber
       ]
     g @XFail Err.UnmadeId
-  pure { rawSettings, rawMeta, rawStats, startAtOr_, key: key keys }
+  pure { rawSettings, rawMeta, rawStats, startAtOr_, key: id'of keys }
 
 xParse :: forall x. Buffer -> EA SlpParseAndShaFail x #> SlpGame
 xParse b = e'try (xParseData b) >>= case _ of
@@ -102,6 +102,6 @@ xParse b = e'try (xParseData b) >>= case _ of
     (Left shaE) -> g @XFail $ SlpParseAndShaFail shaE
     (Right sha256) -> pure $ SlpParseFail e sha256
 
-instance HasKey SlpGame where
-  key (SlpGame game) = game.key
-  key (SlpParseFail _ bytes) = key bytes
+instance Identable SlpGame where
+  ident'get (SlpGame game) = game.key
+  ident'get (SlpParseFail _ bytes) = id'of bytes

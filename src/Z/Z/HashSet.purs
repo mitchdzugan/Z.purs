@@ -47,7 +47,7 @@ import Z.Z.Core (arr'fromFoldable, forM)
 import Z.Z.Defaultable (class Generable)
 import Z.Z.Ext (class IsSymbol, class Newtype, Run)
 import Z.Z.Ext as Z
-import Z.Z.Key (class HasKey)
+import Z.Z.Id (class Identable)
 
 newtype HashSet a = HashSet (Bin.Bin a)
 
@@ -56,7 +56,7 @@ derive instance Newtype (HashSet a) _
 instance Functor HashSet where
   map f (HashSet hs) = HashSet $ hs <#> f
 
-instance HasKey a => Generable (HashSet a) gdesc (HashSet a) where
+instance Identable a => Generable (HashSet a) gdesc (HashSet a) where
   mkGenerable = hs'empty
 
 instance (Z.EncodeJson a) => Z.EncodeJson (HashSet a) where
@@ -65,23 +65,23 @@ instance (Z.EncodeJson a) => Z.EncodeJson (HashSet a) where
 instance (Z.DecodeJson a) => Z.DecodeJson (HashSet a) where
   decodeJson v = Z.wrap <$> Dec.decodeJson v
 
-hs'empty :: forall @a. HasKey a => HashSet a
+hs'empty :: forall @a. Identable a => HashSet a
 hs'empty = Z.wrap $ Bin.bin'empty
 
-hs'add :: forall @a. HasKey a => a -> HashSet a -> HashSet a
+hs'add :: forall @a. Identable a => a -> HashSet a -> HashSet a
 hs'add v = Z.wrap <<< Bin.bin'insert v v <<< Z.unwrap
 
-hs'fromFoldable :: forall @f @a. HasKey a => Foldable f => f a -> HashSet a
+hs'fromFoldable :: forall @f @a. Identable a => Foldable f => f a -> HashSet a
 hs'fromFoldable f = Z.wrap $ Bin.bin'fromFoldable $ arr'fromFoldable f <#> \v ->
   v /\ v
 
-hs'size :: forall @a. HasKey a => HashSet a -> Int
+hs'size :: forall @a. Identable a => HashSet a -> Int
 hs'size = Bin.bin'size <<< Z.unwrap
 
-hs'has :: forall @a. HasKey a => a -> HashSet a -> Boolean
+hs'has :: forall @a. Identable a => a -> HashSet a -> Boolean
 hs'has v s = isJust $ Bin.bin'lookup v $ Z.unwrap s
 
-hs'vals :: forall @a. HasKey a => HashSet a -> Array a
+hs'vals :: forall @a. Identable a => HashSet a -> Array a
 hs'vals = Bin.bin'vals <<< Z.unwrap
 
 type XHS_h' p a x' x rest =
@@ -91,7 +91,7 @@ type XHS_h' p a x' x rest =
 
 type XHS_hk p a x rest =
   forall x'
-   . HasKey a
+   . Identable a
   => IsSymbol p
   => Cons p (Z.Reader (Bin.Bin'Eff'R a p)) x' x
   => rest
@@ -146,15 +146,15 @@ type XHS'R p a = Z.Reader (Bin.Bin'Eff'R a p)
 
 type XHS2d_h' p k a x' x rest =
   IsSymbol p
-  => HasKey k
-  => HasKey a
+  => Identable k
+  => Identable a
   => Cons p (Z.Reader (Bin.Bin'Eff'2d'R { k :: k, a :: a } p)) x' x
   => rest
 
 type XHS2d_hk p k a x rest =
   forall x'
-   . HasKey k
-  => HasKey a
+   . Identable k
+  => Identable a
   => IsSymbol p
   => Cons p (Z.Reader (Bin.Bin'Eff'2d'R { k :: k, a :: a } p)) x' x
   => rest

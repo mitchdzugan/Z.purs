@@ -10,7 +10,7 @@ xRun args = do
   xArgParse "slp-id" cliInfo args \(CliOpts opts) -> do
     buffer <- xReadFile opts.filename
     parsed <- e'map un' $ SlpRead.xParse buffer
-    xOut $ key parsed
+    xOut $ ident'key parsed
 
 newtype CliOpts = CliOpts { filename :: String }
 

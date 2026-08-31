@@ -17,7 +17,7 @@ import Z.Z.Ext
   , encodeJson
   , genericDecodeJson
   ) as Z
-import Z.Z.Key (class HasKey, keyStr)
+import Z.Z.Id (class Identable, ident'key)
 
 foreign import data Dict :: Type -> Type
 
@@ -38,11 +38,11 @@ newtype JsonEncodedDict = JsonEncodedDict (EncodedDict Z.Json)
 dictEmpty :: forall v. Dict v
 dictEmpty = js_empty
 
-dictLookup :: forall k v. HasKey k => k -> Dict v -> Z.Maybe v
-dictLookup k = js_lookup Z.Just Z.Nothing (keyStr k)
+dictLookup :: forall k v. Identable k => k -> Dict v -> Z.Maybe v
+dictLookup k = js_lookup Z.Just Z.Nothing (ident'key k)
 
-dictInsert :: forall k v. HasKey k => k -> v -> Dict v -> Dict v
-dictInsert k = js_insert (keyStr k)
+dictInsert :: forall k v. Identable k => k -> v -> Dict v -> Dict v
+dictInsert k = js_insert (ident'key k)
 
 derive instance Z.Generic JsonEncodedDict _
 
