@@ -28,15 +28,14 @@ import Control.Monad.ST (ST)
 import Data.List (List(..))
 import Data.Map (Map)
 import Data.Tuple.Nested (type (/\), (/\))
-import Data.Variant (Variant)
 import Foreign.Object (Object, runST, values)
 import Foreign.Object.ST (STObject, delete, new, poke)
 import Heterogeneous.Mapping (class HMap, class Mapping, hmap)
-import Z.Z.Core (Set, map'fromFoldable, set'fromFoldable, var'inj)
+import Z.Z.Core (Set, map'fromFoldable, set'fromFoldable)
 import Z.Z.Defaultable (class Generable, GDefault, default, g)
 import Z.Z.HashMap (HashMap, hm'fromFoldable)
 import Z.Z.HashSet (HashSet, hs'fromFoldable)
-import Z.Z.Key (class Keyed, keyStr)
+import Z.Z.Key (class HasKey, keyStr)
 import Z.Z.X (Edit, edit)
 
 data B'HMap'Tag = B'HMap'Tag
@@ -47,10 +46,10 @@ b'hmapBuild
   ∷ forall tIn tOut. HMap B'HMap'Tag tIn tOut => T'b'hmapBuild'h tIn tOut
 b'hmapBuild = hmap B'HMap'Tag <<< edit (default @tIn)
 
-class B'Builds f g | g -> g where
+class B'Builds f g | f -> g where
   b'build :: List f -> g
 
-class B'Builds'ForeignSt f i g | f i -> g where
+class B'Builds'ForeignSt f i g | f -> i g where
   b'update :: forall r. f -> STObject r i -> ST r (STObject r i)
   b'finish :: Object i -> g
 
@@ -106,13 +105,13 @@ data B'Set'Op a = B'Set'reset | B'Set'add a | B'Set'rm a
 type B'Set'Def :: forall k1. (Type -> Type -> k1) -> Type -> k1
 type B'Set'Def sel a = sel (B'Set'Op a) (Set a)
 
-instance (Keyed a, Ord a) => B'Builds'ForeignSt (B'Set'Op a) a (Set a) where
+instance (HasKey a, Ord a) => B'Builds'ForeignSt (B'Set'Op a) a (Set a) where
   b'update (B'Set'rm a) st = delete (keyStr a) st
   b'update (B'Set'add a) st = poke (keyStr a) a st
   b'update B'Set'reset _ = new
   b'finish o = set'fromFoldable $ values o
 
-instance (Keyed a, Ord a) => B'Builds (B'Set'Op a) (Set a) where
+instance (HasKey a, Ord a) => B'Builds (B'Set'Op a) (Set a) where
   b'build = buildForeignStRun @(B'Set'Op a) @a @(Set a)
 
 ------------------------------------------------------------------------------
@@ -123,7 +122,7 @@ type B'Map'Def :: forall k1. (Type -> Type -> k1) -> Type -> Type -> k1
 type B'Map'Def sel k v = sel (B'Map'Op k v) (Map k v)
 
 instance
-  ( Keyed k
+  ( HasKey k
   , Ord k
   ) =>
   B'Builds'ForeignSt (B'Map'Op k v) (k /\ v) (Map k v) where
@@ -132,7 +131,7 @@ instance
   b'update (B'Map'reset) _ = new
   b'finish o = map'fromFoldable $ values o
 
-instance (Keyed k, Ord k) => B'Builds (B'Map'Op k v) (Map k v) where
+instance (HasKey k, Ord k) => B'Builds (B'Map'Op k v) (Map k v) where
   b'build = buildForeignStRun @(B'Map'Op k v) @(k /\ v) @(Map k v)
 
 ------------------------------------------------------------------------------
@@ -143,7 +142,7 @@ type B'HashMap'Def :: forall k1. (Type -> Type -> k1) -> Type -> Type -> k1
 type B'HashMap'Def sel k v = sel (B'HashMap'Op k v) (HashMap k v)
 
 instance
-  ( Keyed k
+  ( HasKey k
   ) =>
   B'Builds'ForeignSt (B'HashMap'Op k v) (k /\ v) (HashMap k v) where
   b'update (B'HashMap'rm k) st = delete (keyStr k) st
@@ -151,7 +150,7 @@ instance
   b'update (B'HashMap'reset) _ = new
   b'finish o = hm'fromFoldable $ values o
 
-instance (Keyed k) => B'Builds (B'HashMap'Op k v) (HashMap k v) where
+instance (HasKey k) => B'Builds (B'HashMap'Op k v) (HashMap k v) where
   b'build = buildForeignStRun @(B'HashMap'Op k v) @(k /\ v) @(HashMap k v)
 
 ------------------------------------------------------------------------------
@@ -161,11 +160,11 @@ data B'HashSet'Op a = B'HashSet'reset | B'HashSet'add a | B'HashSet'rm a
 type B'HashSet'Def :: forall k1. (Type -> Type -> k1) -> Type -> k1
 type B'HashSet'Def sel a = sel (B'HashSet'Op a) (HashSet a)
 
-instance (Keyed a) => B'Builds'ForeignSt (B'HashSet'Op a) a (HashSet a) where
+instance (HasKey a) => B'Builds'ForeignSt (B'HashSet'Op a) a (HashSet a) where
   b'update (B'HashSet'rm a) st = delete (keyStr a) st
   b'update (B'HashSet'add a) st = poke (keyStr a) a st
   b'update B'HashSet'reset _ = new
   b'finish o = hs'fromFoldable $ values o
 
-instance (Keyed a) => B'Builds (B'HashSet'Op a) (HashSet a) where
+instance (HasKey a) => B'Builds (B'HashSet'Op a) (HashSet a) where
   b'build = buildForeignStRun @(B'HashSet'Op a) @a @(HashSet a)

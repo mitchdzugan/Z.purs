@@ -2,8 +2,6 @@ module Node.Z.CLM.Stats.Manager.CLI where
 
 import Node.Z.Prelude
 
-import Data.Array (concat)
-import Debug (traceM)
 import Node.Z.CLM.Stats.Manager.Action as Act
 import Node.Z.CLM.Stats.Manager.Error as ClmStE
 import Node.Z.CLM.Stats.Manager.Spec as Spec
@@ -37,7 +35,7 @@ type CLMStatsLegacyBlob =
   , "IDENT_CLM_IDS" :: Object Int
   , timeline ::
       Array
-        { periodId :: Int
+        { seasonId :: Int
         , title :: String
         , timelineInd :: Int
         , season :: String
@@ -80,9 +78,9 @@ type CLMStatsLegacyBlob =
                     }
               }
         }
-  , periods ::
+  , seasons ::
       Object
-        { periodId :: Int
+        { seasonId :: Int
         , title :: String
         , isAll :: Boolean
         , others :: Object Int
@@ -99,13 +97,13 @@ type CLMStatsLegacyBlob =
         , ranks ::
             Array
               { rank :: Int
-              , winrate :: Maybe Int
+              , winrate :: Maybe Number
               , placing :: Int
               , placingString :: String
               , wins :: Int
               , losses :: Int
               , prEvents :: Int
-              , rating :: Int
+              , rating :: Number
               , conservativeRating :: Number
               , playerIdent :: String
               , eventId :: Int
@@ -120,10 +118,95 @@ type EnvR r =
   , appCOPath :: String
   , pagesCOPath :: String
   , client :: Gql.Client
+  , legacyBlob :: CLMStatsLegacyBlob
   | r
   }
 
-type ClmV r x = (RWaEA (EnvR r) ClmStW.T ClmStE.T x)
+type ClmEvent =
+  { eventName :: String
+  , numEntrants :: Int
+  , date :: DateTime
+  , slug :: String
+  , prEligible :: Boolean
+  , tournamentName :: String
+  , imageUrl :: String
+  , eventId :: SorN
+  }
+
+type ClmPlayerStub =
+  { image :: String
+  , name :: String
+  , realName :: Maybe String
+  , id :: Int
+  }
+
+type ClmSeason r =
+  { seasonId :: Int
+  , title :: String
+  , isAll :: Boolean
+  , ranks ::
+      Array
+        { playerId :: Int
+        , rating :: Number
+        , clmRank :: Int
+        , placing :: Int
+        , wins :: Int
+        , losses :: Int
+        , prEvents :: Int
+        , eventId :: SorN
+        }
+  | r
+  }
+
+type ClmPlayerSeason =
+  { sets ::
+      HashMap SorN
+        { id :: SorN
+        , eventId :: SorN
+        , won :: Boolean
+        , dq :: Boolean
+        , round :: String
+        , wonGames :: String
+        , lostGames :: String
+        , opponentName :: Maybe String
+        , winnerName :: Maybe String
+        , loserName :: Maybe String
+        }
+  , events ::
+      Array
+        { eventId :: SorN
+        , placingString :: String
+        , setIds :: Array SorN
+        , numWins :: Int
+        , numLosses :: Int
+        , losses :: Array String
+        , didDQ :: Boolean
+        }
+  , h2hs ::
+      Array
+        { opponent :: String
+        , rank :: Int
+        , setIds :: Array SorN
+        }
+  }
+
+type ClmBaseSeason = ClmSeason ()
+
+type ClmFullSeason = ClmSeason
+  (players :: HashMap Int ClmPlayerSeason, events :: HashMap SorN ClmEvent)
+
+type ClmData = { season :: ClmFullSeason, players :: HashMap Int ClmPlayerStub }
+
+type ClmV r x =
+  ( RWaEA (EnvR r) ClmStW.T ClmStE.T
+      ( seasons :: XHM'R "seasons" Int ClmBaseSeason
+      , players :: XHM'R "players" Int ClmPlayerStub
+      , playerSeasons :: XHM2d'R "playerSeasons" Int Int ClmPlayerSeason
+      , seasonEvents :: XHM2d'R "seasonEvents" Int SorN ClmEvent
+      , nextIdTry :: S' Int
+      | x
+      )
+  )
 
 type PureActions = Array Act.PureAction
 
@@ -160,8 +243,10 @@ initialManual = map Act.PureAction
   , Act.AddEvent $ ggD "the-botlane-show-12-fluid-lucinasd" "melee-singles" {}
   , Act.AddEvent { slug: "fgzs2x09" }
   , Act.MarkChallonge { slug: "fgzs2x09" }
-  , Act.RemoveEvent $ ggD "the-bunker-11" "crazy-doubles" {}
+  , Act.MarkDoneUpdating $ ggD "bracket-at-the-emporium-9" "melee-singles" {}
+  , Act.MarkDoneUpdating $ ggD "the-bunker-11" "crazy-doubles" {}
   , Act.MarkDoneUpdating $ ggD "the-bunker-12" "crazy-doubles" {}
+  , Act.MarkDoneUpdating $ ggD "the-bunker-13" "crazy-doubles" {}
   , Act.MarkDoneUpdating $ ggD lastFudds "melee-singles" {}
   , Act.MarkDoneUpdating $ ggD lastFudds "melee-amateur-bracket" {}
   ]
@@ -198,12 +283,21 @@ getActions newActions usePrevAuto = do
         _ -> []
     pure $ rec'set @"auto" newAuto baseRes
 
+seasonIdByDate :: DateTime -> Int
+seasonIdByDate dt = seasonYearContrib + seasonMonthContrib
+  where
+  seasonYearContrib = 2 + (3 * (dateTime'year dt - 2022))
+  seasonMonthContrib = dateTime'month'i0 dt / 4
+
 getH2hData
-  :: forall r x. Spec.Spec -> Boolean -> ClmV r x #> HashMap String H2h.Event
-getH2hData spec allowRefetch = do
+  :: forall r x
+   . Spec.Spec
+  -> Boolean
+  -> ClmV r x #> Array (Int /\ HashMap String H2h.Event)
+getH2hData spec allowRefetch = xhm2d'eval @"seasonEvents" do
   { client } <- r'ask
   xInfo { numEvents: hs'size spec.eventSlugs }
-  ops <- forM (hs'vals spec.eventSlugs) \slug -> do
+  forM_ (hs'vals spec.eventSlugs) \slug -> do
     let
       isChallonge = hs'has slug spec.challongeSlugs
       sourceFn = if isChallonge then H2h.challongeSource else H2h.startggSource
@@ -223,12 +317,40 @@ getH2hData spec allowRefetch = do
     eventData <-
       if shouldRefetchEvent then getEventData Gql.ForceFetch
       else pure eventData'
-    pure $ B'HashMap'set slug eventData
-  pure $ b'build $ list'fromFoldable ops
+    let seasonId = seasonIdByDate eventData.tournament.date
+    xhm2d'insert @"seasonEvents" seasonId slug eventData
+  xhm2d'entries @"seasonEvents"
 
-xRun :: forall x. Array String -> EA JsError x ##> Unit
-xRun args = do
-  xInfo args
+type XSeason x =
+  ( wins :: XHM'R "wins" Int Int
+  , losses :: XHM'R "losses" Int Int
+  , eventIds :: XHS2d'R "eventIds" Int SorN
+  , eventWins :: XHM'R "eventWins" (Int /\ SorN) Int
+  , eventLosses :: XHM'R "eventLosses" (Int /\ SorN) Int
+  , eventSetIds :: XHS2d'R "eventSetIds" (Int /\ SorN) SorN
+  , eventBeaters :: XHS2d'R "eventBeaters" (Int /\ SorN) Int
+  | x
+  )
+
+runSeason :: forall x a. Run (XSeason x) a -> Run x a
+runSeason = id
+  <<< xhm'eval @"wins"
+  <<< xhm'eval @"losses"
+  <<< xhs2d'eval @"eventIds"
+  <<< xhm'eval @"eventWins"
+  <<< xhm'eval @"eventLosses"
+  <<< xhs2d'eval @"eventSetIds"
+  <<< xhs2d'eval @"eventBeaters"
+
+runClm
+  :: forall x a
+   . ClmV () (E JsError x) ##> a
+  -> EA JsError x ##> Result ClmStW.T ClmStE.T a
+runClm m = do
+  let
+    getEnv s = xLookupEnv s >>= e'unwrap (jsError "Required Env Var Missing" s)
+    wrappedM = r'ask >>= \{ legacyBlob } -> do
+      m
   isDevEnv <- getEnv "CLM_STATS_IS_DEV"
   ggAuth <- getEnv "CLM_STATS_GG_AUTH"
   dataRoot <- getEnv "CLM_STATS_DATA_DIR"
@@ -238,13 +360,68 @@ xRun args = do
     s'sets @"authToken" $ Just ggAuth
     let cachePath = dataRoot /./ "cache" /./ "startgg.gqlCache"
     s'sets @"cachePath" $ Just $ pathStr $ cachePath
-  let env = { isDevEnv, ggAuth, dataRoot, appCOPath, pagesCOPath, client }
-  res <- we'runResult $ r'run env do
+  let tryDecode = xDecodeTextFile $ dataRoot /./ "FULL_LEGACY.json"
+  legacyBlob <- e'try tryDecode >>= e'ok <<< constL (jsError "legacy read" "")
+  clmIdByPlayerId <- hm'fromFoldable <$> forM
+    (obj'entries legacyBlob.nameDataByPlayerId)
+    \(ggIdS /\ { ident }) -> do
+      ggId <- e'ok $ constL (jsError "invalid ggId" "") $
+        runParser ggIdS parseInt
+      clmId <- e'unwrap (jsError "unfound clmId" "") $ obj'lookup ident
+        legacyBlob."IDENT_CLM_IDS"
+      pure $ ggId /\ clmId
+  xOut clmIdByPlayerId
+  let
+    playerIdsByClmId =
+      hs2d'fromFoldable $ tup'flip <$> hm'entries clmIdByPlayerId
+  xOut playerIdsByClmId
+  we'runResult
+    $ xhm'eval @"seasons"
+    $ xhm'eval @"players"
+    $ xhm2d'eval @"seasonEvents"
+    $ xhm2d'eval @"playerSeasons"
+    $ g1 @XEvalS @"nextIdTry" legacyBlob.nextIdTry
+    $ flip r'run wrappedM
+        { isDevEnv
+        , ggAuth
+        , dataRoot
+        , appCOPath
+        , pagesCOPath
+        , client
+        , legacyBlob
+        }
+
+xRun :: forall x. Array String -> EA JsError x ##> Unit
+xRun args = do
+  xInfo args
+  res <- runClm do
     actionData <- getActions [] false
     let spec = Act.buildSpec $ actionData.manual <> actionData.auto
-    getH2hData spec true
+    seasonEvents <- getH2hData spec true
+    forM_ seasonEvents \(seasonId /\ events) -> runSeason do
+      xOut { seasonId }
+      xOut events
+      let eventList = arr'sortWith (\e -> e.tournament.date) $ hm'vals events
+      forM_ eventList \event -> x'withContinue \xContinue -> do
+        isSingles <- x'withReturn \xReturn -> do
+          forM_ (map'vals event.entrants) \entrant -> do
+            when (arr'size entrant.participants > 1) $ xReturn false
+          pure true
+        when (not isSingles) xContinue
+        forM_ (map'vals event.entrants) \entrant -> do
+          xInfo entrant
+        xhm2d'insert @"seasonEvents" seasonId event.id
+          { eventName: event.name
+          , numEntrants: map'size event.entrants
+          , date: event.tournament.date
+          , slug: event.slug
+          , prEligible: true
+          , tournamentName: event.tournament.name
+          , imageUrl: ""
+          , eventId: event.id
+          }
+        xOut { event }
+      pure unit
   xInfo $ case res.v of
     Left e -> encode e
     Right _ -> "data intake: success"
-  where
-  getEnv s = xLookupEnv s >>= e'unwrap (jsError "Required Env Var Missing" s)

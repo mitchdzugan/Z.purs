@@ -1,11 +1,24 @@
 module Z.Gql.Error
-  ( T(..)
+  ( GqlResponseError
+  , T(..)
   ) where
 
 import Z.Prelude
 
+type GqlResponseError =
+  { response ::
+      { data :: Json
+      , errors :: Json
+      , extensions :: Json
+      , status :: Int
+      , headers :: Object String
+      }
+  , request :: { query :: String, variables :: Json }
+  }
+
 data T
   = NetworkError JsError
+  | ResponseError GqlResponseError
   | CachePrep JsError
   | CacheWriter JsError
   | CacheOnlyEmpty

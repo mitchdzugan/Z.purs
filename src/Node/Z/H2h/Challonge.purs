@@ -15,7 +15,7 @@ import Z.H2h.Module as H2h
 import Z.H2h.Warning as H2hW
 
 getEventData :: forall x. B.GetDataFn x
-getEventData = B.adaptBuilder $ g @XWithReturn \xReturn -> do
+getEventData = B.adaptBuilder $ x'withReturn \xReturn -> do
   { client, networkControl, slug } <- g @XAsk
   let { cachePath } = client
   let eCacheOnlyEmpty = H2hE.Gql GqlE.CacheOnlyEmpty
@@ -88,8 +88,8 @@ getEventDataImpl = do
     forM_ bracketEls $ \bracketEl -> do
       matchEls <- pEls bracketEl ".match"
       forM_ matchEls $ \matchEl -> s'plus @"winnerId" Nothing do
-        setId <- pReadDataAttr matchEl "match" >>= \s -> e'map H2hE.ParseTime
-          (g @XRunParser s parseInt)
+        setId <- flip (g @XRunParser) parseInt >>> e'map H2hE.ParseMatchId
+          =<< pReadDataAttr matchEl "match"
         playerEls <- pEls matchEl ".match--player"
         slots <- forM playerEls $ \playerEl -> do
           entrantId <- pReadIdDataAttr playerEl "participant"
@@ -97,28 +97,30 @@ getEventDataImpl = do
           scoreEl <- pEl playerEl ".match--player-score"
           scoreClass <- pGetAttribute scoreEl "class"
           scoreS <- pInnerHtml scoreEl
-          score <- e'map H2hE.ParseTime do
+          score <- e'map H2hE.ParseScore do
             g @XRunParser scoreS parseInt <#> H2h.mkScoreCount
           forM_ (str'split (Pattern " ") scoreClass) $ \cn -> do
             when (cn == "-winner") $ s'sets @"winnerId" $ Just entrantId
+          let
+            participant =
+              { prefix: Nothing
+              , gamerTag: playerName
+              , playerOrder: 1
+              , player:
+                  { id: sOrN $ "Challonge-" <> playerName <> "-playerId"
+                  , gamerTag: playerName
+                  , prefix: Nothing
+                  , pronouns: Nothing
+                  , name: Nothing
+                  , socials: map'empty
+                  , images: map'empty
+                  }
+              }
           g @XSet (_o @"entrants" $ at entrantId) $ Just
             { id: entrantId
             , standing: { placement: 0, isFinal: false }
-            , participants:
-                [ { prefix: Nothing
-                  , gamerTag: playerName
-                  , playerOrder: 1
-                  , player:
-                      { id: sOrN $ "Challonge-" <> playerName <> "-playerId"
-                      , gamerTag: playerName
-                      , prefix: Nothing
-                      , pronouns: Nothing
-                      , name: Nothing
-                      , socials: map'empty
-                      , images: map'empty
-                      }
-                  }
-                ]
+            , participants: [ participant ]
+            , participant
             }
           pure { entrantId: Just entrantId, score }
         let emptySlot = { entrantId: Nothing, score: H2h.NoScore }
@@ -136,7 +138,7 @@ getEventDataImpl = do
       <#> arr'reverse
       <<< arr'sortWith (g_ @"id")
       <<< arr'fromFoldable
-    isComplete <- g @XWithReturn \xReturn -> do
+    isComplete <- x'withReturn \xReturn -> do
       forM_ baseSetList $ \baseSet -> do
         when (isNothing baseSet.winner) (xReturn false)
       pure true
@@ -166,7 +168,7 @@ getEventDataImpl = do
               g1 @XOver @"setsLoop"
                 (if isGrands then __ @"gfEIds" else __ @"nonGfEIds")
         { gfEIds, nonGfEIds } <- g1 @XGet @"setsLoop"
-        seenAllGFEntrants <- g @XWithReturn \xReturn -> do
+        seenAllGFEntrants <- x'withReturn \xReturn -> do
           forM_ (arr'fromFoldable gfEIds) $ \id -> do
             when (not (set'has id nonGfEIds)) (xReturn false)
           pure true

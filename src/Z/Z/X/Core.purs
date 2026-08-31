@@ -127,6 +127,8 @@ module Z.Z.X.Core
   , XViewWithT
   , XView_WithT
   , XWithReturn
+  , adapter'run
+  , class EffAdapter
   , class GOrE
   , class GOrR
   , class GOrS
@@ -150,6 +152,7 @@ module Z.Z.X.Core
   , eff'withPermit
   , evalX
   , evalXA
+  , mkEffAdapter
   , r'act
   , r'act''
   , r'ask
@@ -192,6 +195,10 @@ module Z.Z.X.Core
   , we'runResult''
   , we'unresult
   , we'unresult''
+  , x'withContinue
+  , x'withContinue''
+  , x'withReturn
+  , x'withReturn''
   , xGetter
   , xInfo
   , xLogError
@@ -204,9 +211,11 @@ module Z.Z.X.Core
   , xTimeout
   ) where
 
+import Prelude
 import Z.Z.X.UtilPrelude
 
 import Control.Monad as Monad
+import Control.Monad.ST as ST
 import Control.Promise as Promise
 import Data.Either as Eor
 import Data.Lens (Forget, Lens', view)
@@ -230,6 +239,7 @@ import Prim.Row (class Cons, class Lacks)
 import Prim.Row as Row
 import Record (insert)
 import Record as Rec
+import Run (VariantF)
 import Run as R
 import Run.Except as RunE
 import Run.Reader as RunR
@@ -242,7 +252,7 @@ import Type.Row (type (+))
 import Z.Z.Barlow as Bl
 import Z.Z.Core (T'useAsSym)
 import Z.Z.Core as Z
-import Z.Z.DateTime (DateTime(..), dateTimeAsMS, fromRawDateTime)
+import Z.Z.DateTime (DateTime(..), dateTime'toMS, fromRawDateTime)
 import Z.Z.Defaultable
   ( class G2OrDefault
   , class GOrDefault
@@ -1086,6 +1096,30 @@ eff'do
   -> R.Run (permitted :: RunR.Reader { | px } | x) a
 eff'do eff = pure $ useTag @p \r -> r eff
 
+---------------          x''fns ------------------------------------
+
+x'withReturn :: forall v. Generable XWithReturn GDefault v => v
+x'withReturn = g @XWithReturn
+
+x'withReturn'' :: forall @at v. Generable XWithReturn (G1 at) v => v
+x'withReturn'' = g1 @XWithReturn @at
+
+x'withContinue''
+  :: forall @p x' x
+   . IsSymbol p
+  => Cons p (RunE.Except Unit) x' x
+  => (R.Run x Unit -> R.Run x Unit)
+  -> R.Run x' Unit
+x'withContinue'' f = x'withReturn'' @p \xReturn -> f $ xReturn unit
+
+x'withContinue
+  :: forall x
+   . ( R.Run (earlyReturn :: RunE.Except Unit | x) Unit
+       -> R.Run (earlyReturn :: RunE.Except Unit | x) Unit
+     )
+  -> R.Run x Unit
+x'withContinue = x'withContinue'' @"earlyReturn"
+
 ---------------          r''fns ------------------------------------
 
 r'run :: forall v. Generable XRunR GDefault v => v
@@ -1357,7 +1391,7 @@ xNow :: forall x. XRun x DateTime
 xNow = R.lift _eff (NowCmd identity)
 
 xNowMS :: forall x. XRun x Number
-xNowMS = xNow <#> dateTimeAsMS
+xNowMS = xNow <#> dateTime'toMS
 
 -----------------------------------------------------------------------------
 
@@ -1507,3 +1541,21 @@ type RWSEA r w s e x =
 
 type RWaSEA r w s e x =
   RunR.READER r + WRITERa w + RunS.STATE s + RunE.EXCEPT e + AFF + x
+
+------------------------------------------------------------------------------
+
+class EffAdapter :: forall k1 k2. k1 -> k2 -> Type -> Constraint
+class
+  EffAdapter t p r
+  | t p -> r
+  where
+  mkEffAdapter :: Eff.Effect r
+
+adapter'run
+  :: forall @t @p r x' x a
+   . IsSymbol p
+  => EffAdapter t p r
+  => Cons p (RunR.Reader r) x' x
+  => R.Run x a
+  -> R.Run x' a
+adapter'run = r'run'' @p $ Unsafe.unsafePerformEffect $ mkEffAdapter @t @p

@@ -3,6 +3,7 @@ module Z.H2h.Error
   ) where
 
 import Z.Prelude
+
 import Z.Gql.Module as Gql
 
 data T
@@ -14,7 +15,10 @@ data T
   | EventBuild JsError
   | ParseCached JsError
   | ParseTime ParseError
+  | ParseScore ParseError
+  | ParseMatchId ParseError
   | InvalidInstant Int
+  | EmptyEntrant Int
 
 derive instance Generic T _
 

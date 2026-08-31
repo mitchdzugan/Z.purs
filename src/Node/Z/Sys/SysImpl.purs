@@ -4,9 +4,9 @@ module Node.Z.Sys.SysImpl
   , EnvPaths
   , Path
   , Platform(..)
+  , XNODE
   , XNode
   , XNodeF
-  , xArgParse
   , basename
   , class Pathlike
   , dirname
@@ -16,6 +16,9 @@ module Node.Z.Sys.SysImpl
   , pathJoin
   , pathJoinAbs
   , pathStr
+  , runXAThenExit
+  , runXAThenExitWithArgv
+  , xArgParse
   , xArgv
   , xDecodeAnyYamlExt
   , xDecodeTextFile
@@ -23,8 +26,6 @@ module Node.Z.Sys.SysImpl
   , xEncodeTextFile
   , xEncodeTextFileP
   , xEnvPaths
-  , runXAThenExit
-  , runXAThenExitWithArgv
   , xLookupEnv
   , xMkdir
   , xMkdirP
@@ -275,10 +276,7 @@ data XNodeF a
   = WdCmd (String -> a)
   | FullArgvCmd (Array String -> a)
   | PlatformCmd (String -> a)
-  | EnvPathsCmd String (Maybe String)
-      ( EnvPaths
-        -> a
-      )
+  | EnvPathsCmd String (Maybe String) (EnvPaths -> a)
 
 handleXNode :: forall r. XNodeF ~> Run r
 handleXNode = case _ of
@@ -294,7 +292,7 @@ type XNODE x = (xNode :: XNodeF | x)
 
 _xNode = Proxy :: Proxy "xNode"
 
-runXNode :: forall r. Run (XNODE + r) ~> Run r
+runXNode :: forall r. Run (XNODE r) ~> Run r
 runXNode = run (on _xNode handleXNode send)
 
 dirname :: forall p. Pathlike p => p -> Path

@@ -64,7 +64,7 @@ type T'plusId p = forall r' r. Lacks p r' => IsSymbol p => T'plusId_h p r' r
 
 assignIds :: String -> Array (Action ()) -> Array (Action (id :: String))
 assignIds idBase actionsIn =
-  arr'withInd actionsIn <#> \(a /\ locId) -> case a of
+  arr'withInd actionsIn <#> \(locId /\ a) -> case a of
     Undo props -> Undo $ plusId props locId
     OverrideName props -> OverrideName $ plusId props locId
     MarkChallonge props -> MarkChallonge $ plusId props locId

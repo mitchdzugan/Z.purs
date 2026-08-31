@@ -72,6 +72,7 @@ import Foreign.Object as FO
 import Prim.Symbol as Symbol
 import Type.Proxy as Proxy
 import Z.Z.Core as Z
+import Z.Z.Key (class HasKey, key)
 import Z.Z.Url as Url
 
 urlFromParts :: Url.Parts -> Url.URL
@@ -213,14 +214,14 @@ decode'
 decode' _ = Dec.fromJsonString >>> Z.mapL JsonDecodeError
 
 decodeJson
-  :: forall v
+  :: forall @v
    . Dec.DecodeJson v
   => Arg.Json
   -> Either.Either JsonDecodeError v
 decodeJson = ADec.decodeJson >>> Z.mapL JsonDecodeError
 
 baseDecodeJson
-  :: forall v
+  :: forall @v
    . Dec.DecodeJson v
   => Arg.Json
   -> Either.Either ADec.JsonDecodeError v
@@ -273,6 +274,9 @@ instance IsStringOrNum Int where
 instance Show SorN where
   show (SorN_S s) = s
   show (SorN_I i) = show i
+
+instance HasKey SorN where
+  key = key <<< show
 
 arg2' :: forall a1 a2 r. a2 -> (a1 -> a2 -> r) -> (a1 -> r)
 arg2' a2 f a1 = f a1 a2

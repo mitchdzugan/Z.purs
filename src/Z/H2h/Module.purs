@@ -113,6 +113,7 @@ type Standing = { placement :: Int, isFinal :: Boolean }
 type Entrant =
   { id :: SorN
   , participants :: Array Participant
+  , participant :: Participant
   , standing :: Standing
   }
 

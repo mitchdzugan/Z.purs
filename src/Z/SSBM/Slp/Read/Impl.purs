@@ -82,9 +82,9 @@ xParseData buffer = do
   let startAtNOr_ = js_startAt Nothing Just game
   let startAtIOr_ = startAtNOr_ <#> toNumber <#> Milliseconds >>= instant
   let startAtOr_ = startAtIOr_ <#> toDateTime
-  keys <- g @XWithReturn \xReturn -> do
+  keys <- x'withReturn \xReturn -> do
     whenJust startAtOr_ \startAt -> xReturn $
-      [ key "@", key $ dateTimeAsMS startAt, key rawSettings.randomSeed ]
+      [ key "@", key $ dateTime'toMS startAt, key rawSettings.randomSeed ]
     whenJust rawSettings.matchInfo \mi -> xReturn $
       [ key "M"
       , key rawSettings.randomSeed
@@ -102,6 +102,6 @@ xParse b = e'try (xParseData b) >>= case _ of
     (Left shaE) -> g @XFail $ SlpParseAndShaFail shaE
     (Right sha256) -> pure $ SlpParseFail e sha256
 
-instance Keyed SlpGame where
+instance HasKey SlpGame where
   key (SlpGame game) = game.key
   key (SlpParseFail _ bytes) = key bytes

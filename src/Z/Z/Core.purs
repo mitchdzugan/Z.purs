@@ -25,6 +25,7 @@ module Z.Z.Core
   , class Resulting
   , class RtError
   , class SText
+  , constL
   , dec
   , deferred'run
   , encodeForeign
@@ -51,9 +52,11 @@ module Z.Z.Core
   , map'fromFoldable
   , map'set
   , map'size
+  , map'vals
   , mapL
   , mapM
   , obj'empty
+  , obj'entries
   , obj'has
   , obj'insert
   , obj'keys
@@ -105,7 +108,9 @@ module Z.Z.Core
   , simpleHash
   , stext
   , tryParseInt
+  , tup'flip
   , var'inj
+  , var'match
   , whenNot
   ) where
 
@@ -120,6 +125,7 @@ import Data.Array as Arr
 import Data.Either as Eor
 import Data.Foldable as Foldable
 import Data.Functor as F
+import Data.Functor.Variant as VarF
 import Data.Int as Int
 import Data.Lens (Lens', lens')
 import Data.List as List
@@ -194,6 +200,17 @@ rec'modify = Record.modify (Proxy.Proxy @l)
 
 var'inj :: forall v' v @l a. IsSymbol l => Cons l a v' v => a -> Var.Variant v
 var'inj = Var.inj (Proxy.Proxy @l)
+
+varF'inj
+  :: forall v' v @l a f
+   . Functor f
+  => IsSymbol l
+  => Cons l f v' v
+  => f a
+  -> VarF.VariantF v a
+varF'inj = VarF.inj (Proxy.Proxy @l)
+
+var'match = Var.match
 
 idLens :: forall a. Lens' a a
 idLens = lens' \a -> a TupN./\ identity
@@ -377,7 +394,13 @@ obj'lookup = Obj.lookup
 obj'has :: forall t. String -> Obj.Object t -> Boolean
 obj'has k = May.isJust <<< Obj.lookup k
 
+obj'keys :: forall a. Obj.Object a -> Array String
 obj'keys = Obj.keys
+
+obj'entries :: forall a. Obj.Object a -> Array (String TupN./\ a)
+obj'entries = Obj.toArrayWithKey TupN.(/\)
+
+obj'vals :: forall a. Obj.Object a -> Array a
 obj'vals = Obj.values
 
 objST'new = ObjSt.new
@@ -400,6 +423,9 @@ map'size = Map.size
 
 map'set :: forall @k @v. Ord k => k -> v -> Map.Map k v -> Map.Map k v
 map'set = Map.insert
+
+map'vals :: forall @k @v. Map.Map k v -> Array v
+map'vals = arr'fromFoldable <<< Map.values
 
 map'fromFoldable
   :: forall @k @v f
@@ -428,9 +454,9 @@ set'fromFoldable
 set'fromFoldable = Set.fromFoldable
 
 foreign import js_arrWithInd
-  :: forall v. (v -> Int -> v TupN./\ Int) -> Array v -> Array (v TupN./\ Int)
+  :: forall v. (v -> Int -> v TupN./\ Int) -> Array v -> Array (Int TupN./\ v)
 
-arr'withInd :: forall v. Array v -> Array (v TupN./\ Int)
+arr'withInd :: forall v. Array v -> Array (Int TupN./\ v)
 arr'withInd = js_arrWithInd TupN.(/\)
 
 arr'slice :: forall a. Int -> Int -> Array a -> Array a
@@ -460,6 +486,9 @@ list'fromFoldable = List.fromFoldable
 invert :: forall e r. Eor.Either e r -> Eor.Either r e
 invert (Eor.Left e) = Eor.Right e
 invert (Eor.Right r) = Eor.Left r
+
+tup'flip :: forall t1 t2. t1 TupN./\ t2 -> t2 TupN./\ t1
+tup'flip (t1 TupN./\ t2) = t2 TupN./\ t1
 
 mapM
   :: forall t a b m
@@ -530,6 +559,11 @@ runParser s pr = mapL ParseError $ Parsing.runParser s pr
 
 mapL :: forall l1 l2 r. (l1 -> l2) -> Eor.Either l1 r -> Eor.Either l2 r
 mapL f = Eor.either (\x -> Eor.Left $ f x) Eor.Right
+
+constL :: forall l r res. Resulting res => l -> res r -> Eor.Either l r
+constL l res = case resultVal res of
+  May.Nothing -> Eor.Left l
+  May.Just r -> Eor.Right r
 
 parseFail :: forall m s a. String -> Parsing.ParserT s m a
 parseFail = Parsing.fail

@@ -17,7 +17,7 @@ import Effect.Unsafe as Unsafe
 import Run as R
 
 eval_ :: forall a. Run_ a -> a
-eval_ m = Unsafe.unsafePerformEffect $ R.runBaseEffect $ R.expand m
+eval_ m = R.extract m
 
 type Run' x = R.Run x Unit
 

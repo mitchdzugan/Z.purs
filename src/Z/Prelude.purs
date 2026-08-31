@@ -16,6 +16,7 @@ module Z.Prelude
   , module ZUrl
   , module ZUtil
   , module ZShorthand
+  , module ZWraps
   , module ZX
   , module ZPassable
   ) where
@@ -128,18 +129,7 @@ import Prelude
   , (>>>)
   , (||)
   ) as Prelude
-import Z.Z.Barlow
-  ( class Barlow
-  , class ConstructBarlow
-  , class IsSymbol
-  , class ParseSymbol
-  , class Strong
-  , First
-  , Forget
-  , Optic
-  , Proxy(..)
-  , barlow
-  ) as ZBl
+import Z.Z.Barlow as ZBl
 import Z.Z.Buffer as ZBuffer
 import Z.Z.Buildable as ZBuildable
 import Z.Z.Core as ZCore
@@ -148,7 +138,7 @@ import Z.Z.Defaultable as ZDefaultable
 import Z.Z.Ext as ZExt
 import Z.Z.HashMap as ZMashMap
 import Z.Z.HashSet as ZMashSet
-import Z.Z.Key (class Keyed, Key, key, keyStr) as ZKey
+import Z.Z.Key (class HasKey, Key, key, keyStr) as ZKey
 import Z.Z.Pair (Pair(..), (~)) as ZPair
 import Z.Z.PairKey (PairKey(..)) as ZPairKey
 import Z.Z.Passable as ZPassable
@@ -156,4 +146,5 @@ import Z.Z.Shorthand hiding ((~)) as ZShorthand
 import Z.Z.String as ZString
 import Z.Z.Url (URL) as ZUrl
 import Z.Z.Util as ZUtil
+import Z.Z.Wraps as ZWraps
 import Z.Z.X as ZX

@@ -8,6 +8,7 @@ module Z.Z.Shorthand
   , (~.)
   , E'
   , R'
+  , S'
   , TPlus
   , W'
   , Xflipped
@@ -38,7 +39,6 @@ module Z.Z.Shorthand
   , type (#>)
   , type (+)
   , type (<#)
-  , un'
   ) where
 
 import Prelude
@@ -56,6 +56,7 @@ import Z.Z.Ext
   , Maybe(..)
   , Optic
   , Reader
+  , State
   , Writer
   , fromMaybe
   , over
@@ -66,10 +67,8 @@ import Z.Z.Ext
   ) as Z
 import Z.Z.Ext (class TypeEquals)
 import Z.Z.Ext ((/\)) as ZExp
+import Z.Z.Wraps as Wraps
 import Z.Z.X as X
-
-un' :: forall nt t. Z.Newtype nt t => nt -> t
-un' = Z.unwrap
 
 stextConcat
   :: forall t1 t2. ZCore.SText t1 => ZCore.SText t2 => t1 -> t2 -> String
@@ -84,6 +83,7 @@ infixr 5 stextConcatSp as <->
 
 type R' r = Z.Reader r
 type W' w = Z.Writer w
+type S' s = Z.State s
 
 type E' :: forall k. Type -> k -> Type
 type E' e = Z.Except e

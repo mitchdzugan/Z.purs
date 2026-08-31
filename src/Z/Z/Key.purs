@@ -1,8 +1,11 @@
 module Z.Z.Key
   ( Key
-  , class Keyed
+  , Keyed(..)
+  , class HasKey
   , key
   , keyStr
+  , keyed'k
+  , keyed'v
   ) where
 
 import Prelude
@@ -21,44 +24,57 @@ foreign import js_keyOfBytes :: Array Int -> String
 
 newtype Key = Key String
 
-class Keyed a where
+class HasKey a where
   key :: a -> Key
 
-instance Keyed Key where
+instance HasKey Key where
   key k = k
 
-instance Keyed Boolean where
+instance HasKey Boolean where
   key true = Key $ "T"
   key false = Key $ "F"
 
-instance Keyed String where
+instance HasKey String where
   key s = Key $ "S" <> js_keyOfStr s
 
-instance Keyed Number where
+instance HasKey Number where
   key n = Key $ "N" <> js_keyOfStr (show n)
 
-instance Keyed Int where
+instance HasKey Int where
   key i = Key $ "I" <> js_keyOfInt i
 
-instance Keyed a => Keyed (Z.Maybe a) where
+instance HasKey a => HasKey (Z.Maybe a) where
   key Z.Nothing = Key "_"
   key (Z.Just v) = key v
 
-instance (Keyed a, Keyed b) => Keyed (a Z./\ b) where
+instance (HasKey a, HasKey b) => HasKey (a Z./\ b) where
   key (a Z./\ b) =
     let ka = keyStr a in Key $ "P" <> show (str'length ka) <> ka <> keyStr b
 
-instance (Keyed a) => Keyed (ZP.Pair a) where
+instance (HasKey a) => HasKey (ZP.Pair a) where
   key (a ZP.~ b) =
     let ka = keyStr a in Key $ "P" <> show (str'length ka) <> ka <> keyStr b
 
-instance Keyed (Array Z.Byte) where
+instance HasKey (Array Z.Byte) where
   key a = Key $ "X" <> js_keyOfBytes (a <#> Z.fromByte)
 
-else instance (Keyed a) => Keyed (Array a) where
+else instance (HasKey a) => HasKey (Array a) where
   key a = Key $ "A" <> js_keyOfAKeys (a <#> keyStr)
 
-keyStr :: forall k. Keyed k => k -> String
+keyStr :: forall k. HasKey k => k -> String
 keyStr = _str <<< key
   where
   _str (Key s) = s
+
+newtype Keyed k v = Keyed (k Z./\ v)
+
+derive instance Z.Newtype (Keyed k v) _
+
+keyed'k :: forall k v. Keyed k v -> k
+keyed'k (Keyed (k Z./\ _)) = k
+
+keyed'v :: forall k v. Keyed k v -> v
+keyed'v (Keyed (_ Z./\ v)) = v
+
+instance (HasKey k) => HasKey (Keyed k v) where
+  key = key <<< keyed'k
