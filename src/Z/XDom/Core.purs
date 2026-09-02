@@ -133,7 +133,7 @@ dom'withNewState initalState fm = do
   w'say $ D.js_withState (renderFn self) initalState
   where
   renderFn self s ss = renderM self $ fm s (w ss)
-  w ss s = tagEffX @"domEff" $ ss s
+  w ss s = eff'tag @"domEff" $ ss s
 
 dom'withAdapter
   :: forall dr x' x ret

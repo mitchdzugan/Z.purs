@@ -167,7 +167,7 @@ xStopPropagation :: forall x. WET.Event -> RWeb x Unit
 xStopPropagation e = r'act'' @"xWeb" \r -> r.stopPropagation e
 
 tagEffWebX :: forall a. Effect a -> Eff'At "xWeb" a
-tagEffWebX = tagEffX @"xWeb"
+tagEffWebX = eff'tag @"xWeb"
 
 raw_addEventListener
   :: WebEvent.EventType

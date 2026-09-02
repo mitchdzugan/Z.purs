@@ -8,10 +8,12 @@ module Z.Prelude
   , module ZDefaultable
   , module ZExt
   , module ZMashMap
+  , module ZMashMap2D
   , module ZMashSet
   , module ZId
   , module ZPair
   , module ZPairKey
+  , module ZRef
   , module ZString
   , module ZUrl
   , module ZUtil
@@ -137,11 +139,13 @@ import Z.Z.DateTime as ZDateTime
 import Z.Z.Defaultable as ZDefaultable
 import Z.Z.Ext as ZExt
 import Z.Z.HashMap as ZMashMap
+import Z.Z.HashMap2D as ZMashMap2D
 import Z.Z.HashSet as ZMashSet
 import Z.Z.Id as ZId
 import Z.Z.Pair (Pair(..), (~)) as ZPair
 import Z.Z.PairKey (PairKey(..)) as ZPairKey
 import Z.Z.Passable as ZPassable
+import Z.Z.Ref as ZRef
 import Z.Z.Shorthand hiding ((~)) as ZShorthand
 import Z.Z.String as ZString
 import Z.Z.Url (URL) as ZUrl

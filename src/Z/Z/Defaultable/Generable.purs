@@ -21,6 +21,7 @@ import Prelude
 import Data.List (List(..))
 import Data.Maybe as May
 import Data.Symbol (class IsSymbol, reflectSymbol)
+import Data.Tuple.Nested (type (/\), (/\))
 import Prim.Row (class Cons)
 import Prim.RowList as RL
 import Record.Unsafe (unsafeSet)
@@ -77,6 +78,16 @@ instance Generable (May.Maybe a) _gdesc (May.Maybe a) where
 
 instance Generable (List a) _gdesc (List a) where
   mkGenerable = Nil
+
+instance Generable (Proxy a) _gdesc (Proxy a) where
+  mkGenerable = Proxy
+
+instance
+  ( Generable l GDefault l
+  , Generable r GDefault r
+  ) =>
+  Generable (l /\ r) _gdesc (l /\ r) where
+  mkGenerable = mkGenerable @l @GDefault /\ mkGenerable @r @GDefault
 
 class DefaultValueRecord :: RL.RowList Type -> Row Type -> Constraint
 class DefaultValueRecord rowList row | rowList -> row where

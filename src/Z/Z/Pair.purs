@@ -1,6 +1,9 @@
 module Z.Z.Pair
   ( (~)
   , Pair(..)
+  , pair'curry
+  , pair'swap
+  , pair'uncurry
   ) where
 
 import Prelude
@@ -21,19 +24,17 @@ pos (x ~ _) = x
 neg ∷ ∀ a. Pair a → a
 neg (_ ~ y) = y
 
-{-
 -- | Turn a function that expects a pair into a function of two arguments.
-pcurry ∷ ∀ a b. (Pair a → b) → a → a → b
-pcurry f x y = f (x ~ y)
+pair'curry ∷ ∀ a b. (Pair a → b) → a → a → b
+pair'curry f x y = f (x ~ y)
 
 -- | Turn a function of two arguments into a function that expects a pair.
-puncurry ∷ ∀ a b. (a → a → b) → Pair a → b
-puncurry f (x ~ y) = f x y
+pair'uncurry ∷ ∀ a b. (a → a → b) → Pair a → b
+pair'uncurry f (x ~ y) = f x y
 
 -- | Exchange the two components of the pair
-swap ∷ ∀ a. Pair a → Pair a
-swap (x ~ y) = y ~ x
--}
+pair'swap ∷ ∀ a. Pair a → Pair a
+pair'swap (x ~ y) = y ~ x
 
 derive instance Z.Generic (Pair p) _
 derive instance Eq a => Eq (Pair a)

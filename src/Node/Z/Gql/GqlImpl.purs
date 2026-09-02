@@ -10,7 +10,6 @@ module Node.Z.Gql.GqlImpl
 
 import Node.Z.Prelude
 
-import Unsafe.Coerce (unsafeCoerce)
 import Z.Gql.Error as GqlE
 import Z.Gql.Module as Gql
 import Z.Gql.Warning as GqlW

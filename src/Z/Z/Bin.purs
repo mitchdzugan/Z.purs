@@ -4,7 +4,6 @@ module Z.Z.Bin
   , Bin'Eff'R
   , Bin'Eff'T
   , Bin(..)
-  , XBin'R
   , bin'empty
   , bin'fromFoldable
   , bin'insert
@@ -50,10 +49,10 @@ import Foreign.Object.ST as FoST
 import Prim.Row (class Cons)
 import Z.Z.Core (arr'fromFoldable, mapM)
 import Z.Z.Defaultable (class Generable, g, g1)
-import Z.Z.Ext (class IsSymbol, Maybe, Run)
+import Z.Z.Ext (class IsSymbol, Maybe, Run, snd)
 import Z.Z.Ext as Z
 import Z.Z.Id (class Identable, ident'key)
-import Z.Z.X (class EffAdapter, Eff'At, XDoAsked, adapter'run, tagEffX)
+import Z.Z.X (class EffAdapter, Eff'At, XDoAsked, adapter'run, eff'tag)
 
 newtype Bin a = Bin (Fo.Object a)
 
@@ -180,71 +179,74 @@ foreign import js_binEff_2d_setStartAt
 
 foreign import js_binEff_vals :: forall t. Bin'Eff'St t -> Z.Effect (Array t)
 
-instance EffAdapter (Bin'Eff'T t) p (Bin'Eff'R t p) where
-  mkEffAdapter = js_binEff_new <#> \st ->
-    { lookup: \k -> tagEffX @p $ js_binEff_lookup Z.Nothing Z.Just k st
-    , insert: \k v -> tagEffX @p $ js_binEff_insert unit k v st
-    , delete: \k -> tagEffX @p $ js_binEff_delete unit k st
-    , clear: tagEffX @p $ js_binEff_clear unit st
-    , size: tagEffX @p $ js_binEff_size st
-    , vals: tagEffX @p $ js_binEff_vals st
-    , add: \obj -> tagEffX @p $ js_binEff_addForeignObject unit obj st
-    , freeze: tagEffX @p $ js_binEff_toForeignObject st
-    , start: tagEffX @p $ js_binEff_start st
-    , setStart: \start -> tagEffX @p $ js_binEff_setStart unit start st
+instance EffAdapter (Bin'Eff'T t) p Unit (Bin'Eff'R t p) Unit where
+  effAdapter'mk _ = js_binEff_new <#> \st ->
+    { lookup: \k -> eff'tag @p $ js_binEff_lookup Z.Nothing Z.Just k st
+    , insert: \k v -> eff'tag @p $ js_binEff_insert unit k v st
+    , delete: \k -> eff'tag @p $ js_binEff_delete unit k st
+    , clear: eff'tag @p $ js_binEff_clear unit st
+    , size: eff'tag @p $ js_binEff_size st
+    , vals: eff'tag @p $ js_binEff_vals st
+    , add: \obj -> eff'tag @p $ js_binEff_addForeignObject unit obj st
+    , freeze: eff'tag @p $ js_binEff_toForeignObject st
+    , start: eff'tag @p $ js_binEff_start st
+    , setStart: \start -> eff'tag @p $ js_binEff_setStart unit start st
     }
+  effAdapter'res _ = eff'tag @p $ pure unit
 
-type XBin_h' p t x' x rest =
-  IsSymbol p => Cons p (Z.Reader (Bin'Eff'R t p)) x' x => rest
+type XBin_h' eff't p t x' x rest =
+  IsSymbol p
+  => Cons p (Z.Reader (Bin'Eff'R t p Z./\ Z.Proxy eff't)) x' x
+  => rest
 
-type XBin_hk p t k x rest =
+type XBin_hk eff't p t k x rest =
   forall x'
    . Identable k
   => IsSymbol p
-  => Cons p (Z.Reader (Bin'Eff'R t p)) x' x
+  => Cons p (Z.Reader (Bin'Eff'R t p Z./\ Z.Proxy eff't)) x' x
   => rest
 
-type XBin_h_ p t x rest =
+type XBin_h_ eff't p t x rest =
   forall x'
    . IsSymbol p
-  => Cons p (Z.Reader (Bin'Eff'R t p)) x' x
+  => Cons p (Z.Reader (Bin'Eff'R t p Z./\ Z.Proxy eff't)) x' x
   => rest
 
-xbin'run :: forall @p @t x' x a. XBin_h' p t x' x (Run x a -> Run x' a)
-xbin'run = adapter'run @(Bin'Eff'T t) @p
+xbin'run
+  :: forall @p @t x' x a. XBin_h' (Bin'Eff'T t) p t x' x (Run x a -> Run x' a)
+xbin'run m = adapter'run @(Bin'Eff'T t) @p unit m <#> snd
 
-xbin'lookup :: forall @p t x k. XBin_hk p t k x (k -> Run x (Z.Maybe t))
-xbin'lookup k = g1 @XDoAsked @p \r -> r.lookup (ident'key k)
+xbin'lookup
+  :: forall @eff't @p t x k. XBin_hk eff't p t k x (k -> Run x (Z.Maybe t))
+xbin'lookup k = g1 @XDoAsked @p \r -> (Z.fst r).lookup (ident'key k)
 
-xbin'insert :: forall @p t x k. XBin_hk p t k x (k -> t -> Run x Unit)
-xbin'insert k v = g1 @XDoAsked @p \r -> r.insert (ident'key k) v
+xbin'insert
+  :: forall @eff't @p t x k. XBin_hk eff't p t k x (k -> t -> Run x Unit)
+xbin'insert k v = g1 @XDoAsked @p \r -> (Z.fst r).insert (ident'key k) v
 
-xbin'delete :: forall @p t x k. XBin_hk p t k x (k -> Run x Unit)
-xbin'delete k = g1 @XDoAsked @p \r -> r.delete (ident'key k)
+xbin'delete :: forall @eff't @p t x k. XBin_hk eff't p t k x (k -> Run x Unit)
+xbin'delete k = g1 @XDoAsked @p \r -> (Z.fst r).delete (ident'key k)
 
-xbin'clear :: forall @p t x. XBin_h_ p t x (Run x Unit)
-xbin'clear = g1 @XDoAsked @p \r -> r.clear
+xbin'clear :: forall @eff't @p t x. XBin_h_ eff't p t x (Run x Unit)
+xbin'clear = g1 @XDoAsked @p \r -> (Z.fst r).clear
 
-xbin'size :: forall @p t x. XBin_h_ p t x (Run x Int)
-xbin'size = g1 @XDoAsked @p _.size
+xbin'size :: forall @eff't @p t x. XBin_h_ eff't p t x (Run x Int)
+xbin'size = g1 @XDoAsked @p (_.size <<< Z.fst)
 
-xbin'vals :: forall @p t x. XBin_h_ p t x (Run x (Array t))
-xbin'vals = g1 @XDoAsked @p _.vals
+xbin'vals :: forall @eff't @p t x. XBin_h_ eff't p t x (Run x (Array t))
+xbin'vals = g1 @XDoAsked @p (_.vals <<< Z.fst)
 
-xbin'merge :: forall @p t x. XBin_h_ p t x (Bin t -> Run x Unit)
-xbin'merge (Bin obj) = g1 @XDoAsked @p \r -> r.add obj
+xbin'merge :: forall @eff't @p t x. XBin_h_ eff't p t x (Bin t -> Run x Unit)
+xbin'merge (Bin obj) = g1 @XDoAsked @p \r -> (Z.fst r).add obj
 
-xbin'freeze :: forall @p t x. XBin_h_ p t x (Run x (Bin t))
-xbin'freeze = Bin <$> g1 @XDoAsked @p \r -> r.freeze
+xbin'freeze :: forall @eff't @p t x. XBin_h_ eff't p t x (Run x (Bin t))
+xbin'freeze = Bin <$> g1 @XDoAsked @p \r -> (Z.fst r).freeze
 
-xbin'start :: forall @p t x. XBin_h_ p t x (Run x Int)
-xbin'start = g1 @XDoAsked @p \r -> r.start
+xbin'start :: forall @eff't @p t x. XBin_h_ eff't p t x (Run x Int)
+xbin'start = g1 @XDoAsked @p \r -> (Z.fst r).start
 
-xbin'setStart :: forall @p t x. XBin_h_ p t x (Int -> Run x Unit)
-xbin'setStart start = g1 @XDoAsked @p \r -> r.setStart start
-
-type XBin'R :: forall k. k -> Type -> Type -> Type
-type XBin'R p a = Z.Reader (Bin'Eff'R a p)
+xbin'setStart :: forall @eff't @p t x. XBin_h_ eff't p t x (Int -> Run x Unit)
+xbin'setStart start = g1 @XDoAsked @p \r -> (Z.fst r).setStart start
 
 data Bin'Eff'2d'T :: forall k. k -> Type
 data Bin'Eff'2d'T t
@@ -271,27 +273,28 @@ type Bin'Eff'2d'R t p =
   , setStartAt :: String -> Int -> Eff'At p Unit
   }
 
-instance EffAdapter (Bin'Eff'2d'T t) p (Bin'Eff'2d'R t p) where
-  mkEffAdapter = js_binEff_2d_new <#> \st ->
+instance EffAdapter (Bin'Eff'2d'T t) p Unit (Bin'Eff'2d'R t p) Unit where
+  effAdapter'mk _ = js_binEff_2d_new <#> \st ->
     { lookup:
-        \k1 k2 -> tagEffX @p $ js_binEff_2d_lookup Z.Nothing Z.Just k1 k2 st
-    , insert: \k1 k2 v -> tagEffX @p $ js_binEff_2d_insert unit k1 k2 v st
-    , delete: \k1 k2 -> tagEffX @p $ js_binEff_2d_delete unit k1 k2 st
-    , size: tagEffX @p $ js_binEff_2d_size st
-    , clear: tagEffX @p $ js_binEff_2d_clear unit st
-    , sizeAt: \k -> tagEffX @p $ js_binEff_2d_sizeAt k st
-    , valsAt: \k -> tagEffX @p $ js_binEff_2d_vals k st
-    , all: tagEffX @p $ js_binEff_2d_all st
-    , clearAt: \k -> tagEffX @p $ js_binEff_2d_clearAt unit k st
+        \k1 k2 -> eff'tag @p $ js_binEff_2d_lookup Z.Nothing Z.Just k1 k2 st
+    , insert: \k1 k2 v -> eff'tag @p $ js_binEff_2d_insert unit k1 k2 v st
+    , delete: \k1 k2 -> eff'tag @p $ js_binEff_2d_delete unit k1 k2 st
+    , size: eff'tag @p $ js_binEff_2d_size st
+    , clear: eff'tag @p $ js_binEff_2d_clear unit st
+    , sizeAt: \k -> eff'tag @p $ js_binEff_2d_sizeAt k st
+    , valsAt: \k -> eff'tag @p $ js_binEff_2d_vals k st
+    , all: eff'tag @p $ js_binEff_2d_all st
+    , clearAt: \k -> eff'tag @p $ js_binEff_2d_clearAt unit k st
     , addAt:
-        \k obj -> tagEffX @p $ js_binEff_2d_addForeignObjectAt unit k obj st
-    , freezeAt: \k -> tagEffX @p $ js_binEff_2d_toForeignObjectAt k st
-    , start: tagEffX @p $ js_binEff_2d_start st
-    , setStart: \start -> tagEffX @p $ js_binEff_2d_setStart unit start st
-    , startAt: \k -> tagEffX @p $ js_binEff_2d_startAt k st
+        \k obj -> eff'tag @p $ js_binEff_2d_addForeignObjectAt unit k obj st
+    , freezeAt: \k -> eff'tag @p $ js_binEff_2d_toForeignObjectAt k st
+    , start: eff'tag @p $ js_binEff_2d_start st
+    , setStart: \start -> eff'tag @p $ js_binEff_2d_setStart unit start st
+    , startAt: \k -> eff'tag @p $ js_binEff_2d_startAt k st
     , setStartAt:
-        \k start -> tagEffX @p $ js_binEff_2d_setStartAt unit k start st
+        \k start -> eff'tag @p $ js_binEff_2d_setStartAt unit k start st
     }
+  effAdapter'res _ = eff'tag @p $ pure unit
 
 foreign import js_binEff_2d_new :: forall t. Z.Effect (Bin'Eff'2d'St t)
 foreign import js_binEff_2d_lookup
@@ -354,83 +357,100 @@ foreign import js_binEff_2d_vals
 foreign import js_binEff_2d_all
   :: forall t. Bin'Eff'2d'St t -> Z.Effect (Array t)
 
-xbin2d'run :: forall @p @t x' x a. XBin2d_h' p t x' x (Run x a -> Run x' a)
-xbin2d'run = adapter'run @(Bin'Eff'2d'T t) @p
+xbin2d'run
+  :: forall @p @t x' x a
+   . XBin2d_h' (Bin'Eff'2d'T t) p t x' x (Run x a -> Run x' a)
+xbin2d'run m = adapter'run @(Bin'Eff'2d'T t) @p unit m <#> snd
 
 xbin2d'lookup
-  :: forall @p t x k1 k2. XBin2d_hk p t k1 k2 x (k1 -> k2 -> Run x (Z.Maybe t))
-xbin2d'lookup k1 k2 = g1 @XDoAsked @p \r -> r.lookup (ident'key k1)
+  :: forall @eff't @p t x k1 k2
+   . XBin2d_hk eff't p t k1 k2 x (k1 -> k2 -> Run x (Z.Maybe t))
+xbin2d'lookup k1 k2 = g1 @XDoAsked @p \r -> (Z.fst r).lookup (ident'key k1)
   (ident'key k2)
 
 xbin2d'insert
-  :: forall @p t x k1 k2. XBin2d_hk p t k1 k2 x (k1 -> k2 -> t -> Run x Unit)
-xbin2d'insert k1 k2 v = g1 @XDoAsked @p \r -> r.insert (ident'key k1)
+  :: forall @eff't @p t x k1 k2
+   . XBin2d_hk eff't p t k1 k2 x (k1 -> k2 -> t -> Run x Unit)
+xbin2d'insert k1 k2 v = g1 @XDoAsked @p \r -> (Z.fst r).insert (ident'key k1)
   (ident'key k2)
   v
 
 xbin2d'delete
-  :: forall @p t x k1 k2. XBin2d_hk p t k1 k2 x (k1 -> k2 -> Run x Unit)
-xbin2d'delete k1 k2 = g1 @XDoAsked @p \r -> r.delete (ident'key k1)
+  :: forall @eff't @p t x k1 k2
+   . XBin2d_hk eff't p t k1 k2 x (k1 -> k2 -> Run x Unit)
+xbin2d'delete k1 k2 = g1 @XDoAsked @p \r -> (Z.fst r).delete (ident'key k1)
   (ident'key k2)
 
-xbin2d'clear :: forall @p t x. XBin2d_h_ p t x (Run x Unit)
-xbin2d'clear = g1 @XDoAsked @p \r -> r.clear
+xbin2d'clear :: forall @eff't @p t x. XBin2d_h_ eff't p t x (Run x Unit)
+xbin2d'clear = g1 @XDoAsked @p \r -> (Z.fst r).clear
 
-xbin2d'size :: forall @p t x. XBin2d_h_ p t x (Run x Int)
-xbin2d'size = g1 @XDoAsked @p _.size
+xbin2d'size :: forall @eff't @p t x. XBin2d_h_ eff't p t x (Run x Int)
+xbin2d'size = g1 @XDoAsked @p \r -> (Z.fst r).size
 
-xbin2d'clearAt :: forall @p t k x. XBin2d_hk1 p t k x (k -> Run x Unit)
-xbin2d'clearAt k = g1 @XDoAsked @p \r -> r.clearAt (ident'key k)
+xbin2d'clearAt
+  :: forall @eff't @p t k x. XBin2d_hk1 eff't p t k x (k -> Run x Unit)
+xbin2d'clearAt k = g1 @XDoAsked @p \r -> (Z.fst r).clearAt (ident'key k)
 
-xbin2d'sizeAt :: forall @p t k x. XBin2d_hk1 p t k x (k -> Run x Int)
-xbin2d'sizeAt k = g1 @XDoAsked @p \r -> r.sizeAt (ident'key k)
+xbin2d'sizeAt
+  :: forall @eff't @p t k x. XBin2d_hk1 eff't p t k x (k -> Run x Int)
+xbin2d'sizeAt k = g1 @XDoAsked @p \r -> (Z.fst r).sizeAt (ident'key k)
 
-xbin2d'valsAt :: forall @p t k x. XBin2d_hk1 p t k x (k -> Run x (Array t))
-xbin2d'valsAt k = g1 @XDoAsked @p \r -> r.valsAt (ident'key k)
+xbin2d'valsAt
+  :: forall @eff't @p t k x. XBin2d_hk1 eff't p t k x (k -> Run x (Array t))
+xbin2d'valsAt k = g1 @XDoAsked @p \r -> (Z.fst r).valsAt (ident'key k)
 
-xbin2d'all :: forall @p t x. XBin2d_h_ p t x (Run x (Array t))
-xbin2d'all = g1 @XDoAsked @p _.all
+xbin2d'all :: forall @eff't @p t x. XBin2d_h_ eff't p t x (Run x (Array t))
+xbin2d'all = g1 @XDoAsked @p \r -> (Z.fst r).all
 
-xbin2d'mergeAt :: forall @p t k x. XBin2d_hk1 p t k x (k -> Bin t -> Run x Unit)
-xbin2d'mergeAt k (Bin obj) = g1 @XDoAsked @p \r -> r.addAt (ident'key k) obj
+xbin2d'mergeAt
+  :: forall @eff't @p t k x. XBin2d_hk1 eff't p t k x (k -> Bin t -> Run x Unit)
+xbin2d'mergeAt k (Bin obj) = g1 @XDoAsked @p \r -> (Z.fst r).addAt (ident'key k)
+  obj
 
-xbin2d'freezeAt :: forall @p t k x. XBin2d_hk1 p t k x (k -> Run x (Bin t))
-xbin2d'freezeAt k = Bin <$> g1 @XDoAsked @p \r -> r.freezeAt (ident'key k)
+xbin2d'freezeAt
+  :: forall @eff't @p t k x. XBin2d_hk1 eff't p t k x (k -> Run x (Bin t))
+xbin2d'freezeAt k = Bin <$> g1 @XDoAsked @p \r -> (Z.fst r).freezeAt
+  (ident'key k)
 
-xbin2d'start :: forall @p t k x. XBin2d_hk1 p t k x (Run x Int)
-xbin2d'start = g1 @XDoAsked @p \r -> r.start
+xbin2d'start :: forall @eff't @p t k x. XBin2d_hk1 eff't p t k x (Run x Int)
+xbin2d'start = g1 @XDoAsked @p \r -> (Z.fst r).start
 
-xbin2d'setStart :: forall @p t k x. XBin2d_hk1 p t k x (Int -> Run x Unit)
-xbin2d'setStart start = g1 @XDoAsked @p \r -> r.setStart start
+xbin2d'setStart
+  :: forall @eff't @p t k x. XBin2d_hk1 eff't p t k x (Int -> Run x Unit)
+xbin2d'setStart start = g1 @XDoAsked @p \r -> (Z.fst r).setStart start
 
-xbin2d'startAt :: forall @p t k x. XBin2d_hk1 p t k x (k -> Run x Int)
-xbin2d'startAt k = g1 @XDoAsked @p \r -> r.startAt (ident'key k)
+xbin2d'startAt
+  :: forall @eff't @p t k x. XBin2d_hk1 eff't p t k x (k -> Run x Int)
+xbin2d'startAt k = g1 @XDoAsked @p \r -> (Z.fst r).startAt (ident'key k)
 
 xbin2d'setStartAt
-  :: forall @p t k x. XBin2d_hk1 p t k x (k -> Int -> Run x Unit)
-xbin2d'setStartAt k start = g1 @XDoAsked @p \r -> r.setStartAt (ident'key k)
+  :: forall @eff't @p t k x. XBin2d_hk1 eff't p t k x (k -> Int -> Run x Unit)
+xbin2d'setStartAt k start = g1 @XDoAsked @p \r -> (Z.fst r).setStartAt
+  (ident'key k)
   start
 
-type XBin2d_h' p t x' x rest =
-  IsSymbol p => Cons p (Z.Reader (Bin'Eff'2d'R t p)) x' x => rest
+type XBin2d_h' eff't p t x' x rest =
+  IsSymbol p
+  => Cons p (Z.Reader (Bin'Eff'2d'R t p Z./\ Z.Proxy eff't)) x' x
+  => rest
 
-type XBin2d_hk p t k1 k2 x rest =
+type XBin2d_hk eff't p t k1 k2 x rest =
   forall x'
    . Identable k1
   => Identable k2
   => IsSymbol p
-  => Cons p (Z.Reader (Bin'Eff'2d'R t p)) x' x
+  => Cons p (Z.Reader (Bin'Eff'2d'R t p Z./\ Z.Proxy eff't)) x' x
   => rest
 
-type XBin2d_hk1 p t k x rest =
+type XBin2d_hk1 eff't p t k x rest =
   forall x'
    . Identable k
   => IsSymbol p
-  => Cons p (Z.Reader (Bin'Eff'2d'R t p)) x' x
+  => Cons p (Z.Reader (Bin'Eff'2d'R t p Z./\ Z.Proxy eff't)) x' x
   => rest
 
-type XBin2d_h_ p t x rest =
+type XBin2d_h_ eff't p t x rest =
   forall x'
    . IsSymbol p
-  => Cons p (Z.Reader (Bin'Eff'2d'R t p)) x' x
+  => Cons p (Z.Reader (Bin'Eff'2d'R t p Z./\ Z.Proxy eff't)) x' x
   => rest

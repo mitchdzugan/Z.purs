@@ -38,7 +38,14 @@ module Z.Z.X.Core
   , SA
   , SE
   , SEA
+  , ST'''l(..)
+  , ST'''r(..)
   , StrW
+  , T'Tup'L
+  , T'Tup'R
+  , T'st'SpecM
+  , T'st'SpecM''
+  , T'st'SpecM''curry
   , T'use'e'AsSym
   , T'use'r'AsSym
   , T'use's'AsSym
@@ -104,6 +111,11 @@ module Z.Z.X.Core
   , XRunTaggable
   , XRunW
   , XRunWA
+  , XST'Def(..)
+  , XST'HMap'Init'Tag(..)
+  , XST'HMap'R'Tag(..)
+  , XST'HMap'Tag'Tag(..)
+  , XST'Init(..)
   , XSet
   , XSet_
   , XTell
@@ -128,11 +140,19 @@ module Z.Z.X.Core
   , XView_WithT
   , XWithReturn
   , adapter'run
+  , class C'Tup'L
+  , class C'Tup'R
+  , class Eff'Cons
   , class EffAdapter
+  , class EffAdapter'RL
+  , class EffAdapterR
   , class GOrE
   , class GOrR
   , class GOrS
   , class GOrW
+  , class M'st'put
+  , class ST'Cons
+  , class ST'Spec'Label
   , class XGetterTypes
   , e'map
   , e'map''
@@ -150,9 +170,13 @@ module Z.Z.X.Core
   , eff'permit
   , eff'permit''
   , eff'withPermit
+  , effAdapter'mk
+  , effAdapter'res
+  , effAdapter'rl'mk
+  , effAdapter'rl'res
   , evalX
   , evalXA
-  , mkEffAdapter
+  , m'st'put
   , r'act
   , r'act''
   , r'ask
@@ -177,6 +201,14 @@ module Z.Z.X.Core
   , s'sets''
   , s'views
   , s'views''
+  , st'freeze
+  , st'freeze''
+  , st'put
+  , st'put''
+  , st'run
+  , st'run''
+  , st'unput
+  , st'unput''
   , w'eval
   , w'eval''
   , w'exec
@@ -227,18 +259,23 @@ import Data.Monoid as Monoid
 import Data.Monoid.Endo as Endo
 import Data.String.Common as StrCommon
 import Data.Symbol (class IsSymbol, reflectSymbol)
+import Data.Tuple (fst)
 import Data.Tuple as Tup
 import Data.Tuple.Nested as TupN
+import Effect (Effect)
 import Effect as Eff
 import Effect.Aff as Aff
 import Effect.Class as EffC
 import Effect.Now as Now
 import Effect.Unsafe as Unsafe
+import Heterogeneous.Mapping (class HMap, class Mapping, hmap)
 import Parsing as Parsing
 import Prim.Row (class Cons, class Lacks)
 import Prim.Row as Row
+import Prim.RowList as RL
 import Record (insert)
 import Record as Rec
+import Record.Unsafe (unsafeSet)
 import Run (VariantF)
 import Run as R
 import Run.Except as RunE
@@ -249,8 +286,9 @@ import Type.Equality (class TypeEquals) as TypeEquals
 import Type.Proxy (Proxy(..))
 import Type.Proxy as P
 import Type.Row (type (+))
+import Unsafe.Coerce (unsafeCoerce)
 import Z.Z.Barlow as Bl
-import Z.Z.Core (T'useAsSym)
+import Z.Z.Core (T'useAsSym, rec'get, rec'insert)
 import Z.Z.Core as Z
 import Z.Z.DateTime (DateTime(..), dateTime'toMS, fromRawDateTime)
 import Z.Z.Defaultable
@@ -1544,18 +1582,334 @@ type RWaSEA r w s e x =
 
 ------------------------------------------------------------------------------
 
-class EffAdapter :: forall k1 k2. k1 -> k2 -> Type -> Constraint
-class
-  EffAdapter t p r
-  | t p -> r
-  where
-  mkEffAdapter :: Eff.Effect r
+class EffAdapterR :: forall k1 k2 k3. k1 -> k2 -> k3 -> Constraint
+class EffAdapterR t p r | t p -> r
+
+instance EffAdapter t p i r v => EffAdapterR t p r
+
+class EffAdapter :: forall k1 k2. k1 -> k2 -> Type -> Type -> Type -> Constraint
+class EffAdapter t p i r v | t p -> i r v where
+  effAdapter'mk :: i -> Eff.Effect r
+  effAdapter'res :: r -> Eff'At p v
+
+instance (EffAdapter t p i r v) => EffAdapter (Proxy t) p i r v where
+  effAdapter'mk = effAdapter'mk @t @p
+  effAdapter'res = effAdapter'res @t @p
 
 adapter'run
-  :: forall @t @p r x' x a
+  :: forall @t @p i r v x' x a
+   . Cons p (RunR.Reader (r TupN./\ Proxy t)) x' x
+  => EffAdapter t p i r v
+  => IsSymbol p
+  => i
+  -> R.Run x a
+  -> R.Run x' (v TupN./\ a)
+adapter'run i m =
+  r'run'' @p
+    ( (Unsafe.unsafePerformEffect $ effAdapter'mk @t @p i) TupN./\
+        (Proxy :: Proxy t)
+    )
+    do
+      res <- m
+      v <- g1 @XDoAsked @p (effAdapter'res @t @p <<< fst)
+      pure $ v TupN./\ res
+
+class Eff'Cons
+  :: forall k
+   . k
+  -> Symbol
+  -> Type
+  -> Type
+  -> Type
+  -> Row (Type -> Type)
+  -> Row (Type -> Type)
+  -> Constraint
+class
+  ( Cons p (RunR.Reader (r TupN./\ Proxy t)) x' x
+  , EffAdapter t p i r v
+  , IsSymbol p
+  ) <=
+  Eff'Cons t p i r v x' x
+
+instance
+  ( Cons p (RunR.Reader (r TupN./\ Proxy t)) x' x
+  , EffAdapter t p i r v
+  , IsSymbol p
+  ) =>
+  Eff'Cons t p i r v x' x
+
+class EffAdapter'RL
+  :: forall k1 k2 k3 k4 k5 k6
+   . k1
+  -> k2
+  -> k3
+  -> k4
+  -> k5
+  -> k6
+  -> Row Type
+  -> Row Type
+  -> Row Type
+  -> Constraint
+class
+  EffAdapter'RL t'rl p t'row i'rl r'rl v'rl i'row r'row v'row
+  | t'rl p -> t'row i'rl r'rl v'rl i'row r'row v'row where
+  effAdapter'rl'mk :: Record i'row -> Eff.Effect (Record r'row)
+  effAdapter'rl'res :: Record r'row -> Eff'At p (Record v'row)
+
+instance EffAdapter'RL RL.Nil p () RL.Nil RL.Nil RL.Nil () () () where
+  effAdapter'rl'mk _ = pure {}
+  effAdapter'rl'res _ = eff'tag @p $ pure {}
+
+instance
+  ( IsSymbol k
+  , EffAdapter foc't p foc'i foc'r foc'v
+  , Cons k foc't t'row'tail t'row
+  , Cons k foc'i i'row'tail i'row
+  , Cons k foc'r r'row'tail r'row
+  , Cons k foc'v v'row'tail v'row
+  , EffAdapter'RL t'rl'tail p t'row'tail i'rl'tail r'rl'tail v'rl'tail
+      i'row'tail
+      r'row'tail
+      v'row'tail
+  ) =>
+  EffAdapter'RL (RL.Cons k foc't t'rl'tail)
+    p
+    t'row
+    (RL.Cons k foc'i i'rl'tail)
+    (RL.Cons k foc'r r'rl'tail)
+    (RL.Cons k foc'v v'rl'tail)
+    i'row
+    r'row
+    v'row where
+  effAdapter'rl'mk inputs = do
+    next'r <- effAdapter'mk @foc't @p (rec'get @k inputs)
+    curr'r <- effAdapter'rl'mk @t'rl'tail @p (unsafeCoerce inputs)
+    let full'r = unsafeSet key next'r curr'r
+    pure full'r
+    where
+    key = reflectSymbol (Proxy :: Proxy k)
+  effAdapter'rl'res r = eff'tag @p do
+    next'v <- eff'untag @p $ effAdapter'res @foc't @p (rec'get @k r)
+    curr'v <- eff'untag @p $ effAdapter'rl'res @t'rl'tail @p (unsafeCoerce r)
+    let full'v = unsafeSet key next'v curr'v
+    pure full'v
+    where
+    key = reflectSymbol (Proxy :: Proxy k)
+
+instance
+  ( RL.RowToList t'row t'rl
+  , EffAdapter'RL t'rl p t'row i'rl r'rl v'rl i'row r'row v'row
+  ) =>
+  EffAdapter { | t'row } p { | i'row } { | r'row } { | v'row } where
+  effAdapter'mk = effAdapter'rl'mk @t'rl @p
+  effAdapter'res = effAdapter'rl'res @t'rl @p
+
+newtype XST'Init :: forall k. k -> Type -> Type
+newtype XST'Init tag init = XST'Init (Proxy tag TupN./\ init)
+
+instance (EffAdapter t p i r v) => EffAdapter (XST'Init t i) p i r v where
+  effAdapter'mk = effAdapter'mk @t @p
+  effAdapter'res = effAdapter'res @t @p
+
+data XST'HMap'Init'Tag = XST'HMap'Init'Tag
+data XST'HMap'Tag'Tag = XST'HMap'Tag'Tag
+data XST'HMap'R'Tag p = XST'HMap'R'Tag
+
+instance Mapping XST'HMap'Init'Tag (XST'Init tag init) init where
+  mapping _ (XST'Init (_ TupN./\ init)) = init
+
+instance Mapping XST'HMap'Tag'Tag (XST'Init tag init) (tag) where
+  mapping _ (XST'Init (proxy TupN./\ _)) = unsafeCoerce proxy
+
+instance
+  ( EffAdapter tag p init r v
+  ) =>
+  Mapping (XST'HMap'R'Tag p) (XST'Init tag init) r where
+  mapping _ _ = unsafeCoerce unit
+
+newtype XST'Def spec = XST'Def spec
+
+instance
+  ( EffAdapter tag p init r v
+  , HMap XST'HMap'Init'Tag spec init
+  , HMap XST'HMap'Tag'Tag spec tag
+  ) =>
+  EffAdapter (XST'Def spec) p spec r v where
+  effAdapter'mk spec = effAdapter'mk @tag @p (hmap XST'HMap'Init'Tag spec)
+  effAdapter'res = effAdapter'res @tag @p
+
+class ST'Cons spec p x' x | spec p x' -> x
+
+instance
+  ( IsSymbol p
+  , Cons p (RunR.Reader (r TupN./\ Proxy (XST'Def spec))) x' x
+  , EffAdapter (XST'Def spec) p spec r v
+  ) =>
+  ST'Cons spec p x' x
+
+class ST'Spec'Label spec'tag p state'tag reader | spec'tag p -> state'tag reader
+
+class
+  ST'Spec'Label'RL s'rl p s'row t'rl r'rl t'row r'row
+  | s'rl p -> s'row t'rl r'rl t'row r'row
+
+instance ST'Spec'Label'RL RL.Nil p () RL.Nil RL.Nil () ()
+
+instance
+  ( IsSymbol k
+  , ST'Spec'Label foc's p foc't foc'r
+  , Cons k foc's s'row'tail s'row
+  , Cons k foc't t'row'tail t'row
+  , Cons k foc'r r'row'tail r'row
+  , ST'Spec'Label'RL s'rl'tail p s'row'tail t'rl'tail r'rl'tail
+      t'row'tail
+      r'row'tail
+  ) =>
+  ST'Spec'Label'RL (RL.Cons k foc's s'rl'tail)
+    p
+    s'row
+    (RL.Cons k foc't t'rl'tail)
+    (RL.Cons k foc'r r'rl'tail)
+    t'row
+    r'row
+
+instance
+  ( RL.RowToList s'row s'rl
+  , ST'Spec'Label'RL s'rl p s'row t'rl r'rl t'row r'row
+  ) =>
+  ST'Spec'Label { | s'row } p { | t'row } { | r'row }
+
+type T'st'SpecM'' p spec rest =
+  forall r v
    . IsSymbol p
-  => EffAdapter t p r
-  => Cons p (RunR.Reader r) x' x
-  => R.Run x a
-  -> R.Run x' a
-adapter'run = r'run'' @p $ Unsafe.unsafePerformEffect $ mkEffAdapter @t @p
+  => EffAdapter (XST'Def spec) p spec r v
+  => rest (RunR.Reader (r TupN./\ Proxy (XST'Def spec)))
+
+type T'st'SpecM''curry spec rest p = T'st'SpecM'' p spec rest
+
+type T'st'SpecM spec rest =
+  forall p. T'useAsSym "st" p (T'st'SpecM''curry spec rest)
+
+type T'st'run spec p =
+  forall r v a x' x
+   . IsSymbol p
+  => Cons p (RunR.Reader (r TupN./\ Proxy (XST'Def spec))) x' x
+  => EffAdapter (XST'Def spec) p spec r v
+  => spec
+  -> R.Run x a
+  -> R.Run x' (v TupN./\ a)
+
+st'run'' :: forall @p spec. T'st'run spec p
+st'run'' spec m = adapter'run @(XST'Def spec) @p spec m
+
+st'run :: forall p spec. T'useAsSym "st" p (T'st'run spec)
+st'run = st'run'' @p
+
+-- EffAdapter tag p init r v
+
+class EffAdapterR tag p r <= M'st'put tag p r v | tag p -> r v where
+  m'st'put :: r -> v -> Eff'At p Unit
+
+class C'Tup'L t l
+
+instance C'Tup'L (l TupN./\ r) l
+
+newtype T'Tup'L t = T'Tup'L (forall l. C'Tup'L t l => l)
+newtype T'Tup'R t = T'Tup'R (forall r. C'Tup'R t r => r)
+
+class C'Tup'R t r
+
+instance C'Tup'R (l TupN./\ r) r
+
+instance
+  ( M'st'put t p r v
+  , EffAdapter t p i r v
+  ) =>
+  M'st'put (XST'Init t i) p r v where
+  m'st'put = m'st'put @t @p
+
+type ST'xtag t i r = ST'''l (XST'Init t i) r
+type ST'xr t i r = ST'''r (XST'Init t i) r
+
+instance
+  ( M'st'put t p r v
+  , EffAdapter t p i r v
+  ) =>
+  M'st'put (ST'''l (XST'Init t i) r) p (ST'''r (XST'Init t i) r) v where
+  m'st'put = m'st'put @t @p <<< \(ST'''r r) -> r
+
+type T'st'put tag k p =
+  forall i r v x x' rd' rd sp' sp
+   . EffAdapter tag p i r v
+  => M'st'put tag p r v
+  => IsSymbol p
+  => IsSymbol k
+  => Cons k r rd' rd
+  => Cons k tag sp' sp
+  => Cons p (RunR.Reader ({ | rd } TupN./\ Proxy (XST'Def { | sp }))) x' x
+  => v
+  -> R.Run x Unit
+
+st'put'impl :: forall @p @k @tag. T'st'put tag k p
+st'put'impl v = g1 @XDoAsked @p \r -> m'st'put @tag @p (rec'get @k $ fst r) v
+
+st'put'' :: forall @p @k tag. T'st'put tag k p
+st'put'' = st'put'impl @p @k @tag
+
+st'put :: forall p @k tag. T'useAsSym "st" p (T'st'put tag k)
+st'put = st'put'impl @p @k @tag
+
+---------------------------
+
+type T'st'unput v tag k p =
+  forall i r x x' rd' rd sp' sp
+   . EffAdapter tag p i r v
+  => EffAdapterR tag p r
+  => M'st'put tag p r v
+  => IsSymbol p
+  => IsSymbol k
+  => Cons k r rd' rd
+  => Cons k tag sp' sp
+  => Cons p (RunR.Reader ({ | rd } TupN./\ Proxy (XST'Def { | sp }))) x' x
+  => Generable v GDefault v
+  => R.Run x Unit
+
+st'unput'impl :: forall @p @k @tag v. T'st'unput v tag k p
+st'unput'impl =
+  g1 @XDoAsked @p \r -> m'st'put @tag @p (rec'get @k $ fst r) (g @v)
+
+st'unput'' :: forall @p @k tag v. T'st'unput v tag k p
+st'unput'' = st'unput'impl @p @k @tag
+
+st'unput :: forall p @k tag v. T'useAsSym "st" p (T'st'unput v tag k)
+st'unput = st'unput'impl @p @k @tag
+
+---------------------------
+
+type T'st'freeze v tag k p =
+  forall i r x x' rd' rd sp' sp
+   . EffAdapter tag p i r v
+  => EffAdapterR tag p r
+  => IsSymbol p
+  => IsSymbol k
+  => Cons k r rd' rd
+  => Cons k tag sp' sp
+  => Cons p (RunR.Reader ({ | rd } TupN./\ Proxy (XST'Def { | sp }))) x' x
+  => R.Run x v
+
+st'freeze'impl :: forall @p @k @tag v. T'st'freeze v tag k p
+st'freeze'impl = g1 @XDoAsked @p
+  \r -> effAdapter'res @tag @p $ rec'get @k $ fst r
+
+st'freeze'' :: forall @p @k tag v. T'st'freeze v tag k p
+st'freeze'' = st'freeze'impl @p @k @tag
+
+st'freeze :: forall p @k tag v. T'useAsSym "st" p (T'st'freeze v tag k)
+st'freeze = st'freeze'impl @p @k @tag
+
+newtype ST'''l l _r = ST'''l l
+newtype ST'''r _l r = ST'''r r
+
+instance (EffAdapter t p i r v) => EffAdapter (ST'''l t r) p i (ST'''r t r) v where
+  effAdapter'mk i = ST'''r <$> effAdapter'mk @t @p i
+  effAdapter'res = effAdapter'res @t @p <<< \(ST'''r r) -> r
