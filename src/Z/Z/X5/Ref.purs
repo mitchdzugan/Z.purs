@@ -17,6 +17,7 @@ type Ref'R t p =
   , set :: t -> Eff'At p Unit
   }
 
+{-
 foreign import data Ref'T :: forall k. k -> Type
 
 instance X'Runs'R'Adapted p (Ref'T t) t (Ref'R t p) t where
@@ -50,7 +51,6 @@ qt = do
   b <- x'get @pb
   pure $ a /\ b
 
-{-
 qt2
   :: forall x' x
    . X'Using { a :: X'rn'Ref Int, b :: X'rn'Ref String } x' x
@@ -59,7 +59,6 @@ qt2 = do
   a <- x'get @"a"
   b <- x'get @"b"
   pure $ a /\ b
--}
 
 class ConsSymbol p (X'Ref t p) x' x <= X'Cons'Ref p t x' x
 
@@ -90,3 +89,5 @@ type X'Cons'P tOut p t xIn =
 
 a :: SingletonVal "asdf" Int -> Int
 a r = rec'get @"asdf" r
+
+-}
