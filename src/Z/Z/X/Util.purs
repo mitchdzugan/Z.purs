@@ -2,11 +2,10 @@ module Z.Z.X.Util
   ( Eff'At
   , Run'
   , Run_
-  , XEffTag
+  , eff'tag
   , eff'untag
   , evalTagged
   , eval_
-  , eff'tag
   , useTag
   ) where
 
@@ -30,14 +29,11 @@ data Eff'At t a = Eff'At (Effect a)
 
 derive instance Functor (Eff'At t)
 
-data XEffTag :: forall @k. k -> Type
-data XEffTag t = XEffTag
-
-evalTagged :: forall t a. XEffTag t -> Eff'At t a -> a
-evalTagged _ (Eff'At eff) = Unsafe.unsafePerformEffect eff
+evalTagged :: forall @t a. Eff'At t a -> a
+evalTagged (Eff'At eff) = Unsafe.unsafePerformEffect eff
 
 useTag :: forall @t v a. ((Eff'At t a -> a) -> v) -> v
-useTag runTagged = runTagged $ evalTagged $ XEffTag @t
+useTag runTagged = runTagged $ evalTagged @t
 
 eff'tag :: forall @tag a. Effect a -> Eff'At tag a
 eff'tag eff = Eff'At eff

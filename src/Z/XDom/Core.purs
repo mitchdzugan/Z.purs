@@ -167,8 +167,7 @@ el'getEffSelf =
 
 type T'domR'run p =
   forall r x' x dr ret
-   . IsSymbol p
-  => Cons p (R' r) x' x
+   . ConsSymbol p (R' r) x' x
   => r
   -> MDom dr x ret
   -> MDom dr x' ret
@@ -183,8 +182,7 @@ domR'run = domR'run'' @p
 
 type T'domE'bind e p =
   forall dx' dx x
-   . IsSymbol p
-  => Cons p (DomE e) dx' dx
+   . ConsSymbol p (DomE e) dx' dx
   => (->) e $ MDom dx' x Unit
   -> MDom dx x Unit
   -> MDom dx' x Unit
@@ -202,8 +200,7 @@ domE'bind = domE'bind'' @p
 
 type T'domE'fail p =
   forall e dx' dx x xx a
-   . IsSymbol p
-  => Cons p (DomE e) dx' dx
+   . ConsSymbol p (DomE e) dx' dx
   => e
   -> Run (self :: R'Self dx x | xx) a
 
@@ -220,8 +217,7 @@ type ReducerR s a r = (get :: s, update :: a -> Eff'At "domEff" Unit | r)
 
 type T'domS'runable s a tf p =
   forall dr x' x
-   . IsSymbol p
-  => Cons p (R'Rec $ ReducerR s a ()) x' x
+   . ConsSymbol p (R'Rec $ ReducerR s a ()) x' x
   => (tf (MDom dr x Unit -> MDom dr x' Unit))
 
 type Tf'reducer s a res = s -> (s -> a -> s) -> res
@@ -255,8 +251,7 @@ domS'get = domS'get'' @p
 
 type T'domS'setable s a p =
   forall x' x r
-   . IsSymbol p
-  => Cons p (R'Rec $ ReducerR s a r) (DomEffPermit x') (DomEffPermit x)
+   . ConsSymbol p (R'Rec $ ReducerR s a r) (DomEffPermit x') (DomEffPermit x)
   => a
   -> Run (DomEffPermit x) Unit
 

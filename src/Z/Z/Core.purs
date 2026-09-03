@@ -22,6 +22,7 @@ module Z.Z.Core
   , arr'size
   , arr'slice
   , arr'withInd
+  , class ConsSymbol
   , class Resulting
   , class RtError
   , class SText
@@ -154,6 +155,10 @@ import Routing.Duplex as Dup
 import Routing.Duplex.Parser as DupP
 import Type.Equality (class TypeEquals)
 import Type.Proxy (Proxy(..)) as Proxy
+
+class (IsSymbol p, Cons p m x' x) <= ConsSymbol p m x' x
+
+instance (IsSymbol p, Cons p m x' x) => ConsSymbol p m x' x
 
 type Deferred a = Void -> a
 

@@ -288,7 +288,7 @@ import Type.Proxy as P
 import Type.Row (type (+))
 import Unsafe.Coerce (unsafeCoerce)
 import Z.Z.Barlow as Bl
-import Z.Z.Core (T'useAsSym, rec'get, rec'insert)
+import Z.Z.Core (class ConsSymbol, T'useAsSym, rec'get, rec'insert)
 import Z.Z.Core as Z
 import Z.Z.DateTime (DateTime(..), dateTime'toMS, fromRawDateTime)
 import Z.Z.Defaultable
@@ -373,8 +373,7 @@ type XRunParser = XImpl "runParser"
 
 instance
   ( GOrE gspec ep
-  , IsSymbol ep
-  , Cons ep (RunE.Except Z.ParseError) x' x
+  , ConsSymbol ep (RunE.Except Z.ParseError) x' x
   ) =>
   Generable (XImpl "runParser") gspec (s -> Parsing.Parser s a -> R.Run x a) where
   mkGenerable s pr = e'ok'' @ep $ Z.runParser s pr
@@ -383,9 +382,8 @@ type XBindE = XImpl "bindE"
 
 instance
   ( GOrE gspec ep
-  , IsSymbol ep
-  , Cons ep (RunE.Except e2) x'' x'
-  , Cons ep (RunE.Except e1) x' x
+  , ConsSymbol ep (RunE.Except e2) x'' x'
+  , ConsSymbol ep (RunE.Except e1) x' x
   ) =>
   Generable (XImpl "bindE")
     gspec
@@ -399,9 +397,8 @@ type XMapE = XImpl "mapE"
 
 instance
   ( GOrE gspec ep
-  , IsSymbol ep
-  , Cons ep (RunE.Except e2) x'' x'
-  , Cons ep (RunE.Except e1) x' x
+  , ConsSymbol ep (RunE.Except e2) x'' x'
+  , ConsSymbol ep (RunE.Except e1) x' x
   ) =>
   Generable (XImpl "mapE") gspec ((e1 -> e2) -> R.Run x f -> R.Run x' f) where
   mkGenerable fe m = g1 @XBindE @ep (g1 @XFail @ep <<< fe) m
@@ -410,8 +407,7 @@ type XUnwrap = XImpl "unwrap"
 
 instance
   ( GOrE gspec ep
-  , IsSymbol ep
-  , Cons ep (RunE.Except e) x' x
+  , ConsSymbol ep (RunE.Except e) x' x
   ) =>
   Generable (XImpl "unwrap") gspec (e -> May.Maybe a -> R.Run x a) where
   mkGenerable _ (May.Just a) = pure a
@@ -421,8 +417,7 @@ type XUnwrap' = XImpl "unwrap'"
 
 instance
   ( GOrE gspec ep
-  , IsSymbol ep
-  , Cons ep (RunE.Except Z.JsError) x' x
+  , ConsSymbol ep (RunE.Except Z.JsError) x' x
   ) =>
   Generable (XImpl "unwrap'") gspec (May.Maybe a -> R.Run x a) where
   mkGenerable = g1 @XUnwrap @ep $ Z.jsError' "Nothing#unwrap"
@@ -431,8 +426,7 @@ type XHush = XImpl "hush"
 
 instance
   ( GOrE gspec ep
-  , IsSymbol ep
-  , Cons ep (RunE.Except Z.JsError) x' x
+  , ConsSymbol ep (RunE.Except Z.JsError) x' x
   , Generable d GDefault d
   ) =>
   Generable (XImpl "hush") gspec (R.Run x d -> R.Run x' d) where
@@ -442,9 +436,8 @@ type XInvert = XImpl "invert"
 
 instance
   ( GOrE gspec ep
-  , IsSymbol ep
-  , Cons ep (RunE.Except e) x'' x'
-  , Cons ep (RunE.Except r) x' x
+  , ConsSymbol ep (RunE.Except e) x'' x'
+  , ConsSymbol ep (RunE.Except r) x' x
   ) =>
   Generable (XImpl "invert") gspec (R.Run x e -> R.Run x' r) where
   mkGenerable m = e'try'' @ep m <#> Z.invert >>= e'ok'' @ep
@@ -453,10 +446,9 @@ type XTryUntil = XImpl "tryUntil"
 
 instance
   ( GOrE gspec ep
-  , IsSymbol ep
-  , Cons ep (RunE.Except e) x''' x''
-  , Cons ep (RunE.Except r) x'' x'
-  , Cons ep (RunE.Except e) x' x
+  , ConsSymbol ep (RunE.Except e) x''' x''
+  , ConsSymbol ep (RunE.Except r) x'' x'
+  , ConsSymbol ep (RunE.Except e) x' x
   ) =>
   Generable (XImpl "tryUntil")
     gspec
@@ -472,8 +464,7 @@ type XRunAff = XImpl "runAff"
 
 instance
   ( GOrE gspec ep
-  , IsSymbol ep
-  , Cons ep (RunE.Except Z.JsError) x' (A x)
+  , ConsSymbol ep (RunE.Except Z.JsError) x' (A x)
   ) =>
   Generable (XImpl "runAff") gspec (Aff.Aff f -> R.Run (A x) f) where
   mkGenerable a = do
@@ -487,8 +478,7 @@ type XRunEffA = XImpl "runEffA"
 
 instance
   ( GOrE gspec ep
-  , IsSymbol ep
-  , Cons ep (RunE.Except Z.JsError) x' (A x)
+  , ConsSymbol ep (RunE.Except Z.JsError) x' (A x)
   ) =>
   Generable (XImpl "runEffA") gspec (Eff.Effect f -> R.Run (A x) f) where
   mkGenerable eff = do
@@ -502,8 +492,7 @@ type XRunEffPromise = XImpl "runEffPromise"
 
 instance
   ( GOrE gspec ep
-  , IsSymbol ep
-  , Cons ep (RunE.Except Z.JsError) x' (A x)
+  , ConsSymbol ep (RunE.Except Z.JsError) x' (A x)
   ) =>
   Generable (XImpl "runEffPromise")
     gspec
@@ -1598,9 +1587,8 @@ instance (EffAdapter t p i r v) => EffAdapter (Proxy t) p i r v where
 
 adapter'run
   :: forall @t @p i r v x' x a
-   . Cons p (RunR.Reader (r TupN./\ Proxy t)) x' x
+   . ConsSymbol p (RunR.Reader (r TupN./\ Proxy t)) x' x
   => EffAdapter t p i r v
-  => IsSymbol p
   => i
   -> R.Run x a
   -> R.Run x' (v TupN./\ a)
@@ -1741,8 +1729,7 @@ instance
 class ST'Cons spec p x' x | spec p x' -> x
 
 instance
-  ( IsSymbol p
-  , Cons p (RunR.Reader (r TupN./\ Proxy (XST'Def spec))) x' x
+  ( ConsSymbol p (RunR.Reader (r TupN./\ Proxy (XST'Def spec))) x' x
   , EffAdapter (XST'Def spec) p spec r v
   ) =>
   ST'Cons spec p x' x

@@ -15,6 +15,7 @@ module Z.Z.Id
   , ident'get
   , ident'key
   , ident'uuid
+  , idented'id
   , idented'mk
   , idented'v
   ) where
@@ -189,3 +190,6 @@ idented'mk id v = Idented $ id Z./\ v
 
 idented'v :: forall id v. Idented id v -> v
 idented'v (Idented (_ Z./\ v)) = v
+
+idented'id :: forall id v. Idented id v -> id
+idented'id (Idented (id Z./\ _)) = id

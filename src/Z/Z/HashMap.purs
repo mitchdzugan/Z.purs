@@ -43,7 +43,7 @@ import Z.Z.Core (arr'fromFoldable, arr'withInd, forM)
 import Z.Z.Defaultable (class Generable)
 import Z.Z.Ext (class IsSymbol, class Newtype, Run, fst, snd, unwrap, wrap)
 import Z.Z.Ext as Z
-import Z.Z.Id (class Identable, Idented, ident'key, idented'mk, idented'v)
+import Z.Z.Id (class Identable)
 import Z.Z.X (class EffAdapter, XST'Init(..), effAdapter'mk, eval_)
 
 newtype HashMap k v = HashMap (Bin.Bin { k :: k, v :: v })
