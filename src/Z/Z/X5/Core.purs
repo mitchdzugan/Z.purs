@@ -2,6 +2,7 @@ module Z.Z.X5.Core where
 
 import Z.Z.X5.UtilPrelude
 
+import Data.Identity (Identity(..))
 import Data.Newtype (class Newtype, unwrap)
 import Effect (Effect)
 import Effect.Unsafe (unsafePerformEffect)
@@ -10,95 +11,158 @@ import Run.Reader as RunR
 import Type.Equality (class TypeEquals)
 import Type.Proxy (Proxy(..))
 import Z.Z.Core (class ConsSymbol)
-import Z.Z.Defaultable (class Generable, mkGenerable)
 import Z.Z.Wraps (class Unwraps, class Wraps, wrapped'from, wrapped'get)
 
-class X'Runs'param tag param | tag -> param
-class X'Runs'm tag m | m -> tag
-class X'Runs'responds tag responds | tag -> responds
-class X'Runs'result tag result | tag -> result
+class X'Runs'mf tag mf | tag -> mf
 
-class
-  ( X'Runs'param tag param
-  , X'Runs'm tag m
-  , X'Runs'responds tag responds
-  , X'Runs'result tag result
-  ) <=
-  X'Runs tag param m responds result
-  | tag -> param m responds result where
-  x'runs'run
-    :: forall p x' x a
-     . ConsSymbol p (m p) x' x
-    => Proxy p
-    -> param
-    -> Run x a
-    -> Run x' (a /\ result)
-  x'runs'respond
-    :: forall p x' x a
-     . ConsSymbol p (m p) x' x
+class X'Runs'mf tag mf <= X'Runs'mf'via tag mf | mf -> tag
+
+instance X'Runs'mf tag mf => X'Runs'mf'via tag mf
+
+class X'Runs'param tag param | tag -> param
+class X'Runs'res'm tag res'm | tag -> res'm
+
+class X'Runs'responds tag responds | tag -> responds where
+  x'runs'responds'respond
+    :: forall p mf x' x a
+     . X'Runs'mf tag mf
+    => ConsSymbol p (mf p) x' x
     => Proxy p
     -> responds a
     -> Run x a
 
-x'run
-  :: forall @tag param m responds result @p x' x a
-   . X'Runs tag param m responds result
-  => ConsSymbol p (m p) x' x
-  => param
-  -> Run x a
-  -> Run x' (a /\ result)
-x'run = x'runs'run @tag $ Proxy @p
+class X'Runs'result tag result | tag -> result where
+  x'runs'result'result
+    :: forall p mf x' x
+     . X'Runs'mf tag mf
+    => ConsSymbol p (mf p) x' x
+    => Proxy p
+    -> Run x result
 
-x'exec
-  :: forall @tag param m responds result @p x' x
-   . X'Runs tag param m responds result
-  => ConsSymbol p (m p) x' x
+class
+  ( X'Runs'mf tag mf
+  , X'Runs'param tag param
+  , X'Runs'res'm tag res'm
+  , X'Runs'result tag result
+  ) <=
+  X'Runs tag mf param res'm result
+  | tag -> mf param res'm result where
+  x'runs'run
+    :: forall p mf x' x a
+     . X'Runs'mf tag mf
+    => ConsSymbol p (mf p) x' x
+    => Proxy p
+    -> param
+    -> Run x a
+    -> Run x' (res'm a)
+
+class
+  ( X'Runs'mf'via tag mf
+  , X'Runs tag mf param res'm result
+  ) <=
+  X'Runs'via tag mf param res'm result
+  | mf -> tag param result
+
+instance
+  ( X'Runs'mf'via tag mf
+  , X'Runs tag mf param res'm result
+  ) =>
+  X'Runs'via tag mf param res'm result
+
+class
+  ( X'Runs'mf'via tag mf
+  , X'Runs'mf tag mf
+  , ConsSymbol p (mf p) x' x
+  ) <=
+  X'Cons p tag mf x' x
+  | p mf x' -> tag x
+
+instance
+  ( X'Runs'mf'via tag mf
+  , X'Runs'mf tag mf
+  , ConsSymbol p (mf p) x' x
+  ) =>
+  X'Cons p tag mf x' x
+
+----------------------------------------------------------------------
+
+type T2'0 t0 t1 = t0
+
+type T2'1 t0 t1 = t1
+
+type T'id t = t
+type T'const t'use t'ignore = T2'0 t'use t'ignore
+
+type T'apply tf t1 = tf t1
+
+type TR'h tag p res'm'sel res'sel i'res wrap'result =
+  forall mf param res'm result x' x a
+   . X'Runs tag mf param (res'm'sel res'm) result
+  => X'Cons p tag mf x' x
   => param
-  -> Run x Unit
-  -> Run x' result
+  -> Run x (i'res a)
+  -> Run x' (res'sel res'm (wrap'result a result))
+
+x'run :: forall @tag @p. TR'h tag p (T'const Identity) T2'1 T'id (/\)
+x'run init m = unwrap <$> x'runs'run @tag (Proxy @p) init do
+  a <- m
+  result <- x'runs'result'result @tag (Proxy @p)
+  pure $ a /\ result
+
+x'exec :: forall @tag @p. TR'h tag p (T'const Identity) T2'1 (T'const Unit) T2'1
 x'exec r m = x'run @tag @p r m <#> snd
 
-x'eval
-  :: forall @tag param m responds result @p x' x a
-   . IsSymbol p
-  => X'Runs tag param m responds result
-  => ConsSymbol p (m p) x' x
-  => param
-  -> Run x a
-  -> Run x' a
+x'eval :: forall @tag @p. TR'h tag p (T'const Identity) T2'1 T'id T2'0
 x'eval r m = x'run @tag @p r m <#> fst
 
+xm'run :: forall @tag @p. TR'h tag p T'id T'apply T'id (/\)
+xm'run init m = x'runs'run @tag (Proxy @p) init do
+  a <- m
+  result <- x'runs'result'result @tag (Proxy @p)
+
+  ----------------------------------------------------------------------
+  pure $ a /\ result
+
+x'get
+  :: forall @p x x' mf tag vfr t
+   . X'Cons p tag mf x' x
+  => X'Runs'responds tag (VariantF (get :: (->) t | vfr))
+  => Run x t
+x'get = x'runs'responds'respond @tag (Proxy @p) (inj (Proxy @"get") identity)
+
 ----------------------------------------------------------------------
 
-type X'Runnable'Param tag = forall param. X'Runs'param tag param => param
-type X'Runnable'm tag = forall m. X'Runs'm tag m => m
-type X'Runnable'responds tag =
-  forall responds. X'Runs'responds tag responds => responds
+type X'Runnable'param tag = forall param. X'Runs'param tag param => param
 
-type X'Runnable'result tag = forall result. X'Runs'result tag result => result
+type X'Runnable'res'm tag a = forall res'm. X'Runs'res'm tag res'm => res'm a
 
-data X'Runnable tag = X'Runnable (Proxy tag) (X'Runnable'Param tag)
-
-----------------------------------------------------------------------
+data X'Runnable tag = X'Runnable (Proxy tag) (X'Runnable'param tag)
 
 newtype R'Tagged tag r p a = R'Tagged'F (r /\ Proxy tag -> a)
+
+derive instance Functor (R'Tagged tag r p)
 
 handle'R'Tagged :: forall p @tag r a. Proxy p -> r -> R'Tagged tag r p ~> Run a
 handle'R'Tagged _ t (R'Tagged'F f) = pure $ f $ t /\ Proxy
 
-run'R'Tagged
+r'tagged'run
   :: forall p @tag r x' x a
    . ConsSymbol p (R'Tagged tag r p) x' x
   => Proxy p
   -> r
   -> Run x a
   -> Run x' a
-run'R'Tagged p r = run (on p (handle'R'Tagged p r) send)
+r'tagged'run p r = run (on p (handle'R'Tagged p r) send)
 
-derive instance Functor (R'Tagged tag r p)
+r'tagged'askAt
+  :: forall @p tag r x' x
+   . ConsSymbol p (R'Tagged tag r p) x' x
+  => Proxy p
+  -> Run x r
+r'tagged'askAt p = lift p (R'Tagged'F fst)
 
 class X'Runs'R tag param r responds v | tag -> param r responds v where
-  x'runs'r'init :: param -> r
+  -- x'runs'r'init :: param -> r
   x'runs'r'complete
     :: forall p x' x
      . ConsSymbol p (R'Tagged tag r p) x' x
@@ -113,6 +177,65 @@ class X'Runs'R tag param r responds v | tag -> param r responds v where
 
 data X'Reads :: forall k. k -> Type
 data X'Reads tag
+
+class X'Runs'R'r tag r | tag -> r
+class X'Runs'R'param tag param | tag -> param
+class
+  X'Runs'R'result tag result
+  | tag -> result where
+  x'runs'r'result
+    :: forall p mf x' x r
+     . ConsSymbol p (mf p) x' x
+    => X'Runs'mf (X'Reads tag) mf
+    => X'Runs'R'r tag r
+    => TypeEquals mf (R'Tagged tag r)
+    => Proxy p
+    -> Run x result
+
+{-
+
+    :: forall p mf x' x
+     . X'Runs'mf tag mf
+    => ConsSymbol p (mf p) x' x
+    => Proxy p
+    -> Run x result
+-}
+
+instance X'Runs'R'r tag r => X'Runs'mf (X'Reads tag) (R'Tagged tag r)
+instance X'Runs'R'param tag param => X'Runs'param (X'Reads tag) param
+instance X'Runs'res'm (X'Reads tag) Identity
+instance
+  ( X'Runs'R'result tag result
+  , X'Runs'mf (X'Reads tag) mf
+  , X'Runs'R'r tag r
+  ) =>
+  X'Runs'result (X'Reads tag) result where
+  x'runs'result'result = x'runs'r'result @tag
+
+data X'R t
+
+instance X'Runs'R'r (X'R t) t
+instance X'Runs'R'param (X'R t) t
+instance X'Runs'R'result (X'R t) t where
+  x'runs'r'result p = r'tagged'askAt p
+
+{-
+  , X'Runs'result tag result
+-}
+
+{-
+instance
+  ( X'Runs'R tag param r responds v
+  , X'Runs'mf tag (X'Reads tag)
+  ) =>
+  X'Runs'run (X'Reads tag) param Identity where
+  x'runs'run p init m = 
+    Identity <$> r'tagged'run @(X'Reads tag) p (x'runs'r'init @tag init) m
+-}
+
+{-
+
+----------------------------------------------------------------------
 
 instance X'Runs'R tag param r responds v => X'Runs'param (X'Reads tag) param
 instance
@@ -155,8 +278,6 @@ class
   | tag -> g responds where
   x'respondsTo'get :: responds g
 
-{-
-
 x'get
   :: forall @p x x' m tag vfr t
    . ConsSymbol p (m p) x' x
@@ -165,9 +286,8 @@ x'get
   => Run x t
 x'get = x'runs'respond @tag (Proxy @p) (inj (Proxy @"get") identity)
 
--}
-
 ----------------------------------------------------------------------
+
 
 r'doAsked
   :: forall @p tag r a x' x
@@ -176,15 +296,6 @@ r'doAsked
   -> (r -> Eff'At p a)
   -> Run x a
 r'doAsked p getEff = r'tagged'askAt p <#> eff'useTag ($) <<< getEff
-
-r'tagged'askAt
-  :: forall @p tag r x' x
-   . ConsSymbol p (R'Tagged tag r p) x' x
-  => Proxy p
-  -> Run x r
-r'tagged'askAt p = lift p (R'Tagged'F fst)
-
-{-
 
 ----------------------------------------------------------------------
 

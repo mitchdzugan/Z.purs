@@ -18,6 +18,7 @@ module Z.Z.Defaultable.Generable
 
 import Prelude
 
+import Data.Identity (Identity(..))
 import Data.List (List(..))
 import Data.Maybe as May
 import Data.Symbol (class IsSymbol, reflectSymbol)
@@ -81,6 +82,9 @@ instance Generable (List a) _gdesc (List a) where
 
 instance Generable (Proxy a) _gdesc (Proxy a) where
   mkGenerable = Proxy
+
+instance Generable a GDefault a => Generable (Identity a) _gdesc (Identity a) where
+  mkGenerable = Identity $ mkGenerable @a @GDefault
 
 instance
   ( Generable l GDefault l
