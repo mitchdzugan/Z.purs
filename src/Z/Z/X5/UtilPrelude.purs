@@ -12,4 +12,5 @@ import Run as M
 import Type.Equality (class TypeEquals) as M
 import Type.Proxy (Proxy(..)) as M
 import Z.Z.Defaultable (class Generable, mkGenerable) as M
+import Z.Z.Util (type ($)) as M
 import Z.Z.Wraps (class Unwraps, class Wraps, wrapped'from, wrapped'get) as M

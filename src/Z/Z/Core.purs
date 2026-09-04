@@ -9,10 +9,17 @@ module Z.Z.Core
   , P
   , ParseError
   , Set
+  , T'Related
+  , T'RelatedBy
   , T'_
+  , T'apply
   , T'comp
+  , T'const
   , T'flip
+  , T'id
   , T'useAsSym
+  , T2'0
+  , T2'1
   , antiUnit
   , arr'concat
   , arr'drop
@@ -22,6 +29,7 @@ module Z.Z.Core
   , arr'size
   , arr'slice
   , arr'withInd
+  , class C'Relate
   , class ConsSymbol
   , class Resulting
   , class RtError
@@ -156,6 +164,16 @@ import Routing.Duplex.Parser as DupP
 import Type.Equality (class TypeEquals)
 import Type.Proxy (Proxy(..)) as Proxy
 
+class C'Relate :: forall k1 k2 k3. k1 -> k2 -> k3 -> Constraint
+class C'Relate from relation to | from relation -> to
+
+type T'Related :: forall k1 k2. k1 -> k2 -> Type
+type T'Related from relation = forall to. C'Relate from relation to => to
+
+type T'RelatedBy :: forall k1 k2. k1 -> k2 -> Type
+type T'RelatedBy relation from = T'Related from relation
+
+class ConsSymbol :: forall k. Symbol -> k -> Row k -> Row k -> Constraint
 class (IsSymbol p, Cons p m x' x) <= ConsSymbol p m x' x
 
 instance (IsSymbol p, Cons p m x' x) => ConsSymbol p m x' x
@@ -232,6 +250,18 @@ routeParse = Dup.parse
 
 type T'id :: forall k. k -> k
 type T'id a = a
+
+type T2'0 :: forall k1 k2. k1 -> k2 -> k1
+type T2'0 t0 t1 = t0
+
+type T2'1 :: forall k1 k2. k1 -> k2 -> k2
+type T2'1 t0 t1 = t1
+
+type T'const :: forall k1 k2. k1 -> k2 -> k1
+type T'const t'use t'ignore = T2'0 t'use t'ignore
+
+type T'apply :: forall k1 k2. (k1 -> k2) -> k1 -> k2
+type T'apply tf t1 = tf t1
 
 type T'comp :: forall k1 k2 k3. (k1 -> k2) -> (k3 -> k1) -> k3 -> k2
 type T'comp f g x = f (g x)

@@ -11,8 +11,8 @@ foreign import js_ref_new :: forall t. t -> Effect (Ref'ST t)
 foreign import js_ref_get :: forall t. Ref'ST t -> Effect t
 foreign import js_ref_set :: forall t. Unit -> t -> Ref'ST t -> Effect Unit
 
-type Ref'R :: forall k. Type -> k -> Type
-type Ref'R t p =
+newtype Ref'R :: forall k. Type -> k -> Type
+newtype Ref'R t p = Ref'R
   { get :: Eff'At p t
   , set :: t -> Eff'At p Unit
   }
