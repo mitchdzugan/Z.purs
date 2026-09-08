@@ -8,12 +8,13 @@ module Z.Z.Wraps
   , wrapped'from
   , wrapped'get
   , wrapped'mk
-  , wrapped'mkFrom
+  , wrapped'mkFor
   , wrapped'rest
   ) where
 
 import Prelude
 
+import Data.Newtype (class Newtype, unwrap)
 import Data.Newtype as NT
 import Data.Tuple (Tuple(..))
 import Z.Z.Defaultable (class Generable, GDefault, g)
@@ -45,15 +46,15 @@ wrapped'from
   -> o
 wrapped'from i = wrapped'mk @o i $ g @rest
 
-wrapped'mkFrom :: forall @o rest i. Unwraps o rest i => rest -> i -> o
-wrapped'mkFrom = flip $ wrapped'mk @o
+wrapped'mkFor :: forall @o rest i. Unwraps o rest i => rest -> i -> o
+wrapped'mkFor = flip $ wrapped'mk @o
 
-instance Wraps (Tuple l r) r where
-  wrapped'get (Tuple l r) = r
+instance Wraps (Tuple l r) l where
+  wrapped'get (Tuple l _) = l
 
-instance Unwraps (Tuple l r) l r where
-  wrapped'mk r l = (Tuple l r)
-  wrapped'rest (Tuple l _) = l
+instance Unwraps (Tuple l r) r l where
+  wrapped'mk l r = (Tuple l r)
+  wrapped'rest (Tuple _ r) = r
 
 instance IsId id => Wraps (Idented id t) t where
   wrapped'get = idented'v

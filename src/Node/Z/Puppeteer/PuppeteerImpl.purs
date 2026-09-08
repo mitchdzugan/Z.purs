@@ -98,12 +98,7 @@ xEls pOrE sel = do
   els_ <- g @XRunEffPromise $ js_els sel (asPageOrElement pOrE)
   pure $ els_ <#> \el_ -> Element ("(" <> context pOrE <> ")[]") el_
 
-xEl
-  :: forall x o
-   . IsPageOrElement o
-  => o
-  -> String
-  -> EA JsError x #> Element
+xEl :: forall x o. IsPageOrElement o => o -> String -> Element <# EA JsError x
 xEl pOrE sel = do
   el_ <- g @XRunEffPromise $ js_el sel (asPageOrElement pOrE)
   pure $ Element (context pOrE <> " |> ") el_
