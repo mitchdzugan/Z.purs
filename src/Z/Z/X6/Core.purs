@@ -3,16 +3,25 @@ module Z.Z.X6.Core
   , R'Tagged(..)
   , RW'Tagged(..)
   , T'Consable
-  , T'Runnable
+  , T'Evaluable
   , W'Tagged(..)
-  , X'Runnable(..)
+  , X'Evaluable(..)
   , class X'Consable
   , class X'R'RespondsTo
   , class X'R'RespondsTo'rw
   , class X'Readable
   , class X'Readable'rw
   , class X'RespondsTo
+  , class X'Results
+  , class X'Results'R
+  , class X'Results'R'rw
   , x'consable'impl
+  , x'eval
+  , x'eval_
+  , x'evaluable
+  , x'evaluable_
+  , x'exec
+  , x'exec_
   , x'mkResponds
   , x'mkResponds'types
   , x'r'mkResponds
@@ -25,9 +34,11 @@ module Z.Z.X6.Core
   , x'readable'rw'mk
   , x'respondTo
   , x'respondTo_
+  , x'results'impl
+  , x'results'r'impl
+  , x'results'r'rw'impl
   , x'run
-  , x'runnable
-  , x'runnable_
+  , x'run_
   ) where
 
 import Z.Z.X6.UtilPrelude
@@ -53,39 +64,120 @@ class
 
 ------------------------------------------------------------------------------
 
-type T'Runnable m =
+class X'Results m result where
+  x'results'impl
+    :: forall p x' x. ConsSymbol p m x' x => Proxy p -> Run x result
+
+class X'Results'R r result where
+  x'results'r'impl :: r -> result
+
+instance X'Results'R r result => X'Results (Reader r) result where
+  x'results'impl p = askAt p <#> x'results'r'impl @r
+
+class X'Results'R'rw r result where
+  x'results'r'rw'impl :: r -> Effect result
+
+instance X'Results'R'rw r result => X'Results'R (R'Tagged r) result where
+  x'results'r'impl (R'Tagged r) = unsafePerformEffect $ x'results'r'rw'impl r
+
+instance X'Results'R'rw r result => X'Results'R (RW'Tagged r) result where
+  x'results'r'impl (RW'Tagged r) = unsafePerformEffect $ x'results'r'rw'impl r
+
+instance X'Results'R'rw r result => X'Results'R (W'Tagged r) result where
+  x'results'r'impl (W'Tagged r) = unsafePerformEffect $ x'results'r'rw'impl r
+
+------------------------------------------------------------------------------
+
+type T'Evaluable m =
   forall p x' x a
    . ConsSymbol p m x' x
   => Proxy p
   -> Run x a
   -> Run x' a
 
-newtype X'Runnable mf = X'Runnable (T'Runnable mf)
+newtype X'Evaluable mf = X'Evaluable (T'Evaluable mf)
 
-x'runnable
+x'evaluable
   :: forall @m param
    . X'Consable m param Identity
   => param
-  -> X'Runnable m
-x'runnable param =
-  X'Runnable \p m -> x'consable'impl @m p param m <#> \(Identity v) -> v
+  -> X'Evaluable m
+x'evaluable param =
+  X'Evaluable \p m -> x'consable'impl @m p param m <#> \(Identity v) -> v
 
-x'runnable_
-  :: forall @m param
+x'evaluable_
+  :: forall @m @param
    . X'Consable m param Identity
   => Generable param GDefault param
-  => X'Runnable m
-x'runnable_ = x'runnable @m $ g @param
+  => X'Evaluable m
+x'evaluable_ = x'evaluable @m $ g @param
 
-x'run
-  :: forall @p m x' x param a
+x'eval
+  :: forall @p @m x' x @param a
    . ConsSymbol p m x' x
   => X'Consable m param Identity
   => ConsSymbol p m x' x
-  => X'Runnable m
+  => X'Evaluable m
   -> Run x a
   -> Run x' a
-x'run (X'Runnable mf) = mf (Proxy @p)
+x'eval (X'Evaluable mf) = mf (Proxy @p)
+
+x'run
+  :: forall @p @m x' x @param a result
+   . ConsSymbol p m x' x
+  => X'Consable m param Identity
+  => X'Results m result
+  => ConsSymbol p m x' x
+  => X'Evaluable m
+  -> Run x a
+  -> Run x' (a /\ result)
+x'run (X'Evaluable mf) m = mf (Proxy @p) do
+  a <- m
+  result <- x'results'impl @m (Proxy @p)
+  pure $ a /\ result
+
+x'exec
+  :: forall @p @m x' x @param result
+   . ConsSymbol p m x' x
+  => X'Consable m param Identity
+  => X'Results m result
+  => ConsSymbol p m x' x
+  => X'Evaluable m
+  -> Run x Unit
+  -> Run x' result
+x'exec (X'Evaluable mf) m = mf (Proxy @p) $ m *> x'results'impl @m (Proxy @p)
+
+x'eval_
+  :: forall @p @m x' x @param a
+   . ConsSymbol p m x' x
+  => X'Consable m param Identity
+  => ConsSymbol p m x' x
+  => Generable param GDefault param
+  => Run x a
+  -> Run x' a
+x'eval_ m = x'eval @p @m @param (x'evaluable_ @m @param) m
+
+x'run_
+  :: forall @p @m x' x @param result a
+   . ConsSymbol p m x' x
+  => X'Consable m param Identity
+  => X'Results m result
+  => ConsSymbol p m x' x
+  => Generable param GDefault param
+  => Run x a
+  -> Run x' (a /\ result)
+x'run_ m = x'run @p @m @param (x'evaluable_ @m @param) m
+
+x'exec_
+  :: forall @p @m x' x @param result
+   . ConsSymbol p m x' x
+  => X'Consable m param Identity
+  => X'Results m result
+  => ConsSymbol p m x' x
+  => Generable param GDefault param
+  => Run x Unit
+  -> Run x' result
+x'exec_ m = x'exec @p @m @param (x'evaluable_ @m @param) m
 
 ------------------------------------------------------------------------------
 
@@ -151,14 +243,15 @@ instance X'Readable (Identity r) r where
   x'readable'mk = pure <<< Identity
 
 type R'Identity'RespondsTo r = VariantF
-  ( get :: Responds'Const r
-  , result :: Responds'Const r
-  )
+  (extract :: Responds'Const r, result :: Responds'Const r)
 
 instance X'R'RespondsTo (Identity r) (R'Identity'RespondsTo r) (self :: r) where
   x'r'mkResponds'types = Proxy
   x'r'mkResponds (Identity r) = match
-    { get: responds'const r, result: responds'const r }
+    { extract: responds'const r, result: responds'const r }
+
+instance X'Results'R (Identity r) r where
+  x'results'r'impl = unwrap
 
 ---------------------------------------------------------------------
 

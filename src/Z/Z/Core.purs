@@ -25,7 +25,10 @@ module Z.Z.Core
   , arr'drop
   , arr'empty
   , arr'filter
+  , arr'fold
   , arr'fromFoldable
+  , arr'range
+  , arr'range'inc
   , arr'size
   , arr'slice
   , arr'withInd
@@ -514,6 +517,17 @@ arr'fromFoldable = Arr.fromFoldable
 
 arr'concat :: forall a. Array (Array a) -> Array a
 arr'concat = Arr.concat
+
+arr'range'inc :: Int -> Int -> Array Int
+arr'range'inc = Arr.range
+
+arr'range :: Int -> Int -> Array Int
+arr'range start end = if start == end then [] else arr'range'inc start end'
+  where
+  end' = if start < end then inc end else dec end
+
+arr'fold :: forall monoid. Monoid monoid => Array monoid -> monoid
+arr'fold = Arr.fold
 
 list'fromFoldable :: forall a f. Foldable.Foldable f => f a -> List.List a
 list'fromFoldable = List.fromFoldable

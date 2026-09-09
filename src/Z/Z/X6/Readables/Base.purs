@@ -1,4 +1,4 @@
-module Z.Z.X6.Base
+module Z.Z.X6.Readables.Base
   ( LogLevel(..)
   , R'X'Base
   , X'Base
@@ -15,10 +15,10 @@ import Z.Z.DateTime (DateTime, fromRawDateTime)
 import Z.Z.X6.Core
   ( class X'R'RespondsTo
   , class X'Readable
-  , X'Runnable
+  , X'Evaluable
+  , x'evaluable_
   , x'respondTo
   , x'respondTo_
-  , x'runnable_
   )
 import Z.Z.X6.Responds
   ( Responds
@@ -54,8 +54,8 @@ instance
 
 type X'Base = Reader R'X'Base
 
-x'base :: X'Runnable X'Base
-x'base = x'runnable_ @X'Base
+x'base :: X'Evaluable X'Base
+x'base = x'evaluable_ @X'Base
 
 x'now'' :: forall @p x' x. ConsSymbol p X'Base x' x => Run x DateTime
 x'now'' = x'respondTo_ @p @"now"

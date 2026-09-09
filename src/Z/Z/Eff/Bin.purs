@@ -76,8 +76,8 @@ eff'bin'size = js_binEff_size
 eff'bin'vals :: forall @t. Eff'Bin t -> Effect (Array t)
 eff'bin'vals = js_binEff_vals
 
-eff'bin'mappend :: forall @t. Bin t -> Eff'Bin t -> Effect Unit
-eff'bin'mappend (Bin obj) = js_binEff_addForeignObject unit obj
+eff'bin'add :: forall @t. Bin t -> Eff'Bin t -> Effect Unit
+eff'bin'add (Bin obj) = js_binEff_addForeignObject unit obj
 
 eff'bin'freeze :: forall @t. Eff'Bin t -> Effect (Bin t)
 eff'bin'freeze = map Bin <<< js_binEff_toForeignObject
