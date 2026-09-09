@@ -20,14 +20,6 @@ export const js_binEff_delete = (unit) => (key) => (st) => () => {
 export const js_binEff_size = (st) => () => {
   return st.size;
 };
-export const js_binEff_start = (st) => () => {
-  return st.start;
-};
-export const js_binEff_setStart = (unit) => (start) => (st) => () => {
-  st.start = start;
-  return unit;
-};
-
 export const js_binEff_vals = (st) => () => {
   return Object.values(st._).map((ref) => ref[0]);
 };
