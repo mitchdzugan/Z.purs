@@ -1,4 +1,18 @@
-module Z.Z.Eff.Bin2D where
+module Z.Z.Eff.Bin2D
+  ( Eff'Bin2D
+  , eff'bin2D'addAt
+  , eff'bin2D'all
+  , eff'bin2D'clear
+  , eff'bin2D'clearAt
+  , eff'bin2D'delete
+  , eff'bin2D'freezeAt
+  , eff'bin2D'insert
+  , eff'bin2D'lookup
+  , eff'bin2D'new
+  , eff'bin2D'size
+  , eff'bin2D'sizeAt
+  , eff'bin2D'valsAt
+  ) where
 
 import Prelude
 
@@ -50,6 +64,34 @@ eff'bin2D'delete k1 k2 =
 
 eff'bin2D'clear :: forall @t. Eff'Bin2D t -> Effect Unit
 eff'bin2D'clear = js_binEff_2d_clear unit
+
+eff'bin2D'clearAt
+  :: forall @t k1. Identable k1 => k1 -> Eff'Bin2D t -> Effect Unit
+eff'bin2D'clearAt k1 = js_binEff_2d_clearAt unit (ident'key k1)
+
+eff'bin2D'addAt
+  :: forall @t k1. Identable k1 => k1 -> Bin t -> Eff'Bin2D t -> Effect Unit
+eff'bin2D'addAt k1 (Bin obj) =
+  js_binEff_2d_addForeignObjectAt unit (ident'key k1) obj
+
+eff'bin2D'freezeAt
+  :: forall @t k1. Identable k1 => k1 -> Eff'Bin2D t -> Effect (Bin t)
+eff'bin2D'freezeAt k1 =
+  map Bin <<< js_binEff_2d_toForeignObjectAt (ident'key k1)
+
+eff'bin2D'valsAt
+  :: forall @t k1. Identable k1 => k1 -> Eff'Bin2D t -> Effect (Array t)
+eff'bin2D'valsAt k1 = js_binEff_2d_vals (ident'key k1)
+
+eff'bin2D'sizeAt
+  :: forall @t k1. Identable k1 => k1 -> Eff'Bin2D t -> Effect Int
+eff'bin2D'sizeAt k1 = js_binEff_2d_sizeAt (ident'key k1)
+
+eff'bin2D'size :: forall @t. Eff'Bin2D t -> Effect Int
+eff'bin2D'size = js_binEff_2d_size
+
+eff'bin2D'all :: forall @t. Eff'Bin2D t -> Effect (Array t)
+eff'bin2D'all = js_binEff_2d_all
 
 foreign import js_binEff_2d_new :: forall t. Effect (Eff'Bin2D t)
 foreign import js_binEff_2d_lookup

@@ -1,4 +1,15 @@
-module Z.Z.Eff.Bin where
+module Z.Z.Eff.Bin
+  ( Eff'Bin
+  , eff'bin'add
+  , eff'bin'clear
+  , eff'bin'delete
+  , eff'bin'freeze
+  , eff'bin'insert
+  , eff'bin'lookup
+  , eff'bin'new
+  , eff'bin'size
+  , eff'bin'vals
+  ) where
 
 import Prelude
 
