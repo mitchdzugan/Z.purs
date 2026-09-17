@@ -4,6 +4,8 @@ module Z.Z.Defaultable.Generable
   , G1
   , G2
   , GDefault
+  , Int'Default0(..)
+  , Int'Default1(..)
   , class DefaultValueRecord
   , class G2OrDefault
   , class GOrDefault
@@ -21,6 +23,7 @@ import Prelude
 import Data.Identity (Identity(..))
 import Data.List (List(..))
 import Data.Maybe as May
+import Data.Newtype (class Newtype)
 import Data.Symbol (class IsSymbol, reflectSymbol)
 import Data.Tuple.Nested (type (/\), (/\))
 import Prim.Row (class Cons)
@@ -92,6 +95,20 @@ instance
   ) =>
   Generable (l /\ r) _gdesc (l /\ r) where
   mkGenerable = mkGenerable @l @GDefault /\ mkGenerable @r @GDefault
+
+newtype Int'Default0 = Int'Default0 Int
+
+derive instance Newtype Int'Default0 _
+
+instance Generable Int'Default0 _gdesc Int'Default0 where
+  mkGenerable = Int'Default0 0
+
+newtype Int'Default1 = Int'Default1 Int
+
+derive instance Newtype Int'Default1 _
+
+instance Generable Int'Default1 _gdesc Int'Default1 where
+  mkGenerable = Int'Default1 1
 
 class DefaultValueRecord :: RL.RowList Type -> Row Type -> Constraint
 class DefaultValueRecord rowList row | rowList -> row where

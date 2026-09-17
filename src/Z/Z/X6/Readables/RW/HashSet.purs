@@ -1,5 +1,6 @@
 module Z.Z.X6.Readables.RW.HashSet
-  ( R'HashSet
+  ( B'HashSet
+  , R'HashSet
   , X'HashSet
   , X'HashSet'w
   , x'hashset
@@ -120,3 +121,5 @@ eff'hs'set hs st = eff'bin'clear st *> eff'bin'add (unwrap hs) st
 
 eff'hs'freeze :: forall a. Eff'Bin a -> Effect (HashSet a)
 eff'hs'freeze st = wrap <$> eff'bin'freeze st
+
+type B'HashSet sel a = sel (X'HashSet a) (HashSet a)

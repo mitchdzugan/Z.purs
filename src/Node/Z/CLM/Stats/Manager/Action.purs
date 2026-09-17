@@ -1,8 +1,10 @@
 module Node.Z.CLM.Stats.Manager.Action where
 
 import Z.Prelude
+import Z.Z.X6.Index
 
-import Node.Z.CLM.Stats.Manager.Spec (Spec, Spec'ListOp)
+import Node.Z.CLM.Stats.Manager.Spec (Spec, Spec'Evaluable, Spec'M)
+import Z.Z.X6.Core (x'build)
 
 data Action r
   = Undo { targetId :: String | r }
@@ -93,27 +95,6 @@ ejectEphemerals actions = arr'filter isEphemeral actions <#> case _ of
 impurifyActions :: Array PureAction -> Array (Action (id :: String))
 impurifyActions a = assignIds "" $ a <#> un'
 
-handleAction :: forall r. Action r -> Edit $ Spec'ListOp
-handleAction (OverrideName { slug, name }) =
-  s'overs @"tournamentNameOverrides" $ Cons $ B'HashMap'set slug name
-handleAction (MarkChallonge { slug }) =
-  s'overs @"challongeSlugs" $ Cons $ B'HashSet'add slug
-handleAction (AddEvent { slug }) =
-  s'overs @"eventSlugs" $ Cons $ B'HashSet'add slug
-handleAction (RemoveEvent { slug }) =
-  s'overs @"eventSlugs" $ Cons $ B'HashSet'rm slug
-handleAction (SetIsPrEligible { slug, isEligible }) =
-  s'overs @"eventSlugs" $ Cons $
-    (if isEligible then B'HashSet'add else B'HashSet'rm) slug
-handleAction (MarkDoneUpdating { slug }) =
-  s'overs @"doneUpdating" $ Cons $ B'HashSet'add slug
-handleAction (BustCache { slug }) =
-  s'overs @"eventsToRefetch" $ Cons $ B'HashSet'add slug
-handleAction (SetCurrentPeriodId { periodId }) =
-  s'overs @"currentPeriodId" $ Cons $ B'ConstVia'is periodId
-handleAction (Bulk { actions }) = forM_ actions handleAction
-handleAction (Undo _) = pure unit
-
 actionId :: Action (id :: String) -> String
 actionId (Undo props) = props.id
 actionId (OverrideName props) = props.id
@@ -126,19 +107,31 @@ actionId (BustCache props) = props.id
 actionId (SetCurrentPeriodId props) = props.id
 actionId (Bulk props) = props.id
 
+handleAction :: forall x r. Action r -> Spec'M x @@> Unit
+handleAction (OverrideName { slug, name }) =
+  x'insert @"tournamentNameOverrides" slug name
+handleAction (MarkChallonge { slug }) = x'cons @"challongeSlugs" slug
+handleAction (AddEvent { slug }) = x'cons @"eventSlugs" slug
+handleAction (RemoveEvent { slug }) = x'remove @"eventSlugs" slug
+handleAction (SetIsPrEligible { slug, isEligible }) = slug #
+  if isEligible then x'remove @"ineligibleSlugs" else x'cons @"ineligibleSlugs"
+handleAction (MarkDoneUpdating { slug }) = x'cons @"doneUpdating" slug
+handleAction (BustCache { slug }) = x'cons @"eventsToRefetch" slug
+handleAction (SetCurrentPeriodId { periodId }) =
+  x'assign @"currentPeriodId" periodId
+handleAction (Bulk { actions }) = forM_ actions handleAction
+handleAction (Undo _) = pure unit
+
 buildSpec :: Array PureAction -> Spec
-buildSpec actions = b'hmapBuild do
+buildSpec actions = sync'x $ x'build (g @Spec'Evaluable) do
   let impureActions = impurifyActions actions
   let revActions = arr'reverse impureActions
-  undone <- pure $ b'finish @(B'HashSet'Op String) $ objST'run do
-    init <- objST'new
-    reducer <- pure \undone' action -> case action of
-      (Undo { id, targetId }) -> do
-        isUndone <- objST'has id undone'
-        if isUndone then pure undone'
-        else objST'poke targetId targetId undone'
-      _ -> pure undone'
-    reduceM reducer init revActions
-  s'overs @"undone" $ Cons $ B'Const'is undone
+  forM_ revActions $ case _ of
+    (Undo { id, targetId }) -> do
+      isUndone <- x'has @"undone" id
+      when (not isUndone) do
+        x'cons @"undone" targetId
+    _ -> pure unit
   forM_ impureActions \action -> do
-    when (not $ hs'has (actionId action) undone) $ handleAction action
+    isUndone <- x'has @"undone" $ actionId action
+    when (not $ isUndone) $ handleAction action

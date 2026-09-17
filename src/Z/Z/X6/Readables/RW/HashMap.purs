@@ -1,5 +1,6 @@
 module Z.Z.X6.Readables.RW.HashMap
-  ( R'HashMap
+  ( B'HashMap
+  , R'HashMap
   , X'HashMap
   , X'HashMap'w
   , x'hashmap
@@ -132,3 +133,5 @@ eff'hm'set hm st = eff'bin'clear st *> do
 
 eff'hm'freeze :: forall k v. Eff'HashMap k v -> Effect (HashMap k v)
 eff'hm'freeze st = wrap <$> eff'bin'freeze st
+
+type B'HashMap sel k v = sel (X'HashMap k v) (HashMap k v)

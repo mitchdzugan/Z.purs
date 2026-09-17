@@ -3,6 +3,7 @@ module Z.Z.Id
   , IdVF(..)
   , Idented
   , class Identable
+  , class Identable'Functor
   , class IsId
   , id'bytes
   , id'bytesImpl
@@ -15,6 +16,7 @@ module Z.Z.Id
   , ident'get
   , ident'key
   , ident'uuid
+  , identable'map
   , idented'id
   , idented'mk
   , idented'v
@@ -193,3 +195,9 @@ idented'v (Idented (_ Z./\ v)) = v
 
 idented'id :: forall id v. Idented id v -> id
 idented'id (Idented (id Z./\ _)) = id
+
+---------------------------------------------------------------------
+
+class Identable'Functor f where
+  identable'map
+    :: forall a b. Identable a => Identable b => (a -> b) -> f a -> f b

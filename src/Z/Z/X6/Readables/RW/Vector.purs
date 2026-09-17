@@ -32,6 +32,8 @@ import Z.Z.X6.Responds
   , responds'run'eff
   )
 
+---------------------------------------------------------------------
+
 type Eff'Vector a =
   { b'els :: Eff'Bin { ind :: Int, el :: a }
   , init :: Array a
@@ -216,4 +218,4 @@ eff'vec'freeze :: forall a. Eff'Vector a -> Effect (Array a)
 eff'vec'freeze st = eff'vec'keys st >>= mapM \ind -> eff'vec'lookup ind st >>=
   case _ of
     Just v -> pure v
-    Nothing -> throw ""
+    Nothing -> throw "vector invariant violated"

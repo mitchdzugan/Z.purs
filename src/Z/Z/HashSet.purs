@@ -57,7 +57,7 @@ import Z.Z.Defaultable (class Generable)
 import Z.Z.Ext (class IsSymbol, class Newtype, Run)
 import Z.Z.Ext as Z
 import Z.Z.HashMap (HashMap, hm'fromFoldable)
-import Z.Z.Id (class Identable, ident'key)
+import Z.Z.Id (class Identable, class Identable'Functor, ident'key)
 import Z.Z.X
   ( class EffAdapter
   , class M'st'put
@@ -73,8 +73,8 @@ newtype HashSet a = HashSet (Bin.Bin a)
 
 derive instance Newtype (HashSet a) _
 
-instance Functor HashSet where
-  map f (HashSet hs) = HashSet $ hs <#> f
+instance Identable'Functor HashSet where
+  identable'map f hs = hs'fromFoldable $ hs'vals hs <#> f
 
 instance Identable a => Generable (HashSet a) gdesc (HashSet a) where
   mkGenerable = hs'empty

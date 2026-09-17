@@ -1,21 +1,32 @@
 module Node.Z.CLM.Stats.Manager.Spec
   ( Spec
-  , Spec'B'Def
-  , Spec'ListOp
+  , Spec'Def
+  , Spec'Evaluable
+  , Spec'M
   ) where
 
 import Z.Prelude
 
-type Spec'B'Def k =
-  { eventSlugs :: B'HashSet'Def k String
-  , challongeSlugs :: B'HashSet'Def k String
-  , ineligibleSlugs :: B'HashSet'Def k String
-  , doneUpdating :: B'HashSet'Def k String
-  , eventsToRefetch :: B'HashSet'Def k String
-  , tournamentNameOverrides :: B'HashMap'Def k String String
-  , currentPeriodId :: B'ConstVia'Def k D'Int'0 Int
-  , undone :: B'Const'Def k (HashSet String)
-  }
+import Z.Z.X6.Core (Def'Sel'Evaluable, Def'Sel'm, Def'Sel'result)
+import Z.Z.X6.Readables.RW.HashMap (B'HashMap)
+import Z.Z.X6.Readables.RW.HashSet (B'HashSet)
+import Z.Z.X6.Readables.RW.Ref (B'Ref'nt)
 
-type Spec'ListOp = Spec'B'Def B'Def'ListOp
-type Spec = Spec'B'Def B'Def'Built
+type Spec'Def :: forall k1. ((Type -> Type) -> Type -> k1) -> Row k1 -> Row k1
+type Spec'Def k r =
+  ( eventSlugs :: B'HashSet k String
+  , challongeSlugs :: B'HashSet k String
+  , ineligibleSlugs :: B'HashSet k String
+  , doneUpdating :: B'HashSet k String
+  , eventsToRefetch :: B'HashSet k String
+  , tournamentNameOverrides :: B'HashMap k String String
+  , currentPeriodId :: B'Ref'nt k Int'Default0 Int
+  , undone :: B'HashSet k String
+  | r
+  )
+
+type Spec'Evaluable = Record (Spec'Def Def'Sel'Evaluable ())
+
+type Spec'M x = Spec'Def Def'Sel'm x
+
+type Spec = Record (Spec'Def Def'Sel'result ())

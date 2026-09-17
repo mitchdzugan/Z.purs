@@ -4,112 +4,25 @@ import Node.Z.Prelude
 
 import Node.Z.CLM.Stats.Manager.Action as Act
 import Node.Z.CLM.Stats.Manager.Error as ClmStE
+import Node.Z.CLM.Stats.Manager.Legacy (CLMStatsLegacyBlob)
 import Node.Z.CLM.Stats.Manager.Spec as Spec
 import Node.Z.CLM.Stats.Manager.Warning as ClmStW
 import Node.Z.CLM.Stats.Queries as Q
 import Node.Z.Gql as Gql
 import Node.Z.H2h as H2h
 import Node.Z.H2h.Startgg.All as All
+import Z.Z.X6.Core (x'eval, x'eval_)
+import Z.Z.X6.Methods (x'insert)
+import Z.Z.X6.Readables.RW.HashMap (X'HashMap)
+import Z.Z.X6.Readables.RW.HashMap2D (X'HashMap2D)
+import Z.Z.X6.Readables.RW.HashSet2D (X'HashSet2D)
+import Z.Z.X6.Readables.RW.Ref (X'Ref)
 
 wrapH2hWE
   :: forall x a
    . Run (WaE H2h.Warning H2h.Error $ WaE ClmStW.T ClmStE.T x) a
   -> Run (WaE ClmStW.T ClmStE.T x) a
 wrapH2hWE = we'map ClmStW.H2h ClmStE.H2h
-
-type CLMStatsLegacyBlob'SetSummary =
-  { id :: Maybe String
-  , won :: Boolean
-  , dq :: Boolean
-  , round :: String
-  , wonGames :: String
-  , lostGames :: String
-  , opponentName :: Maybe String
-  , winnerName :: Maybe String
-  , loserName :: Maybe String
-  }
-
-type CLMStatsLegacyBlob =
-  { nameDataByPlayerId :: Object { name :: String, ident :: String }
-  , nextIdTry :: Int
-  , "IDENT_CLM_IDS" :: Object Int
-  , timeline ::
-      Array
-        { seasonId :: Int
-        , title :: String
-        , timelineInd :: Int
-        , season :: String
-        }
-  , events ::
-      Object
-        { eventName :: String
-        , numEntrants :: Int
-        , date :: Int
-        , slug :: String
-        , prEligible :: Boolean
-        , tournamentName :: String
-        , imageUrl :: String
-        , eventId :: Int
-        }
-  , players ::
-      Object $ Object
-        { pid :: String
-        , clmId :: Maybe Int
-        , events ::
-            Array
-              { event :: { eventId :: Int }
-              , placingString :: String
-              , setSummaries :: Array CLMStatsLegacyBlob'SetSummary
-              , numWins :: Int
-              , numLosses :: Int
-              , losses :: Array String
-              , "DQ" :: Boolean
-              }
-        , h2hs ::
-            Array
-              { opponent :: String
-              , rank :: Int
-              , sets ::
-                  Array
-                    { setInfo :: CLMStatsLegacyBlob'SetSummary
-                    , tournamentName :: String
-                    , date :: String
-                    , slug :: String
-                    }
-              }
-        }
-  , seasons ::
-      Object
-        { seasonId :: Int
-        , title :: String
-        , isAll :: Boolean
-        , others :: Object Int
-        , events :: Object { eventId :: Int }
-        , players ::
-            Object
-              { playerId :: Int
-              , image :: String
-              , name :: String
-              , realName :: Maybe String
-              , id :: Int
-              , clmId :: Int
-              }
-        , ranks ::
-            Array
-              { rank :: Int
-              , winrate :: Maybe Number
-              , placing :: Int
-              , placingString :: String
-              , wins :: Int
-              , losses :: Int
-              , prEvents :: Int
-              , rating :: Number
-              , conservativeRating :: Number
-              , playerIdent :: String
-              , eventId :: Int
-              }
-        }
-  }
 
 type EnvR r =
   { isDevEnv :: String
@@ -199,11 +112,11 @@ type ClmData = { season :: ClmFullSeason, players :: HashMap Int ClmPlayerStub }
 
 type ClmV r x =
   ( RWaEA (EnvR r) ClmStW.T ClmStE.T
-      ( seasons :: XHM'R "seasons" Int ClmBaseSeason
-      , players :: XHM'R "players" Int ClmPlayerStub
-      , playerSeasons :: XHM2d'R "playerSeasons" Int Int ClmPlayerSeason
-      , seasonEvents :: XHM2d'R "seasonEvents" Int SorN ClmEvent
-      , nextIdTry :: S' Int
+      ( seasons :: X'HashMap Int ClmBaseSeason
+      , players :: X'HashMap Int ClmPlayerStub
+      , playerSeasons :: X'HashMap2D Int Int ClmPlayerSeason
+      , seasonEvents :: X'HashMap2D Int SorN ClmEvent
+      , nextIdTry :: X'Ref Int
       | x
       )
   )
@@ -322,25 +235,24 @@ getH2hData spec allowRefetch = xhm2d'eval @"seasonEvents" do
   xhm2d'entries @"seasonEvents"
 
 type XSeason x =
-  ( wins :: XHM'R "wins" Int Int
-  , losses :: XHM'R "losses" Int Int
-  , eventIds :: XHS2d'R "eventIds" Int SorN
-  , eventWins :: XHM'R "eventWins" (Int /\ SorN) Int
-  , eventLosses :: XHM'R "eventLosses" (Int /\ SorN) Int
-  , eventSetIds :: XHS2d'R "eventSetIds" (Int /\ SorN) SorN
-  , eventBeaters :: XHS2d'R "eventBeaters" (Int /\ SorN) Int
+  ( wins :: X'HashMap Int Int
+  , losses :: X'HashMap Int Int
+  , eventIds :: X'HashSet2D Int SorN
+  , eventWins :: X'HashMap (Int /\ SorN) Int
+  , eventLosses :: X'HashMap (Int /\ SorN) Int
+  , eventSetIds :: X'HashSet2D (Int /\ SorN) SorN
+  , eventBeaters :: X'HashSet2D (Int /\ SorN) Int
   | x
   )
 
 runSeason :: forall x a. Run (XSeason x) a -> Run x a
-runSeason = id
-  <<< xhm'eval @"wins"
-  <<< xhm'eval @"losses"
-  <<< xhs2d'eval @"eventIds"
-  <<< xhm'eval @"eventWins"
-  <<< xhm'eval @"eventLosses"
-  <<< xhs2d'eval @"eventSetIds"
-  <<< xhs2d'eval @"eventBeaters"
+runSeason = x'eval_ @"wins"
+  <<< x'eval_ @"losses"
+  <<< x'eval_ @"eventIds"
+  <<< x'eval_ @"eventWins"
+  <<< x'eval_ @"eventLosses"
+  <<< x'eval_ @"eventSetIds"
+  <<< x'eval_ @"eventBeaters"
 
 runClm
   :: forall x a
@@ -376,11 +288,11 @@ runClm m = do
       hs2d'fromFoldable $ tup'flip <$> hm'entries clmIdByPlayerId
   xOut playerIdsByClmId
   we'runResult
-    $ xhm'eval @"seasons"
-    $ xhm'eval @"players"
-    $ xhm2d'eval @"seasonEvents"
-    $ xhm2d'eval @"playerSeasons"
-    $ g1 @XEvalS @"nextIdTry" legacyBlob.nextIdTry
+    $ x'eval_ @"seasons"
+    $ x'eval_ @"players"
+    $ x'eval_ @"seasonEvents"
+    $ x'eval_ @"playerSeasons"
+    $ x'eval @"nextIdTry" legacyBlob.nextIdTry
     $ flip r'run wrappedM
         { isDevEnv
         , ggAuth
@@ -410,7 +322,7 @@ xRun args = do
         when (not isSingles) xContinue
         forM_ (map'vals event.entrants) \entrant -> do
           xInfo entrant
-        xhm2d'insert @"seasonEvents" seasonId event.id
+        x'insert @"seasonEvents" (seasonId /\ event.id)
           { eventName: event.name
           , numEntrants: map'size event.entrants
           , date: event.tournament.date
