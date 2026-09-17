@@ -11,7 +11,6 @@ module Z.Z.Shorthand
   , S'
   , TPlus
   , W'
-  , Xflipped
   , _'
   , __
   , _o
@@ -36,9 +35,7 @@ module Z.Z.Shorthand
   , set_
   , stextConcat
   , stextConcatSp
-  , type (#>)
   , type (+)
-  , type (<#)
   ) where
 
 import Prelude
@@ -68,7 +65,6 @@ import Z.Z.Ext
 import Z.Z.Ext (class TypeEquals)
 import Z.Z.Ext ((/\)) as ZExp
 import Z.Z.Wraps as Wraps
-import Z.Z.X as X
 
 stextConcat
   :: forall t1 t2. ZCore.SText t1 => ZCore.SText t2 => t1 -> t2 -> String
@@ -114,14 +110,8 @@ infixr 0 mlast as <|<
 
 infixr 0 mfirst as >|>
 
-type Xflipped a x = X.XRun x a
-
 type TPlus :: forall k. (Row k -> Row k) -> Row k -> Row k
 type TPlus a b = a TypeRow.+ b
-
-infixr 0 type X.XRun as #>
-
-infixr 0 type Xflipped as <#
 
 infixr 1 type TPlus as +
 
