@@ -17,6 +17,7 @@ module Z.Prelude
   , module ZShorthand
   , module ZWraps
   , module ZPassable
+  , module ZX
   ) where
 
 import Prelude
@@ -144,3 +145,4 @@ import Z.Z.String as ZString
 import Z.Z.Url (URL) as ZUrl
 import Z.Z.Util as ZUtil
 import Z.Z.Wraps as ZWraps
+import Z.Z.X6.Index as ZX

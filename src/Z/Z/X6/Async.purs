@@ -16,3 +16,4 @@ derive instance Functor AffF
 
 x'aff'' :: forall @p f x' x. ConsSymbol p AffF x' x => (Aff f) -> Run x f
 x'aff'' f = lift (Proxy @p) (AffCmd f)
+

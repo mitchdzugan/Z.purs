@@ -6,11 +6,7 @@ module Z.Z.Shorthand
   , (>|>)
   , (~)
   , (~.)
-  , E'
-  , R'
-  , S'
   , TPlus
-  , W'
   , _'
   , __
   , _o
@@ -76,13 +72,6 @@ stextConcatSp t1 t2 = ZCore.stext t1 <> " " <> ZCore.stext t2
 
 infixr 5 stextConcat as <:>
 infixr 5 stextConcatSp as <->
-
-type R' r = Z.Reader r
-type W' w = Z.Writer w
-type S' s = Z.State s
-
-type E' :: forall k. Type -> k -> Type
-type E' e = Z.Except e
 
 mfirst
   :: forall r1 r2 a

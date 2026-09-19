@@ -8,6 +8,7 @@ module Z.Z.Core
   , Object
   , P
   , ParseError
+  , Result
   , Set
   , T'Related
   , T'RelatedBy
@@ -687,3 +688,5 @@ p2 = Int.pow 2
 
 intFromString :: String -> May.Maybe Int
 intFromString = Int.fromString
+
+type Result w e a = { w :: (Array w), v :: (Eor.Either e a) }

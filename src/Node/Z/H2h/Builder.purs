@@ -11,13 +11,13 @@ import Z.H2h.Module as H2h
 
 adaptBuilder
   :: forall x
-   . BuildX x #> H2h.Event
+   . BuildX x @@> H2h.Event
   -> GetDataFn x
 adaptBuilder b source client networkControl = we'runResult $ r'run env b
   where
   env = { slug: source.slug, client, networkControl }
 
-type BuildX x = RWaEA
+type BuildX x = RWaEA'
   { client :: Gql.Client, slug :: String, networkControl :: Gql.NetworkControl }
   H2h.Warning
   H2h.Error
@@ -27,4 +27,4 @@ type GetDataFn x =
   H2h.EventSource
   -> Gql.Client
   -> Gql.NetworkControl
-  -> A x #> Result H2h.Warning H2h.Error H2h.Event
+  -> A' x @@> Result H2h.Warning H2h.Error H2h.Event

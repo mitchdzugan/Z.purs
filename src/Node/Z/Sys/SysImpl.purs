@@ -4,8 +4,7 @@ module Node.Z.Sys.SysImpl
   , EnvPaths
   , Path
   , Platform(..)
-  , XNODE
-  , XNode
+  , X'Node
   , XNodeF
   , basename
   , class Pathlike
@@ -78,18 +77,18 @@ instance Pathlike Path where
 instance Pathlike String where
   pathStr s = s
 
-xReadFile :: forall x p. Pathlike p => p -> EA JsError x #> Buffer
-xReadFile = g @XRunEffPromise <<< js_readFile <<< pathStr
+xReadFile :: forall x p. Pathlike p => p -> EA' JsError x @@> Buffer
+xReadFile = e'runEffPromise <<< js_readFile <<< pathStr
 
-xReadTextFile :: forall x p. Pathlike p => p -> EA JsError x #> String
-xReadTextFile = g @XRunEffPromise <<< js_readTextFile <<< pathStr
+xReadTextFile :: forall x p. Pathlike p => p -> EA' JsError x @@> String
+xReadTextFile = e'runEffPromise <<< js_readTextFile <<< pathStr
 
 xDecodeTextFile
   :: forall x p @d
    . Pathlike p
   => DecodeJson d
   => p
-  -> EA Sys.FSDataError x #> d
+  -> EA' Sys.FSDataError x @@> d
 xDecodeTextFile p = do
   contents <- e'map Sys.ReadError $ xReadTextFile p
   e'ok $ mapL Sys.DecodeError $ decode contents
@@ -98,7 +97,7 @@ xDecodeYamlString
   :: forall x @d
    . DecodeJson d
   => String
-  -> EA Sys.FSDataError x #> d
+  -> EA' Sys.FSDataError x @@> d
 xDecodeYamlString contents = do
   json <- e'ok $ mapL Sys.ReadError $ js_loadYaml contents Left Right
   e'ok $ mapL Sys.DecodeError $ decodeJson json
@@ -108,7 +107,7 @@ xDecodeYamlFile
    . Pathlike p
   => DecodeJson d
   => p
-  -> EA Sys.FSDataError x #> d
+  -> EA' Sys.FSDataError x @@> d
 xDecodeYamlFile p = do
   contents <- e'map Sys.ReadError $ xReadTextFile p
   xDecodeYamlString contents
@@ -118,9 +117,9 @@ xDecodeAnyYamlExt
    . Pathlike p
   => DecodeJson d
   => p
-  -> EA Sys.FSDataError x #> d
+  -> EA' Sys.FSDataError x @@> d
 xDecodeAnyYamlExt p = do
-  contents <- g @XTryUntil
+  contents <- e'tryUntil
     (e'map Sys.ReadError $ xReadTextFile $ (pathStr p) <> ".yaml")
     [ const $ e'map Sys.ReadError $ xReadTextFile $ (pathStr p) <>
         ".json"
@@ -128,18 +127,18 @@ xDecodeAnyYamlExt p = do
     ]
   xDecodeYamlString contents
 
-xMkdir :: forall x p. Pathlike p => p -> EA JsError x #> Unit
-xMkdir = g @XRunEffPromise <<< js_mkdir <<< pathStr
+xMkdir :: forall x p. Pathlike p => p -> EA' JsError x @@> Unit
+xMkdir = e'runEffPromise <<< js_mkdir <<< pathStr
 
-xMkdirP :: forall x p. Pathlike p => p -> EA JsError x #> Unit
-xMkdirP = g @XRunEffPromise <<< js_mkdirp <<< pathStr
+xMkdirP :: forall x p. Pathlike p => p -> EA' JsError x @@> Unit
+xMkdirP = e'runEffPromise <<< js_mkdirp <<< pathStr
 
 xWriteTextFile
-  :: forall x p. Pathlike p => p -> String -> EA JsError x #> Unit
-xWriteTextFile p = g @XRunEffPromise <<< js_writeTextFile (pathStr p)
+  :: forall x p. Pathlike p => p -> String -> EA' JsError x @@> Unit
+xWriteTextFile p = e'runEffPromise <<< js_writeTextFile (pathStr p)
 
 xWriteTextFileP
-  :: forall x p. Pathlike p => p -> String -> EA JsError x #> Unit
+  :: forall x p. Pathlike p => p -> String -> EA' JsError x @@> Unit
 xWriteTextFileP p s = do
   xMkdirP $ dirname p
   xWriteTextFile p s
@@ -150,7 +149,7 @@ xEncodeTextFile
   => EncodeJson d
   => p
   -> d
-  -> EA JsError x #> Unit
+  -> EA' JsError x @@> Unit
 xEncodeTextFile p d = xWriteTextFile p $ encode d
 
 xEncodeTextFileP
@@ -159,7 +158,7 @@ xEncodeTextFileP
   => EncodeJson d
   => p
   -> d
-  -> EA JsError x #> Unit
+  -> EA' JsError x @@> Unit
 xEncodeTextFileP p d = xWriteTextFileP p $ encode d
 
 foreign import js_lookupEnv
@@ -171,8 +170,8 @@ foreign import js_lookupEnv
 lookupEnv :: String -> Effect $ Maybe String
 lookupEnv = js_lookupEnv Just Nothing
 
-xLookupEnv :: forall x. String -> A x #> Maybe String
-xLookupEnv k = e'try (g @XRunEffA $ lookupEnv k) <#> getRes
+xLookupEnv :: forall x. String -> A' x @@> Maybe String
+xLookupEnv k = e'try (e'runEffA $ lookupEnv k) <#> getRes
   where
   getRes (Right (Just v)) = Just v
   getRes _ = Nothing
@@ -193,21 +192,21 @@ effAffThenExit a = runAff_ onDone a
     js_exit 1
   onDone _ = pure unit
 
-type XNodeEA e x = EA e (XNODE x)
+type XNodeEA e x = EA' e (X'Node x)
 
 runXAThenExit
-  :: forall @w @e a. RtError e => XRunWA w (XNodeEA e) a -> Effect Unit
-runXAThenExit m = effAffThenExit $ runXA $ do
-  w /\ res <- g @XRunW $ expand $ runXNode m
+  :: forall @w @e a. RtError e => (WaEA' w e (X'Node ()) @@> a) -> Effect Unit
+runXAThenExit m = effAffThenExit $ async'x $ do
+  res /\ w <- w'run $ e'try $ runXNode m
   when (arr'size w > 0) do
-    xLogWarning "collected warnings ⌄"
-    xLogWarning w
+    x'logWarning "collected warnings ⌄"
+    x'logWarning w
   pure res
 
 runXAThenExitWithArgv
   :: forall @w @e a
    . RtError e
-  => (Array String -> XRunWA w (XNodeEA e) a)
+  => (Array String -> WaEA' w e (X'Node ()) @@> a)
   -> Effect Unit
 runXAThenExitWithArgv fm = runXAThenExit $ xArgv >>= fm
 
@@ -224,17 +223,17 @@ toPlatform "freebsd" = FreeBSD
 toPlatform "openbsd" = OpenBSD
 toPlatform _ = Unknown
 
-xArgv :: forall x. XNode x (Array String)
-xArgv = lift _xNode (FullArgvCmd (arr'drop 2))
+xArgv :: forall x. X'Node x @@> Array String
+xArgv = lift p'X'Node (FullArgvCmd (arr'drop 2))
 
-xWd :: forall x. XNode x Path
-xWd = lift _xNode (WdCmd Path)
+xWd :: forall x. X'Node x @@> Path
+xWd = lift p'X'Node (WdCmd Path)
 
-xEnvPaths :: forall x. String -> Maybe String -> XNode x EnvPaths
-xEnvPaths appName suffix = lift _xNode (EnvPathsCmd appName suffix id)
+xEnvPaths :: forall x. String -> Maybe String -> X'Node x @@> EnvPaths
+xEnvPaths appName suffix = lift p'X'Node (EnvPathsCmd appName suffix id)
 
-xPlatform :: forall x. XNode x Platform
-xPlatform = lift _xNode (PlatformCmd toPlatform)
+xPlatform :: forall x. X'Node x @@> Platform
+xPlatform = lift p'X'Node (PlatformCmd toPlatform)
 
 envData :: EnvPaths -> Path
 envData = Path <<< js_envData
@@ -288,12 +287,13 @@ handleXNode = case _ of
 
 derive instance Functor XNodeF
 
-type XNODE x = (xNode :: XNodeF | x)
+type X'Node x = (_'x'node :: XNodeF | x)
 
-_xNode = Proxy :: Proxy "xNode"
+p'X'Node :: Proxy "_'x'node"
+p'X'Node = Proxy @"_'x'node"
 
-runXNode :: forall r. Run (XNODE r) ~> Run r
-runXNode = run (on _xNode handleXNode send)
+runXNode :: forall x a. Run (X'Node x) a -> Run x a
+runXNode = run (on p'X'Node handleXNode send)
 
 dirname :: forall p. Pathlike p => p -> Path
 dirname p = Path $ js_pathDirname $ pathStr p
@@ -312,21 +312,19 @@ infixr 0 pathJoin as /./
 -- join paths unless rightside is absolute in which case, use rightside
 infixr 0 pathJoinAbs as /.|//
 
-type XNode x a = XRun (xNode :: XNodeF | x) a
-
 xArgParse
   :: forall x a
    . String
   -> O.ParserInfo a
   -> Array String
-  -> (a -> XNode x Unit)
-  -> XNode x Unit
+  -> (a -> X'Node x @@> Unit)
+  -> X'Node x @@> Unit
 xArgParse progName opts args fm =
   handleParse $ O.execParserPure O.defaultPrefs opts args
   where
   handleParse (O.Success a) = fm a
   handleParse (O.Failure f) = do
     let msg /\ _exit = O.renderFailure f progName
-    xOutErr msg
+    x'outErr msg
     pure unit
   handleParse _ = pure unit

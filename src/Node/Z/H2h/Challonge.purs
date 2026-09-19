@@ -16,12 +16,12 @@ import Z.H2h.Warning as H2hW
 
 getEventData :: forall x. B.GetDataFn x
 getEventData = B.adaptBuilder $ x'withReturn \xReturn -> do
-  { client, networkControl, slug } <- g @XAsk
+  { client, networkControl, slug } <- r'ask
   let { cachePath } = client
   let eCacheOnlyEmpty = H2hE.Gql GqlE.CacheOnlyEmpty
   cached <- getCached slug cachePath networkControl
   whenJust cached xReturn
-  when (networkControl == Gql.CacheOnly) $ g @XFail eCacheOnlyEmpty
+  when (networkControl == Gql.CacheOnly) $ e'fail eCacheOnlyEmpty
   res <- getEventDataImpl
   writeToCache slug cachePath res
   pure res
@@ -29,18 +29,18 @@ getEventData = B.adaptBuilder $ x'withReturn \xReturn -> do
   fullPath slug path = path /./ ("CHALLONGE-" <> slug <> ".json")
   writeToCache _ Nothing _ = pure unit
   writeToCache slug (Just path) res =
-    g @XTellMappedHush (H2hW.Gql <<< GqlW.CacheWrite) $ xEncodeTextFileP
+    we'tellMappedHush (H2hW.Gql <<< GqlW.CacheWrite) $ xEncodeTextFileP
       (fullPath slug path)
       res
   getCached _ Nothing _ = pure Nothing
   getCached _ _ Gql.ForceFetch = pure Nothing
-  getCached slug (Just path) _ = g @XTellMappedMHush mapMDecodeErr
+  getCached slug (Just path) _ = we'tellMappedHush mapMDecodeErr
     $ xDecodeTextFile
     $ fullPath slug path
   mapMDecodeErr e@(DecodeError _) = [ H2hW.Gql $ GqlW.CacheDecode e ]
   mapMDecodeErr _ = []
 
-getEventDataImpl :: forall x. H2h.Event <# B.BuildX x
+getEventDataImpl :: forall x. H2h.Event <@@ B.BuildX x
 getEventDataImpl = do
   P.xUseBrowser H2hE.PuppeteerBrowserResource browserOpts $ \browser -> do
     xInfo { op: "newPage" }
@@ -66,13 +66,13 @@ getEventDataImpl = do
     }
 
   readPageData page = do
-    { slug } <- g @XAsk
+    { slug } <- r'ask
     itemEls <- pEls page ".redesigned-meta-list .item"
     forM_ itemEls $ \el -> do
       itemLabel <- pEl el ".item-label" >>= pInnerText
       itemText <- pEl el ".text" >>= pInnerText
       when (itemLabel == "Start Time" || itemLabel == "Start") do
-        date <- e'map H2hE.ParseTime $ g @XRunParser itemText
+        date <- e'map H2hE.ParseTime $ e'runParser itemText
           parseDate
         s'sets @"dateOrE" $ Right date
         pure unit
@@ -328,8 +328,8 @@ getEventDataImpl = do
     P.xWaitForSelector page sel $ s'sets @"timeout" $ Just 120000
 
 userAgent :: String
-userAgent =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" <->
+  "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 
 parseMonth :: forall m. ParserT String m Month
 parseMonth = parseTry (parseStringAs "January" January)
