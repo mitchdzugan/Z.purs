@@ -4,6 +4,8 @@ module Z.Z.X6.Methods
   , T'self
   , T'x'assign
   , T'x'extract
+  , T'x'set
+  , T'x'set'b
   , T'x'view
   , T'x'view'b
   , x'add
@@ -33,6 +35,8 @@ module Z.Z.X6.Methods
   , x'reset
   , x'resetAt
   , x'result
+  , x'set
+  , x'set'b
   , x'size
   , x'sizeAt
   , x'toArrayOf
@@ -46,7 +50,7 @@ module Z.Z.X6.Methods
 
 import Z.Z.X6.UtilPrelude
 
-import Data.Lens (Forget, Optic, preview, toArrayOf, view)
+import Data.Lens (Forget, Optic, preview, set, toArrayOf, view)
 import Data.List (List)
 import Data.Maybe (isJust)
 import Data.Monoid.Endo (Endo)
@@ -321,6 +325,34 @@ type T'x'assign p =
 
 x'assign :: forall @p. T'x'assign p
 x'assign = x'respondTo @p @"assign"
+
+---------------------------------------------------------------------
+
+type T'x'set p =
+  forall m x' x t resp'rest t'rest a b
+   . ConsSymbol p m x' x
+  => X'RespondsTo m (VariantF $ T'extract t $ T'assign t resp'rest)
+       (T'self t t'rest)
+  => Optic Function t t a b
+  -> b
+  -> Run x Unit
+
+x'set :: forall @p. T'x'set p
+x'set l v = x'respondTo_ @p @"extract" >>= x'respondTo @p @"assign" <<< set l v
+
+---------------------------------------------------------------------
+
+type T'x'set'b sym p =
+  forall lenses m x' x t resp'rest t'rest a b
+   . ConsSymbol p m x' x
+  => X'RespondsTo m (VariantF $ T'extract t $ T'assign t resp'rest)
+       (T'self t t'rest)
+  => C'Barlow sym lenses Function t t a b
+  => b
+  -> Run x Unit
+
+x'set'b :: forall @p @sym. T'x'set'b sym p
+x'set'b = x'set @p $ barlow @sym
 
 ---------------------------------------------------------------------
 

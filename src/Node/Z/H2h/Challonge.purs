@@ -74,15 +74,15 @@ getEventDataImpl = do
       when (itemLabel == "Start Time" || itemLabel == "Start") do
         date <- e'map H2hE.ParseTime $ e'runParser itemText
           parseDate
-        s'sets @"dateOrE" $ Right date
+        s'set'b @"dateOrE" $ Right date
         pure unit
       when (itemLabel == "Game") do
-        s'sets @"nameOrE" $ Right itemText
+        s'set'b @"nameOrE" $ Right itemText
       when (itemLabel == "Format") do
-        s'sets @"isDE" $ itemText == "Double Elimination"
-    name <- s'views @"nameOrE" >>= e'ok
-    date <- s'views @"dateOrE" >>= e'ok
-    isDE <- s'views @"isDE"
+        s'set'b @"isDE" $ itemText == "Double Elimination"
+    name <- s'view'b @"nameOrE" >>= e'ok
+    date <- s'view'b @"dateOrE" >>= e'ok
+    isDE <- s'view'b @"isDE"
     tournamentName <- pEl page ".title #title" >>= pInnerText
     bracketEls <- pEls page ".bracket-svg"
     forM_ bracketEls $ \bracketEl -> do

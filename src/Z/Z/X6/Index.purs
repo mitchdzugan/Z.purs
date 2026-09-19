@@ -50,6 +50,9 @@ module Z.Z.X6.Index
   , s'get
   , s'run
   , s'set
+  , s'set'b
+  , s'view
+  , s'view'b
   , sync'x
   , type (<@<)
   , type (<@@)
@@ -107,7 +110,14 @@ import Z.Z.DateTime (DateTime, dateTime'toMS)
 import Z.Z.Defaultable.Util as D
 import Z.Z.X6.Async (AffF(..), x'aff'')
 import Z.Z.X6.Core (x'eval, x'eval_, x'exec, x'run)
-import Z.Z.X6.Methods (T'x'extract, T'x'view, T'x'view'b, x'cons)
+import Z.Z.X6.Methods
+  ( T'x'extract
+  , T'x'set
+  , T'x'set'b
+  , T'x'view
+  , T'x'view'b
+  , x'cons
+  )
 import Z.Z.X6.Methods
   ( x'add
   , x'addAt
@@ -134,6 +144,8 @@ import Z.Z.X6.Methods
   , x'reset
   , x'resetAt
   , x'result
+  , x'set
+  , x'set'b
   , x'size
   , x'sizeAt
   , x'uncons
@@ -209,11 +221,8 @@ type WaEA' w e x = Wa' w $ E' e $ A' x
 
 type RWaEA' r w e x = R' r $ Wa' w $ E' e $ A' x
 
-s'get :: forall x s. Run (S' s x) s
-s'get = Methods.x'extract @"_'x'state"
-
-s'set :: forall x s. s -> Run (S' s x) Unit
-s'set = Methods.x'assign @"_'x'state"
+s'put :: forall x s. s -> Run (S' s x) Unit
+s'put = Methods.x'assign @"_'x'state"
 
 s'run :: forall x r a. r -> Run (S' r x) a -> Run x (a /\ r)
 s'run = x'run @"_'x'state"
@@ -458,6 +467,23 @@ w'say = w'say'' @p
 ---------------------------------------------------------------------
 
 type T'use's'AsSym p f = T'useAsSym "_'x'state" p f
+
+--------------------------------------------
+
+s'get :: forall p. T'use's'AsSym p T'x'extract
+s'get = Methods.x'extract @p
+
+s'view :: forall p. T'use's'AsSym p T'x'view
+s'view = Methods.x'view @p
+
+s'view'b :: forall @sym p. T'use's'AsSym p (T'x'view'b sym)
+s'view'b = Methods.x'view'b @p @sym
+
+s'set :: forall p. T'use's'AsSym p T'x'set
+s'set = Methods.x'set @p
+
+s'set'b :: forall @sym p. T'use's'AsSym p (T'x'set'b sym)
+s'set'b = Methods.x'set'b @p @sym
 
 --------------------------------------------
 
