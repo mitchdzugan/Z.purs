@@ -41,9 +41,10 @@ module Z.Z.X6.Index
   , edit
   , module Methods
   , r'ask
-  , r'ask''
   , r'run
   , r'run''
+  , r'view
+  , r'view'b
   , s'eval
   , s'exec
   , s'get
@@ -106,6 +107,7 @@ import Z.Z.DateTime (DateTime, dateTime'toMS)
 import Z.Z.Defaultable.Util as D
 import Z.Z.X6.Async (AffF(..), x'aff'')
 import Z.Z.X6.Core (x'eval, x'eval_, x'exec, x'run)
+import Z.Z.X6.Methods (T'x'extract, T'x'view, T'x'view'b, x'cons)
 import Z.Z.X6.Methods
   ( x'add
   , x'addAt
@@ -137,8 +139,9 @@ import Z.Z.X6.Methods
   , x'uncons
   , x'vals
   , x'valsAt
+  , x'view
+  , x'view'b
   ) as Methods
-import Z.Z.X6.Methods (x'cons)
 import Z.Z.X6.Readables.Base (LogLevel(..), X'Base, x'now'', x'out'')
 import Z.Z.X6.Readables.RW.Ref (X'Ref)
 import Z.Z.X6.Readables.RW.Vector (X'Writer)
@@ -254,11 +257,14 @@ r'run = r'run'' @p
 
 type T'r'ask p = forall x' x r. ConsSymbol p (X'R r) x' x => Run x r
 
-r'ask'' :: forall @p. T'r'ask p
-r'ask'' = Methods.x'extract @p
+r'ask :: forall p. T'use'r'AsSym p T'x'extract
+r'ask = Methods.x'extract @p
 
-r'ask :: forall p. T'use'r'AsSym p T'r'ask
-r'ask = r'ask'' @p
+r'view :: forall p. T'use'r'AsSym p T'x'view
+r'view = Methods.x'view @p
+
+r'view'b :: forall @sym p. T'use'r'AsSym p (T'x'view'b sym)
+r'view'b = Methods.x'view'b @p @sym
 
 ---------------------------------------------------------------------
 

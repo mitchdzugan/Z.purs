@@ -37,7 +37,13 @@ module Z.Z.Shorthand
 import Prelude
 
 import Type.Row (type (+)) as TypeRow
-import Z.Z.Barlow (class ConstructBarlow, class ParseSymbol, Forget, barlow) as Z
+import Z.Z.Barlow
+  ( class C'Barlow
+  , class ConstructBarlow
+  , class ParseSymbol
+  , Forget
+  , barlow
+  ) as Z
 import Z.Z.Core as ZCore
 import Z.Z.Defaultable (WithDefaultable, default, orDefault) as Z
 import Z.Z.Ext
@@ -146,9 +152,7 @@ infixr 0 set_ as ~.
 
 over_
   :: forall s t a b @sym lenses
-   . Z.IsSymbol sym
-  => Z.ParseSymbol sym lenses
-  => Z.ConstructBarlow lenses Function s t a b
+   . Z.C'Barlow sym lenses Function s t a b
   => s
   -> (a -> b)
   -> t

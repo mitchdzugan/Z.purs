@@ -1,5 +1,6 @@
 module Z.Z.Barlow
-  ( class ConstructBarlow'Get
+  ( class C'Barlow
+  , class ConstructBarlow'Get
   , class ConstructBarlow'Get'
   , module Barlow
   , module BarlowCons
@@ -32,3 +33,17 @@ instance
 class ConstructBarlow'Get p s s a a <= ConstructBarlow'Get' p s a
 
 instance (ConstructBarlow'Get p s s a a) => ConstructBarlow'Get' p s a
+
+class
+  ( BarlowParse.ParseSymbol sym lenses
+  , Symbol.IsSymbol sym
+  , BarlowCons.ConstructBarlow lenses p s t a b
+  ) <=
+  C'Barlow sym lenses p s t a b
+
+instance
+  ( BarlowParse.ParseSymbol sym lenses
+  , Symbol.IsSymbol sym
+  , BarlowCons.ConstructBarlow lenses p s t a b
+  ) =>
+  C'Barlow sym lenses p s t a b
