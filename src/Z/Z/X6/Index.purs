@@ -39,7 +39,6 @@ module Z.Z.X6.Index
   , e'tryUntil
   , e'tryUntil''
   , edit
-  , module Methods
   , r'ask
   , r'run
   , r'run''

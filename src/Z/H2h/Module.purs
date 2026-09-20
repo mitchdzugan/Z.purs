@@ -87,7 +87,7 @@ type Phase =
 type PhaseGroup =
   { id :: SorN
   , displayIdentifier :: String
-  , sets :: Map Int H2hSet
+  , sets :: HashMap Int H2hSet
   , phase :: Phase
   }
 
@@ -97,8 +97,8 @@ type Player =
   , prefix :: Maybe String
   , pronouns :: Maybe String
   , name :: Maybe String
-  , socials :: Map String String
-  , images :: Map String String
+  , socials :: HashMap String String
+  , images :: HashMap String String
   }
 
 type Participant =
@@ -120,7 +120,7 @@ type Entrant =
 type Tournament =
   { id :: SorN
   , name :: String
-  , images :: Map String String
+  , images :: HashMap String String
   , date :: DateTime
   }
 
@@ -130,7 +130,7 @@ type Event =
   , name :: String
   , slug :: String
   , state :: String
-  , entrants :: Map SorN Entrant
+  , entrants :: HashMap SorN Entrant
   , phaseGroups :: Array PhaseGroup
   , tournament :: Tournament
   }

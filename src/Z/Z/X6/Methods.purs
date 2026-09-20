@@ -10,6 +10,7 @@ module Z.Z.X6.Methods
   , T'x'view'b
   , x'add
   , x'addAt
+  , x'alter
   , x'assign
   , x'assignAt
   , x'clear
@@ -26,6 +27,7 @@ module Z.Z.X6.Methods
   , x'keys
   , x'keysAt
   , x'lookup
+  , x'modify
   , x'pop
   , x'preview
   , x'preview'b
@@ -42,6 +44,7 @@ module Z.Z.X6.Methods
   , x'toArrayOf
   , x'toArrayOf'b
   , x'uncons
+  , x'update
   , x'vals
   , x'valsAt
   , x'view
@@ -129,14 +132,14 @@ type T'x'view p =
 x'view :: forall @p. T'x'view p
 x'view l = x'respondTo_ @p @"extract" <#> view l
 
-type T'x'view'b p sym =
+type T'x'view'b sym p =
   forall lenses m x' x s t a b resp'rest t'rest
    . ConsSymbol p m x' x
   => X'RespondsTo m (VariantF $ T'extract s resp'rest) (T'self s t'rest)
   => C'Barlow sym lenses (Forget a) s t a b
   => Run x a
 
-x'view'b :: forall @sym @p. T'x'view'b p sym
+x'view'b :: forall @p @sym. T'x'view'b sym p
 x'view'b = x'respondTo_ @p @"extract" <#> view (barlow @sym)
 
 x'preview
@@ -148,7 +151,7 @@ x'preview
 x'preview l = x'respondTo_ @p @"extract" <#> preview l
 
 x'preview'b
-  :: forall @sym lenses @p m x' x s t a b resp'rest t'rest
+  :: forall @p @sym lenses m x' x s t a b resp'rest t'rest
    . ConsSymbol p m x' x
   => X'RespondsTo m (VariantF $ T'extract s resp'rest) (T'self s t'rest)
   => C'Barlow sym lenses (Forget (First a)) s t a b
@@ -164,7 +167,7 @@ x'toArrayOf
 x'toArrayOf l = x'respondTo_ @p @"extract" <#> toArrayOf l
 
 x'toArrayOf'b
-  :: forall @sym lenses @p m x' x s t a b resp'rest t'rest
+  :: forall @p @sym lenses m x' x s t a b resp'rest t'rest
    . ConsSymbol p m x' x
   => X'RespondsTo m (VariantF $ T'extract s resp'rest) (T'self s t'rest)
   => C'Barlow sym lenses (Forget (Endo Function (List a))) s t a b
@@ -325,6 +328,30 @@ type T'x'assign p =
 
 x'assign :: forall @p. T'x'assign p
 x'assign = x'respondTo @p @"assign"
+
+---------------------------------------------------------------------
+
+type T'x'update p =
+  forall m x' x t resp'rest t'rest
+   . ConsSymbol p m x' x
+  => X'RespondsTo m (VariantF $ T'extract t $ T'assign t resp'rest)
+       (T'self t t'rest)
+  => (t -> t)
+  -> Run x Unit
+
+x'update :: forall @p. T'x'update p
+x'update f = x'respondTo_ @p @"extract" >>= x'respondTo @p @"assign" <<< f
+
+---------------------------------------------------------------------
+
+type T'x'reusePlus p =
+  forall m x' x t resp'rest t'rest a b
+   . ConsSymbol p m x' x
+  => X'RespondsTo m (VariantF $ T'extract t $ T'assign t resp'rest)
+       (T'self t t'rest)
+  => Optic Function t t a b
+  -> b
+  -> Run x Unit
 
 ---------------------------------------------------------------------
 
@@ -534,3 +561,37 @@ x'replace
   -> v
   -> Run x Unit
 x'replace k v = x'respondTo @p @"replace" (k /\ v)
+
+---------------------------------------------------------------------
+
+type T'x'alter p =
+  forall m x' x k v resp'rest t'rest
+   . ConsSymbol p m x' x
+  => X'RespondsTo m
+       (VariantF $ T'lookup k v $ T'remove k $ T'insert k v resp'rest)
+       (T'entry k v t'rest)
+  => k
+  -> (Maybe v -> Maybe v)
+  -> Run x Unit
+
+x'alter :: forall @p. T'x'alter p
+x'alter k f = x'lookup @p k <#> f >>= case _ of
+  Nothing -> x'remove @p k
+  Just v -> x'insert @p k v
+
+---------------------------------------------------------------------
+
+type T'x'modify p =
+  forall m x' x k v resp'rest t'rest
+   . ConsSymbol p m x' x
+  => X'RespondsTo m
+       (VariantF $ T'lookup k v $ T'remove k $ T'insert k v resp'rest)
+       (T'entry k v t'rest)
+  => k
+  -> (v -> v)
+  -> Run x Unit
+
+x'modify :: forall @p. T'x'modify p
+x'modify k f = x'lookup @p k >>= case _ of
+  Nothing -> pure unit
+  Just v -> x'insert @p k $ f v

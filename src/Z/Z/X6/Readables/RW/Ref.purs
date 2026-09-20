@@ -77,11 +77,11 @@ x'ref t = x'evaluable t
 x'ref'w :: forall t. t -> X'Evaluable (X'Ref'w t)
 x'ref'w t = x'evaluable t
 
-x'ref_ :: forall tag t. Generable tag GDefault t => X'Evaluable (X'Ref t)
-x'ref_ = x'evaluable @(X'Ref t) $ g @tag
+x'ref_ :: forall t. Generable t GDefault t => X'Evaluable (X'Ref t)
+x'ref_ = x'evaluable @(X'Ref t) $ g @t
 
-x'ref_'w :: forall tag t. Generable tag GDefault t => X'Evaluable (X'Ref'w t)
-x'ref_'w = x'evaluable @(X'Ref'w t) $ g @tag
+x'ref_'w :: forall t. Generable t GDefault t => X'Evaluable (X'Ref'w t)
+x'ref_'w = x'evaluable @(X'Ref'w t) $ g @t
 
 ---------------------------------------------------------------------
 
