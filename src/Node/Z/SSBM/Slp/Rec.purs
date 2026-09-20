@@ -5,7 +5,7 @@ import Node.Z.Prelude
 import Z.SSBM.Slp.Port as Port
 import Z.Z.Opt as O
 
-launchAndRecord :: forall x. REA RecordEnv Error x #> Unit
+launchAndRecord :: forall x. REA' RecordEnv Error x @@> Unit
 launchAndRecord = pure unit
 
 addConfigs
@@ -13,20 +13,20 @@ addConfigs
    . Boolean
   -> Path
   -> Array String
-  -> SEA EnvBuildState Error x #> Unit
+  -> SEA' EnvBuildState Error x @@> Unit
 addConfigs allowFNF wd configPaths = do
   forM_ configPaths \configPath -> do
     let fullPath = wd /.|// configPath
     e'try (xDecodeAnyYamlExt @RecordConfig fullPath) >>= onDecode fullPath
   where
   onDecode fullPath (Right c) = do
-    g @XModify $ updateEnv c
+    s'update $ updateEnv c
     addConfigs false (dirname fullPath) (gmOr'_ @"includes?" c)
   onDecode fp (Left (ReadError _)) = do
-    when (not allowFNF) $ g @XFail $ ConfigNotFound $ show fp
-  onDecode _ (Left (DecodeError e)) = g @XFail $ ConfigDecodeErr e
+    when (not allowFNF) $ e'fail $ ConfigNotFound $ show fp
+  onDecode _ (Left (DecodeError e)) = e'fail $ ConfigDecodeErr e
 
-xRun :: forall x. Array String -> EA Error x ##> Unit
+xRun :: forall x. Array String -> EA' Error (X'Node x) @@> Unit
 xRun args = do
   wd <- xWd
   envPaths <- xEnvPaths "slp-rec" $ Just ""
@@ -60,10 +60,10 @@ xRun args = do
     let noOptConfigs = arr'size optConfigs == 0
     let baseConfigPath = show $ cfgPath /./ "config"
     let configs = if noOptConfigs then [ baseConfigPath ] else optConfigs
-    envState <- g @XExecS envStateInit $ addConfigs noOptConfigs wd configs
+    envState <- s'exec envStateInit $ addConfigs noOptConfigs wd configs
     env <- finalizeEnv envState opts $ show $ wd /./ "output.mp4"
-    xInfo env
-    g @XRunR env launchAndRecord
+    x'info env
+    r'run env launchAndRecord
 
 mergeListOps
   :: forall a f. Foldable f => List a -> f (ListOp a) -> List a
@@ -95,7 +95,7 @@ updateEnv cfg st =
   }
 
 finalizeEnv
-  :: forall x. EnvBuildState -> CliOpts -> String -> E Error x #> RecordEnv
+  :: forall x. EnvBuildState -> CliOpts -> String -> E' Error x @@> RecordEnv
 finalizeEnv st (CliOpts opts) defaultOutputPath = do
   isoPath <- e'ok $ jOrE NoIso st.isoPath
   pure

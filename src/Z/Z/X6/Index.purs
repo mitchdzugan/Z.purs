@@ -4,9 +4,12 @@ module Z.Z.X6.Index
   , EA'
   , Edit
   , R'
+  , REA'
   , RS'
   , RWaEA'
+  , RWaSEA'
   , S'
+  , SEA'
   , Wa'
   , WaEA'
   , X
@@ -38,6 +41,8 @@ module Z.Z.X6.Index
   , e'try''
   , e'tryUntil
   , e'tryUntil''
+  , e'unwrap
+  , e'unwrap''
   , edit
   , r'ask
   , r'run
@@ -47,9 +52,17 @@ module Z.Z.X6.Index
   , s'eval
   , s'exec
   , s'get
+  , s'over
+  , s'over'b
+  , s'preview
+  , s'preview'b
+  , s'put
   , s'run
   , s'set
   , s'set'b
+  , s'toArrayOf
+  , s'toArrayOf'b
+  , s'update
   , s'view
   , s'view'b
   , sync'x
@@ -57,12 +70,17 @@ module Z.Z.X6.Index
   , type (<@@)
   , type (>@>)
   , type (@@>)
+  , w'map
+  , w'map''
   , w'run
   , w'run''
   , w'say
   , w'say''
   , w'tell
   , w'tell''
+  , we'map
+  , we'map''
+  , we'map'''
   , we'runResult
   , we'runResult''
   , we'runResult'''
@@ -70,7 +88,6 @@ module Z.Z.X6.Index
   , we'tellMappedHush''
   , we'tellMappedHush'''
   , we'tellMappedMHush
-  , we'tellMappedMHush''
   , we'tellMappedMHush'''
   , x'attemptAff
   , x'info
@@ -95,7 +112,8 @@ import Effect.Class as EffC
 import Parsing (Parser)
 import Run.Except (Except, runExceptAt, throwAt)
 import Z.Z.Core
-  ( JsError(..)
+  ( class Resulting
+  , JsError(..)
   , ParseError
   , Result
   , T'useAsSym
@@ -103,6 +121,7 @@ import Z.Z.Core
   , invert
   , mapL
   , reduceM
+  , resultVal
   , runParser
   )
 import Z.Z.DateTime (DateTime, dateTime'toMS)
@@ -111,45 +130,30 @@ import Z.Z.X6.Async (AffF(..), x'aff'')
 import Z.Z.X6.Core (x'eval, x'eval_, x'exec, x'run)
 import Z.Z.X6.Methods
   ( T'x'extract
+  , T'x'over
+  , T'x'over'b
+  , T'x'preview
+  , T'x'preview'b
   , T'x'set
   , T'x'set'b
+  , T'x'toArrayOf
+  , T'x'toArrayOf'b
   , T'x'view
   , T'x'view'b
   , x'cons
   )
 import Z.Z.X6.Methods
-  ( x'add
-  , x'addAt
-  , x'assign
-  , x'assignAt
-  , x'clear
-  , x'clearAt
-  , x'cons
-  , x'consAt
-  , x'd1keys
-  , x'entries
-  , x'entriesAt
+  ( x'assign
   , x'extract
-  , x'extractAt
-  , x'has
-  , x'insert
-  , x'keys
-  , x'keysAt
-  , x'lookup
-  , x'pop
-  , x'push
-  , x'remove
-  , x'replace
-  , x'reset
-  , x'resetAt
-  , x'result
+  , x'over
+  , x'over'b
+  , x'preview
+  , x'preview'b
   , x'set
   , x'set'b
-  , x'size
-  , x'sizeAt
-  , x'uncons
-  , x'vals
-  , x'valsAt
+  , x'toArrayOf
+  , x'toArrayOf'b
+  , x'update
   , x'view
   , x'view'b
   ) as Methods
@@ -220,8 +224,17 @@ type WaEA' w e x = Wa' w $ E' e $ A' x
 
 type RWaEA' r w e x = R' r $ Wa' w $ E' e $ A' x
 
+type RWaSEA' r w s e x = R' r $ Wa' w $ S' s $ E' e $ A' x
+
+type REA' r e x = R' r $ E' e $ A' x
+
+type SEA' s e x = S' s $ E' e $ A' x
+
 s'put :: forall x s. s -> Run (S' s x) Unit
 s'put = Methods.x'assign @"_'x'state"
+
+s'update :: forall x s. (s -> s) -> Run (S' s x) Unit
+s'update = Methods.x'update @"_'x'state"
 
 s'run :: forall x r a. r -> Run (S' r x) a -> Run x (a /\ r)
 s'run = x'run @"_'x'state"
@@ -387,6 +400,24 @@ e'invert = e'invert'' @p
 
 --------------------------------------------
 
+type T'e'unwrap p =
+  forall x' x e f a
+   . ConsSymbol p (X'E e) x' x
+  => Resulting f
+  => e
+  -> f a
+  -> Run x a
+
+e'unwrap'' :: forall @p. T'e'unwrap p
+e'unwrap'' e v = case resultVal v of
+  Just v -> pure v
+  _ -> e'fail'' @p e
+
+e'unwrap :: forall p. T'use'e'AsSym p T'e'unwrap
+e'unwrap = e'unwrap'' @p
+
+--------------------------------------------
+
 type T'e'tryUntil p =
   forall x''' x'' x' x e a
    . ConsSymbol p (X'E e) x''' x''
@@ -463,6 +494,28 @@ w'say'' w = x'cons @p (pure w)
 w'say :: forall p. T'use'w'AsSym p T'w'say
 w'say = w'say'' @p
 
+--------------------------------------------
+
+type T'w'map p =
+  forall m w1 w2 x'' x' x a
+   . ConsSymbol p (X'W (m w1)) x'' x'
+  => ConsSymbol p (X'W (m w2)) x' x
+  => Monoid (m w1)
+  => Monoid (m w2)
+  => Monad m
+  => (w2 -> w1)
+  -> Run x a
+  -> Run x' a
+
+w'map'' :: forall @p. T'w'map p
+w'map'' f m = do
+  a /\ tells <- w'run'' @p m
+  w'tell'' @p $ map f tells
+  pure a
+
+w'map :: forall p. T'use'w'AsSym p T'w'map
+w'map = w'map'' @p
+
 ---------------------------------------------------------------------
 
 type T'use's'AsSym p f = T'useAsSym "_'x'state" p f
@@ -478,11 +531,29 @@ s'view = Methods.x'view @p
 s'view'b :: forall @sym p. T'use's'AsSym p (T'x'view'b sym)
 s'view'b = Methods.x'view'b @p @sym
 
+s'preview :: forall p. T'use's'AsSym p T'x'preview
+s'preview = Methods.x'preview @p
+
+s'preview'b :: forall @sym p. T'use's'AsSym p (T'x'preview'b sym)
+s'preview'b = Methods.x'preview'b @p @sym
+
+s'toArrayOf :: forall p. T'use's'AsSym p T'x'toArrayOf
+s'toArrayOf = Methods.x'toArrayOf @p
+
+s'toArrayOf'b :: forall @sym p. T'use's'AsSym p (T'x'toArrayOf'b sym)
+s'toArrayOf'b = Methods.x'toArrayOf'b @p @sym
+
 s'set :: forall p. T'use's'AsSym p T'x'set
 s'set = Methods.x'set @p
 
 s'set'b :: forall @sym p. T'use's'AsSym p (T'x'set'b sym)
 s'set'b = Methods.x'set'b @p @sym
+
+s'over :: forall p. T'use's'AsSym p T'x'over
+s'over = Methods.x'over @p
+
+s'over'b :: forall @sym p. T'use's'AsSym p (T'x'over'b sym)
+s'over'b = Methods.x'over'b @p @sym
 
 --------------------------------------------
 
@@ -491,9 +562,37 @@ type Edit t = S' t () @@> Unit
 edit :: forall t. t -> Edit t -> t
 edit init m = sync'x $ x'exec @"_'x'state" init m
 
---------------------------------------------
-
 ---------------------------------------------------------------------
+
+type T'we'map' wp ep =
+  forall m w1 w2 e1 e2 x''''' x'''' x''' x'' x' x a
+   . ConsSymbol wp (X'W (m w1)) x'''' x''
+  => ConsSymbol wp (X'W (m w1)) x''''' x'
+  => ConsSymbol ep (X'E e1) x''' x''
+  => ConsSymbol wp (X'W (m w2)) x' x
+  => ConsSymbol ep (X'E e2) x'' x'
+  => Monoid (m w1)
+  => Monoid (m w2)
+  => Monad m
+  => (w2 -> w1)
+  -> (e2 -> e1)
+  -> Run x a
+  -> Run x'' a
+
+type T'we'map wp =
+  forall ep. T'use'e'AsSym ep (T'we'map' wp)
+
+we'map''' :: forall @wp @ep. T'we'map' wp ep
+we'map''' mapW mapE m = e'map'' @ep mapE $ w'map'' @wp mapW m
+
+we'map''
+  :: forall @wp ep. T'use'e'AsSym ep (T'we'map' wp)
+we'map'' = we'map''' @wp @ep
+
+we'map :: forall @wp. T'use'w'AsSym wp T'we'map
+we'map = we'map'' @wp
+
+--------------------------------------------
 
 type T'we'tellMappedMHush' wp ep =
   forall w e x'' x' x m a

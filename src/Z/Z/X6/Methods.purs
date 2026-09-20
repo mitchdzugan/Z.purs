@@ -4,8 +4,14 @@ module Z.Z.X6.Methods
   , T'self
   , T'x'assign
   , T'x'extract
+  , T'x'over
+  , T'x'over'b
+  , T'x'preview
+  , T'x'preview'b
   , T'x'set
   , T'x'set'b
+  , T'x'toArrayOf
+  , T'x'toArrayOf'b
   , T'x'view
   , T'x'view'b
   , x'add
@@ -28,6 +34,8 @@ module Z.Z.X6.Methods
   , x'keysAt
   , x'lookup
   , x'modify
+  , x'over
+  , x'over'b
   , x'pop
   , x'preview
   , x'preview'b
@@ -53,7 +61,7 @@ module Z.Z.X6.Methods
 
 import Z.Z.X6.UtilPrelude
 
-import Data.Lens (Forget, Optic, preview, set, toArrayOf, view)
+import Data.Lens (Forget, Optic, over, preview, set, toArrayOf, view)
 import Data.List (List)
 import Data.Maybe (isJust)
 import Data.Monoid.Endo (Endo)
@@ -142,36 +150,44 @@ type T'x'view'b sym p =
 x'view'b :: forall @p @sym. T'x'view'b sym p
 x'view'b = x'respondTo_ @p @"extract" <#> view (barlow @sym)
 
-x'preview
-  :: forall @p m x' x s t a b resp'rest t'rest
+type T'x'preview p =
+  forall m x' x s t a b resp'rest t'rest
    . ConsSymbol p m x' x
   => X'RespondsTo m (VariantF $ T'extract s resp'rest) (T'self s t'rest)
   => Optic (Forget (First a)) s t a b
   -> Run x (Maybe a)
+
+x'preview :: forall @p. T'x'preview p
 x'preview l = x'respondTo_ @p @"extract" <#> preview l
 
-x'preview'b
-  :: forall @p @sym lenses m x' x s t a b resp'rest t'rest
+type T'x'preview'b sym p =
+  forall lenses m x' x s t a b resp'rest t'rest
    . ConsSymbol p m x' x
   => X'RespondsTo m (VariantF $ T'extract s resp'rest) (T'self s t'rest)
   => C'Barlow sym lenses (Forget (First a)) s t a b
   => Run x (Maybe a)
+
+x'preview'b :: forall @p @sym. T'x'preview'b sym p
 x'preview'b = x'respondTo_ @p @"extract" <#> preview (barlow @sym)
 
-x'toArrayOf
-  :: forall @p m x' x s t a b resp'rest t'rest
+type T'x'toArrayOf p =
+  forall m x' x s t a b resp'rest t'rest
    . ConsSymbol p m x' x
   => X'RespondsTo m (VariantF $ T'extract s resp'rest) (T'self s t'rest)
   => Optic (Forget (Endo Function (List a))) s t a b
   -> Run x (Array a)
+
+x'toArrayOf :: forall @p. T'x'toArrayOf p
 x'toArrayOf l = x'respondTo_ @p @"extract" <#> toArrayOf l
 
-x'toArrayOf'b
-  :: forall @p @sym lenses m x' x s t a b resp'rest t'rest
+type T'x'toArrayOf'b sym p =
+  forall lenses m x' x s t a b resp'rest t'rest
    . ConsSymbol p m x' x
   => X'RespondsTo m (VariantF $ T'extract s resp'rest) (T'self s t'rest)
   => C'Barlow sym lenses (Forget (Endo Function (List a))) s t a b
   => Run x (Array a)
+
+x'toArrayOf'b :: forall @p @sym. T'x'toArrayOf'b sym p
 x'toArrayOf'b = x'respondTo_ @p @"extract" <#> toArrayOf (barlow @sym)
 
 ---------------------------------------------------------------------
@@ -380,6 +396,35 @@ type T'x'set'b sym p =
 
 x'set'b :: forall @p @sym. T'x'set'b sym p
 x'set'b = x'set @p $ barlow @sym
+
+---------------------------------------------------------------------
+
+type T'x'over p =
+  forall m x' x t resp'rest t'rest a b
+   . ConsSymbol p m x' x
+  => X'RespondsTo m (VariantF $ T'extract t $ T'assign t resp'rest)
+       (T'self t t'rest)
+  => Optic Function t t a b
+  -> (a -> b)
+  -> Run x Unit
+
+x'over :: forall @p. T'x'over p
+x'over f v =
+  x'respondTo_ @p @"extract" >>= x'respondTo @p @"assign" <<< over f v
+
+---------------------------------------------------------------------
+
+type T'x'over'b sym p =
+  forall lenses m x' x t resp'rest t'rest a b
+   . ConsSymbol p m x' x
+  => X'RespondsTo m (VariantF $ T'extract t $ T'assign t resp'rest)
+       (T'self t t'rest)
+  => C'Barlow sym lenses Function t t a b
+  => (a -> b)
+  -> Run x Unit
+
+x'over'b :: forall @p @sym. T'x'over'b sym p
+x'over'b = x'over @p $ barlow @sym
 
 ---------------------------------------------------------------------
 

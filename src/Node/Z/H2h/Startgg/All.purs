@@ -31,12 +31,12 @@ ggQueryAll
   -> Array (GGPageSpec v r)
   -> Gql.Client
   -> Gql.NetworkControl
-  -> WaEA H2hW.T H2hE.T x #> { | r }
+  -> WaEA' H2hW.T H2hE.T x @@> { | r }
 ggQueryAll op initVars pageSpecs client networkControl = we'liftGql do
   let r = { client, networkControl, op }
   initRes <- Gql.xOperate op initVars client networkControl
   let initS = { vars: initVars, res: initRes }
-  { res } <- g @XRunR r $ g @XExecS initS $ forM_ pageSpecs
+  { res } <- r'run r $ s'exec initS $ forM_ pageSpecs
     ggPageSpecHandle
   pure res
   where
@@ -51,7 +51,7 @@ type QAllR v r =
 type QAllS v r = { vars :: { | v }, res :: { | r } }
 
 type XPageSpecHandle x v r =
-  RWaSEA (QAllR v r) Gql.Warning (QAllS v r) Gql.Error x #> Unit
+  RWaSEA' (QAllR v r) Gql.Warning (QAllS v r) Gql.Error x @@> Unit
 
 ggPageSpecHandle :: forall x v r. GGPageSpec v r -> XPageSpecHandle x v r
 ggPageSpecHandle = runExists ggPageSpecHandleImpl
@@ -61,19 +61,19 @@ ggPageSpecHandleImpl
    . GGPageSpecF v r pnr
   -> XPageSpecHandle x v r
 ggPageSpecHandleImpl (GGPageSpecF pageL dataL) = do
-  { client, networkControl, op } <- g @XAsk
-  s'plus @"seenIds" set'empty $ loop op client networkControl
+  { client, networkControl, op } <- r'ask
+  x'eval_ @"seenIds" @(X'HashSet Int) $ loop op client networkControl
   where
   loop op client networkControl = do
-    g @XToArrayOfS (_o_ @"res" @"nodes+.id" dataL) >>= \ids -> do
-      (s'sets @"seenIds" $ set'fromFoldable ids)
-    seenIds <- s'views @"seenIds"
-    total <- g @XViewS (_o_ @"res" @"pageInfo.total" dataL)
-    when (set'size seenIds < total) do
-      g @XOver (_o @"vars" pageL) inc
-      vars <- s'views @"vars"
+    s'toArrayOf (_o_ @"res" @"nodes+.id" dataL) >>= \ids -> do
+      (x'assign @"seenIds" $ hs'fromFoldable ids)
+    seenIds <- x'extract @"seenIds"
+    total <- s'view (_o_ @"res" @"pageInfo.total" dataL)
+    when (hs'size seenIds < total) do
+      s'over (_o @"vars" pageL) inc
+      vars <- s'view'b @"vars"
       res <- Gql.xOperate op vars client networkControl
       let nodes = view (dataL # o_ @"nodes") res
-      g @XOver (_o_ @"res" @"nodes" dataL)
-        (flip (<>) $ arr'filter (\{ id } -> not $ set'has id seenIds) nodes)
+      s'over (_o_ @"res" @"nodes" dataL)
+        (flip (<>) $ arr'filter (\{ id } -> not $ hs'has id seenIds) nodes)
       loop op client networkControl
