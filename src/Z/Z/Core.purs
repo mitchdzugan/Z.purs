@@ -3,6 +3,7 @@ module Z.Z.Core
   , (<$$>)
   , AntiUnit
   , Deferred
+  , Eff'At(..)
   , JsAny
   , JsError(..)
   , Object
@@ -41,6 +42,7 @@ module Z.Z.Core
   , constL
   , dec
   , deferred'run
+  , eff'tag
   , encodeForeign
   , encodeOpts
   , fDiscard
@@ -144,6 +146,7 @@ import Data.Lens (Lens', lens')
 import Data.List as List
 import Data.Map as Map
 import Data.Maybe as May
+import Data.Newtype (class Newtype)
 import Data.Ord as Ord
 import Data.Ring as Ring
 import Data.Semiring as Semiring
@@ -153,6 +156,7 @@ import Data.Traversable as Traversable
 import Data.Tuple as Tup
 import Data.Tuple.Nested as TupN
 import Data.Variant as Var
+import Effect as Eff
 import Effect.Exception as Exc
 import Foreign as Foreign
 import Foreign.Object as Obj
@@ -690,3 +694,11 @@ intFromString :: String -> May.Maybe Int
 intFromString = Int.fromString
 
 type Result w e a = { w :: (Array w), v :: (Eor.Either e a) }
+
+newtype Eff'At :: forall k. k -> Type -> Type
+newtype Eff'At p a = Eff'At (Eff.Effect a)
+
+derive instance Newtype (Eff'At p a) _
+
+eff'tag :: forall @p a. Eff.Effect a -> Eff'At p a
+eff'tag = Eff'At

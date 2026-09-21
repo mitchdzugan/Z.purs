@@ -14,6 +14,7 @@ module Z.Z.X6.Methods
   , T'x'toArrayOf'b
   , T'x'view
   , T'x'view'b
+  , x'act
   , x'add
   , x'addAt
   , x'alter
@@ -66,6 +67,7 @@ import Data.List (List)
 import Data.Maybe (isJust)
 import Data.Monoid.Endo (Endo)
 import Z.Z.Barlow (class C'Barlow, First, barlow)
+import Z.Z.Core (Eff'At)
 import Z.Z.X6.Core
   ( class X'RespondsTo
   , class X'Results
@@ -129,6 +131,21 @@ type T'x'extract p =
 
 x'extract :: forall @p. T'x'extract p
 x'extract = x'respondTo_ @p @"extract"
+
+--------------------------------------------
+
+type T'x'act p =
+  forall m x' x t resp'rest t'rest a
+   . ConsSymbol p m x' x
+  => X'RespondsTo m (VariantF $ T'extract t resp'rest) (T'self t t'rest)
+  => (t -> Eff'At p a)
+  -> Run x a
+
+x'act :: forall @p. T'x'act p
+x'act getEff =
+  x'respondTo_ @p @"extract" <#> getEff <#> unwrap <#> unsafePerformEffect
+
+--------------------------------------------
 
 type T'x'view p =
   forall m x' x s t a b resp'rest t'rest

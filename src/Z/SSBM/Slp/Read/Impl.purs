@@ -73,7 +73,7 @@ newtype SlpParseAndShaFail = SlpParseAndShaFail JsError
 
 derive instance Newtype SlpParseAndShaFail _
 
-xParseData :: forall x. Buffer -> E Err.T x #> SlpGameData
+xParseData :: forall x. Buffer -> E' Err.T x @@> SlpGameData
 xParseData buffer = do
   let game = js_gameOfBuffer buffer
   rawSettings <- e'map Err.DecodeSettings $ e'ok $ slpSettings game
@@ -92,14 +92,14 @@ xParseData buffer = do
       , id'of mi.gameNumber
       , id'of mi.tiebreakerNumber
       ]
-    g @XFail Err.UnmadeId
+    e'fail Err.UnmadeId
   pure { rawSettings, rawMeta, rawStats, startAtOr_, key: id'of keys }
 
-xParse :: forall x. Buffer -> EA SlpParseAndShaFail x #> SlpGame
+xParse :: forall x. Buffer -> EA' SlpParseAndShaFail x @@> SlpGame
 xParse b = e'try (xParseData b) >>= case _ of
   (Right v) -> pure $ SlpGame v
   (Left e) -> e'try (sha256BytesOfBuffer b) >>= case _ of
-    (Left shaE) -> g @XFail $ SlpParseAndShaFail shaE
+    (Left shaE) -> e'fail $ SlpParseAndShaFail shaE
     (Right sha256) -> pure $ SlpParseFail e sha256
 
 instance Identable SlpGame where
