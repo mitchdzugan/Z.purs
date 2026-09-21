@@ -13,7 +13,6 @@ import Z.Gql.Warning as GqlW
 import Z.H2h.Error as H2hE
 import Z.H2h.Module as H2h
 import Z.H2h.Warning as H2hW
-import Z.Z.Bin (bin'vals)
 
 getEventData :: forall x. B.GetDataFn x
 getEventData = B.adaptBuilder $ x'withReturn \xReturn -> do

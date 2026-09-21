@@ -1,4 +1,14 @@
-module Z.Z.X6.Readables.RW.HashSet2D where
+module Z.Z.X6.Readables.RW.HashSet2D
+  ( Eff'HashSet2D
+  , HashSet2D
+  , R'HashSet2D(..)
+  , X'HashSet2D
+  , X'HashSet2D'w
+  , x'hashset2D
+  , x'hashset2D'w
+  , x'hashset2D_
+  , x'hashset2D_'w
+  ) where
 
 import Z.Z.X6.UtilPrelude
 

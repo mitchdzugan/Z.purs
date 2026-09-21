@@ -1,4 +1,14 @@
-module Z.Z.X6.Readables.RW.HashMap2D where
+module Z.Z.X6.Readables.RW.HashMap2D
+  ( Eff'HashMap2D
+  , HashMap2D
+  , R'HashMap2D(..)
+  , X'HashMap2D
+  , X'HashMap2D'w
+  , x'hashmap2D
+  , x'hashmap2D'w
+  , x'hashmap2D_
+  , x'hashmap2D_'w
+  ) where
 
 import Z.Z.X6.UtilPrelude
 

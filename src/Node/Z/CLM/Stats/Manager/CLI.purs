@@ -2,7 +2,6 @@ module Node.Z.CLM.Stats.Manager.CLI where
 
 import Node.Z.Prelude
 
-import Debug (traceM)
 import Node.Z.CLM.Stats.Manager.Action as Act
 import Node.Z.CLM.Stats.Manager.Error as ClmStE
 import Node.Z.CLM.Stats.Manager.Legacy (CLMStatsLegacyBlob)
@@ -12,12 +11,6 @@ import Node.Z.CLM.Stats.Queries as Q
 import Node.Z.Gql as Gql
 import Node.Z.H2h as H2h
 import Node.Z.H2h.Startgg.All as All
-import Z.Z.X6.Core (x'eval, x'eval_)
-import Z.Z.X6.Methods (x'insert)
-import Z.Z.X6.Readables.RW.HashMap (X'HashMap)
-import Z.Z.X6.Readables.RW.HashMap2D (X'HashMap2D)
-import Z.Z.X6.Readables.RW.HashSet2D (X'HashSet2D)
-import Z.Z.X6.Readables.RW.Ref (X'Ref)
 
 wrapH2hWE
   :: forall x a
@@ -316,9 +309,7 @@ xRun args = do
   res <- runClm do
     actionData <- getActions [] false
     let spec = Act.buildSpec $ actionData.manual <> actionData.auto
-    traceM { spec }
     seasonEvents <- getH2hData spec true
-    traceM { seasonEvents }
     forM_ seasonEvents \(seasonId /\ events) -> runSeason do
       x'out { seasonId }
       x'out events

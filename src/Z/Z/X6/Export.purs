@@ -21,6 +21,14 @@ import Z.Z.X6.Readables.RW.HashMap
   , x'hashmap_
   , x'hashmap_'w
   ) as ModuleReExports
+import Z.Z.X6.Readables.RW.HashMap2D
+  ( X'HashMap2D
+  , X'HashMap2D'w
+  , x'hashmap2D
+  , x'hashmap2D'w
+  , x'hashmap2D_
+  , x'hashmap2D_'w
+  ) as ModuleReExports
 import Z.Z.X6.Readables.RW.HashSet
   ( B'HashSet
   , R'HashSet
@@ -30,6 +38,14 @@ import Z.Z.X6.Readables.RW.HashSet
   , x'hashset'w
   , x'hashset_
   , x'hashset_'w
+  ) as ModuleReExports
+import Z.Z.X6.Readables.RW.HashSet2D
+  ( X'HashSet2D
+  , X'HashSet2D'w
+  , x'hashset2D
+  , x'hashset2D'w
+  , x'hashset2D_
+  , x'hashset2D_'w
   ) as ModuleReExports
 import Z.Z.X6.Readables.RW.Ref
   ( B'Ref
