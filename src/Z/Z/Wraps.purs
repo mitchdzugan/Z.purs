@@ -14,7 +14,6 @@ module Z.Z.Wraps
 
 import Prelude
 
-import Data.Newtype (class Newtype, unwrap)
 import Data.Newtype as NT
 import Data.Tuple (Tuple(..))
 import Z.Z.Defaultable (class Generable, GDefault, g)

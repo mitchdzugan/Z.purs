@@ -31,7 +31,7 @@ import Z.Z.Eff.Bin2D
   , eff'bin2D'sizeAt
   , eff'bin2D'valsAt
   )
-import Z.Z.HashMap (HashMap, hm'entries, hm'fromFoldable, hm'lookup, hm'vals)
+import Z.Z.HashMap (HashMap, hm'entries, hm'fromFoldable, hm'lookup)
 import Z.Z.Id (class Identable)
 import Z.Z.X.Core
   ( class X'R'RespondsTo'rw
@@ -269,4 +269,5 @@ eff'hm2D'd1entries
   => Eff'HashMap2D k1 k2 v
   -> Effect (Array $ k1 /\ HashMap k2 v)
 eff'hm2D'd1entries st = do
-  pure []
+  keys <- eff'bin2D'd1keys st
+  for keys \k -> eff'hm2D'freezeAt k st <#> (/\) k

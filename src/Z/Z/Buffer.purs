@@ -8,7 +8,6 @@ module Z.Z.Buffer
 import Prelude
 
 import Z.Z.Core as Z
-import Z.Z.Defaultable as D
 import Z.Z.Ext as E
 import Z.Z.X.Index as X
 

@@ -474,7 +474,7 @@ type T'e'unwrap p =
 
 e'unwrap'' :: forall @p. T'e'unwrap p
 e'unwrap'' e v = case resultVal v of
-  Just v -> pure v
+  Just result -> pure result
   _ -> e'fail'' @p e
 
 e'unwrap :: forall p. T'use'e'AsSym p T'e'unwrap

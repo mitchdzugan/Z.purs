@@ -77,12 +77,6 @@ newtype CacheVal = CacheVal
 cacheVal :: Either GqlE.GqlResponseError Json -> String -> CacheVal
 cacheVal res queryId = CacheVal { res, queryId }
 
-cacheValRes :: Json -> String -> CacheVal
-cacheValRes d = cacheVal $ Right d
-
-cacheValErr :: GqlE.GqlResponseError -> String -> CacheVal
-cacheValErr err = cacheVal $ Left err
-
 derive instance Newtype CacheVal _
 derive instance Generic CacheVal _
 instance EncodeJson CacheVal where

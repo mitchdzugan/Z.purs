@@ -46,27 +46,8 @@ import Z.Z.Barlow
   ) as Z
 import Z.Z.Core as ZCore
 import Z.Z.Defaultable (WithDefaultable, default, orDefault) as Z
-import Z.Z.Ext
-  ( class IsSymbol
-  , class Newtype
-  , Either(..)
-  , Except
-  , First
-  , Maybe(..)
-  , Optic
-  , Reader
-  , State
-  , Writer
-  , fromMaybe
-  , over
-  , preview
-  , set
-  , unwrap
-  , view
-  ) as Z
-import Z.Z.Ext (class TypeEquals)
+import Z.Z.Ext (class IsSymbol, Either(..), First, Maybe(..), Optic, fromMaybe, over, preview, set, view) as Z
 import Z.Z.Ext ((/\)) as ZExp
-import Z.Z.Wraps as Wraps
 
 stextConcat
   :: forall t1 t2. ZCore.SText t1 => ZCore.SText t2 => t1 -> t2 -> String

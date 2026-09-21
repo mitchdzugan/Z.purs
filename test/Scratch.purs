@@ -3,7 +3,6 @@ module Test.Scratch where
 import Node.Z.Prelude
 
 import Effect.Class.Console (log)
-import Heterogeneous.Mapping (class HMap)
 import Z.SSBM.Slp.Read.Impl as SlpRead
 import Z.Z.Id as Id
 

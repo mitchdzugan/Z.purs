@@ -128,21 +128,719 @@ import Prelude
   , (>>>)
   , (||)
   ) as Prelude
-import Z.Z.Barlow as ZBl
-import Z.Z.Buffer as ZBuffer
-import Z.Z.Core as ZCore
-import Z.Z.DateTime as ZDateTime
-import Z.Z.Defaultable as ZDefaultable
-import Z.Z.Ext as ZExt
-import Z.Z.HashMap as ZMashMap
-import Z.Z.HashSet as ZMashSet
-import Z.Z.Id as ZId
+import Z.Z.Barlow
+  ( class Barlow
+  , class C'Barlow
+  , class ConstructBarlow
+  , class ConstructBarlow'Get
+  , class ConstructBarlow'Get'
+  , class IsSymbol
+  , class ParseSymbol
+  , class Strong
+  , First
+  , Forget
+  , Optic
+  , Proxy(..)
+  , barlow
+  ) as ZBl
+import Z.Z.Buffer (Buffer, ofArrayBuffer, sha256BytesOfBuffer, sha256OfBuffer) as ZBuffer
+import Z.Z.Core
+  ( class C'Relate
+  , class ConsSymbol
+  , class Resulting
+  , class RtError
+  , class SText
+  , AntiUnit
+  , Deferred
+  , Eff'At(..)
+  , JsAny
+  , JsError(..)
+  , Object
+  , P
+  , ParseError
+  , Result
+  , Set
+  , T'Related
+  , T'RelatedBy
+  , T'_
+  , T'apply
+  , T'comp
+  , T'const
+  , T'flip
+  , T'id
+  , T'useAsSym
+  , T2'0
+  , T2'1
+  , antiUnit
+  , arr'concat
+  , arr'drop
+  , arr'empty
+  , arr'filter
+  , arr'fold
+  , arr'fromFoldable
+  , arr'range
+  , arr'range'inc
+  , arr'size
+  , arr'slice
+  , arr'withInd
+  , constL
+  , dec
+  , deferred'run
+  , eff'tag
+  , encodeForeign
+  , encodeOpts
+  , fDiscard
+  , ffmap
+  , ffmapFlipped
+  , forM
+  , forM_
+  , idLens
+  , inc
+  , intFromString
+  , invert
+  , jsAny
+  , jsError
+  , jsError'
+  , jsErrorMessage
+  , jsErrorName
+  , jsErrorStack
+  , jsonRmNils
+  , jsonStr
+  , list'fromFoldable
+  , map'empty
+  , map'fromFoldable
+  , map'set
+  , map'size
+  , map'vals
+  , mapL
+  , mapM
+  , obj'empty
+  , obj'entries
+  , obj'has
+  , obj'insert
+  , obj'keys
+  , obj'lookup
+  , obj'vals
+  , objST'delete
+  , objST'has
+  , objST'new
+  , objST'peek
+  , objST'poke
+  , objST'run
+  , p
+  , p2
+  , parseAnyAroundString
+  , parseAnyTill
+  , parseAnyTill_
+  , parseEof
+  , parseFail
+  , parseFailWithPosition
+  , parseInt
+  , parseNumber
+  , parseRest
+  , parseString
+  , parseStringAs
+  , parseStringEofAs
+  , parseString_
+  , parseTry
+  , pureF
+  , rec'get
+  , rec'insert
+  , rec'merge
+  , rec'modify
+  , rec'set
+  , rec'union
+  , reduce
+  , reduceM
+  , resultVal
+  , routeParse
+  , routePrint
+  , rtErrExtra
+  , rtErrMessage
+  , rtErrName
+  , runParser
+  , set'add
+  , set'empty
+  , set'fromFoldable
+  , set'has
+  , set'size
+  , simpleHash
+  , stext
+  , tryParseInt
+  , tup'flip
+  , var'inj
+  , var'match
+  , whenNot
+  , (<##>)
+  , (<$$>)
+  ) as ZCore
+import Z.Z.DateTime
+  ( DateTime(..)
+  , adjustDateTime
+  , dateTime'fromMS
+  , dateTime'fromMS'Int
+  , dateTime'month'i0
+  , dateTime'toMS
+  , dateTime'year
+  , fromRawDateTime
+  , toDateTime
+  ) as ZDateTime
+import Z.Z.Defaultable
+  ( class DefaultValueRecord
+  , class G2OrDefault
+  , class GOrDefault
+  , class Generable
+  , D'Int'0
+  , D'Int'1
+  , G1
+  , G2
+  , GDefault
+  , Int'Default0(..)
+  , Int'Default1(..)
+  , WithDefaultable
+  , default
+  , g
+  , g'
+  , g1
+  , g2
+  , mkDefaultRecord
+  , mkGenerable
+  , orDefault
+  , whenJust
+  ) as ZDefaultable
+import Z.Z.Ext
+  ( class At
+  , class BoundedEnum
+  , class Cons
+  , class DecodeJson
+  , class EncodeJson
+  , class Enum
+  , class Foldable
+  , class Generic
+  , class Index
+  , class IsSymbol
+  , class Lacks
+  , class Mapping
+  , class Monoid
+  , class Newtype
+  , class Nub
+  , class TypeEquals
+  , class Union
+  , type (/\)
+  , Aff
+  , AffineTraversal
+  , Byte
+  , Codec
+  , Codec'
+  , Date
+  , Day
+  , Effect
+  , Either(..)
+  , Except
+  , Exists
+  , First
+  , Fold
+  , Foreign
+  , Hour
+  , Hours(..)
+  , Identity(..)
+  , Instant
+  , Json
+  , JsonCodec
+  , Lens
+  , Lens'
+  , List(..)
+  , Map
+  , Maybe(..)
+  , Millisecond
+  , Milliseconds(..)
+  , Minute
+  , Month(..)
+  , Optic
+  , Parser
+  , ParserT
+  , Pattern(..)
+  , Prism
+  , Prism'
+  , Promise
+  , Proxy(..)
+  , Reader
+  , RouteDuplex
+  , RouteDuplex'
+  , RouteError
+  , Run
+  , Second
+  , State
+  , Time(..)
+  , Tuple(..)
+  , Writer
+  , Year
+  , _Just
+  , at
+  , byte
+  , canonicalDate
+  , caseJsonNumber
+  , caseJsonString
+  , ceil
+  , defaultCardinality
+  , defaultFromEnum
+  , defaultToEnum
+  , either
+  , encodeJson
+  , execState
+  , expand
+  , extract
+  , floor
+  , fold
+  , foldlDefault
+  , fromByte
+  , fromJsonString
+  , fromMaybe
+  , fromMaybe'
+  , fromString
+  , fst
+  , genericDecodeJson
+  , genericEncodeJson
+  , genericShow
+  , hmap
+  , hmapWithIndex
+  , hush
+  , instant
+  , isJust
+  , isNothing
+  , ix
+  , jsonEmptyObject
+  , jsonNull
+  , lastOf
+  , launchAff
+  , launchAff_
+  , lift
+  , liftEffect
+  , maximum
+  , maximumBy
+  , merge
+  , minimum
+  , minimumBy
+  , mkExists
+  , on
+  , optional
+  , over
+  , pow
+  , preview
+  , previewOn
+  , prop
+  , quot
+  , reflectSymbol
+  , reifySymbol
+  , review
+  , round
+  , run
+  , runAff
+  , runAff_
+  , runExists
+  , send
+  , set
+  , slice
+  , snd
+  , toArrayOf
+  , toEnum
+  , toNumber
+  , trunc
+  , unwrap
+  , view
+  , viewOn
+  , wrap
+  , (/\)
+  , (<|>)
+  ) as ZExt
+import Z.Z.HashMap
+  ( HashMap(..)
+  , hm'empty
+  , hm'entries
+  , hm'fromFoldable
+  , hm'has
+  , hm'keys
+  , hm'lookup
+  , hm'set
+  , hm'size
+  , hm'vals
+  ) as ZMashMap
+import Z.Z.HashSet
+  ( HashSet(..)
+  , hs'add
+  , hs'empty
+  , hs'fromFoldable
+  , hs'has
+  , hs'size
+  , hs'vals
+  ) as ZMashSet
+import Z.Z.Id
+  ( class Identable
+  , class Identable'Functor
+  , class IsId
+  , IdV
+  , IdVF(..)
+  , Idented
+  , id'bytes
+  , id'bytesImpl
+  , id'char
+  , id'key
+  , id'keyImpl
+  , id'of
+  , id'via
+  , ident'bytes
+  , ident'get
+  , ident'key
+  , ident'uuid
+  , identable'map
+  , idented'id
+  , idented'mk
+  , idented'v
+  ) as ZId
 import Z.Z.Pair (Pair(..), (~)) as ZPair
 import Z.Z.PairKey (PairKey(..)) as ZPairKey
-import Z.Z.Passable as ZPassable
-import Z.Z.Shorthand hiding ((~)) as ZShorthand
-import Z.Z.String as ZString
+import Z.Z.Passable (pass) as ZPassable
+import Z.Z.Shorthand
+  ( type (+)
+  , TPlus
+  , _'
+  , __
+  , _o
+  , _o_
+  , g_
+  , gmOr'_
+  , gmOr_
+  , gm_
+  , jOr
+  , jOr'
+  , jOr0
+  , jOr1
+  , jOr1n
+  , jOrE
+  , jOrF
+  , jOrT
+  , mfirst
+  , mlast
+  , o_
+  , over_
+  , set_
+  , stextConcat
+  , stextConcatSp
+  , (%)
+  , (/\)
+  , (<->)
+  , (<:>)
+  , (<|<)
+  , (>|>)
+  , (~.)
+  ) as ZShorthand
+import Z.Z.String
+  ( str'endsWith
+  , str'joinWith
+  , str'length
+  , str'split
+  , str'startsWith
+  ) as ZString
 import Z.Z.Url (URL) as ZUrl
-import Z.Z.Util as ZUtil
-import Z.Z.Wraps as ZWraps
-import Z.Z.X.Export as ZX
+import Z.Z.Util
+  ( class IsStringOrNum
+  , class RevSym
+  , class SplitSp1
+  , class SplitSp1Impl
+  , class UpCat
+  , class UpCf
+  , class UpCt
+  , type (#)
+  , type ($)
+  , JsonDecodeError(..)
+  , JsonDecodeFn
+  , JsonEncodeFn
+  , RawJsonDecodeError
+  , ResourceStage(..)
+  , SorN(..)
+  , Type_Ap
+  , Type_Ap_R
+  , arg2'
+  , arg3'
+  , arg4'
+  , arr'reverse
+  , arr'sort
+  , arr'sortBy
+  , arr'sortWith
+  , baseDecodeJson
+  , decode
+  , decode'
+  , decodeErrTypeMismatch
+  , decodeFailTypeMismatch
+  , decodeJson
+  , decodeJson'
+  , encode
+  , id
+  , jsonDecode
+  , jsonKeys
+  , jsonLookup
+  , jsonPairs
+  , jsonSortedPairs
+  , jsonVals
+  , nth
+  , sOrN
+  , urlFromParts
+  , urlFromString
+  , urlOrigin
+  , urlPathFromString
+  , urlPathSegments
+  , urlQuery
+  , urlRelative
+  , urlToString
+  ) as ZUtil
+import Z.Z.Wraps
+  ( class Unwraps
+  , class Wraps
+  , class Wraps'Old
+  , nu'
+  , nu'mk
+  , un'
+  , wrapped'from
+  , wrapped'get
+  , wrapped'mk
+  , wrapped'mkFor
+  , wrapped'rest
+  ) as ZWraps
+import Z.Z.X.Export
+  ( type (<@<)
+  , type (<@@)
+  , type (>@>)
+  , type (@@>)
+  , A'
+  , B'HashMap
+  , B'HashSet
+  , B'Ref
+  , B'Ref'nt
+  , E'
+  , EA'
+  , Edit
+  , R'
+  , R'HashMap
+  , R'HashSet
+  , R'Ref
+  , R'Ref'nt
+  , REA'
+  , RS'
+  , RWaEA'
+  , RWaSEA'
+  , RunMW
+  , Runner
+  , S'
+  , SEA'
+  , StrW
+  , T'assign
+  , T'extract
+  , T'self
+  , T'use'e'AsSym
+  , T'use'r'AsSym
+  , T'use's'AsSym
+  , T'use'w'AsSym
+  , T'x'assign
+  , T'x'extract
+  , T'x'over
+  , T'x'over'b
+  , T'x'preview
+  , T'x'preview'b
+  , T'x'set
+  , T'x'set'b
+  , T'x'toArrayOf
+  , T'x'toArrayOf'b
+  , T'x'view
+  , T'x'view'b
+  , Wa'
+  , WaE'
+  , WaEA'
+  , X
+  , X'A
+  , X'Base
+  , X'E
+  , X'HashMap
+  , X'HashMap'w
+  , X'HashMap2D
+  , X'HashMap2D'w
+  , X'HashSet
+  , X'HashSet'w
+  , X'HashSet2D
+  , X'HashSet2D'w
+  , X'Permit
+  , X'R
+  , X'Ref
+  , X'Ref'nt
+  , X'Ref'nt'w
+  , X'Ref'w
+  , X'S
+  , X'W
+  , X'Wa
+  , X'flipped
+  , async'x
+  , e'fail
+  , e'fail''
+  , e'invert
+  , e'invert''
+  , e'map
+  , e'map''
+  , e'ok
+  , e'ok''
+  , e'runAff
+  , e'runAff''
+  , e'runEffA
+  , e'runEffA''
+  , e'runEffPromise
+  , e'runEffPromise''
+  , e'runParser
+  , e'runParser''
+  , e'try
+  , e'try''
+  , e'tryUntil
+  , e'tryUntil''
+  , e'unwrap
+  , e'unwrap''
+  , edit
+  , r'ask
+  , r'run
+  , r'run''
+  , r'view
+  , r'view'b
+  , runner'_
+  , runner'eval
+  , runner'extend
+  , runner'mk
+  , runner'mkDeferred
+  , s'eval
+  , s'exec
+  , s'get
+  , s'over
+  , s'over'b
+  , s'preview
+  , s'preview'b
+  , s'put
+  , s'run
+  , s'set
+  , s'set'b
+  , s'toArrayOf
+  , s'toArrayOf'b
+  , s'update
+  , s'view
+  , s'view'b
+  , sync'_
+  , sync'x
+  , w'eval
+  , w'exec
+  , w'map
+  , w'map''
+  , w'run
+  , w'say
+  , w'say''
+  , w'str
+  , w'str''
+  , w'str'sp
+  , w'tell
+  , w'tell''
+  , we'map
+  , we'map''
+  , we'map'''
+  , we'runResult
+  , we'runResult''
+  , we'runResult'''
+  , we'tellMappedHush
+  , we'tellMappedHush''
+  , we'tellMappedHush'''
+  , we'tellMappedMHush
+  , we'tellMappedMHush'''
+  , we'unresult
+  , we'unresult''
+  , we'unresult'''
+  , x'act
+  , x'add
+  , x'addAt
+  , x'alter
+  , x'assign
+  , x'assignAt
+  , x'attemptAff
+  , x'buildable'eval
+  , x'clear
+  , x'clearAt
+  , x'cons
+  , x'consAt
+  , x'd1entries
+  , x'd1keys
+  , x'do
+  , x'entries
+  , x'entriesAt
+  , x'eval
+  , x'eval_
+  , x'exec
+  , x'exec_
+  , x'extract
+  , x'extractAt
+  , x'has
+  , x'hashmap
+  , x'hashmap'w
+  , x'hashmap2D
+  , x'hashmap2D'w
+  , x'hashmap2D_
+  , x'hashmap2D_'w
+  , x'hashmap_
+  , x'hashmap_'w
+  , x'hashset
+  , x'hashset'w
+  , x'hashset2D
+  , x'hashset2D'w
+  , x'hashset2D_
+  , x'hashset2D_'w
+  , x'hashset_
+  , x'hashset_'w
+  , x'info
+  , x'insert
+  , x'keys
+  , x'keysAt
+  , x'logError
+  , x'logWarning
+  , x'lookup
+  , x'modify
+  , x'now
+  , x'nowMS
+  , x'out
+  , x'outErr
+  , x'outWarn
+  , x'over
+  , x'over'b
+  , x'permit
+  , x'pop
+  , x'preview
+  , x'preview'b
+  , x'push
+  , x'ref
+  , x'ref'nt
+  , x'ref'nt'w
+  , x'ref'w
+  , x'ref_
+  , x'ref_'w
+  , x'remove
+  , x'replace
+  , x'reset
+  , x'resetAt
+  , x'result
+  , x'run
+  , x'run_
+  , x'set
+  , x'set'b
+  , x'size
+  , x'sizeAt
+  , x'timeout
+  , x'toArrayOf
+  , x'toArrayOf'b
+  , x'uncons
+  , x'update
+  , x'vals
+  , x'valsAt
+  , x'view
+  , x'view'b
+  , x'withReturn
+  , x'withReturn''
+  ) as ZX

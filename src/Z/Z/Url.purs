@@ -39,7 +39,6 @@ module Z.Z.Url
 
 import Prelude
 
-import Control.Monad.Error.Class (liftMaybe)
 import Data.Array as Array
 import Data.Either (Either(..), note)
 import Data.Filterable (filter)
@@ -139,9 +138,14 @@ fromString = Nullable.toMaybe <<< fromStringImpl
 pathOrURLFromString :: String -> Either Path URL
 pathOrURLFromString s = note (pathFromString s) $ fromString s
 
+{-
+  TODO
+  TODO  determine if I need this
+  TODO
 parse :: String -> Either String URL
 parse url = liftMaybe ("invalid URL: " <> url) $ Nullable.toMaybe $
   fromStringImpl url
+-}
 
 toString :: URL -> String
 toString = hrefImpl

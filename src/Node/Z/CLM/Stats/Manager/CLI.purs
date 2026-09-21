@@ -260,6 +260,7 @@ runClm m = do
   let
     getEnv s = xLookupEnv s >>= e'unwrap (jsError "Required Env Var Missing" s)
     wrappedM = r'ask >>= \{ legacyBlob } -> do
+      x'out legacyBlob
       m
   isDevEnv <- getEnv "CLM_STATS_IS_DEV"
   ggAuth <- getEnv "CLM_STATS_GG_AUTH"

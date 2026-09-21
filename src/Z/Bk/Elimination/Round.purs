@@ -47,10 +47,10 @@ depth (Losers _ d) = d
 
 roundTypeInd :: T -> Int
 roundTypeInd (Grands ir) = if ir then 0 - 1 else 0
-roundTypeInd (Losers idr depth) = (2 * depth) + (if idr then 0 else 1)
-roundTypeInd (Winners _ depth) = depth
+roundTypeInd (Losers idr d) = (2 * d) + (if idr then 0 else 1)
+roundTypeInd (Winners _ d) = d
 
 roundInd :: T -> Int
 roundInd (Grands ir) = if ir then 0 - 1 else 0
-roundInd (Losers idr depth) = (3 * depth) + (if idr then 1 else 3)
-roundInd (Winners ide depth) = if ide then (3 * depth) + 2 else depth
+roundInd (Losers idr d) = (3 * d) + (if idr then 1 else 3)
+roundInd (Winners ide d) = if ide then (3 * d) + 2 else d

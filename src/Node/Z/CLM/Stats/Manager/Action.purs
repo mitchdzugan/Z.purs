@@ -1,7 +1,7 @@
 module Node.Z.CLM.Stats.Manager.Action where
 
-import Z.Prelude
-import Z.Z.X.Index
+import Z.Prelude (class Cons, class DecodeJson, class EncodeJson, class IsSymbol, class Lacks, class Newtype, type (/\), Either, Json, RawJsonDecodeError, T'useAsSym, Unit, arr'filter, arr'reverse, arr'withInd, baseDecodeJson, bind, decodeFailTypeMismatch, discard, encodeJson, forM_, g, not, pure, rec'insert, rec'modify, show, un', unit, when, x'assign, x'cons, x'has, x'insert, x'remove, (#), ($), (/\), (<#>), (<$>), (<<<), (<>), (>>=))
+import Z.Z.X.Index (type (@@>), sync'x)
 
 import Node.Z.CLM.Stats.Manager.Spec (Spec, Spec'Evaluable, Spec'M)
 import Z.Z.X.Core (x'build)

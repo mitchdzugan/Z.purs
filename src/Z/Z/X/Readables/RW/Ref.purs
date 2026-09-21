@@ -144,6 +144,8 @@ x'ref'nt'w
   => X'Evaluable (X'Ref'nt'w nt)
 x'ref'nt'w = x'evaluable @(X'Ref'nt'w nt) unit
 
+type B'Ref'nt :: forall k1 k2. ((Type -> Type) -> k1 -> k2) -> Type -> k1 -> k2
 type B'Ref'nt sel nt t = sel (X'Ref'nt nt) t
 
+type B'Ref :: forall k. ((Type -> Type) -> Type -> k) -> Type -> k
 type B'Ref sel t = sel (X'Ref t) t

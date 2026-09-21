@@ -72,7 +72,7 @@ import Foreign.Object as FO
 import Prim.Symbol as Symbol
 import Type.Proxy as Proxy
 import Z.Z.Core as Z
-import Z.Z.Id (class Identable, id'of, ident'get)
+import Z.Z.Id (class Identable, id'of)
 import Z.Z.Url as Url
 
 urlFromParts :: Url.Parts -> Url.URL
@@ -301,28 +301,34 @@ instance Dec.DecodeJson ResourceStage where
 instance Enc.EncodeJson ResourceStage where
   encodeJson x = EncodeGeneric.genericEncodeJson x
 
+class SplitSp1 :: forall k1 k2 k3. k1 -> k2 -> k3 -> Constraint
 class SplitSp1 i o1 o2 | i -> o1 o2
 
 instance (SplitSp1Impl i "" "" "f" o1 o2) => SplitSp1 i o1 o2
 
+class SplitSp1Impl :: forall k1 k2 k3 k4 k5 k6. k1 -> k2 -> k3 -> k4 -> k5 -> k6 -> Constraint
 class SplitSp1Impl sym cat cf ct tat tf | sym cat cf ct -> tat tf
 
+class UpCat :: forall k1 k2 k3 k4. k1 -> k2 -> k3 -> k4 -> Constraint
 class UpCat c cat ct cat' | c cat ct -> cat'
 
 instance UpCat " " cat ct cat
 else instance UpCat c cat "t" cat
 else instance (Symbol.Cons c cat cat') => UpCat c cat "f" cat'
 
+class UpCf :: forall k1 k2 k3 k4. k1 -> k2 -> k3 -> k4 -> Constraint
 class UpCf c cf ct cf' | c cf ct -> cf'
 
 instance UpCf c cf "f" cf
 else instance (Symbol.Cons c cf cf') => UpCf c cf "t" cf'
 
+class UpCt :: forall k1 k2 k3. k1 -> k2 -> k3 -> Constraint
 class UpCt c ct ct' | c ct -> ct'
 
 instance UpCt " " ct "t"
 else instance UpCt c ct ct
 
+class RevSym :: forall k1 k2 k3. k1 -> k2 -> k3 -> Constraint
 class RevSym s c s' | s c -> s'
 
 instance RevSym "" c c

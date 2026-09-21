@@ -126,6 +126,7 @@ module Z.Z.Core
   , tup'flip
   , var'inj
   , var'match
+  , varF'inj
   , whenNot
   ) where
 
@@ -133,6 +134,7 @@ import Prelude
 
 import Control.Applicative as Applicative
 import Control.Monad as Monad
+import Control.Monad.ST (ST)
 import Data.Argonaut.Core as Arg
 import Data.Argonaut.Decode (class DecodeJson, decodeJson)
 import Data.Argonaut.Encode (class EncodeJson, encodeJson)
@@ -145,6 +147,7 @@ import Data.Int as Int
 import Data.Lens (Lens', lens')
 import Data.List as List
 import Data.Map as Map
+import Data.Maybe (Maybe)
 import Data.Maybe as May
 import Data.Newtype (class Newtype)
 import Data.Ord as Ord
@@ -155,17 +158,20 @@ import Data.Symbol (class IsSymbol)
 import Data.Traversable as Traversable
 import Data.Tuple as Tup
 import Data.Tuple.Nested as TupN
+import Data.Variant (class VariantMatchCases, Variant)
 import Data.Variant as Var
 import Effect as Eff
 import Effect.Exception as Exc
 import Foreign as Foreign
 import Foreign.Object as Obj
+import Foreign.Object.ST (STObject)
 import Foreign.Object.ST as ObjSt
 import Parsing as Parsing
 import Parsing.Combinators as Prc
 import Parsing.String as Prs
 import Parsing.String.Basic as Prsb
-import Prim.Row (class Cons, class Lacks)
+import Prim.Row (class Cons, class Lacks, class Nub, class Union)
+import Prim.RowList (class RowToList)
 import Record as Record
 import Routing.Duplex as Dup
 import Routing.Duplex.Parser as DupP
@@ -216,7 +222,17 @@ rec'insert
   -> Record r2
 rec'insert = Record.insert (Proxy.Proxy @l)
 
+rec'merge
+  :: forall r1 r2 r3 r4
+   . Union r1 r2 r3
+  => Nub r3 r4
+  => Record r1
+  -> Record r2
+  -> Record r4
 rec'merge = Record.merge
+
+rec'union
+  :: forall r1 r2 r3. Union r1 r2 r3 => Record r1 -> Record r2 -> Record r3
 rec'union = Record.union
 
 rec'modify
@@ -241,6 +257,14 @@ varF'inj
   -> VarF.VariantF v a
 varF'inj = VarF.inj (Proxy.Proxy @l)
 
+var'match
+  :: forall rl r r1 r2 b
+   . RowToList r rl
+  => VariantMatchCases rl r1 b
+  => Union r1 () r2
+  => Record r
+  -> Variant r2
+  -> b
 var'match = Var.match
 
 idLens :: forall a. Lens' a a
@@ -446,16 +470,22 @@ obj'entries = Obj.toArrayWithKey TupN.(/\)
 obj'vals :: forall a. Obj.Object a -> Array a
 obj'vals = Obj.values
 
+objST'new :: forall a r. ST r (STObject r a)
 objST'new = ObjSt.new
 
+objST'run :: forall a. (forall r. ST r (STObject r a)) -> Object a
 objST'run = Obj.runST
 
+objST'delete :: forall a r. String -> STObject r a -> ST r (STObject r a)
 objST'delete = ObjSt.delete
 
+objST'poke :: forall a r. String -> a -> STObject r a -> ST r (STObject r a)
 objST'poke = ObjSt.poke
 
+objST'peek :: forall a r. String -> STObject r a -> ST r (Maybe a)
 objST'peek = ObjSt.peek
 
+objST'has :: forall t581 r583. String -> STObject r583 t581 -> ST r583 Boolean
 objST'has k o = May.isJust <$> ObjSt.peek k o
 
 map'empty :: forall @k @v. Ord k => Map.Map k v

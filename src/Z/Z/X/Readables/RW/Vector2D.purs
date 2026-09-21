@@ -12,14 +12,7 @@ import Z.Z.Eff.Bin
   , eff'bin'lookup
   , eff'bin'new
   )
-import Z.Z.Eff.Bin2D
-  ( Eff'Bin2D
-  , eff'bin2D'addAt
-  , eff'bin2D'clear
-  , eff'bin2D'insert
-  , eff'bin2D'lookup
-  , eff'bin2D'new
-  )
+import Z.Z.Eff.Bin2D (Eff'Bin2D, eff'bin2D'clear, eff'bin2D'insert, eff'bin2D'lookup, eff'bin2D'new)
 import Z.Z.Eff.Ref (Eff'Ref, eff'ref'get, eff'ref'new, eff'ref'set)
 import Z.Z.X.Core
   ( class X'R'RespondsTo'rw

@@ -25,7 +25,6 @@ module Web.Z.Web.DOM
 
 import Z.Prelude
 
-import Debug (traceM)
 import Web.DOM.Element as Element
 import Web.DOM.Internal.Types as T
 import Web.DOM.NonElementParentNode as NEPN
@@ -87,26 +86,24 @@ instance IsEventTarget HTML.Window where
 getElementById :: String -> HTMLDoc.HTMLDocument -> Effect (Maybe T.Element)
 getElementById s = NEPN.getElementById s <<< HTMLDoc.toNonElementParentNode
 
-x'act'web = x'act @"_'x'web"
-
 xWindow :: forall x. Run (X'Web x) Window.Window
-xWindow = x'act'web _.window
+xWindow = x'act @"_'x'web" _.window
 
 xLocationUrl :: forall x. Run (X'Web x) URL
-xLocationUrl = x'act'web \r -> r.locationUrl
+xLocationUrl = x'act @"_'x'web" \r -> r.locationUrl
 
 xDocument :: forall x. Run (X'Web x) HTMLDoc.HTMLDocument
-xDocument = x'act'web \r -> r.document
+xDocument = x'act @"_'x'web" \r -> r.document
 
 xGetElementById :: forall x. String -> Run (X'Web x) (Maybe T.Element)
-xGetElementById s = x'act'web \r -> r.getElementById s
+xGetElementById s = x'act @"_'x'web" \r -> r.getElementById s
 
 xClosest
   :: forall x. WET.EventTarget -> String -> Run (X'Web x) (Maybe T.Element)
-xClosest et qs = x'act'web \r -> r.closest qs et
+xClosest et qs = x'act @"_'x'web" \r -> r.closest qs et
 
 xGetAttribute :: forall x. T.Element -> String -> Run (X'Web x) (Maybe String)
-xGetAttribute el attr = x'act'web \r -> r.getAttribute attr el
+xGetAttribute el attr = x'act @"_'x'web" \r -> r.getAttribute attr el
 
 eventType
   :: { click :: WebEvent.EventType
@@ -138,8 +135,8 @@ xAddEventListener eType target opts onE = do
   let o = edit defaultEventListenerOpts opts
   let tgt = toEventTarget target
   let evalEvent = deferred'run <<< onE
-  el <- x'act'web \r -> r.addEventListener eType tgt o evalEvent
-  pure $ x'act'web \r -> r.rmEventListener eType tgt o.capture el
+  el <- x'act @"_'x'web" \r -> r.addEventListener eType tgt o evalEvent
+  pure $ x'act @"_'x'web" \r -> r.rmEventListener eType tgt o.capture el
 
 xPushState
   :: forall x
@@ -147,23 +144,28 @@ xPushState
   -> Maybe String
   -> Run (X'Web x) Unit
 xPushState url titleOr_ = do
+  {-
+    TODO
+    TODO  use pushState with options supplied
+    TODO
   let title = jOr' titleOr_
   let hasTitle = isJust titleOr_
   let opts = if hasTitle then (encodeForeign { title }) else (encodeForeign {})
-  x'act'web \r -> r.pushState url titleOr_
+  -}
+  x'act @"_'x'web" \r -> r.pushState url titleOr_
 
 xSetDocumentTitle
   :: forall x
    . String
   -> Run (X'Web x) Unit
 xSetDocumentTitle title = do
-  x'act'web \r -> r.setDocumentTitle title
+  x'act @"_'x'web" \r -> r.setDocumentTitle title
 
 xPreventDefault :: forall x. WET.Event -> Run (X'Web x) Unit
-xPreventDefault e = x'act'web \r -> r.preventDefault e
+xPreventDefault e = x'act @"_'x'web" \r -> r.preventDefault e
 
 xStopPropagation :: forall x. WET.Event -> Run (X'Web x) Unit
-xStopPropagation e = x'act'web \r -> r.stopPropagation e
+xStopPropagation e = x'act @"_'x'web" \r -> r.stopPropagation e
 
 tagEffWebX :: forall a. Effect a -> Eff'At "_'x'web" a
 tagEffWebX = eff'tag @"_'x'web"
@@ -185,10 +187,7 @@ raw_rmEventListener
   -> Boolean
   -> WebEventT.EventListener
   -> Effect Unit
-raw_rmEventListener et t c l = do
-  traceM "removing event..."
-  traceM { et, l, c, t }
-  WebEventT.removeEventListener et l c t
+raw_rmEventListener et t c l = WebEventT.removeEventListener et l c t
 
 raw_subToEvent
   :: WebEvent.EventType
