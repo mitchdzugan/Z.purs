@@ -529,7 +529,7 @@ arr'range'inc = Arr.range
 arr'range :: Int -> Int -> Array Int
 arr'range start end = if start == end then [] else arr'range'inc start end'
   where
-  end' = if start < end then inc end else dec end
+  end' = if start < end then dec end else inc end
 
 arr'fold :: forall monoid. Monoid monoid => Array monoid -> monoid
 arr'fold = Arr.fold

@@ -29,6 +29,13 @@ import Z.Z.X6.Responds
 
 data LogLevel = LogLevel'Info | LogLevel'Warning | LogLevel'Error
 
+logLevel'consoleKey :: LogLevel -> String
+logLevel'consoleKey LogLevel'Info = "log"
+logLevel'consoleKey LogLevel'Warning = "warn"
+logLevel'consoleKey LogLevel'Error = "error"
+
+foreign import js_consoleOut :: Unit -> String -> Loggable -> Effect Unit
+
 foreign import data Loggable :: Type
 
 loggable :: forall a. a -> Loggable
@@ -49,7 +56,8 @@ instance
   x'r'mkResponds'types = Proxy
   x'r'mkResponds (R'X'Base _) = match
     { now: responds'const'eff $ fromRawDateTime <$> nowDateTime
-    , out: responds'run'eff \_ -> pure unit
+    , out: responds'run'eff \(ll /\ v) ->
+        js_consoleOut unit (logLevel'consoleKey ll) v
     }
 
 type X'BaseM = Reader R'X'Base

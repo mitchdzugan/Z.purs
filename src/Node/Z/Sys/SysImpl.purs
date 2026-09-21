@@ -190,7 +190,9 @@ effAffThenExit a = runAff_ onDone a
       <> " |] ⌄"
     js_errorLog $ rtErrMessage e
     js_exit 1
-  onDone _ = pure unit
+  onDone _ = do
+    js_errorLog "Process finished..."
+    pure unit
 
 type XNodeEA e x = EA' e (X'Node x)
 

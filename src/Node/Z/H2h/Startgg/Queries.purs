@@ -20,7 +20,6 @@ module Node.Z.H2h.Startgg.Queries
 
 import Z.Prelude
 
-import Debug (traceM)
 import Node.Z.Gql as Gql
 import Node.Z.H2h.Startgg.Queries.PhaseGroupData as PGDQ
 import Node.Z.H2h.Startgg.Queries.TourneyData as TDQ
