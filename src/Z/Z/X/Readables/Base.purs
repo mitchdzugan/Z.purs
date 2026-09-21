@@ -1,4 +1,4 @@
-module Z.Z.X6.Readables.Base
+module Z.Z.X.Readables.Base
   ( LogLevel(..)
   , R'X'Base
   , X'BaseM
@@ -7,12 +7,12 @@ module Z.Z.X6.Readables.Base
   , x'out''
   ) where
 
-import Z.Z.X6.UtilPrelude
+import Z.Z.X.UtilPrelude
 
 import Effect.Now (nowDateTime)
 import Unsafe.Coerce (unsafeCoerce)
 import Z.Z.DateTime (DateTime, fromRawDateTime)
-import Z.Z.X6.Core
+import Z.Z.X.Core
   ( class X'R'RespondsTo
   , class X'Readable
   , X'Evaluable
@@ -20,7 +20,7 @@ import Z.Z.X6.Core
   , x'respondTo
   , x'respondTo_
   )
-import Z.Z.X6.Responds
+import Z.Z.X.Responds
   ( Responds
   , Responds'Const
   , responds'const'eff

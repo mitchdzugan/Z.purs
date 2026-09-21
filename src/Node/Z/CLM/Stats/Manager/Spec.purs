@@ -7,10 +7,10 @@ module Node.Z.CLM.Stats.Manager.Spec
 
 import Z.Prelude
 
-import Z.Z.X6.Core (Def'Sel'Evaluable, Def'Sel'm, Def'Sel'result)
-import Z.Z.X6.Readables.RW.HashMap (B'HashMap)
-import Z.Z.X6.Readables.RW.HashSet (B'HashSet)
-import Z.Z.X6.Readables.RW.Ref (B'Ref'nt)
+import Z.Z.X.Core (Def'Sel'Evaluable, Def'Sel'm, Def'Sel'result)
+import Z.Z.X.Readables.RW.HashMap (B'HashMap)
+import Z.Z.X.Readables.RW.HashSet (B'HashSet)
+import Z.Z.X.Readables.RW.Ref (B'Ref'nt)
 
 type Spec'Def :: forall k1. ((Type -> Type) -> Type -> k1) -> Row k1 -> Row k1
 type Spec'Def k r =

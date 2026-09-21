@@ -1,6 +1,6 @@
-module Z.Z.X6.Export (module ModuleReExports) where
+module Z.Z.X.Export (module ModuleReExports) where
 
-import Z.Z.X6.Core
+import Z.Z.X.Core
   ( x'buildable'eval
   , x'eval
   , x'eval_
@@ -9,9 +9,9 @@ import Z.Z.X6.Core
   , x'run
   , x'run_
   ) as ModuleReExports
-import Z.Z.X6.Index as ModuleReExports
-import Z.Z.X6.Methods as ModuleReExports
-import Z.Z.X6.Readables.RW.HashMap
+import Z.Z.X.Index as ModuleReExports
+import Z.Z.X.Methods as ModuleReExports
+import Z.Z.X.Readables.RW.HashMap
   ( B'HashMap
   , R'HashMap
   , X'HashMap
@@ -21,7 +21,7 @@ import Z.Z.X6.Readables.RW.HashMap
   , x'hashmap_
   , x'hashmap_'w
   ) as ModuleReExports
-import Z.Z.X6.Readables.RW.HashMap2D
+import Z.Z.X.Readables.RW.HashMap2D
   ( X'HashMap2D
   , X'HashMap2D'w
   , x'hashmap2D
@@ -29,7 +29,7 @@ import Z.Z.X6.Readables.RW.HashMap2D
   , x'hashmap2D_
   , x'hashmap2D_'w
   ) as ModuleReExports
-import Z.Z.X6.Readables.RW.HashSet
+import Z.Z.X.Readables.RW.HashSet
   ( B'HashSet
   , R'HashSet
   , X'HashSet
@@ -39,7 +39,7 @@ import Z.Z.X6.Readables.RW.HashSet
   , x'hashset_
   , x'hashset_'w
   ) as ModuleReExports
-import Z.Z.X6.Readables.RW.HashSet2D
+import Z.Z.X.Readables.RW.HashSet2D
   ( X'HashSet2D
   , X'HashSet2D'w
   , x'hashset2D
@@ -47,7 +47,7 @@ import Z.Z.X6.Readables.RW.HashSet2D
   , x'hashset2D_
   , x'hashset2D_'w
   ) as ModuleReExports
-import Z.Z.X6.Readables.RW.Ref
+import Z.Z.X.Readables.RW.Ref
   ( B'Ref
   , B'Ref'nt
   , R'Ref

@@ -1,4 +1,4 @@
-module Z.Z.X6.Methods
+module Z.Z.X.Methods
   ( T'assign
   , T'extract
   , T'self
@@ -61,7 +61,7 @@ module Z.Z.X6.Methods
   , x'view'b
   ) where
 
-import Z.Z.X6.UtilPrelude
+import Z.Z.X.UtilPrelude
 
 import Data.Lens (Forget, Optic, over, preview, set, toArrayOf, view)
 import Data.List (List)
@@ -69,14 +69,14 @@ import Data.Maybe (isJust)
 import Data.Monoid.Endo (Endo)
 import Z.Z.Barlow (class C'Barlow, First, barlow)
 import Z.Z.Core (Eff'At)
-import Z.Z.X6.Core
+import Z.Z.X.Core
   ( class X'RespondsTo
   , class X'Results
   , x'respondTo
   , x'respondTo_
   , x'results'impl
   )
-import Z.Z.X6.Responds (Responds, Responds'Const)
+import Z.Z.X.Responds (Responds, Responds'Const)
 
 type T'self :: forall k. k -> Row k -> Row k
 type T'self t rest = (self :: t | rest)

@@ -1,4 +1,4 @@
-module Z.Z.X6.Readables.RW.HashSet2D
+module Z.Z.X.Readables.RW.HashSet2D
   ( Eff'HashSet2D
   , HashSet2D
   , R'HashSet2D(..)
@@ -10,7 +10,7 @@ module Z.Z.X6.Readables.RW.HashSet2D
   , x'hashset2D_'w
   ) where
 
-import Z.Z.X6.UtilPrelude
+import Z.Z.X.UtilPrelude
 
 import Data.Foldable (for_)
 import Data.Traversable (for)
@@ -33,7 +33,7 @@ import Z.Z.Eff.Bin2D
 import Z.Z.HashMap (HashMap, hm'entries, hm'fromFoldable, hm'lookup, hm'vals)
 import Z.Z.HashSet (HashSet, hs'vals)
 import Z.Z.Id (class Identable)
-import Z.Z.X6.Core
+import Z.Z.X.Core
   ( class X'R'RespondsTo'rw
   , class X'Readable'rw
   , class X'Results'R'rw
@@ -43,7 +43,7 @@ import Z.Z.X6.Core
   , x'evaluable
   , x'evaluable_
   )
-import Z.Z.X6.Responds
+import Z.Z.X.Responds
   ( Responds
   , Responds'Const
   , responds'const'eff

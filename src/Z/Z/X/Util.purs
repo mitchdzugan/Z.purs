@@ -1,4 +1,4 @@
-module Z.Z.X6.Util where
+module Z.Z.X.Util where
 
 import Prelude
 

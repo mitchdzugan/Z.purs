@@ -1,4 +1,4 @@
-module Z.Z.X6.Core
+module Z.Z.X.Core
   ( Def'Sel'Evaluable
   , Def'Sel'm
   , Def'Sel'result
@@ -52,12 +52,12 @@ module Z.Z.X6.Core
   , x'run_
   ) where
 
-import Z.Z.X6.UtilPrelude
+import Z.Z.X.UtilPrelude
 
 import Prim.RowList as RL
 import Unsafe.Coerce (unsafeCoerce)
 import Z.Z.Core (rec'get, rec'insert)
-import Z.Z.X6.Responds (Responds, Responds'Const, responds'const, responds'id)
+import Z.Z.X.Responds (Responds, Responds'Const, responds'const, responds'id)
 
 type T'Consable p m param res'm =
   forall x' x a

@@ -1,4 +1,4 @@
-module Z.Z.X6.Readables.RW.HashSet
+module Z.Z.X.Readables.RW.HashSet
   ( B'HashSet
   , R'HashSet
   , X'HashSet
@@ -9,7 +9,7 @@ module Z.Z.X6.Readables.RW.HashSet
   , x'hashset_'w
   ) where
 
-import Z.Z.X6.UtilPrelude
+import Z.Z.X.UtilPrelude
 
 import Z.Z.Eff.Bin
   ( Eff'Bin
@@ -25,7 +25,7 @@ import Z.Z.Eff.Bin
   )
 import Z.Z.HashSet (HashSet)
 import Z.Z.Id (class Identable)
-import Z.Z.X6.Core
+import Z.Z.X.Core
   ( class X'R'RespondsTo'rw
   , class X'Readable'rw
   , class X'Results'R'rw
@@ -35,7 +35,7 @@ import Z.Z.X6.Core
   , x'evaluable
   , x'evaluable_
   )
-import Z.Z.X6.Responds
+import Z.Z.X.Responds
   ( Responds
   , Responds'Const
   , responds'const'eff

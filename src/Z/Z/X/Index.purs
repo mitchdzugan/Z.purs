@@ -1,4 +1,4 @@
-module Z.Z.X6.Index
+module Z.Z.X.Index
   ( A'
   , E'
   , EA'
@@ -128,7 +128,7 @@ module Z.Z.X6.Index
   , x'withReturn''
   ) where
 
-import Z.Z.X6.UtilPrelude
+import Z.Z.X.UtilPrelude
 
 import Control.Promise (Promise, toAff)
 import Data.Either (Either(..))
@@ -155,9 +155,9 @@ import Z.Z.Core
 import Z.Z.DateTime (DateTime, dateTime'toMS)
 import Z.Z.Defaultable.Util as D
 import Z.Z.String (str'joinWith)
-import Z.Z.X6.Async (AffF(..), x'aff'')
-import Z.Z.X6.Core (x'eval, x'eval_, x'exec, x'exec_, x'run, x'run_)
-import Z.Z.X6.Methods
+import Z.Z.X.Async (AffF(..), x'aff'')
+import Z.Z.X.Core (x'eval, x'eval_, x'exec, x'exec_, x'run, x'run_)
+import Z.Z.X.Methods
   ( T'x'extract
   , T'x'over
   , T'x'over'b
@@ -171,7 +171,7 @@ import Z.Z.X6.Methods
   , T'x'view'b
   , x'cons
   )
-import Z.Z.X6.Methods
+import Z.Z.X.Methods
   ( x'assign
   , x'extract
   , x'over
@@ -186,10 +186,10 @@ import Z.Z.X6.Methods
   , x'view
   , x'view'b
   ) as Methods
-import Z.Z.X6.Readables.Base (LogLevel(..), X'BaseM, x'now'', x'out'')
-import Z.Z.X6.Readables.RW.Ref (X'Ref)
-import Z.Z.X6.Readables.RW.Vector (X'Writer)
-import Z.Z.X6.Util (js_timeout)
+import Z.Z.X.Readables.Base (LogLevel(..), X'BaseM, x'now'', x'out'')
+import Z.Z.X.Readables.RW.Ref (X'Ref)
+import Z.Z.X.Readables.RW.Vector (X'Writer)
+import Z.Z.X.Util (js_timeout)
 
 type X'Base x = (_'x'base :: X'BaseM | x)
 

@@ -1,10 +1,10 @@
 module Node.Z.CLM.Stats.Manager.Action where
 
 import Z.Prelude
-import Z.Z.X6.Index
+import Z.Z.X.Index
 
 import Node.Z.CLM.Stats.Manager.Spec (Spec, Spec'Evaluable, Spec'M)
-import Z.Z.X6.Core (x'build)
+import Z.Z.X.Core (x'build)
 
 data Action r
   = Undo { targetId :: String | r }

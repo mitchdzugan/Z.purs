@@ -1,6 +1,6 @@
-module Z.Z.X6.Readables.RW.Vector where
+module Z.Z.X.Readables.RW.Vector where
 
-import Z.Z.X6.UtilPrelude
+import Z.Z.X.UtilPrelude
 
 import Data.Foldable (for_)
 import Z.Z.Core (arr'fold, arr'range, arr'withInd, mapM)
@@ -15,7 +15,7 @@ import Z.Z.Eff.Bin
   , eff'bin'size
   )
 import Z.Z.Eff.Ref (Eff'Ref, eff'ref'get, eff'ref'new, eff'ref'set)
-import Z.Z.X6.Core
+import Z.Z.X.Core
   ( class X'R'RespondsTo'rw
   , class X'Readable'rw
   , class X'Results'R'rw
@@ -25,7 +25,7 @@ import Z.Z.X6.Core
   , x'evaluable
   , x'evaluable_
   )
-import Z.Z.X6.Responds
+import Z.Z.X.Responds
   ( Responds
   , Responds'Const
   , responds'const'eff

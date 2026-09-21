@@ -1,4 +1,4 @@
-module Z.Z.X6.UtilPrelude (module M) where
+module Z.Z.X.UtilPrelude (module M) where
 
 import Data.Functor.Variant (class Contractable, contract) as M
 import Data.Identity (Identity(..)) as M

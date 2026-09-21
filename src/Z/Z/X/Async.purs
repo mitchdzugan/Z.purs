@@ -1,4 +1,4 @@
-module Z.Z.X6.Async
+module Z.Z.X.Async
   ( AffF(..)
   , x'aff''
   ) where

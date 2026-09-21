@@ -1,4 +1,4 @@
-module Z.Z.X6.Responds
+module Z.Z.X.Responds
   ( Responds'Const
   , Responds
   , responds'const
@@ -9,7 +9,7 @@ module Z.Z.X6.Responds
   , responds'run'eff
   ) where
 
-import Z.Z.X6.UtilPrelude
+import Z.Z.X.UtilPrelude
 
 newtype Responds args res v = Responds (args /\ (res -> v))
 

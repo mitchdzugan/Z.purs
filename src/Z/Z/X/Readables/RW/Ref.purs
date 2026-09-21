@@ -1,4 +1,4 @@
-module Z.Z.X6.Readables.RW.Ref
+module Z.Z.X.Readables.RW.Ref
   ( B'Ref
   , B'Ref'nt
   , R'Ref
@@ -15,10 +15,10 @@ module Z.Z.X6.Readables.RW.Ref
   , x'ref_'w
   ) where
 
-import Z.Z.X6.UtilPrelude
+import Z.Z.X.UtilPrelude
 
 import Z.Z.Eff.Ref (Eff'Ref, eff'ref'get, eff'ref'new, eff'ref'set)
-import Z.Z.X6.Core
+import Z.Z.X.Core
   ( class X'R'RespondsTo'rw
   , class X'Readable'rw
   , class X'Results'R'rw
@@ -27,7 +27,7 @@ import Z.Z.X6.Core
   , X'Evaluable
   , x'evaluable
   )
-import Z.Z.X6.Responds
+import Z.Z.X.Responds
   ( Responds
   , Responds'Const
   , responds'const'eff
