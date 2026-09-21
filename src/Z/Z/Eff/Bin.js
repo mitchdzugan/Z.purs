@@ -29,9 +29,20 @@ export const js_binEff_clear = (unit) => (st) => () => {
   st.start = 0;
   return unit;
 };
-export const js_binEff_toForeignObject = (st) => () => ({ ...st._ });
+export const js_binEff_toForeignObject = (st) => () => {
+  const res = {};
+  for (const k in st._) {
+    if (!st._[k]) {
+      continue;
+    }
+    res[k] = st._[k][0];
+  }
+  return res;
+};
 export const js_binEff_addForeignObject = (unit) => (fo) => (st) => () => {
-  st._ = { ...st._, ...fo };
+  for (const k in fo) {
+    st._[k] = [fo[k]];
+  }
   st.size = Object.keys(st._).length;
   return unit;
 };

@@ -2,6 +2,7 @@ module Node.Z.CLM.Stats.Manager.CLI where
 
 import Node.Z.Prelude
 
+import Debug (traceM)
 import Node.Z.CLM.Stats.Manager.Action as Act
 import Node.Z.CLM.Stats.Manager.Error as ClmStE
 import Node.Z.CLM.Stats.Manager.Legacy (CLMStatsLegacyBlob)
@@ -315,7 +316,9 @@ xRun args = do
   res <- runClm do
     actionData <- getActions [] false
     let spec = Act.buildSpec $ actionData.manual <> actionData.auto
+    traceM { spec }
     seasonEvents <- getH2hData spec true
+    traceM { seasonEvents }
     forM_ seasonEvents \(seasonId /\ events) -> runSeason do
       x'out { seasonId }
       x'out events
