@@ -83,6 +83,7 @@ instance
         , keysAt :: Responds k1 (Array k2)
         , lookup :: Responds (k1 /\ k2) (Maybe v)
         , d1keys :: Responds'Const (Array k1)
+        , d1entries :: Responds'Const (Array $ k1 /\ HashMap k2 v)
         )
     )
     ( VariantF
@@ -123,6 +124,7 @@ instance
     , lookup: responds'run'eff
         \(k1 /\ k2) -> eff'bin2D'lookup k1 k2 st <#> map _.v
     , d1keys: responds'const'eff $ eff'bin2D'd1keys st
+    , d1entries: responds'const'eff $ eff'hm2D'd1entries st
     }
   x'r'mkResponds'w (R'HashMap2D (st /\ init)) = match
     { assign: responds'run'eff \hm2d -> eff'hm2D'set hm2d st
@@ -249,3 +251,12 @@ eff'hm2D'entries st = do
   hm2d <- eff'hm2D'freeze st
   pure $ arr'concat $ hm'entries hm2d <#> \(k1 /\ hm) -> hm'entries hm <#>
     \(k2 /\ v) -> { k1, k2, v }
+
+eff'hm2D'd1entries
+  :: forall k1 k2 v
+   . Identable k1
+  => Identable k2
+  => Eff'HashMap2D k1 k2 v
+  -> Effect (Array $ k1 /\ HashMap k2 v)
+eff'hm2D'd1entries st = do
+  pure []

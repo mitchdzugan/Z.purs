@@ -277,6 +277,18 @@ instance X'R'RespondsTo (Identity r) (R'Identity'RespondsTo r) (self :: r) where
 instance X'Results'R (Identity r) r where
   x'results'r'impl = unwrap
 
+------------------------------------------------------------------------------
+
+instance X'Readable Unit Unit where
+  x'readable'mk = pure
+
+instance X'R'RespondsTo Unit (VariantF ()) () where
+  x'r'mkResponds'types = Proxy
+  x'r'mkResponds _ = match {}
+
+instance X'Results'R Unit Unit where
+  x'results'r'impl _ = unit
+
 ---------------------------------------------------------------------
 
 newtype R'Tagged r = R'Tagged r

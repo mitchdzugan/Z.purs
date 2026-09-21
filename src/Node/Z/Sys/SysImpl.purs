@@ -198,6 +198,7 @@ runXAThenExit
   :: forall @w @e a. RtError e => (WaEA' w e (X'Node ()) @@> a) -> Effect Unit
 runXAThenExit m = effAffThenExit $ async'x $ do
   res /\ w <- w'run $ e'try $ runXNode m
+  x'info { res, w }
   when (arr'size w > 0) do
     x'logWarning "collected warnings ⌄"
     x'logWarning w

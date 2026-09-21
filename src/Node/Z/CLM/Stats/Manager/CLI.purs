@@ -20,8 +20,8 @@ import Z.Z.X6.Readables.RW.Ref (X'Ref)
 
 wrapH2hWE
   :: forall x a
-   . Run (WaE H2h.Warning H2h.Error $ WaE ClmStW.T ClmStE.T x) a
-  -> Run (WaE ClmStW.T ClmStE.T x) a
+   . Run (WaE' H2h.Warning H2h.Error $ WaE' ClmStW.T ClmStE.T x) a
+  -> Run (WaE' ClmStW.T ClmStE.T x) a
 wrapH2hWE = we'map ClmStW.H2h ClmStE.H2h
 
 type EnvR r =
@@ -111,7 +111,7 @@ type ClmFullSeason = ClmSeason
 type ClmData = { season :: ClmFullSeason, players :: HashMap Int ClmPlayerStub }
 
 type ClmV r x =
-  ( RWaEA (EnvR r) ClmStW.T ClmStE.T
+  ( RWaEA' (EnvR r) ClmStW.T ClmStE.T
       ( seasons :: X'HashMap Int ClmBaseSeason
       , players :: X'HashMap Int ClmPlayerStub
       , playerSeasons :: X'HashMap2D Int Int ClmPlayerSeason
@@ -167,7 +167,7 @@ initialManual = map Act.PureAction
   lastFudds = "fudds-house-17-last-fudds"
   ggD t e r = rec'insert @"slug" ("tournament/" <> t <> "/event/" <> e) r
 
-getActions :: forall r x. PureActions -> Boolean -> ClmV r x #> ActionData
+getActions :: forall r x. PureActions -> Boolean -> ClmV r x @@> ActionData
 getActions newActions usePrevAuto = do
   buildDataPath <- r'ask <#> \r -> r.pagesCOPath /./ "build.json"
   baseRes <- xDecodeTextFile @ActionData buildDataPath # e'try <#> case _ of
@@ -176,7 +176,7 @@ getActions newActions usePrevAuto = do
   if usePrevAuto then pure baseRes
   else do
     { client } <- r'ask
-    before <- xNowMS <#>
+    before <- x'nowMS <#>
       \n -> (60 * 60 * floor (n / 1000.0 / 60.0 / 60.0)) + (24 * 60 * 60)
     let after = 1767225600
     let pSpecs = [ All.ggPageSpec (__ @"page") (__ @"tournaments") ]
@@ -206,33 +206,37 @@ getH2hData
   :: forall r x
    . Spec.Spec
   -> Boolean
-  -> ClmV r x #> Array (Int /\ HashMap String H2h.Event)
-getH2hData spec allowRefetch = xhm2d'eval @"seasonEvents" do
-  { client } <- r'ask
-  xInfo { numEvents: hs'size spec.eventSlugs }
-  forM_ (hs'vals spec.eventSlugs) \slug -> do
-    let
-      isChallonge = hs'has slug spec.challongeSlugs
-      sourceFn = if isChallonge then H2h.challongeSource else H2h.startggSource
-      source = sourceFn slug
-      isDone = hs'has slug spec.doneUpdating
-      needsRefetch = hs'has slug spec.eventsToRefetch
-      wantsRefetch = not isDone || needsRefetch
-      canRefetchEvent = allowRefetch && wantsRefetch
-      networkControl = case (isDone /\ needsRefetch) of
-        (true /\ _) -> Gql.CacheOnly
-        (_ /\ true) -> Gql.ForceFetch
-        _ -> default
-      getEventData nc =
-        wrapH2hWE $ we'unresult =<< H2h.getEventData source client nc
-    eventData' <- getEventData networkControl
-    let shouldRefetchEvent = eventData'.state /= "COMPLETED" && canRefetchEvent
-    eventData <-
-      if shouldRefetchEvent then getEventData Gql.ForceFetch
-      else pure eventData'
-    let seasonId = seasonIdByDate eventData.tournament.date
-    xhm2d'insert @"seasonEvents" seasonId slug eventData
-  xhm2d'entries @"seasonEvents"
+  -> ClmV r x @@> Array (Int /\ HashMap String H2h.Event)
+getH2hData spec allowRefetch = x'eval_ @"seasonEvents"
+  @(X'HashMap2D Int String H2h.Event)
+  do
+    { client } <- r'ask
+    x'info { numEvents: hs'size spec.eventSlugs }
+    forM_ (hs'vals spec.eventSlugs) \slug -> do
+      let
+        isChallonge = hs'has slug spec.challongeSlugs
+        sourceFn =
+          if isChallonge then H2h.challongeSource else H2h.startggSource
+        source = sourceFn slug
+        isDone = hs'has slug spec.doneUpdating
+        needsRefetch = hs'has slug spec.eventsToRefetch
+        wantsRefetch = not isDone || needsRefetch
+        canRefetchEvent = allowRefetch && wantsRefetch
+        networkControl = case (isDone /\ needsRefetch) of
+          (true /\ _) -> Gql.CacheOnly
+          (_ /\ true) -> Gql.ForceFetch
+          _ -> default
+        getEventData nc =
+          wrapH2hWE $ we'unresult =<< H2h.getEventData source client nc
+      eventData' <- getEventData networkControl
+      let
+        shouldRefetchEvent = eventData'.state /= "COMPLETED" && canRefetchEvent
+      eventData <-
+        if shouldRefetchEvent then getEventData Gql.ForceFetch
+        else pure eventData'
+      let seasonId = seasonIdByDate eventData.tournament.date
+      x'insert @"seasonEvents" (seasonId /\ slug) eventData
+    x'd1entries @"seasonEvents"
 
 type XSeason x =
   ( wins :: X'HashMap Int Int
@@ -256,8 +260,8 @@ runSeason = x'eval_ @"wins"
 
 runClm
   :: forall x a
-   . ClmV () (E JsError x) ##> a
-  -> EA JsError x ##> Result ClmStW.T ClmStE.T a
+   . ClmV () (E' JsError x) @@> a
+  -> EA' JsError x @@> Result ClmStW.T ClmStE.T a
 runClm m = do
   let
     getEnv s = xLookupEnv s >>= e'unwrap (jsError "Required Env Var Missing" s)
@@ -269,9 +273,9 @@ runClm m = do
   appCOPath <- getEnv "CLM_STATS_APP_CO"
   pagesCOPath <- getEnv "CLM_STATS_PAGES_CO"
   client <- pure $ H2h.mkClient do
-    s'sets @"authToken" $ Just ggAuth
+    s'set'b @"authToken" $ Just ggAuth
     let cachePath = dataRoot /./ "cache" /./ "startgg.gqlCache"
-    s'sets @"cachePath" $ Just $ pathStr $ cachePath
+    s'set'b @"cachePath" $ Just $ pathStr $ cachePath
   let tryDecode = xDecodeTextFile $ dataRoot /./ "FULL_LEGACY.json"
   legacyBlob <- e'try tryDecode >>= e'ok <<< constL (jsError "legacy read" "")
   clmIdByPlayerId <- hm'fromFoldable <$> forM
@@ -282,11 +286,13 @@ runClm m = do
       clmId <- e'unwrap (jsError "unfound clmId" "") $ obj'lookup ident
         legacyBlob."IDENT_CLM_IDS"
       pure $ ggId /\ clmId
-  xOut clmIdByPlayerId
+  x'out clmIdByPlayerId
+  {-}
   let
     playerIdsByClmId =
       hs2d'fromFoldable $ tup'flip <$> hm'entries clmIdByPlayerId
-  xOut playerIdsByClmId
+  x'out playerIdsByClmId
+  -}
   we'runResult
     $ x'eval_ @"seasons"
     $ x'eval_ @"players"
@@ -303,28 +309,28 @@ runClm m = do
         , legacyBlob
         }
 
-xRun :: forall x. Array String -> EA JsError x ##> Unit
+xRun :: forall x. Array String -> EA' JsError x @@> Unit
 xRun args = do
-  xInfo args
+  x'info args
   res <- runClm do
     actionData <- getActions [] false
     let spec = Act.buildSpec $ actionData.manual <> actionData.auto
     seasonEvents <- getH2hData spec true
     forM_ seasonEvents \(seasonId /\ events) -> runSeason do
-      xOut { seasonId }
-      xOut events
+      x'out { seasonId }
+      x'out events
       let eventList = arr'sortWith (\e -> e.tournament.date) $ hm'vals events
-      forM_ eventList \event -> x'withContinue \xContinue -> do
+      forM_ eventList \event -> x'withReturn \xReturn'outer -> do
         isSingles <- x'withReturn \xReturn -> do
-          forM_ (map'vals event.entrants) \entrant -> do
+          forM_ (hm'vals event.entrants) \entrant -> do
             when (arr'size entrant.participants > 1) $ xReturn false
           pure true
-        when (not isSingles) xContinue
-        forM_ (map'vals event.entrants) \entrant -> do
-          xInfo entrant
+        when (not isSingles) $ xReturn'outer unit
+        forM_ (hm'vals event.entrants) \entrant -> do
+          x'info entrant
         x'insert @"seasonEvents" (seasonId /\ event.id)
           { eventName: event.name
-          , numEntrants: map'size event.entrants
+          , numEntrants: hm'size event.entrants
           , date: event.tournament.date
           , slug: event.slug
           , prEligible: true
@@ -332,8 +338,8 @@ xRun args = do
           , imageUrl: ""
           , eventId: event.id
           }
-        xOut { event }
+        x'out { event }
       pure unit
-  xInfo $ case res.v of
+  x'info $ case res.v of
     Left e -> encode e
     Right _ -> "data intake: success"

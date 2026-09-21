@@ -12,17 +12,17 @@ import Z.XDom.UrlState as UrlSt
 
 foreign import js_renderIn :: XD.ReactEl -> Element -> Effect (Promise Unit)
 
-xPreactHydrate :: forall x. Element -> XD.ReactEl -> EA JsError x #> Unit
-xPreactHydrate d r = g @XRunEffPromise $ js_renderIn r d
+xPreactHydrate :: forall x. Element -> XD.ReactEl -> EA' JsError x @@> Unit
+xPreactHydrate d r = e'runEffPromise $ js_renderIn r d
 
-xDomRunWeb :: forall dr x. XD.MDom dr (XWebV x) Unit -> XD.MDom dr x Unit
+xDomRunWeb :: forall dr x. XD.MDom dr (X'Web x) Unit -> XD.MDom dr x Unit
 xDomRunWeb = XD.dom'withAdapter DOM.runXWeb
 
 xProvideHistoryX
   :: forall dr x
    . (URL -> Maybe String)
-  -> (UrlSt.T -> XD.MDom dr (XWebV x) Unit)
-  -> XD.MDom dr (XWebV x) Unit
+  -> (UrlSt.T -> XD.MDom dr (X'Web x) Unit)
+  -> XD.MDom dr (X'Web x) Unit
 xProvideHistoryX toTitleOr_ urlStateToDom = do
   locUrl <- DOM.xLocationUrl
   let baseUrlState = UrlSt.mk toTitleOr_ locUrl

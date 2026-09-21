@@ -1,6 +1,14 @@
 module Z.Z.X6.Export (module ModuleReExports) where
 
-import Z.Z.X6.Core (x'buildable'eval, x'eval, x'eval_, x'exec, x'exec_, x'run) as ModuleReExports
+import Z.Z.X6.Core
+  ( x'buildable'eval
+  , x'eval
+  , x'eval_
+  , x'exec
+  , x'exec_
+  , x'run
+  , x'run_
+  ) as ModuleReExports
 import Z.Z.X6.Index as ModuleReExports
 import Z.Z.X6.Methods as ModuleReExports
 import Z.Z.X6.Readables.RW.HashMap

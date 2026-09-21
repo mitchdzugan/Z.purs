@@ -8,13 +8,23 @@ module Z.Z.X6.Index
   , RS'
   , RWaEA'
   , RWaSEA'
+  , RunMW
+  , Runner
   , S'
   , SEA'
+  , StrW
+  , T'use'e'AsSym
+  , T'use'r'AsSym
+  , T'use's'AsSym
+  , T'use'w'AsSym
   , Wa'
+  , WaE'
   , WaEA'
   , X
   , X'A
+  , X'Base
   , X'E
+  , X'Permit
   , X'R
   , X'S
   , X'W
@@ -49,6 +59,11 @@ module Z.Z.X6.Index
   , r'run''
   , r'view
   , r'view'b
+  , runner'_
+  , runner'eval
+  , runner'extend
+  , runner'mk
+  , runner'mkDeferred
   , s'eval
   , s'exec
   , s'get
@@ -65,17 +80,22 @@ module Z.Z.X6.Index
   , s'update
   , s'view
   , s'view'b
+  , sync'_
   , sync'x
   , type (<@<)
   , type (<@@)
   , type (>@>)
   , type (@@>)
+  , w'eval
+  , w'exec
   , w'map
   , w'map''
   , w'run
-  , w'run''
   , w'say
   , w'say''
+  , w'str
+  , w'str''
+  , w'str'sp
   , w'tell
   , w'tell''
   , we'map
@@ -89,7 +109,11 @@ module Z.Z.X6.Index
   , we'tellMappedHush'''
   , we'tellMappedMHush
   , we'tellMappedMHush'''
+  , we'unresult
+  , we'unresult''
+  , we'unresult'''
   , x'attemptAff
+  , x'do
   , x'info
   , x'logError
   , x'logWarning
@@ -98,6 +122,7 @@ module Z.Z.X6.Index
   , x'out
   , x'outErr
   , x'outWarn
+  , x'permit
   , x'timeout
   , x'withReturn
   , x'withReturn''
@@ -113,11 +138,14 @@ import Parsing (Parser)
 import Run.Except (Except, runExceptAt, throwAt)
 import Z.Z.Core
   ( class Resulting
+  , Deferred
+  , Eff'At(..)
   , JsError(..)
   , ParseError
   , Result
   , T'useAsSym
   , fDiscard
+  , forM_
   , invert
   , mapL
   , reduceM
@@ -126,8 +154,9 @@ import Z.Z.Core
   )
 import Z.Z.DateTime (DateTime, dateTime'toMS)
 import Z.Z.Defaultable.Util as D
+import Z.Z.String (str'joinWith)
 import Z.Z.X6.Async (AffF(..), x'aff'')
-import Z.Z.X6.Core (x'eval, x'eval_, x'exec, x'run)
+import Z.Z.X6.Core (x'eval, x'eval_, x'exec, x'exec_, x'run, x'run_)
 import Z.Z.X6.Methods
   ( T'x'extract
   , T'x'over
@@ -157,12 +186,14 @@ import Z.Z.X6.Methods
   , x'view
   , x'view'b
   ) as Methods
-import Z.Z.X6.Readables.Base (LogLevel(..), X'Base, x'now'', x'out'')
+import Z.Z.X6.Readables.Base (LogLevel(..), X'BaseM, x'now'', x'out'')
 import Z.Z.X6.Readables.RW.Ref (X'Ref)
 import Z.Z.X6.Readables.RW.Vector (X'Writer)
 import Z.Z.X6.Util (js_timeout)
 
-type X x res = Run (_'x'base :: X'Base | x) res
+type X'Base x = (_'x'base :: X'BaseM | x)
+
+type X x res = Run (X'Base x) res
 
 type X'flipped res x = X x res
 
@@ -196,6 +227,7 @@ x'logWarning = x'outWarn
 x'logError :: forall x a. a -> Unit <@< x
 x'logError = x'outErr
 
+type X'Permit = Reader Unit
 type X'R t = Reader (Identity t)
 type X'W t = X'Writer t
 type X'Wa t = X'Writer (Array t)
@@ -220,6 +252,8 @@ type RS' r s x = R' r $ S' s x
 
 type EA' e x = E' e $ A' x
 
+type WaE' w e x = Wa' w $ E' e x
+
 type WaEA' w e x = Wa' w $ E' e $ A' x
 
 type RWaEA' r w e x = R' r $ Wa' w $ E' e $ A' x
@@ -229,6 +263,12 @@ type RWaSEA' r w s e x = R' r $ Wa' w $ S' s $ E' e $ A' x
 type REA' r e x = R' r $ E' e $ A' x
 
 type SEA' s e x = S' s $ E' e $ A' x
+
+x'permit :: forall @p x' x a. ConsSymbol p X'Permit x' x => Run x a -> Run x' a
+x'permit = x'eval_ @p
+
+x'do :: forall p x' x a. ConsSymbol p X'Permit x' x => Eff'At p a -> Run x a
+x'do (Eff'At eff) = pure $ unsafePerformEffect eff
 
 s'put :: forall x s. s -> Run (S' s x) Unit
 s'put = Methods.x'assign @"_'x'state"
@@ -248,16 +288,40 @@ s'exec = x'exec @"_'x'state"
 x'attemptAff :: forall x a. Aff a -> Run (A' x) (Either JsError a)
 x'attemptAff aff = x'aff'' @"_'x'aff" $ attempt aff <#> mapL JsError
 
+sync'_ :: forall a. Run () a -> a
+sync'_ = unsafePerformEffect <<< runBaseEffect <<< expand
+
 sync'x :: forall a. () @@> a -> a
-sync'x m = unsafePerformEffect $ runBaseEffect $ expand
-  $ x'eval_ @"_'x'base" @X'Base m
+sync'x = unsafePerformEffect <<< runBaseEffect <<< expand
+  <<< x'eval_ @"_'x'base" @X'BaseM
 
 async'x :: forall a. A' () @@> a -> Aff a
 async'x m = match { _'x'aff: \(AffCmd a) -> a } # run $ expand
-  $ x'eval_ @"_'x'base" @X'Base m
+  $ x'eval_ @"_'x'base" @X'BaseM m
 
 effectPromiseToAff :: forall a. Effect (Promise a) -> Aff a
 effectPromiseToAff e = EffC.liftEffect e >>= toAff
+
+---------------------------------------------------------------------
+
+type RunMW x x' = forall a. Run x a -> Run x' a
+
+newtype Runner x = Runner (RunMW x ())
+
+runner'eval :: forall x a. Runner x -> Run x a -> a
+runner'eval (Runner r) m = sync'_ $ r m
+
+runner'mkDeferred :: forall x a. Runner x -> Run x a -> Deferred a
+runner'mkDeferred runner m = \_ -> runner'eval runner m
+
+runner'_ :: Runner ()
+runner'_ = Runner identity
+
+runner'mk :: forall x. (forall a. Run x a -> Run () a) -> Runner x
+runner'mk = Runner
+
+runner'extend :: forall x x'. RunMW x x' -> Runner x' -> Runner x
+runner'extend fm (Runner r) = Runner (r <<< fm)
 
 ---------------------------------------------------------------------
 
@@ -454,18 +518,14 @@ type T'use'w'AsSym p f = T'useAsSym "_'x'writer" p f
 
 --------------------------------------------
 
-type T'w'run p =
-  forall w x' x a
-   . ConsSymbol p (X'W w) x' x
-  => Monoid w
-  => Run x a
-  -> Run x' (a /\ w)
+w'run :: forall x w a. Monoid w => Run (W' w x) a -> Run x (a /\ w)
+w'run = x'run_ @"_'x'writer"
 
-w'run'' :: forall @p. T'w'run p
-w'run'' m = x'run @p unit m
+w'eval :: forall x w a. Monoid w => Run (W' w x) a -> Run x a
+w'eval = x'eval_ @"_'x'writer"
 
-w'run :: forall p. T'use'w'AsSym p T'w'run
-w'run = w'run'' @p
+w'exec :: forall x w. Monoid w => Run (W' w x) Unit -> Run x w
+w'exec = x'exec_ @"_'x'writer"
 
 --------------------------------------------
 
@@ -509,7 +569,7 @@ type T'w'map p =
 
 w'map'' :: forall @p. T'w'map p
 w'map'' f m = do
-  a /\ tells <- w'run'' @p m
+  a /\ tells <- x'run_ @p m
   w'tell'' @p $ map f tells
   pure a
 
@@ -561,6 +621,22 @@ type Edit t = S' t () @@> Unit
 
 edit :: forall t. t -> Edit t -> t
 edit init m = sync'x $ x'exec @"_'x'state" init m
+
+---------------------------------------------------------------------
+
+type StrW = Wa' String () @@> Unit
+
+type T'w'str sep = IsSymbol sep => ((String -> StrW) -> StrW) -> String
+
+w'str'' :: forall @sep. T'w'str sep
+w'str'' fm =
+  str'joinWith (reflectSymbol $ Proxy @sep) $ sync'x $ w'exec $ fm w'say
+
+w'str :: forall @sep. T'useAsSym "" sep T'w'str
+w'str = w'str'' @sep
+
+w'str'sp :: forall @sep. T'useAsSym " " sep T'w'str
+w'str'sp = w'str'' @sep
 
 ---------------------------------------------------------------------
 
@@ -647,6 +723,29 @@ we'tellMappedHush'' = we'tellMappedHush''' @wp @ep
 
 we'tellMappedHush :: forall @wp. T'use'w'AsSym wp T'we'tellMappedHush
 we'tellMappedHush = we'tellMappedHush'' @wp
+
+--------------------------------------------
+
+type T'we'unresult' wp ep =
+  forall w e x'' x' x a
+   . ConsSymbol wp (X'Wa w) x'' x
+  => ConsSymbol ep (X'E e) x' x
+  => Result w e a
+  -> Run x a
+
+type T'we'unresult wp =
+  forall ep. T'use'e'AsSym ep (T'we'unresult' wp)
+
+we'unresult''' :: forall @wp @ep. T'we'unresult' wp ep
+we'unresult''' { v, w } = do
+  forM_ w $ w'say'' @wp
+  e'ok'' @ep v
+
+we'unresult'' :: forall @wp ep. T'use'e'AsSym ep (T'we'unresult' wp)
+we'unresult'' = we'unresult''' @wp @ep
+
+we'unresult :: forall @wp. T'use'w'AsSym wp T'we'unresult
+we'unresult = we'unresult'' @wp
 
 --------------------------------------------
 

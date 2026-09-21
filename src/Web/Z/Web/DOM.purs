@@ -199,7 +199,7 @@ raw_subToEvent
 raw_subToEvent eType target opts onE = do
   let o = edit defaultEventListenerOpts opts
   let tgt = target
-  let evalEvent = sync'x <<< expand <<< onE
+  let evalEvent = sync'_ <<< onE
   el <- raw_addEventListener eType tgt o evalEvent
   pure $ tagEffWebX $ raw_rmEventListener eType tgt o.capture el
 

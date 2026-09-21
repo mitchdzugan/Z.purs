@@ -24,6 +24,7 @@ module Z.Z.X6.Methods
   , x'clearAt
   , x'cons
   , x'consAt
+  , x'd1entries
   , x'd1keys
   , x'entries
   , x'entriesAt
@@ -314,6 +315,19 @@ x'd1keys
   => X'RespondsTo m (VariantF $ T'd1keys k resp'rest) (T'd1key k t'rest)
   => Run x (Array k)
 x'd1keys = x'respondTo_ @p @"d1keys"
+
+---------------------------------------------------------------------
+
+type T'd1entries d1k d1v rest =
+  (d1entries :: Responds'Const (Array $ d1k /\ d1v) | rest)
+
+x'd1entries
+  :: forall @p m x' x d1k d1v resp'rest t'rest
+   . ConsSymbol p m x' x
+  => X'RespondsTo m (VariantF $ T'd1entries d1k d1v resp'rest)
+       (T'd1entry d1k d1v t'rest)
+  => Run x (Array $ d1k /\ d1v)
+x'd1entries = x'respondTo_ @p @"d1entries"
 
 ---------------------------------------------------------------------
 

@@ -1,10 +1,10 @@
 module Z.Z.X6.Readables.Base
   ( LogLevel(..)
   , R'X'Base
-  , X'Base
+  , X'BaseM
   , x'base
-  , x'out''
   , x'now''
+  , x'out''
   ) where
 
 import Z.Z.X6.UtilPrelude
@@ -52,14 +52,14 @@ instance
     , out: responds'run'eff \_ -> pure unit
     }
 
-type X'Base = Reader R'X'Base
+type X'BaseM = Reader R'X'Base
 
-x'base :: X'Evaluable X'Base
-x'base = x'evaluable_ @X'Base
+x'base :: X'Evaluable X'BaseM
+x'base = x'evaluable_ @X'BaseM
 
-x'now'' :: forall @p x' x. ConsSymbol p X'Base x' x => Run x DateTime
+x'now'' :: forall @p x' x. ConsSymbol p X'BaseM x' x => Run x DateTime
 x'now'' = x'respondTo_ @p @"now"
 
 x'out''
-  :: forall @p x' x a. ConsSymbol p X'Base x' x => LogLevel -> a -> Run x Unit
+  :: forall @p x' x a. ConsSymbol p X'BaseM x' x => LogLevel -> a -> Run x Unit
 x'out'' ll = x'respondTo @p @"out" <<< (/\) ll <<< loggable

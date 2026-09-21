@@ -41,14 +41,14 @@ app'body = do
       el'cnW \w -> do
         w "btn btn-soft" *> when (count > 5) do w "btn-accent"
       el'onClick \e -> do
-        xOut e
+        x'out e
         domS'dispatch'' @"count" Inc
       dom'text "inc"
 
 app'mk :: forall dr x. UrlSt.XProvider dr x -> XDom dr x Unit
 app'mk = router'run'' @"router" printRoute parseUrl mkTitleOr_ do
   r <- router'routeOrE'' @"router"
-  xOut $ show r
+  x'out $ show r
   dom'div do
     el'cn "flex flex-col gap-4"
     dom'iframe $ pure unit

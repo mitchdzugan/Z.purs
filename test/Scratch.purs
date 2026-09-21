@@ -2,6 +2,7 @@ module Test.Scratch where
 
 import Node.Z.Prelude
 
+import Effect.Class.Console (log)
 import Heterogeneous.Mapping (class HMap)
 import Z.SSBM.Slp.Read.Impl as SlpRead
 import Z.Z.Id as Id
@@ -9,6 +10,7 @@ import Z.Z.Id as Id
 testCachePath :: String
 testCachePath = "/home/dz/Repo/PS-WS/.cache-path"
 
+{-
 type ST'Spec =
   { a :: ST'_'Ref Int
   -- , b :: ST'_'Ref String
@@ -45,7 +47,6 @@ class
 
 class T'''Spec'' "st" spec r v x' x <= T'''Spec spec r v x' x | spec x' -> r v x
 
-{-}
 st't2 :: forall p r v x' x. T'''Spec'' p ST'Spec r v x' x => Run x Int
 st't2 = do
   prev <- st'freeze'' @p @"a"
@@ -53,7 +54,8 @@ st't2 = do
   pure prev-}
 
 main :: Effect Unit
-main = runXAThenExit do
+main = log "Hello World" *> runXAThenExit do
+  {-
   let
     (st'spec :: ST'Spec) =
       { a: st'Ref 3
@@ -85,8 +87,9 @@ main = runXAThenExit do
         st'put @"a" 56
         pure prev
     mmm
-  xOut { res }
-  xOut $ encode
+  x'out { res }
+  -}
+  x'out $ encode
     [ Id.ident'uuid 1
     , Id.ident'uuid 2
     , Id.ident'uuid 0
@@ -105,6 +108,7 @@ main = runXAThenExit do
     , Id.ident'uuid $ Just 0 ~ Just 0
     , Id.ident'uuid $ Just 0 ~ Nothing
     ]
+  {-
   xhs'eval @"test" do
     v1 <- xhs'vals @"test"
     xOut v1
@@ -113,6 +117,7 @@ main = runXAThenExit do
     v2 <- xhs'vals @"test"
     s2 <- xhs'size @"test"
     xOut { v1, v2, s1, s2 }
+  -}
   b <- xReadFile "/home/dz/Slippi/Game_20260709T183630.slp"
   parsed <- e'map un' $ SlpRead.xParse b
-  xOut $ ident'uuid parsed
+  x'out $ ident'uuid parsed

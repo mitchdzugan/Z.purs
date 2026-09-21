@@ -24,9 +24,9 @@ mapOfJsonElsWithFieldsTypeAnd_t
   => Array { | r }
   -> HashMap String String
 mapOfJsonElsWithFieldsTypeAnd_t els =
-  sync'x $ x'exec_ @(X'HashMap String String) $ forM_ els \el ->
+  sync'x $ x'exec_ @"" @(X'HashMap String String) $ forM_ els \el ->
     case (g_ @t el) of
-      (Just s) -> x'insert (g_ @ttype el) s
+      (Just s) -> x'insert @"" (g_ @ttype el) s
       Nothing -> pass
 
 getEventData :: forall x. B.GetDataFn x

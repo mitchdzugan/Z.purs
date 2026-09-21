@@ -12,7 +12,7 @@ module Z.XDom.Router
   , router'urlState''
   ) where
 
-import Z.Prelude hiding (R, Run)
+import Z.Prelude hiding (Run)
 
 import Z.Prelude as Z
 import Z.XDom.Core as XDom
@@ -22,7 +22,7 @@ import Z.XDom.UrlState as UrlSt
 type T e r =
   { print :: r -> String, routeOrE :: Either e r, urlState :: UrlSt.T }
 
-type R e r = R' (T e r)
+type R e r = X'R (T e r)
 type X e r x = ("router" :: R e r | x)
 
 type T'router'run p =
@@ -52,7 +52,7 @@ type T'router'routeOrE p =
   forall e r x x'. IsSymbol p => Cons p (R e r) x' x => Z.Run x (Either e r)
 
 router'routeOrE'' :: forall @p. T'router'routeOrE p
-router'routeOrE'' = r'ask'' @p <#> _.routeOrE
+router'routeOrE'' = x'extract @p <#> _.routeOrE
 
 router'routeOrE :: forall @p. T'useAsSym "router" p T'router'routeOrE
 router'routeOrE = router'routeOrE'' @p
@@ -61,7 +61,7 @@ type T'router'urlState p =
   forall e r x x'. IsSymbol p => Cons p (R e r) x' x => Z.Run x UrlSt.T
 
 router'urlState'' :: forall @p. T'router'urlState p
-router'urlState'' = r'ask'' @p <#> _.urlState
+router'urlState'' = x'extract @p <#> _.urlState
 
 router'urlState :: forall @p. T'useAsSym "router" p T'router'urlState
 router'urlState = router'urlState'' @p
@@ -70,13 +70,13 @@ type T'router'href p =
   forall e r x'' x' x
    . IsSymbol p
   => Cons p (R e r) x'' x
-  => Cons p (R e r) x' (attr :: W' (Array PropWF) | x)
+  => Cons p (R e r) x' (attr :: X'W (Array PropWF) | x)
   => r
-  -> Z.Run (attr :: W' (Array PropWF) | x) Unit
+  -> Z.Run (attr :: X'W (Array PropWF) | x) Unit
 
 router'href'' :: forall @p. T'router'href p
 router'href'' route = do
-  href <- g1 @XAsk @p <#> _.print <#> (#) route
+  href <- x'extract @p <#> _.print <#> (#) route
   w'tell'' @"attr" $ pure $ Href href
 
 router'href :: forall @p. T'useAsSym "router" p T'router'href
