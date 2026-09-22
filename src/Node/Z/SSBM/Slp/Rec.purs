@@ -2,11 +2,19 @@ module Node.Z.SSBM.Slp.Rec where
 
 import Node.Z.Prelude
 
+import Debug (traceM)
 import Z.SSBM.Slp.Port as Port
 import Z.Z.Opt as O
 
-launchAndRecord :: forall x. REA' RecordEnv Error x @@> Unit
-launchAndRecord = pure unit
+launchAndRecord :: forall x. REA' RecordEnv Error x @$> Unit
+launchAndRecord = do
+  ts <- x'nowMS
+  pid <- xPid
+  filename'hash <- r'ask <#> \r -> ident'uuid $ simpleHash r.recPath
+  let workId = "wd" <-> ts <-> filename'hash <-> pid
+  workDir <- r'ask <#> \r -> r.tempPath /./ "work" /./ workId
+  x'out { workDir }
+  pure unit
 
 addConfigs
   :: forall x
@@ -26,7 +34,7 @@ addConfigs allowFNF wd configPaths = do
     when (not allowFNF) $ e'fail $ ConfigNotFound $ show fp
   onDecode _ (Left (DecodeError e)) = e'fail $ ConfigDecodeErr e
 
-xRun :: forall x. Array String -> EA' Error (X'Node x) @@> Unit
+xRun :: forall x. Array String -> EA' Error x @$> Unit
 xRun args = do
   wd <- xWd
   envPaths <- xEnvPaths "slp-rec" $ Just ""
@@ -97,7 +105,8 @@ updateEnv cfg st =
 finalizeEnv
   :: forall x. EnvBuildState -> CliOpts -> String -> E' Error x @@> RecordEnv
 finalizeEnv st (CliOpts opts) defaultOutputPath = do
-  isoPath <- e'ok $ jOrE NoIso st.isoPath
+  traceM { opts }
+  isoPath <- e'ok $ jOrE NoIso $ opts.isoPath >|> st.isoPath
   pure
     { isoPath
     , outputPath: jOr defaultOutputPath opts.outputPath

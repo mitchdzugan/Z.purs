@@ -329,7 +329,7 @@ getEventDataImpl = do
     P.xWaitForSelector page sel $ s'set'b @"timeout" $ Just 120000
 
 userAgent :: String
-userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" <->
+userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" <+>
   "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 
 parseMonth :: forall m. ParserT String m Month

@@ -500,40 +500,7 @@ import Z.Z.Id
 import Z.Z.Pair (Pair(..), (~)) as ZPair
 import Z.Z.PairKey (PairKey(..)) as ZPairKey
 import Z.Z.Passable (pass) as ZPassable
-import Z.Z.Shorthand
-  ( type (+)
-  , TPlus
-  , _'
-  , __
-  , _o
-  , _o_
-  , g_
-  , gmOr'_
-  , gmOr_
-  , gm_
-  , jOr
-  , jOr'
-  , jOr0
-  , jOr1
-  , jOr1n
-  , jOrE
-  , jOrF
-  , jOrT
-  , mfirst
-  , mlast
-  , o_
-  , over_
-  , set_
-  , stextConcat
-  , stextConcatSp
-  , (%)
-  , (/\)
-  , (<->)
-  , (<:>)
-  , (<|<)
-  , (>|>)
-  , (~.)
-  ) as ZShorthand
+import Z.Z.Shorthand as ZShorthand
 import Z.Z.String
   ( str'endsWith
   , str'joinWith

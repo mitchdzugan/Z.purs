@@ -25,6 +25,7 @@ export const js_pathJoinAbs = (p1) => (p2) =>
 export const js_pathBasename = (p) => path.basename(p);
 export const js_wd = () => process.cwd();
 export const js_argv = () => process.argv;
+export const js_pid = () => process.pid;
 export const js_envPaths = (app) => (opts) => () => envPaths(app, opts);
 export const js_envData = (envPaths) => envPaths.data;
 export const js_envCfg = (envPaths) => envPaths.config;

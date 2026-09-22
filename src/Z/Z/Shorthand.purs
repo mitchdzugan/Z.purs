@@ -1,10 +1,10 @@
 module Z.Z.Shorthand
   ( (%)
+  , (<+>)
   , (<->)
   , (<:>)
   , (<|<)
   , (>|>)
-  , (~)
   , (~.)
   , TPlus
   , _'
@@ -30,6 +30,7 @@ module Z.Z.Shorthand
   , over_
   , set_
   , stextConcat
+  , stextConcatDash
   , stextConcatSp
   , type (+)
   ) where
@@ -46,7 +47,18 @@ import Z.Z.Barlow
   ) as Z
 import Z.Z.Core as ZCore
 import Z.Z.Defaultable (WithDefaultable, default, orDefault) as Z
-import Z.Z.Ext (class IsSymbol, Either(..), First, Maybe(..), Optic, fromMaybe, over, preview, set, view) as Z
+import Z.Z.Ext
+  ( class IsSymbol
+  , Either(..)
+  , First
+  , Maybe(..)
+  , Optic
+  , fromMaybe
+  , over
+  , preview
+  , set
+  , view
+  ) as Z
 import Z.Z.Ext ((/\)) as ZExp
 
 stextConcat
@@ -57,8 +69,13 @@ stextConcatSp
   :: forall t1 t2. ZCore.SText t1 => ZCore.SText t2 => t1 -> t2 -> String
 stextConcatSp t1 t2 = ZCore.stext t1 <> " " <> ZCore.stext t2
 
+stextConcatDash
+  :: forall t1 t2. ZCore.SText t1 => ZCore.SText t2 => t1 -> t2 -> String
+stextConcatDash t1 t2 = ZCore.stext t1 <> "-" <> ZCore.stext t2
+
 infixr 5 stextConcat as <:>
-infixr 5 stextConcatSp as <->
+infixr 5 stextConcatSp as <+>
+infixr 5 stextConcatDash as <->
 
 mfirst
   :: forall r1 r2 a
@@ -128,7 +145,6 @@ set_
   -> t
 set_ = flip (Z.set (Z.barlow @sym))
 
-infixr 0 set_ as ~
 infixr 0 set_ as ~.
 
 over_

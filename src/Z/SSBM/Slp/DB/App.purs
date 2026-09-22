@@ -36,7 +36,7 @@ app'body = do
         w "btn btn-soft" *> when (count > 5) do w "btn-accent"
       el'onClick $ (\_ -> domS'dispatch'' @"count" Dec)
       dom'text "dec"
-    dom'div $ dom'text ("Count:" <-> count)
+    dom'div $ dom'text ("Count:" <+> count)
     dom'withKey "asdfasdf" $ dom'button do
       el'cnW \w -> do
         w "btn btn-soft" *> when (count > 5) do w "btn-accent"

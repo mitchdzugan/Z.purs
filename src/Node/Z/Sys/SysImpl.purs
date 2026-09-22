@@ -28,6 +28,7 @@ module Node.Z.Sys.SysImpl
   , xLookupEnv
   , xMkdir
   , xMkdirP
+  , xPid
   , xPlatform
   , xReadFile
   , xReadTextFile
@@ -198,7 +199,6 @@ runXAThenExit
   :: forall @w @e a. RtError e => (WaEA' w e (X'Node ()) @@> a) -> Effect Unit
 runXAThenExit m = effAffThenExit $ async'x $ do
   res /\ w <- w'run $ e'try $ runXNode m
-  x'info { res, w }
   when (arr'size w > 0) do
     x'logWarning "collected warnings ⌄"
     x'logWarning w
@@ -226,6 +226,9 @@ toPlatform _ = Unknown
 
 xArgv :: forall x. X'Node x @@> Array String
 xArgv = lift p'X'Node (FullArgvCmd (arr'drop 2))
+
+xPid :: forall x. X'Node x @@> Int
+xPid = lift p'X'Node $ PidCmd identity
 
 xWd :: forall x. X'Node x @@> Path
 xWd = lift p'X'Node (WdCmd Path)
@@ -265,7 +268,7 @@ foreign import js_pathJoin :: String -> String -> String
 foreign import js_pathJoinAbs :: String -> String -> String
 
 foreign import js_wd :: Effect String
-
+foreign import js_pid :: Effect Int
 foreign import js_argv :: Effect (Array String)
 
 foreign import data EnvPaths :: Type
@@ -275,6 +278,7 @@ foreign import js_envPaths :: String -> Json -> Effect EnvPaths
 data XNodeF a
   = WdCmd (String -> a)
   | FullArgvCmd (Array String -> a)
+  | PidCmd (Int -> a)
   | PlatformCmd (String -> a)
   | EnvPathsCmd String (Maybe String) (EnvPaths -> a)
 
@@ -282,6 +286,7 @@ handleXNode :: forall r. XNodeF ~> Run r
 handleXNode = case _ of
   WdCmd f -> pure $ f (Unsafe.unsafePerformEffect js_wd)
   FullArgvCmd f -> pure $ f (Unsafe.unsafePerformEffect js_argv)
+  PidCmd f -> pure $ f $ Unsafe.unsafePerformEffect js_pid
   PlatformCmd f -> pure $ f (Unsafe.unsafePerformEffect js_platform)
   EnvPathsCmd appName suffix f -> pure $ f $ Unsafe.unsafePerformEffect $
     js_envPaths appName (encodeOpts { suffix })

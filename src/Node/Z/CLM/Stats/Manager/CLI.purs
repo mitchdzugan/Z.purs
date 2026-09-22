@@ -170,7 +170,7 @@ getActions newActions usePrevAuto = do
   if usePrevAuto then pure baseRes
   else do
     { client } <- r'ask
-    before <- x'nowMS <#>
+    before <- x'nowMS'number <#>
       \n -> (60 * 60 * floor (n / 1000.0 / 60.0 / 60.0)) + (24 * 60 * 60)
     let after = 1767225600
     let pSpecs = [ All.ggPageSpec (__ @"page") (__ @"tournaments") ]

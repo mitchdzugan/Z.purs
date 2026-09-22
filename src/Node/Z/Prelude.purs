@@ -8,43 +8,7 @@ module Node.Z.Prelude
   , type (<$@)
   ) where
 
-import Node.Z.Sys.SysImpl
-  ( class Pathlike
-  , EnvPaths
-  , Path
-  , Platform(..)
-  , X'Node
-  , XNodeF
-  , basename
-  , dirname
-  , envCfg
-  , envData
-  , envTmp
-  , pathJoin
-  , pathJoinAbs
-  , pathStr
-  , runXAThenExit
-  , runXAThenExitWithArgv
-  , xArgParse
-  , xArgv
-  , xDecodeAnyYamlExt
-  , xDecodeTextFile
-  , xDecodeYamlFile
-  , xEncodeTextFile
-  , xEncodeTextFileP
-  , xEnvPaths
-  , xLookupEnv
-  , xMkdir
-  , xMkdirP
-  , xPlatform
-  , xReadFile
-  , xReadTextFile
-  , xWd
-  , xWriteTextFile
-  , xWriteTextFileP
-  , (/./)
-  , (/.|//)
-  ) as SysImpl
+import Node.Z.Sys.SysImpl as SysImpl
 import Z.Prelude as Prelude
 import Z.Sys.Module (FSDataError(..)) as Sys
 

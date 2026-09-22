@@ -119,6 +119,7 @@ module Z.Z.X.Index
   , x'logWarning
   , x'now
   , x'nowMS
+  , x'nowMS'number
   , x'out
   , x'outErr
   , x'outWarn
@@ -132,6 +133,7 @@ import Z.Z.X.UtilPrelude
 
 import Control.Promise (Promise, toAff)
 import Data.Either (Either(..))
+import Data.Int (floor)
 import Effect.Aff (Aff, attempt)
 import Effect.Class as EffC
 import Parsing (Parser)
@@ -206,8 +208,11 @@ infixr 0 type X as @@>
 x'now :: forall x. DateTime <@< x
 x'now = x'now'' @"_'x'base"
 
-x'nowMS :: forall x. Number <@< x
-x'nowMS = x'now <#> dateTime'toMS
+x'nowMS'number :: forall x. Number <@< x
+x'nowMS'number = x'now <#> dateTime'toMS
+
+x'nowMS :: forall x. Int <@< x
+x'nowMS = x'nowMS'number <#> floor
 
 x'out :: forall x a. a -> Unit <@< x
 x'out a = x'out'' @"_'x'base" LogLevel'Info a
