@@ -14,6 +14,10 @@ module Z.Z.X.Methods
   , T'x'toArrayOf'b
   , T'x'view
   , T'x'view'b
+  , _'alter
+  , _'consAt
+  , _'insert
+  , _'modify
   , x'act
   , x'add
   , x'addAt
@@ -68,10 +72,11 @@ import Data.List (List)
 import Data.Maybe (isJust)
 import Data.Monoid.Endo (Endo)
 import Z.Z.Barlow (class C'Barlow, First, barlow)
-import Z.Z.Core (Eff'At)
+import Z.Z.Core (Eff'At, T'useAsSym)
 import Z.Z.X.Core
   ( class X'RespondsTo
   , class X'Results
+  , T'use'_'AsSym
   , x'respondTo
   , x'respondTo_
   , x'results'impl
@@ -557,13 +562,15 @@ x'cons = x'respondTo @p @"cons"
 
 type T'consAt k t rest = (consAt :: Responds (k /\ t) Unit | rest)
 
-x'consAt
-  :: forall @p m x' x k t resp'rest t'rest
+type T'x'consAt p =
+  forall m x' x k t resp'rest t'rest
    . ConsSymbol p m x' x
   => X'RespondsTo m (VariantF $ T'consAt k t resp'rest) (T'd2entry k t t'rest)
   => k
   -> t
   -> Run x Unit
+
+x'consAt :: forall @p. T'x'consAt p
 x'consAt k t = x'respondTo @p @"consAt" $ k /\ t
 
 ---------------------------------------------------------------------
@@ -616,13 +623,15 @@ x'remove = x'respondTo @p @"remove"
 
 type T'insert k v rest = (insert :: Responds (k /\ v) Unit | rest)
 
-x'insert
-  :: forall @p m x' x k v resp'rest t'rest
+type T'x'insert p =
+  forall m x' x k v resp'rest t'rest
    . ConsSymbol p m x' x
   => X'RespondsTo m (VariantF $ T'insert k v resp'rest) (T'entry k v t'rest)
   => k
   -> v
   -> Run x Unit
+
+x'insert :: forall @p. T'x'insert p
 x'insert k v = x'respondTo @p @"insert" (k /\ v)
 
 ---------------------------------------------------------------------
@@ -671,3 +680,17 @@ x'modify :: forall @p. T'x'modify p
 x'modify k f = x'lookup @p k >>= case _ of
   Nothing -> pure unit
   Just v -> x'insert @p k $ f v
+
+-------------------------------------------------------------------------------
+
+_'insert :: forall p. T'use'_'AsSym p T'x'insert
+_'insert = x'insert @p
+
+_'consAt :: forall p. T'use'_'AsSym p T'x'consAt
+_'consAt = x'consAt @p
+
+_'alter :: forall p. T'use'_'AsSym p T'x'alter
+_'alter = x'alter @p
+
+_'modify :: forall p. T'use'_'AsSym p T'x'modify
+_'modify = x'modify @p

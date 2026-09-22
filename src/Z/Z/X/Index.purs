@@ -292,8 +292,7 @@ sync'_ :: forall a. Run () a -> a
 sync'_ = unsafePerformEffect <<< runBaseEffect <<< expand
 
 sync'x :: forall a. () @@> a -> a
-sync'x = unsafePerformEffect <<< runBaseEffect <<< expand
-  <<< x'eval_ @"_'x'base" @X'BaseM
+sync'x = sync'_ <<< x'eval_ @"_'x'base" @X'BaseM
 
 async'x :: forall a. A' () @@> a -> Aff a
 async'x m = match { _'x'aff: \(AffCmd a) -> a } # run $ expand

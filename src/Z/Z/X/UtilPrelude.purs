@@ -208,7 +208,6 @@ import Run
   , Step(..)
   , VariantF
   , case_
-  , default
   , expand
   , extract
   , inj
@@ -247,7 +246,7 @@ import Z.Z.Core
   , T2'0
   , T2'1
   ) as M
-import Z.Z.Defaultable (class Generable, GDefault, g, mkGenerable) as M
+import Z.Z.Defaultable (class Generable, GDefault, default, g, mkGenerable) as M
 import Z.Z.Util (type ($)) as M
 import Z.Z.Wraps
   ( class Unwraps

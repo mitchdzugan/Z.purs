@@ -259,9 +259,6 @@ runClm
 runClm m = do
   let
     getEnv s = xLookupEnv s >>= e'unwrap (jsError "Required Env Var Missing" s)
-    wrappedM = r'ask >>= \{ legacyBlob } -> do
-      x'out legacyBlob
-      m
   isDevEnv <- getEnv "CLM_STATS_IS_DEV"
   ggAuth <- getEnv "CLM_STATS_GG_AUTH"
   dataRoot <- getEnv "CLM_STATS_DATA_DIR"
@@ -282,19 +279,16 @@ runClm m = do
         legacyBlob."IDENT_CLM_IDS"
       pure $ ggId /\ clmId
   x'out clmIdByPlayerId
-  {-}
-  let
-    playerIdsByClmId =
-      hs2d'fromFoldable $ tup'flip <$> hm'entries clmIdByPlayerId
-  x'out playerIdsByClmId
-  -}
+  playerIdsByClmId <- _'exec_ @(X'HashSet2D Int Int) do
+    forM_ (hm'entries clmIdByPlayerId) \(pId /\ clmId) -> _'consAt clmId pId
+  x'info playerIdsByClmId
   we'runResult
     $ x'eval_ @"seasons"
     $ x'eval_ @"players"
     $ x'eval_ @"seasonEvents"
     $ x'eval_ @"playerSeasons"
     $ x'eval @"nextIdTry" legacyBlob.nextIdTry
-    $ flip r'run wrappedM
+    $ flip r'run m
         { isDevEnv
         , ggAuth
         , dataRoot

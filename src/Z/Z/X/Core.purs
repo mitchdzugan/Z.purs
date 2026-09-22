@@ -7,9 +7,16 @@ module Z.Z.X.Core
   , RW'Tagged(..)
   , T'Consable
   , T'Evaluable
+  , T'use'_'AsSym
   , W'Tagged(..)
   , X'Evaluable(..)
   , X'EvaluableAt(..)
+  , _'eval
+  , _'eval_
+  , _'exec
+  , _'exec_
+  , _'run
+  , _'run_
   , class X'Buildable
   , class X'Buildable'RL
   , class X'Consable
@@ -56,7 +63,7 @@ import Z.Z.X.UtilPrelude
 
 import Prim.RowList as RL
 import Unsafe.Coerce (unsafeCoerce)
-import Z.Z.Core (rec'get, rec'insert)
+import Z.Z.Core (T'useAsSym, rec'get, rec'insert)
 import Z.Z.X.Responds (Responds, Responds'Const, responds'const, responds'id)
 
 type T'Consable p m param res'm =
@@ -66,7 +73,7 @@ type T'Consable p m param res'm =
   -> Run x a
   -> Run x' (res'm a)
 
-class X'Consable m param res'm where
+class X'Consable m param res'm | m -> param res'm where
   x'consable'impl :: forall p. Proxy p -> T'Consable p m param res'm
 
 class
@@ -88,7 +95,7 @@ class X'Results'R r result where
 instance X'Results'R r result => X'Results (Reader r) result where
   x'results'impl p = askAt p <#> x'results'r'impl @r
 
-class X'Results'R'rw r result where
+class X'Results'R'rw r result | r -> result where
   x'results'r'rw'impl :: r -> Effect result
 
 instance X'Results'R'rw r result => X'Results'R (R'Tagged r) result where
@@ -142,66 +149,100 @@ evaluable'run
   -> Run x' a
 evaluable'run (X'Evaluable mf) = mf (Proxy @p)
 
-x'eval
-  :: forall @p @m x' x @param a
+type T'x'eval m p =
+  forall x' x param a
    . ConsSymbol p m x' x
   => X'Consable m param Identity
   => param
   -> Run x a
   -> Run x' a
+
+x'eval :: forall @p @m. T'x'eval m p
 x'eval param m = x'consable'impl @m (Proxy @p) param m <#> \(Identity v) -> v
 
-x'run
-  :: forall @p @m x' x @param a result
+type T'x'run m p =
+  forall x' x param a result
    . ConsSymbol p m x' x
   => X'Consable m param Identity
   => X'Results m result
   => param
   -> Run x a
   -> Run x' (a /\ result)
+
+x'run :: forall @p @m. T'x'run m p
 x'run param m = x'eval @p param do
   a <- m
   result <- x'results'impl @m (Proxy @p)
   pure $ a /\ result
 
-x'exec
-  :: forall @p @m x' x @param result
+type T'x'exec m p =
+  forall x' x param result
    . ConsSymbol p m x' x
   => X'Consable m param Identity
   => X'Results m result
   => param
   -> Run x Unit
   -> Run x' result
+
+x'exec :: forall @p @m. T'x'exec m p
 x'exec param m = x'eval @p param $ m *> x'results'impl @m (Proxy @p)
 
-x'eval_
-  :: forall @p @m x' x @param a
+type T'x'eval_ m p =
+  forall x' x param a
    . ConsSymbol p m x' x
   => X'Consable m param Identity
   => Generable param GDefault param
   => Run x a
   -> Run x' a
-x'eval_ m = x'eval @p @m @param (g @param) m
 
-x'run_
-  :: forall @p @m x' x @param result a
+x'eval_ :: forall @p @m. T'x'eval_ m p
+x'eval_ m = x'eval @p @m default m
+
+type T'x'run_ m p =
+  forall x' x param result a
    . ConsSymbol p m x' x
   => X'Consable m param Identity
   => X'Results m result
   => Generable param GDefault param
   => Run x a
   -> Run x' (a /\ result)
-x'run_ m = x'run @p @m @param (g @param) m
 
-x'exec_
-  :: forall @p @m x' x @param result
+x'run_ :: forall @p @m. T'x'run_ m p
+x'run_ m = x'run @p @m default m
+
+type T'x'exec_ m p =
+  forall param x' x result
    . ConsSymbol p m x' x
   => X'Consable m param Identity
   => X'Results m result
   => Generable param GDefault param
   => Run x Unit
   -> Run x' result
-x'exec_ m = x'exec @p @m @param (g @param) m
+
+x'exec_ :: forall @p @m. T'x'exec_ m p
+x'exec_ m = x'exec @p @m default m
+
+---------------------------------------------------------------------
+
+type T'use'_'AsSym p f = T'useAsSym "_" p f
+
+_'run :: forall @m p. T'use'_'AsSym p (T'x'run m)
+_'run = x'run @p
+
+_'exec :: forall @m p. T'use'_'AsSym p (T'x'exec m)
+_'exec = x'exec @p
+
+_'eval :: forall @m p. T'use'_'AsSym p (T'x'eval m)
+_'eval = x'eval @p
+
+_'run_ :: forall @m p. T'use'_'AsSym p (T'x'run_ m)
+_'run_ = x'run_ @p
+
+_'exec_ :: forall @m p. T'use'_'AsSym p (T'x'exec_ m)
+_'exec_ = x'exec_ @p
+
+_'eval_ :: forall @m p. T'use'_'AsSym p (T'x'eval_ m)
+_'eval_ = x'eval_ @p
 
 ------------------------------------------------------------------------------
 
