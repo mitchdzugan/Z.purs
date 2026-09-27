@@ -1,5 +1,7 @@
 module Z.Z.X.Index
-  ( A'
+  ( (<!#>)
+  , (<!$>)
+  , A'
   , E'
   , EA'
   , Edit
@@ -37,6 +39,7 @@ module Z.Z.X.Index
   , e'invert''
   , e'map
   , e'map''
+  , e'map'flipped
   , e'ok
   , e'ok''
   , e'runAff
@@ -53,6 +56,8 @@ module Z.Z.X.Index
   , e'tryUntil''
   , e'unwrap
   , e'unwrap''
+  , e'withFinalizer
+  , e'withFinalizer''
   , edit
   , r'ask
   , r'run
@@ -95,6 +100,7 @@ module Z.Z.X.Index
   , w'say''
   , w'str
   , w'str''
+  , w'str'nl
   , w'str'sp
   , w'tell
   , w'tell''
@@ -451,6 +457,20 @@ e'map'' f m = e'try'' @p m <#> mapL f >>= e'ok'' @p
 e'map :: forall p. T'use'e'AsSym p T'e'map
 e'map = e'map'' @p
 
+type T'e'map'flipped p =
+  forall x'' x' x e1 e2 a
+   . ConsSymbol p (X'E e1) x'' x'
+  => ConsSymbol p (X'E e2) x' x
+  => Run x a
+  -> (e2 -> e1)
+  -> Run x' a
+
+e'map'flipped :: forall p. T'use'e'AsSym p T'e'map'flipped
+e'map'flipped = flip e'map
+
+infixr 0 e'map'flipped as <!#>
+infixr 0 e'map as <!$>
+
 --------------------------------------------
 
 type T'e'invert p =
@@ -501,6 +521,25 @@ e'tryUntil'' try1 tryRest = e'invert'' @p $ e'invert'' @p try1 >>= \e1 ->
 
 e'tryUntil :: forall p. T'use'e'AsSym p T'e'tryUntil
 e'tryUntil = e'tryUntil'' @p
+
+--------------------------------------------
+
+type T'e'withFinalizer p =
+  forall e x'' x' x a
+   . ConsSymbol p (X'E e) x'' x'
+  => ConsSymbol p (X'E e) x' x
+  => (Either e a -> Run x' Unit)
+  -> Run x a
+  -> Run x' a
+
+e'withFinalizer'' :: forall @p. T'e'withFinalizer p
+e'withFinalizer'' handle m = do
+  res <- e'try'' @p m
+  handle res
+  e'ok'' @p res
+
+e'withFinalizer :: forall p. T'use'e'AsSym p T'e'withFinalizer
+e'withFinalizer = e'withFinalizer'' @p
 
 --------------------------------------------
 
@@ -632,15 +671,20 @@ type StrW = Wa' String () @@> Unit
 
 type T'w'str sep = IsSymbol sep => ((String -> StrW) -> StrW) -> String
 
+w'str''impl :: String -> ((String -> StrW) -> StrW) -> String
+w'str''impl sep fm = str'joinWith sep $ sync'x $ w'exec $ fm w'say
+
 w'str'' :: forall @sep. T'w'str sep
-w'str'' fm =
-  str'joinWith (reflectSymbol $ Proxy @sep) $ sync'x $ w'exec $ fm w'say
+w'str'' = w'str''impl (reflectSymbol $ Proxy @sep)
 
 w'str :: forall @sep. T'useAsSym "" sep T'w'str
 w'str = w'str'' @sep
 
 w'str'sp :: forall @sep. T'useAsSym " " sep T'w'str
 w'str'sp = w'str'' @sep
+
+w'str'nl :: forall @sep. T'useAsSym "" sep T'w'str
+w'str'nl = w'str''impl "\n" -- TODO use os specific newline
 
 ---------------------------------------------------------------------
 

@@ -17,24 +17,28 @@ module Node.Z.Sys.SysImpl
   , pathStr
   , runXAThenExit
   , runXAThenExitWithArgv
-  , xArgParse
-  , xArgv
-  , xDecodeAnyYamlExt
-  , xDecodeTextFile
-  , xDecodeYamlFile
-  , xEncodeTextFile
-  , xEncodeTextFileP
-  , xEnvPaths
-  , xLookupEnv
-  , xMkdir
-  , xMkdirP
-  , xPid
-  , xPlatform
-  , xReadFile
-  , xReadTextFile
-  , xWd
-  , xWriteTextFile
-  , xWriteTextFileP
+  , x'argParse
+  , x'argv
+  , x'decodeAnyYamlExt
+  , x'decodeTextFile
+  , x'decodeYamlFile
+  , x'encodeTextFile
+  , x'encodeTextFileP
+  , x'envPaths
+  , x'isDirectory
+  , x'lookupEnv
+  , x'mkdir
+  , x'mkdirP
+  , x'pid
+  , x'platform
+  , x'readFile
+  , x'readTextFile
+  , x'readdir
+  , x'rimraf
+  , x'symlink
+  , x'wd
+  , x'writeTextFile
+  , x'writeTextFileP
   ) where
 
 import Z.Prelude
@@ -64,6 +68,15 @@ foreign import js_loadYaml
   -> (Json -> Either JsError Json)
   -> Either JsError Json
 
+foreign import js_rimraf
+  :: String -> Effect $ Promise Unit
+
+foreign import js_isDirectory :: String -> Effect $ Promise Boolean
+
+foreign import js_symlink :: String -> String -> String -> Effect $ Promise Unit
+
+foreign import js_readdir :: String -> Effect $ Promise $ Array String
+
 newtype Path = Path String
 
 instance Show Path where
@@ -78,89 +91,112 @@ instance Pathlike Path where
 instance Pathlike String where
   pathStr s = s
 
-xReadFile :: forall x p. Pathlike p => p -> EA' JsError x @@> Buffer
-xReadFile = e'runEffPromise <<< js_readFile <<< pathStr
+x'readFile :: forall x p. Pathlike p => p -> EA' JsError x @@> Buffer
+x'readFile = e'runEffPromise <<< js_readFile <<< pathStr
 
-xReadTextFile :: forall x p. Pathlike p => p -> EA' JsError x @@> String
-xReadTextFile = e'runEffPromise <<< js_readTextFile <<< pathStr
+x'readTextFile :: forall x p. Pathlike p => p -> EA' JsError x @@> String
+x'readTextFile = e'runEffPromise <<< js_readTextFile <<< pathStr
 
-xDecodeTextFile
+x'decodeTextFile
   :: forall x p @d
    . Pathlike p
   => DecodeJson d
   => p
   -> EA' Sys.FSDataError x @@> d
-xDecodeTextFile p = do
-  contents <- e'map Sys.ReadError $ xReadTextFile p
+x'decodeTextFile p = do
+  contents <- Sys.ReadError <!$> x'readTextFile p
   e'ok $ mapL Sys.DecodeError $ decode contents
 
-xDecodeYamlString
+x'decodeYamlString
   :: forall x @d
    . DecodeJson d
   => String
   -> EA' Sys.FSDataError x @@> d
-xDecodeYamlString contents = do
+x'decodeYamlString contents = do
   json <- e'ok $ mapL Sys.ReadError $ js_loadYaml contents Left Right
   e'ok $ mapL Sys.DecodeError $ decodeJson json
 
-xDecodeYamlFile
+x'decodeYamlFile
   :: forall x p @d
    . Pathlike p
   => DecodeJson d
   => p
   -> EA' Sys.FSDataError x @@> d
-xDecodeYamlFile p = do
-  contents <- e'map Sys.ReadError $ xReadTextFile p
-  xDecodeYamlString contents
+x'decodeYamlFile p = do
+  contents <- Sys.ReadError <!$> x'readTextFile p
+  x'decodeYamlString contents
 
-xDecodeAnyYamlExt
+x'decodeAnyYamlExt
   :: forall x p @d
    . Pathlike p
   => DecodeJson d
   => p
   -> EA' Sys.FSDataError x @@> d
-xDecodeAnyYamlExt p = do
+x'decodeAnyYamlExt p = do
   contents <- e'tryUntil
-    (e'map Sys.ReadError $ xReadTextFile $ (pathStr p) <> ".yaml")
-    [ const $ e'map Sys.ReadError $ xReadTextFile $ (pathStr p) <>
-        ".json"
-    , const $ e'map Sys.ReadError $ xReadTextFile $ p
+    (Sys.ReadError <!$> x'readTextFile $ (pathStr p) <> ".yaml")
+    [ const $ Sys.ReadError <!$> x'readTextFile $ (pathStr p) <> ".json"
+    , const $ Sys.ReadError <!$> x'readTextFile $ p
     ]
-  xDecodeYamlString contents
+  x'decodeYamlString contents
 
-xMkdir :: forall x p. Pathlike p => p -> EA' JsError x @@> Unit
-xMkdir = e'runEffPromise <<< js_mkdir <<< pathStr
+x'mkdir :: forall x p. Pathlike p => p -> EA' JsError x @@> Unit
+x'mkdir = e'runEffPromise <<< js_mkdir <<< pathStr
 
-xMkdirP :: forall x p. Pathlike p => p -> EA' JsError x @@> Unit
-xMkdirP = e'runEffPromise <<< js_mkdirp <<< pathStr
+x'mkdirP :: forall x p. Pathlike p => p -> EA' JsError x @@> Unit
+x'mkdirP = e'runEffPromise <<< js_mkdirp <<< pathStr
 
-xWriteTextFile
+x'rimraf :: forall x p. Pathlike p => p -> EA' JsError x @@> Unit
+x'rimraf = e'runEffPromise <<< js_rimraf <<< pathStr
+
+x'isDirectory :: forall x p. Pathlike p => p -> A' x @@> Boolean
+x'isDirectory p =
+  pathStr p # js_isDirectory # e'runEffPromise # e'try >>= case _ of
+    Left _ -> pure false
+    Right res -> pure res
+
+x'symlink
+  :: forall x p1 p2
+   . Pathlike p1
+  => Pathlike p2
+  => p1
+  -> p2
+  -> EA' JsError x @@> Unit
+x'symlink p1 p2 =
+  e'runEffPromise $ js_symlink (pathStr p1) (pathStr p2) "junction"
+
+x'readdir :: forall x p. Pathlike p => p -> A' x @@> Array Path
+x'readdir p = pathStr p # js_readdir # e'runEffPromise # e'try >>= case _ of
+  Left _ -> pure []
+  Right res -> pure $ res <#> (/./) p
+
+x'writeTextFile
   :: forall x p. Pathlike p => p -> String -> EA' JsError x @@> Unit
-xWriteTextFile p = e'runEffPromise <<< js_writeTextFile (pathStr p)
+x'writeTextFile p = e'runEffPromise <<< js_writeTextFile (pathStr p)
 
-xWriteTextFileP
+x'writeTextFileP
   :: forall x p. Pathlike p => p -> String -> EA' JsError x @@> Unit
-xWriteTextFileP p s = do
-  xMkdirP $ dirname p
-  xWriteTextFile p s
+x'writeTextFileP p s = do
+  x'mkdirP $ dirname p
+  x'writeTextFile p s
 
-xEncodeTextFile
+x'encodeTextFile
   :: forall x p d
    . Pathlike p
   => EncodeJson d
   => p
   -> d
   -> EA' JsError x @@> Unit
-xEncodeTextFile p d = xWriteTextFile p $ encode d
+x'encodeTextFile p d = x'writeTextFile p $ encode d
 
-xEncodeTextFileP
+x'encodeTextFileP
   :: forall x p d
    . Pathlike p
   => EncodeJson d
   => p
   -> d
   -> EA' JsError x @@> Unit
-xEncodeTextFileP p d = xWriteTextFileP p $ encode d
+x'encodeTextFileP p d = x'writeTextFileP p $ encode d
 
 foreign import js_lookupEnv
   :: (String -> Maybe String)
@@ -171,8 +207,8 @@ foreign import js_lookupEnv
 lookupEnv :: String -> Effect $ Maybe String
 lookupEnv = js_lookupEnv Just Nothing
 
-xLookupEnv :: forall x. String -> A' x @@> Maybe String
-xLookupEnv k = e'try (e'runEffA $ lookupEnv k) <#> getRes
+x'lookupEnv :: forall x. String -> A' x @@> Maybe String
+x'lookupEnv k = e'try (e'runEffA $ lookupEnv k) <#> getRes
   where
   getRes (Right (Just v)) = Just v
   getRes _ = Nothing
@@ -209,7 +245,7 @@ runXAThenExitWithArgv
    . RtError e
   => (Array String -> WaEA' w e (X'Node ()) @@> a)
   -> Effect Unit
-runXAThenExitWithArgv fm = runXAThenExit $ xArgv >>= fm
+runXAThenExitWithArgv fm = runXAThenExit $ x'argv >>= fm
 
 data Platform = Win32 | Darwin | Linux | Android | FreeBSD | OpenBSD | Unknown
 
@@ -224,20 +260,20 @@ toPlatform "freebsd" = FreeBSD
 toPlatform "openbsd" = OpenBSD
 toPlatform _ = Unknown
 
-xArgv :: forall x. X'Node x @@> Array String
-xArgv = lift p'X'Node (FullArgvCmd (arr'drop 2))
+x'argv :: forall x. X'Node x @@> Array String
+x'argv = lift p'X'Node (FullArgvCmd (arr'drop 2))
 
-xPid :: forall x. X'Node x @@> Int
-xPid = lift p'X'Node $ PidCmd identity
+x'pid :: forall x. X'Node x @@> Int
+x'pid = lift p'X'Node $ PidCmd identity
 
-xWd :: forall x. X'Node x @@> Path
-xWd = lift p'X'Node (WdCmd Path)
+x'wd :: forall x. X'Node x @@> Path
+x'wd = lift p'X'Node (WdCmd Path)
 
-xEnvPaths :: forall x. String -> Maybe String -> X'Node x @@> EnvPaths
-xEnvPaths appName suffix = lift p'X'Node (EnvPathsCmd appName suffix id)
+x'envPaths :: forall x. String -> Maybe String -> X'Node x @@> EnvPaths
+x'envPaths appName suffix = lift p'X'Node (EnvPathsCmd appName suffix id)
 
-xPlatform :: forall x. X'Node x @@> Platform
-xPlatform = lift p'X'Node (PlatformCmd toPlatform)
+x'platform :: forall x. X'Node x @@> Platform
+x'platform = lift p'X'Node (PlatformCmd toPlatform)
 
 envData :: EnvPaths -> Path
 envData = Path <<< js_envData
@@ -304,8 +340,8 @@ runXNode = run (on p'X'Node handleXNode send)
 dirname :: forall p. Pathlike p => p -> Path
 dirname p = Path $ js_pathDirname $ pathStr p
 
-basename :: forall p. Pathlike p => p -> Path
-basename p = Path $ js_pathBasename $ pathStr p
+basename :: forall p. Pathlike p => p -> String
+basename p = js_pathBasename $ pathStr p
 
 pathJoin :: forall p1 p2. Pathlike p1 => Pathlike p2 => p1 -> p2 -> Path
 pathJoin p1 p2 = Path $ js_pathJoin (pathStr p1) (pathStr p2)
@@ -318,14 +354,14 @@ infixr 0 pathJoin as /./
 -- join paths unless rightside is absolute in which case, use rightside
 infixr 0 pathJoinAbs as /.|//
 
-xArgParse
+x'argParse
   :: forall x a
    . String
   -> O.ParserInfo a
   -> Array String
   -> (a -> X'Node x @@> Unit)
   -> X'Node x @@> Unit
-xArgParse progName opts args fm =
+x'argParse progName opts args fm =
   handleParse $ O.execParserPure O.defaultPrefs opts args
   where
   handleParse (O.Success a) = fm a

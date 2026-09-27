@@ -117,6 +117,6 @@ main = log "Hello World" *> runXAThenExit do
     s2 <- xhs'size @"test"
     xOut { v1, v2, s1, s2 }
   -}
-  b <- xReadFile "/home/dz/Slippi/Game_20260709T183630.slp"
-  parsed <- e'map un' $ SlpRead.xParse b
+  b <- x'readFile "/home/dz/Slippi/Game_20260709T183630.slp"
+  parsed <- SlpRead.xParse b <!#> un'
   x'out $ ident'uuid parsed

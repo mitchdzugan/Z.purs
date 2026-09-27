@@ -2,19 +2,39 @@ module Node.Z.SSBM.Slp.Rec where
 
 import Node.Z.Prelude
 
-import Debug (traceM)
 import Z.SSBM.Slp.Port as Port
 import Z.Z.Opt as O
 
 launchAndRecord :: forall x. REA' RecordEnv Error x @$> Unit
 launchAndRecord = do
   ts <- x'nowMS
-  pid <- xPid
+  pid <- x'pid
   filename'hash <- r'ask <#> \r -> ident'uuid $ simpleHash r.recPath
   let workId = "wd" <-> ts <-> filename'hash <-> pid
   workDir <- r'ask <#> \r -> r.tempPath /./ "work" /./ workId
-  x'out { workDir }
-  pure unit
+  let userDir = workDir /./ "User"
+  x'mkdirP userDir <!#> IoError
+  e'withFinalizer (const $ x'rimraf workDir <!#> CleanupError) do
+    let gsDir = userDir /./ "GameSettings"
+    let gsFile = gsDir /./ "GALE01.ini"
+    geckoCodes <- r'ask >>= \r ->
+      forM r.geckoCodes x'readTextFile <!#> ReadGeckoCode
+    { geckoEnables, geckoDisables } <- r'ask
+    let
+      gameSettingsStr = w'str'nl $ \w -> do
+        w "[Gecko]" *> forM_ geckoCodes w *> w ""
+        w "[Gecko_Enabled]" *> forM_ geckoEnables w *> w ""
+        w "[Gecko_Disabled]" *> forM_ geckoDisables w *> w ""
+    x'writeTextFileP gsFile gameSettingsStr <!#> WriteGameSettings
+    texturePathsWithInd <- r'ask <#> \r -> arr'withInd r.texturePaths
+    let texturesDir = userDir /./ "Load" /./ "Textures"
+    x'mkdirP texturesDir <!#> IoError
+    forM_ texturePathsWithInd \(ind /\ texturePath) -> do
+      whenM (x'isDirectory texturePath <#> not) do
+        e'fail $ InvalidTexturePath $ pathStr texturePath
+      let symlinkDst = texturesDir /./ ("tx_link" <:> ind)
+      x'symlink texturePath symlinkDst <!#> SymlinkTexturePath
+    pure unit
 
 addConfigs
   :: forall x
@@ -25,31 +45,51 @@ addConfigs
 addConfigs allowFNF wd configPaths = do
   forM_ configPaths \configPath -> do
     let fullPath = wd /.|// configPath
-    e'try (xDecodeAnyYamlExt @RecordConfig fullPath) >>= onDecode fullPath
+    e'try (x'decodeAnyYamlExt @RecordConfig fullPath) >>= onDecode fullPath
   where
   onDecode fullPath (Right c) = do
-    s'update $ updateEnv c
-    addConfigs false (dirname fullPath) (gmOr'_ @"includes?" c)
+    let configDir = (dirname fullPath)
+    s'update $ updateEnv configDir c
+    addConfigs false configDir (gmOr'_ @"includes?" c)
   onDecode fp (Left (ReadError _)) = do
     when (not allowFNF) $ e'fail $ ConfigNotFound $ show fp
   onDecode _ (Left (DecodeError e)) = e'fail $ ConfigDecodeErr e
 
+getDefaultSlippiPlaybackBin :: forall x. Path -> A' x @$> String
+getDefaultSlippiPlaybackBin slippiLauncherPath = x'withReturn \x'return -> do
+  filenames <- x'readdir $ slippiLauncherPath /./ "playback"
+  betaFilenames <- x'readdir $ slippiLauncherPath /./ "playback-beta"
+  forM_ (arr'concat [ filenames, betaFilenames ]) \filename -> do
+    let file'str = pathStr filename
+    let file'ends = flip str'endsWith $ file'str
+    let file'starts = flip str'startsWith $ basename file'str
+    x'platform >>= case _ of
+      Win32 -> when (file'ends "Dolphin.exe") $ x'return file'str
+      Darwin -> when (file'ends "Dolphin.app") $ x'return file'str
+      Linux -> do
+        let isAppImage = file'ends "AppImage" && file'starts "Slippi_Playback"
+        when (isAppImage || file'ends "dolphin-emu") $ x'return file'str
+      _ -> pure unit
+  pure "slippi-playback"
+
 xRun :: forall x. Array String -> EA' Error x @$> Unit
 xRun args = do
-  wd <- xWd
-  envPaths <- xEnvPaths "slp-rec" $ Just ""
-  platform <- xPlatform
-  let cfgPath = envCfg envPaths
-  let tmpPath = envTmp envPaths
+  wd <- x'wd
+  envPaths <- x'envPaths "slp-rec" $ Just ""
+  platform <- x'platform
   let
-    launcherSettingsPath =
+    cfgPath = envCfg envPaths
+    tmpPath = envTmp envPaths
+    slippiLauncherPath =
       cfgPath
         /./ ".."
         /./ (if platform == Win32 then ".." else ".")
         /./ "Slippi Launcher"
-        /./ "Settings"
+    launcherSettingsPath = slippiLauncherPath /./ "Settings"
+  defaultSlippiPlaybackBin <- getDefaultSlippiPlaybackBin slippiLauncherPath
+  x'out { defaultSlippiPlaybackBin }
   launcherSettings <-
-    e'try (xDecodeTextFile @LauncherSettings' launcherSettingsPath) <#> hush
+    e'try (x'decodeTextFile @LauncherSettings' launcherSettingsPath) <#> hush
   let isoPath = launcherSettings <#> g_ @"settings.isoPath"
   let
     envStateInit =
@@ -60,10 +100,10 @@ xRun args = do
       , geckoCodes: Nil
       , geckoEnables: Nil
       , geckoDisables: Nil
-      , slippiPlaybackBin: "slippi-playback"
+      , slippiPlaybackBin: defaultSlippiPlaybackBin
       , ffmpegBin: "ffmpeg"
       }
-  xArgParse "slp-rec" (slpRecInfo wd) args \opts -> do
+  x'argParse "slp-rec" (slpRecInfo wd) args \opts -> do
     let optConfigs = arr'fromFoldable $ g_ @"!.configPaths" opts
     let noOptConfigs = arr'size optConfigs == 0
     let baseConfigPath = show $ cfgPath /./ "config"
@@ -89,13 +129,14 @@ arrMergeListOpts
   :: forall a f. Foldable f => List a -> f (ListOp a) -> Array a
 arrMergeListOpts a b = arr'fromFoldable $ mergeListOps a b
 
-updateEnv :: RecordConfig -> EnvBuildState -> EnvBuildState
-updateEnv cfg st =
+updateEnv :: Path -> RecordConfig -> EnvBuildState -> EnvBuildState
+updateEnv path cfg st =
   { isoPath: cfg.isoPath >|> st.isoPath
   , tempPath: st.tempPath
   , texturePaths: mergeMListOps st.texturePaths cfg.texturePaths
   , iniMods: mergeMListOps st.iniMods cfg.iniMods
-  , geckoCodes: mergeMListOps st.geckoCodes cfg.geckoCodes
+  , geckoCodes: mergeMListOps st.geckoCodes $ cfg.geckoCodes
+      <#> ffmap (show <<< (/.|//) path)
   , geckoEnables: mergeMListOps st.geckoEnables cfg.geckoEnables
   , geckoDisables: mergeMListOps st.geckoDisables cfg.geckoDisables
   , slippiPlaybackBin: jOr st.slippiPlaybackBin cfg.slippiPlaybackBin
@@ -105,7 +146,6 @@ updateEnv cfg st =
 finalizeEnv
   :: forall x. EnvBuildState -> CliOpts -> String -> E' Error x @@> RecordEnv
 finalizeEnv st (CliOpts opts) defaultOutputPath = do
-  traceM { opts }
   isoPath <- e'ok $ jOrE NoIso $ opts.isoPath >|> st.isoPath
   pure
     { isoPath
@@ -261,6 +301,8 @@ instance EncodeJson PortCostume where
 
 data ListOp a = LReset | LCons a
 
+derive instance Functor ListOp
+
 instance DecodeJson a => DecodeJson (ListOp a) where
   decodeJson x = do
     caseJsonString decodeCons onString x
@@ -405,15 +447,36 @@ slpRecInfo wd = O.info (cliOpts wd O.<**> O.helper)
       )
   )
 
-data Error = NoIso | ConfigNotFound String | ConfigDecodeErr JsonDecodeError
+data Error
+  = NoIso
+  | ConfigNotFound String
+  | ConfigDecodeErr JsonDecodeError
+  | IoError JsError
+  | ReadGeckoCode JsError
+  | WriteGameSettings JsError
+  | InvalidTexturePath String
+  | SymlinkTexturePath JsError
+  | CleanupError JsError
 
 instance RtError Error where
   rtErrExtra _ = encodeJson {}
   rtErrName NoIso = "melee iso not found"
   rtErrName (ConfigNotFound _) = "config file not found"
   rtErrName (ConfigDecodeErr _) = "config file invalid type"
+  rtErrName (IoError _) = "IO Error"
+  rtErrName (ReadGeckoCode _) = "Read Gecko Code"
+  rtErrName (WriteGameSettings _) = "Write Game Settings"
+  rtErrName (InvalidTexturePath _) = "Invalid Texture Path"
+  rtErrName (SymlinkTexturePath _) = "Symlink Texture Path"
+  rtErrName (CleanupError _) = "Cleanup Error"
   -- rtErrName _ = "_err_name_not_implemented_"
   rtErrMessage NoIso = "please supply via opt `-i %ISO_PATH%`"
   rtErrMessage (ConfigNotFound p) = p
   rtErrMessage (ConfigDecodeErr e) = show e
+  rtErrMessage (IoError e) = jsErrorMessage e
+  rtErrMessage (ReadGeckoCode e) = jsErrorMessage e
+  rtErrMessage (WriteGameSettings e) = jsErrorMessage e
+  rtErrMessage (InvalidTexturePath s) = "No such directory: " <> s
+  rtErrMessage (SymlinkTexturePath e) = jsErrorMessage e
+  rtErrMessage (CleanupError e) = jsErrorMessage e
 -- rtErrMessage _ = "_err_message_not_implemented_"

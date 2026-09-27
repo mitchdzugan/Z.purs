@@ -29,13 +29,13 @@ getEventData = B.adaptBuilder $ x'withReturn \xReturn -> do
   fullPath slug path = path /./ ("CHALLONGE-" <> slug <> ".json")
   writeToCache _ Nothing _ = pure unit
   writeToCache slug (Just path) res =
-    we'tellMappedHush (H2hW.Gql <<< GqlW.CacheWrite) $ xEncodeTextFileP
+    we'tellMappedHush (H2hW.Gql <<< GqlW.CacheWrite) $ x'encodeTextFileP
       (fullPath slug path)
       res
   getCached _ Nothing _ = pure Nothing
   getCached _ _ Gql.ForceFetch = pure Nothing
   getCached slug (Just path) _ = we'tellMappedMHush mapMDecodeErr
-    $ xDecodeTextFile
+    $ x'decodeTextFile
     $ fullPath slug path
   mapMDecodeErr e@(DecodeError _) = [ H2hW.Gql $ GqlW.CacheDecode e ]
   mapMDecodeErr _ = []
@@ -73,8 +73,7 @@ getEventDataImpl = do
       itemLabel <- pEl el ".item-label" >>= pInnerText
       itemText <- pEl el ".text" >>= pInnerText
       when (itemLabel == "Start Time" || itemLabel == "Start") do
-        date <- e'map H2hE.ParseTime $ e'runParser itemText
-          parseDate
+        date <- H2hE.ParseTime <!$> e'runParser itemText parseDate
         s'set'b @"dateOrE" $ Right date
         pure unit
       when (itemLabel == "Game") do
@@ -89,8 +88,8 @@ getEventDataImpl = do
     forM_ bracketEls $ \bracketEl -> do
       matchEls <- pEls bracketEl ".match"
       forM_ matchEls \matchEl -> x'eval_ @"winnerId" @(X'Ref (Maybe SorN)) do
-        setId <- flip e'runParser parseInt >>> e'map H2hE.ParseMatchId
-          =<< pReadDataAttr matchEl "match"
+        setId <- pReadDataAttr matchEl "match" >>=
+          \matchAttr -> H2hE.ParseMatchId <!$> e'runParser matchAttr parseInt
         playerEls <- pEls matchEl ".match--player"
         slots <- forM playerEls $ \playerEl -> do
           entrantId <- pReadIdDataAttr playerEl "participant"
@@ -98,7 +97,7 @@ getEventDataImpl = do
           scoreEl <- pEl playerEl ".match--player-score"
           scoreClass <- pGetAttribute scoreEl "class"
           scoreS <- pInnerHtml scoreEl
-          score <- e'map H2hE.ParseScore do
+          score <- H2hE.ParseScore <!$> do
             e'runParser scoreS parseInt <#> H2h.mkScoreCount
           forM_ (str'split (Pattern " ") scoreClass) $ \cn -> do
             when (cn == "-winner") $ x'assign @"winnerId" $ Just entrantId
@@ -291,7 +290,7 @@ getEventDataImpl = do
     -> String
     -> E' JsError + EA' H2hE.T xx @@> a
     -> EA' H2hE.T xx @@> a
-  pDo s1 s2 m = e'map (H2hE.Puppeteer s1 s2) m
+  pDo s1 s2 m = H2hE.Puppeteer s1 s2 <!$> m
 
   pDoPorE
     :: forall xx pOrE a
@@ -300,7 +299,7 @@ getEventDataImpl = do
     -> String
     -> E' JsError + EA' H2hE.T xx @@> a
     -> EA' H2hE.T xx @@> a
-  pDoPorE pOrE s m = e'map (H2hE.Puppeteer (P.context pOrE) s) m
+  pDoPorE pOrE s m = H2hE.Puppeteer (P.context pOrE) s <!$> m
 
   pEls
     :: forall xx pOrE

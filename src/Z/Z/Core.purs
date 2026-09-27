@@ -417,7 +417,7 @@ ffmap
   => (a -> b)
   -> (g (f a))
   -> (g (f b))
-ffmap f r = map (map f) r
+ffmap f = map (map f)
 
 infixl 2 ffmap as <$$>
 

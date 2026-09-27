@@ -3,6 +3,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import envPaths from "env-paths";
 import * as yaml from "js-yaml";
+import { rimraf } from "rimraf";
 
 export const js_readFile = (p) => () => fs.readFile(p);
 export const js_readTextFile = (p) => () => fs.readFile(p, "utf-8");
@@ -38,3 +39,18 @@ export const js_loadYaml = (s) => (left) => (right) => {
     return left(e);
   }
 };
+export const js_rimraf = (p) => () => rimraf(p);
+export const js_isDirectory = (p) => async () => {
+  try {
+    const stats = await fs.stat(p);
+    return stats.isDirectory();
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return false;
+    }
+    throw error;
+  }
+};
+export const js_symlink = (src) => (dst) => (linkType) => () =>
+  fs.symlink(src, dst, linkType);
+export const js_readdir = (p) => () => fs.readdir(p);

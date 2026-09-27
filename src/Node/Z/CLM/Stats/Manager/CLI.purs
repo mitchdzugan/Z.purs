@@ -164,7 +164,7 @@ initialManual = map Act.PureAction
 getActions :: forall r x. PureActions -> Boolean -> ClmV r x @@> ActionData
 getActions newActions usePrevAuto = do
   buildDataPath <- r'ask <#> \r -> r.pagesCOPath /./ "build.json"
-  baseRes <- xDecodeTextFile @ActionData buildDataPath # e'try <#> case _ of
+  baseRes <- x'decodeTextFile @ActionData buildDataPath # e'try <#> case _ of
     Left _ -> { manual: initialManual <> newActions, auto: [] }
     Right d -> { manual: d.manual <> newActions, auto: d.auto }
   if usePrevAuto then pure baseRes
@@ -258,7 +258,7 @@ runClm
   -> EA' JsError x @@> Result ClmStW.T ClmStE.T a
 runClm m = do
   let
-    getEnv s = xLookupEnv s >>= e'unwrap (jsError "Required Env Var Missing" s)
+    getEnv s = x'lookupEnv s >>= e'unwrap (jsError "Required Env Var Missing" s)
   isDevEnv <- getEnv "CLM_STATS_IS_DEV"
   ggAuth <- getEnv "CLM_STATS_GG_AUTH"
   dataRoot <- getEnv "CLM_STATS_DATA_DIR"
@@ -268,7 +268,7 @@ runClm m = do
     s'set'b @"authToken" $ Just ggAuth
     let cachePath = dataRoot /./ "cache" /./ "startgg.gqlCache"
     s'set'b @"cachePath" $ Just $ pathStr $ cachePath
-  let tryDecode = xDecodeTextFile $ dataRoot /./ "FULL_LEGACY.json"
+  let tryDecode = x'decodeTextFile $ dataRoot /./ "FULL_LEGACY.json"
   legacyBlob <- e'try tryDecode >>= e'ok <<< constL (jsError "legacy read" "")
   clmIdByPlayerId <- hm'fromFoldable <$> forM
     (obj'entries legacyBlob.nameDataByPlayerId)
