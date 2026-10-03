@@ -73,7 +73,7 @@ getEventData = B.adaptBuilder
           { placement: standing.placement, isFinal: standing.isFinal }
 
       let rawPgs = arr'sortWith (g_ @"id") event.phaseGroups
-      pgs <- forM rawPgs $ \pg -> x'eval_ @"sets" @(X'HashMap Int H2h.H2hSet) do
+      pgs <- forM rawPgs \pg -> x'eval_ @"sets" @(X'HashMap SorN H2h.H2hSet) do
         pgRes <- fetchRawPhaseGroupData pg.id
         forM_ (g_ @"phaseGroup!.sets.nodes" pgRes) $ \set -> do
           let
@@ -114,8 +114,8 @@ getEventData = B.adaptBuilder
               if isComplete then completeScores else H2h.NoScore /\ H2h.NoScore
           let slotA = { entrantId: eIdA <#> sOrN, score: slotScoreA }
           let slotB = { entrantId: eIdB <#> sOrN, score: slotScoreB }
-          x'insert @"sets" setId
-            { id: setId
+          x'insert @"sets" (sOrN setId)
+            { id: sOrN setId
             , roundText: set.fullRoundText
             , overrideScoreText: set.displayScore
             , isDQ
@@ -123,6 +123,7 @@ getEventData = B.adaptBuilder
             , winner
             , doesCount: (not isBye) && (not isDQ) && (isJust set.winnerId)
             , slots: slotA ~ slotB
+            , eventOrder: setId
             }
         sets <- x'extract @"sets"
         pure

@@ -50,6 +50,9 @@ derive instance Z.Generic JsonEncodedBin _
 instance Z.DecodeJson JsonEncodedBin where
   decodeJson x = Z.genericDecodeJson x
 
+instance Z.EncodeJson JsonEncodedBin where
+  encodeJson x = Z.genericEncodeJson x
+
 instance Z.DecodeJson v => Z.DecodeJson (Bin v) where
   decodeJson x = do
     partial <- decodeJson x
@@ -60,7 +63,8 @@ instance Z.DecodeJson v => Z.DecodeJson (Bin v) where
     decodedKVs (JsonEncodedBin els) = els
 
 instance Z.EncodeJson v => Z.EncodeJson (Bin v) where
-  encodeJson (Bin x) = Z.encodeJson $ Fo.toArrayWithKey (\k v -> { k, v }) x
+  encodeJson (Bin x) = Z.encodeJson $ JsonEncodedBin $
+    Fo.toArrayWithKey (\k v -> { k, v: Z.encodeJson v }) x
 
 instance Generable (Bin v) gdesc (Bin v) where
   mkGenerable = bin'empty

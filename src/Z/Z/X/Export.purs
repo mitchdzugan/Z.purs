@@ -13,14 +13,7 @@ import Z.Z.X.Readables.RW.HashMap
   , x'hashmap_
   , x'hashmap_'w
   ) as ModuleReExports
-import Z.Z.X.Readables.RW.HashMap2D
-  ( X'HashMap2D
-  , X'HashMap2D'w
-  , x'hashmap2D
-  , x'hashmap2D'w
-  , x'hashmap2D_
-  , x'hashmap2D_'w
-  ) as ModuleReExports
+import Z.Z.X.Readables.RW.HashMap2D as ModuleReExports
 import Z.Z.X.Readables.RW.HashSet
   ( B'HashSet
   , R'HashSet
@@ -55,3 +48,5 @@ import Z.Z.X.Readables.RW.Ref
   , x'ref_
   , x'ref_'w
   ) as ModuleReExports
+import Z.Z.X.Readables.RW.Vector as ModuleReExports
+import Z.Z.X.Readables.RW.Vector2D as ModuleReExports

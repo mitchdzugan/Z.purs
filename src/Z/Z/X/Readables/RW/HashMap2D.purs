@@ -1,5 +1,6 @@
 module Z.Z.X.Readables.RW.HashMap2D
-  ( Eff'HashMap2D
+  ( B'HashMap2D
+  , Eff'HashMap2D
   , HashMap2D
   , R'HashMap2D(..)
   , X'HashMap2D
@@ -271,3 +272,9 @@ eff'hm2D'd1entries
 eff'hm2D'd1entries st = do
   keys <- eff'bin2D'd1keys st
   for keys \k -> eff'hm2D'freezeAt k st <#> (/\) k
+
+---------------------------------------------------------------------
+
+type B'HashMap2D
+  :: forall k. ((Type -> Type) -> Type -> k) -> Type -> Type -> Type -> k
+type B'HashMap2D sel k1 k2 v = sel (X'HashMap2D k1 k2 v) (HashMap2D k1 k2 v)

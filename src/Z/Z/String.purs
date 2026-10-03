@@ -1,5 +1,6 @@
 module Z.Z.String
-  ( str'endsWith
+  ( str'drop
+  , str'endsWith
   , str'joinWith
   , str'length
   , str'split
@@ -20,8 +21,13 @@ str'split = StrCommon.split
 str'length :: String -> Int
 str'length = StrCU.length
 
-str'startsWith :: String -> String -> Boolean
+type Substring = String
+
+str'startsWith :: Substring -> String -> Boolean
 str'startsWith = StrUtils.startsWith
 
-str'endsWith :: String -> String -> Boolean
+str'endsWith :: Substring -> String -> Boolean
 str'endsWith = StrUtils.endsWith
+
+str'drop :: Int -> String -> String
+str'drop = Str.drop

@@ -52,7 +52,7 @@ module Z.Z.Core
   , forM_
   , idLens
   , inc
-  , intFromString
+  , ini'stringify
   , invert
   , jsAny
   , jsError
@@ -72,6 +72,7 @@ module Z.Z.Core
   , mapM
   , obj'empty
   , obj'entries
+  , obj'fromFoldable
   , obj'has
   , obj'insert
   , obj'keys
@@ -123,6 +124,7 @@ module Z.Z.Core
   , simpleHash
   , stext
   , tryParseInt
+  , tryParseNum
   , tup'flip
   , var'inj
   , var'match
@@ -336,6 +338,8 @@ foreign import js_jsonStr :: Arg.Json -> String
 
 foreign import js_removeNils :: Arg.Json -> Arg.Json
 
+foreign import js_iniStringifyJson :: Arg.Json -> String
+
 newtype AntiUnit = AntiUnit Unit
 
 instance Eq AntiUnit where
@@ -358,6 +362,9 @@ jsonRmNils = js_removeNils
 
 encodeOpts :: forall d. EncodeJson d => d -> Arg.Json
 encodeOpts = jsonRmNils <<< encodeJson
+
+ini'stringify :: forall d. EncodeJson d => d -> String
+ini'stringify = js_iniStringifyJson <<< encodeJson
 
 simpleHash :: String -> Int
 simpleHash = js_simpleHash
@@ -469,6 +476,13 @@ obj'entries = Obj.toArrayWithKey TupN.(/\)
 
 obj'vals :: forall a. Obj.Object a -> Array a
 obj'vals = Obj.values
+
+obj'fromFoldable
+  :: forall @a f
+   . Foldable.Foldable f
+  => f (String TupN./\ a)
+  -> Obj.Object a
+obj'fromFoldable = Obj.fromFoldable
 
 objST'new :: forall a r. ST r (STObject r a)
 objST'new = ObjSt.new
@@ -717,11 +731,11 @@ parseInt = do
 tryParseInt :: String -> May.Maybe Int
 tryParseInt s = Eor.hush $ runParser s parseInt
 
+tryParseNum :: String -> May.Maybe Number
+tryParseNum s = Eor.hush $ runParser s parseNumber
+
 p2 :: Int -> Int
 p2 = Int.pow 2
-
-intFromString :: String -> May.Maybe Int
-intFromString = Int.fromString
 
 type Result w e a = { w :: (Array w), v :: (Eor.Either e a) }
 

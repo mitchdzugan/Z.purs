@@ -34,9 +34,8 @@ getEventData = B.adaptBuilder $ x'withReturn \xReturn -> do
       res
   getCached _ Nothing _ = pure Nothing
   getCached _ _ Gql.ForceFetch = pure Nothing
-  getCached slug (Just path) _ = we'tellMappedMHush mapMDecodeErr
-    $ x'decodeTextFile
-    $ fullPath slug path
+  getCached slug (Just path) _ = we'tellMappedMHush mapMDecodeErr $ Just
+    <$> x'decodeTextFile @H2h.Event (fullPath slug path)
   mapMDecodeErr e@(DecodeError _) = [ H2hW.Gql $ GqlW.CacheDecode e ]
   mapMDecodeErr _ = []
 
@@ -217,9 +216,10 @@ getEventDataImpl = do
               , roundText: ""
               , overrideScoreText: Nothing
               , doesCount: isComplete
-              , id: baseSet.id
+              , id: sOrN $ slug <> show baseSet.id
               , winner: baseSet.winner
               , slots: baseSet.slots
+              , eventOrder: -1 * (Round.roundInd round)
               }
           }
       hasReset <- x'extract @"hasReset"

@@ -1,4 +1,16 @@
-module Z.Z.X.Readables.RW.Vector where
+module Z.Z.X.Readables.RW.Vector
+  ( Eff'Vector
+  , R'Vector(..)
+  , R'Writer(..)
+  , X'Vector
+  , X'Vector'w
+  , X'Writer
+  , x'vector
+  , x'vector'w
+  , x'vector_
+  , x'vector_'w
+  , x'writer
+  ) where
 
 import Z.Z.X.UtilPrelude
 

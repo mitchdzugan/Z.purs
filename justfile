@@ -15,3 +15,6 @@ slp-id *args:
 
 slp-rec *args:
     spago run -m Test.SlpRec -- {{args}}
+
+clm-stats *args:
+    spago run -m Test.CLMStatsManager -- {{args}}

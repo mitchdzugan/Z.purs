@@ -38,6 +38,9 @@ instance Show T where
   show P4 = "p4"
   show (NonOEM x) = "p{x}" <> show x
 
+instance Identable T where
+  ident'get = id'of <<< show
+
 instance Bounded T where
   top = P4
   bottom = P1

@@ -17,6 +17,8 @@ type Spec'Def k r =
   ( eventSlugs :: B'HashSet k String
   , challongeSlugs :: B'HashSet k String
   , ineligibleSlugs :: B'HashSet k String
+  , clmIdByPlayerId :: B'HashMap k SorN Int
+  , eventPlayerIdMasks :: B'HashMap2D k String SorN Int
   , doneUpdating :: B'HashSet k String
   , eventsToRefetch :: B'HashSet k String
   , tournamentNameOverrides :: B'HashMap k String String

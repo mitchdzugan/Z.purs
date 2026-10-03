@@ -3,6 +3,7 @@ module Node.Z.SSBM.Slp.Rec where
 import Node.Z.Prelude
 
 import Z.SSBM.Slp.Port as Port
+import Z.SSBM.Slp.Rec.Ini as Ini
 import Z.Z.Opt as O
 
 launchAndRecord :: forall x. REA' RecordEnv Error x @$> Unit
@@ -14,7 +15,8 @@ launchAndRecord = do
   workDir <- r'ask <#> \r -> r.tempPath /./ "work" /./ workId
   let userDir = workDir /./ "User"
   x'mkdirP userDir <!#> IoError
-  e'withFinalizer (const $ x'rimraf workDir <!#> CleanupError) do
+  -- e'withFinalizer (const $ x'rimraf workDir <!#> CleanupError) do
+  e'withFinalizer (const $ pass) do
     let gsDir = userDir /./ "GameSettings"
     let gsFile = gsDir /./ "GALE01.ini"
     geckoCodes <- r'ask >>= \r ->
@@ -34,6 +36,12 @@ launchAndRecord = do
         e'fail $ InvalidTexturePath $ pathStr texturePath
       let symlinkDst = texturesDir /./ ("tx_link" <:> ind)
       x'symlink texturePath symlinkDst <!#> SymlinkTexturePath
+    inis <- r'ask <#> \r -> Ini.mkInis r.iniMods
+    forM_ (obj'entries inis) \(iniFilename /\ iniData) -> do
+      let fullIniFilename = userDir /./ "Config" /./ iniFilename <> ".ini"
+      let iniFileStr = ini'stringify iniData
+      x'writeTextFileP fullIniFilename iniFileStr <!#> WriteIniFile iniFilename
+    x'out { workDir }
     pure unit
 
 addConfigs
@@ -159,7 +167,7 @@ finalizeEnv st (CliOpts opts) defaultOutputPath = do
     , geckoCodes: arrMergeListOpts st.geckoCodes opts.geckoCodes
     , geckoEnables: arrMergeListOpts st.geckoEnables opts.geckoEnables
     , geckoDisables: arrMergeListOpts st.geckoDisables opts.geckoDisables
-    , colorOverrides: map'fromFoldable $ unwrap
+    , colorOverrides: hm'fromFoldable $ unwrap
         <$> mergeListOps Nil opts.colorOverrides
     , slippiPlaybackBin: jOr st.slippiPlaybackBin opts.slippiPlaybackBin
     , ffmpegBin: jOr st.ffmpegBin opts.ffmpegBin
@@ -173,7 +181,7 @@ type EnvBuildState =
   { isoPath :: Maybe String
   , tempPath :: String
   , texturePaths :: List String
-  , iniMods :: List IniMod
+  , iniMods :: List Ini.IniMod
   , geckoCodes :: List String
   , geckoEnables :: List String
   , geckoDisables :: List String
@@ -182,18 +190,18 @@ type EnvBuildState =
   }
 
 type RecordEnv =
-  { startFrame :: Maybe Int
-  , totalFrames :: Maybe Int
+  { startFrame :: Maybe FrameNumSpec
+  , totalFrames :: Maybe FrameNumSpec
   , outputPath :: String
   , recPath :: String
   , isoPath :: String
   , tempPath :: String
   , texturePaths :: Array String
-  , iniMods :: Array IniMod
+  , iniMods :: Array Ini.IniMod
   , geckoCodes :: Array String
   , geckoEnables :: Array String
   , geckoDisables :: Array String
-  , colorOverrides :: Map Port.T Int
+  , colorOverrides :: HashMap Port.T Int
   , slippiPlaybackBin :: String
   , ffmpegBin :: String
   }
@@ -204,7 +212,7 @@ type CliMany a = List (ListOp a)
 type RecordConfig =
   { isoPath :: Maybe String
   , texturePaths :: CfgMany String
-  , iniMods :: CfgMany IniMod
+  , iniMods :: CfgMany Ini.IniMod
   , tempPath :: Maybe String
   , geckoCodes :: CfgMany String
   , geckoEnables :: CfgMany String
@@ -215,12 +223,12 @@ type RecordConfig =
   }
 
 newtype CliOpts = CliOpts
-  { startFrame :: Maybe Int
-  , totalFrames :: Maybe Int
+  { startFrame :: Maybe FrameNumSpec
+  , totalFrames :: Maybe FrameNumSpec
   , outputPath :: Maybe String
   , isoPath :: Maybe String
   , texturePaths :: CliMany String
-  , iniMods :: CliMany IniMod
+  , iniMods :: CliMany Ini.IniMod
   , geckoCodes :: CliMany String
   , geckoEnables :: CliMany String
   , geckoDisables :: CliMany String
@@ -234,47 +242,9 @@ newtype CliOpts = CliOpts
 
 derive instance Newtype CliOpts _
 
-type IniFilename = String
-type IniProperty = String
-type IniValue = String
-
-data IniMod = IniMod IniFilename IniProperty IniValue
-
-derive instance Eq IniMod
-derive instance Ord IniMod
-
-derive instance Generic IniMod _
-
-iniModToStr :: IniMod -> String
-iniModToStr (IniMod i p v) = i <> ":" <> p <> "=" <> v
-
-iniModOfStr :: String -> Either String IniMod
-iniModOfStr s = do
-  let csplit = str'split (Pattern ":") s
-  i <- jOrE emsg $ nth csplit 0
-  rest <- jOrE emsg $ nth csplit 1
-  let rsplit = str'split (Pattern "=") rest
-  p <- jOrE emsg $ nth rsplit 0
-  v <- jOrE emsg $ nth rsplit 1
-  pure $ IniMod i p v
-  where
-  emsg = "Expected `$ini:$prop=$val`"
-
-instance DecodeJson IniMod where
-  decodeJson x = do
-    (baseDecodeJson x <#> iniModOfStr) >>= onEor
-    where
-    onEor (Right v) = pure v
-    onEor (Left msg) = decodeFailTypeMismatch msg
-
-instance EncodeJson IniMod where
-  encodeJson x = encodeJson $ iniModToStr x
-
 newtype PortCostume = PortCostume (Port.T /\ Int)
 
 derive instance Newtype PortCostume _
-derive instance Eq PortCostume
-derive instance Ord PortCostume
 derive instance Generic PortCostume _
 
 portCostumeToStr :: PortCostume -> String
@@ -283,21 +253,45 @@ portCostumeToStr (PortCostume (p /\ c)) = (show $ Port.asInt p) <> "=" <> show c
 portCostumeOfStr :: String -> Either String PortCostume
 portCostumeOfStr s = do
   let esplit = str'split (Pattern "=") s
-  p <- jOrE emsg $ nth esplit 0 >>= intFromString
-  c <- jOrE emsg $ nth esplit 1 >>= intFromString
+  whenNot (arr'size esplit == 2) $ Left emsg
+  p <- jOrE emsg $ nth esplit 0 >>= tryParseInt
+  c <- jOrE emsg $ nth esplit 1 >>= tryParseInt
   pure $ PortCostume $ (Port.ofInt p) /\ c
   where
-  emsg = "Expected `$port:$costume` => `[1|2|3|4]=[1|2|3|4|5|6]"
+  emsg = "Expected `$port=$costume` => `[1|2|3|4]=[1|2|3|4|5|6]"
 
 instance DecodeJson PortCostume where
-  decodeJson x = do
-    (baseDecodeJson x <#> portCostumeOfStr) >>= onEor
-    where
-    onEor (Right v) = pure v
-    onEor (Left msg) = decodeFailTypeMismatch msg
+  decodeJson = decodeViaString portCostumeOfStr
 
 instance EncodeJson PortCostume where
   encodeJson x = encodeJson $ portCostumeToStr x
+
+data FrameNumSpec = RawFrameNum Int | InGameTime Int Number
+
+frameNumSpecToStr :: FrameNumSpec -> String
+frameNumSpecToStr (RawFrameNum n) = show n
+frameNumSpecToStr (InGameTime mn secs) = "@" <> show mn <> ":" <> show secs
+
+frameNumSpecOfStr :: String -> Either String FrameNumSpec
+frameNumSpecOfStr s = do
+  if str'startsWith "@" s then do
+    let tsplit = str'split (Pattern ":") (str'drop 1 s)
+    whenNot (arr'size tsplit == 2) $ Left emsg
+    mn <- jOrE emsg $ nth tsplit 0 >>= tryParseInt
+    sec <- jOrE emsg $ nth tsplit 1 >>= tryParseNum
+    when (mn < 0) $ Left "Invalid InGameTime Minutes (negative)"
+    when (sec < 0.0) $ Left "Invalid InGameTime Seconds (negative)"
+    when (sec > 60.0) $ Left "Invalid InGameTime Seconds (> 60)"
+    pure $ InGameTime mn sec
+  else jOrE emsg $ tryParseInt s <#> RawFrameNum
+  where
+  emsg = "Expected `$frameNum | @$mins:$secs.$ms`"
+
+instance DecodeJson FrameNumSpec where
+  decodeJson = decodeViaString frameNumSpecOfStr
+
+instance EncodeJson FrameNumSpec where
+  encodeJson x = encodeJson $ frameNumSpecToStr x
 
 data ListOp a = LReset | LCons a
 
@@ -321,24 +315,20 @@ optJson = O.eitherReader \s -> mapL show $ decode @a ("\"" <> s <> "\"")
 optJsonListOp :: forall @a. DecodeJson a => O.ReadM (ListOp a)
 optJsonListOp = optJson @(ListOp a)
 
-optReadIniMod :: O.ReadM IniMod
-optReadIniMod = pure $ IniMod "" "" ""
-
-optReadColorOverride :: O.ReadM (Port.T /\ Int)
-optReadColorOverride = pure $ Port.P1 /\ 1
-
 cliOpts :: Path -> O.Parser CliOpts
 cliOpts wd = map CliOpts $ optsProd
   <$> O.strArgument
     (O.metavar "SLP_FILE" <> O.help ".slp file to record")
   <*> optional
-    ( O.option O.int $ (O.long "start-frame" <> O.short 's' <> O.metavar "INT")
+    ( O.option (optJson @FrameNumSpec)
+        $ (O.long "start-frame" <> O.short 's' <> O.metavar "FRAME")
         <> O.help
           "First frame to begin recording (default: `GAME_FRAME_START`)"
 
     )
   <*> optional
-    ( O.option O.int $ (O.long "total-frames" <> O.short 't' <> O.metavar "INT")
+    ( O.option (optJson @FrameNumSpec)
+        $ (O.long "total-frames" <> O.short 't' <> O.metavar "FRAME")
         <> O.help "Total frames to record (default: `all remaining`)"
     )
   <*> optional
@@ -369,7 +359,7 @@ cliOpts wd = map CliOpts $ optsProd
           )
     )
   <*> O.many
-    ( O.option (optJsonListOp @IniMod)
+    ( O.option (optJsonListOp @Ini.IniMod)
         $ (O.long "ini-mod" <> O.short 'I' <> O.metavar "INI_MOD+")
         <> O.help
           ( "slippi ini overrides. INI_MOD => `$ini:$prop=$val`"
@@ -454,6 +444,7 @@ data Error
   | IoError JsError
   | ReadGeckoCode JsError
   | WriteGameSettings JsError
+  | WriteIniFile String JsError
   | InvalidTexturePath String
   | SymlinkTexturePath JsError
   | CleanupError JsError
@@ -466,6 +457,7 @@ instance RtError Error where
   rtErrName (IoError _) = "IO Error"
   rtErrName (ReadGeckoCode _) = "Read Gecko Code"
   rtErrName (WriteGameSettings _) = "Write Game Settings"
+  rtErrName (WriteIniFile filename _) = "Write Ini File: " <> filename
   rtErrName (InvalidTexturePath _) = "Invalid Texture Path"
   rtErrName (SymlinkTexturePath _) = "Symlink Texture Path"
   rtErrName (CleanupError _) = "Cleanup Error"
@@ -476,6 +468,7 @@ instance RtError Error where
   rtErrMessage (IoError e) = jsErrorMessage e
   rtErrMessage (ReadGeckoCode e) = jsErrorMessage e
   rtErrMessage (WriteGameSettings e) = jsErrorMessage e
+  rtErrMessage (WriteIniFile _ e) = jsErrorMessage e
   rtErrMessage (InvalidTexturePath s) = "No such directory: " <> s
   rtErrMessage (SymlinkTexturePath e) = jsErrorMessage e
   rtErrMessage (CleanupError e) = jsErrorMessage e

@@ -19,7 +19,7 @@ wrapH2hWE
 wrapH2hWE = we'map ClmStW.H2h ClmStE.H2h
 
 type EnvR r =
-  { isDevEnv :: String
+  { isDevEnv :: Boolean
   , ggAuth :: String
   , dataRoot :: String
   , appCOPath :: String
@@ -110,7 +110,9 @@ type ClmV r x =
       , players :: X'HashMap Int ClmPlayerStub
       , playerSeasons :: X'HashMap2D Int Int ClmPlayerSeason
       , seasonEvents :: X'HashMap2D Int SorN ClmEvent
-      , nextIdTry :: X'Ref Int
+      , nextClmId :: X'Ref Int
+      , playerIdsByClmId :: X'HashSet2D Int SorN
+      , clmIdByPlayerId :: X'HashMap SorN Int
       | x
       )
   )
@@ -150,12 +152,17 @@ initialManual = map Act.PureAction
   , Act.AddEvent $ ggD "the-botlane-show-12-fluid-lucinasd" "melee-singles" {}
   , Act.AddEvent { slug: "fgzs2x09" }
   , Act.MarkChallonge { slug: "fgzs2x09" }
-  , Act.MarkDoneUpdating $ ggD "bracket-at-the-emporium-9" "melee-singles" {}
   , Act.MarkDoneUpdating $ ggD "the-bunker-11" "crazy-doubles" {}
   , Act.MarkDoneUpdating $ ggD "the-bunker-12" "crazy-doubles" {}
   , Act.MarkDoneUpdating $ ggD "the-bunker-13" "crazy-doubles" {}
+  , Act.MarkDoneUpdating $ ggD "the-bunker-14-ft-everyone" "crazy-doubles" {}
+  , Act.MarkDoneUpdating $ ggD "heat-check-uic-4" "melee-singles" {}
+  , Act.MarkDoneUpdating $ ggD "vertex-1-1" "melee-singles" {}
+  , Act.MarkDoneUpdating $ ggD "fight-night-uic-21" "melee-singles" {}
   , Act.MarkDoneUpdating $ ggD lastFudds "melee-singles" {}
   , Act.MarkDoneUpdating $ ggD lastFudds "melee-amateur-bracket" {}
+  , Act.SetClmId { clmId: 993, playerSorN: "4253823" }
+  , Act.SetClmId { clmId: 1714, playerSorN: "5211563" }
   ]
   where
   lastFudds = "fudds-house-17-last-fudds"
@@ -171,7 +178,8 @@ getActions newActions usePrevAuto = do
   else do
     { client } <- r'ask
     before <- x'nowMS'number <#>
-      \n -> (60 * 60 * floor (n / 1000.0 / 60.0 / 60.0)) + (24 * 60 * 60)
+      \n -> (60 * 60 * 24 * floor (n / 1000.0 / 24.0 / 60.0 / 60.0)) +
+        (24 * 60 * 60)
     let after = 1767225600
     let pSpecs = [ All.ggPageSpec (__ @"page") (__ @"tournaments") ]
     let initVars = { after, before, page: 0 }
@@ -233,24 +241,33 @@ getH2hData spec allowRefetch = x'eval_ @"seasonEvents"
     x'd1entries @"seasonEvents"
 
 type XSeason x =
-  ( wins :: X'HashMap Int Int
+  ( clmIdByEntrantId :: X'HashMap SorN Int
+  , wins :: X'HashMap Int Int
   , losses :: X'HashMap Int Int
   , eventIds :: X'HashSet2D Int SorN
   , eventWins :: X'HashMap (Int /\ SorN) Int
   , eventLosses :: X'HashMap (Int /\ SorN) Int
   , eventSetIds :: X'HashSet2D (Int /\ SorN) SorN
   , eventBeaters :: X'HashSet2D (Int /\ SorN) Int
+  , eventIdBySetId :: X'HashMap SorN SorN
+  , setGroups :: X'Vector2D H2h.H2hSet
+  , sets :: X'HashMap SorN H2h.H2hSet
   | x
   )
 
 runSeason :: forall x a. Run (XSeason x) a -> Run x a
-runSeason = x'eval_ @"wins"
+runSeason = id
+  <<< x'eval_ @"clmIdByEntrantId"
+  <<< x'eval_ @"wins"
   <<< x'eval_ @"losses"
   <<< x'eval_ @"eventIds"
   <<< x'eval_ @"eventWins"
   <<< x'eval_ @"eventLosses"
   <<< x'eval_ @"eventSetIds"
   <<< x'eval_ @"eventBeaters"
+  <<< x'eval_ @"setGroups"
+  <<< x'eval_ @"sets"
+  <<< x'eval_ @"eventIdBySetId"
 
 runClm
   :: forall x a
@@ -259,7 +276,7 @@ runClm
 runClm m = do
   let
     getEnv s = x'lookupEnv s >>= e'unwrap (jsError "Required Env Var Missing" s)
-  isDevEnv <- getEnv "CLM_STATS_IS_DEV"
+  isDevEnv <- x'lookupEnv "CLM_STATS_IS_DEV" <#> (==) (Just "y")
   ggAuth <- getEnv "CLM_STATS_GG_AUTH"
   dataRoot <- getEnv "CLM_STATS_DATA_DIR"
   appCOPath <- getEnv "CLM_STATS_APP_CO"
@@ -277,9 +294,9 @@ runClm m = do
         runParser ggIdS parseInt
       clmId <- e'unwrap (jsError "unfound clmId" "") $ obj'lookup ident
         legacyBlob."IDENT_CLM_IDS"
-      pure $ ggId /\ clmId
+      pure $ sOrN ggId /\ clmId
   x'out clmIdByPlayerId
-  playerIdsByClmId <- _'exec_ @(X'HashSet2D Int Int) do
+  playerIdsByClmId <- _'exec_ @(X'HashSet2D Int SorN) do
     forM_ (hm'entries clmIdByPlayerId) \(pId /\ clmId) -> _'consAt clmId pId
   x'info playerIdsByClmId
   we'runResult
@@ -287,7 +304,9 @@ runClm m = do
     $ x'eval_ @"players"
     $ x'eval_ @"seasonEvents"
     $ x'eval_ @"playerSeasons"
-    $ x'eval @"nextIdTry" legacyBlob.nextIdTry
+    $ x'eval @"playerIdsByClmId" playerIdsByClmId
+    $ x'eval @"clmIdByPlayerId" clmIdByPlayerId
+    $ x'eval @"nextClmId" legacyBlob.nextIdTry
     $ flip r'run m
         { isDevEnv
         , ggAuth
@@ -298,6 +317,9 @@ runClm m = do
         , legacyBlob
         }
 
+placeholderImageUrl :: String
+placeholderImageUrl = "/img/CLM_Logo_Avatar_Placeholder.png"
+
 xRun :: forall x. Array String -> EA' JsError x @@> Unit
 xRun args = do
   x'info args
@@ -307,7 +329,6 @@ xRun args = do
     seasonEvents <- getH2hData spec true
     forM_ seasonEvents \(seasonId /\ events) -> runSeason do
       x'out { seasonId }
-      x'out events
       let eventList = arr'sortWith (\e -> e.tournament.date) $ hm'vals events
       forM_ eventList \event -> x'withReturn \xReturn'outer -> do
         isSingles <- x'withReturn \xReturn -> do
@@ -315,19 +336,25 @@ xRun args = do
             when (arr'size entrant.participants > 1) $ xReturn false
           pure true
         when (not isSingles) $ xReturn'outer unit
-        forM_ (hm'vals event.entrants) \entrant -> do
-          x'info entrant
+        let prIneligible = hs'has event.slug spec.ineligibleSlugs
+
+        x'd1cons_ @"setGroups"
+        let eventSets = arr'concat $ event.phaseGroups <#> hm'vals <<< _.sets
+        forM_ (arr'sortWith _.eventOrder eventSets) \set -> do
+          x'consLast @"setGroups" set
+          x'insert @"eventIdBySetId" set.id event.id
+
         x'insert @"seasonEvents" (seasonId /\ event.id)
           { eventName: event.name
           , numEntrants: hm'size event.entrants
           , date: event.tournament.date
           , slug: event.slug
-          , prEligible: true
+          , prEligible: not prIneligible
           , tournamentName: event.tournament.name
-          , imageUrl: ""
+          , imageUrl: jOr placeholderImageUrl $
+              hm'lookup "profile" event.tournament.images
           , eventId: event.id
           }
-        x'out { event }
       pure unit
   x'info $ case res.v of
     Left e -> encode e

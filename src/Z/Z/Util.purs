@@ -28,6 +28,7 @@ module Z.Z.Util
   , decodeFailTypeMismatch
   , decodeJson
   , decodeJson'
+  , decodeViaString
   , encode
   , id
   , jsonDecode
@@ -37,6 +38,7 @@ module Z.Z.Util
   , jsonSortedPairs
   , jsonVals
   , nth
+  , obj'fromHM
   , sOrN
   , type (#)
   , type ($)
@@ -72,6 +74,7 @@ import Foreign.Object as FO
 import Prim.Symbol as Symbol
 import Type.Proxy as Proxy
 import Z.Z.Core as Z
+import Z.Z.HashMap (HashMap, hm'entries)
 import Z.Z.Id (class Identable, id'of)
 import Z.Z.Url as Url
 
@@ -172,6 +175,17 @@ decodeItoR (AtIndex i e) = JDE.AtIndex i $ decodeItoR e
 decodeItoR (AtKey s e) = JDE.AtKey s $ decodeItoR e
 decodeItoR (Named s e) = JDE.Named s $ decodeItoR e
 decodeItoR MissingValue = JDE.MissingValue
+
+decodeViaString
+  :: forall a
+   . (String -> Either.Either String a)
+  -> Arg.Json
+  -> Either.Either JDE.JsonDecodeError a
+decodeViaString ofString x = do
+  (baseDecodeJson x <#> ofString) >>= onEor
+  where
+  onEor (Either.Right v) = pure v
+  onEor (Either.Left msg) = decodeFailTypeMismatch msg
 
 derive instance Generic.Generic JsonDecodeError _
 derive instance
@@ -306,7 +320,8 @@ class SplitSp1 i o1 o2 | i -> o1 o2
 
 instance (SplitSp1Impl i "" "" "f" o1 o2) => SplitSp1 i o1 o2
 
-class SplitSp1Impl :: forall k1 k2 k3 k4 k5 k6. k1 -> k2 -> k3 -> k4 -> k5 -> k6 -> Constraint
+class SplitSp1Impl
+  :: forall k1 k2 k3 k4 k5 k6. k1 -> k2 -> k3 -> k4 -> k5 -> k6 -> Constraint
 class SplitSp1Impl sym cat cf ct tat tf | sym cat cf ct -> tat tf
 
 class UpCat :: forall k1 k2 k3 k4. k1 -> k2 -> k3 -> k4 -> Constraint
@@ -352,3 +367,6 @@ else instance
   , SplitSp1Impl s' cat' cf' ct' tat tf
   ) =>
   SplitSp1Impl s cat cf ct tat tf
+
+obj'fromHM :: forall @a. HashMap String a -> FO.Object a
+obj'fromHM = FO.fromFoldable <<< hm'entries

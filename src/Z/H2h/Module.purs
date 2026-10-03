@@ -68,7 +68,7 @@ type Slot =
   }
 
 type H2hSet =
-  { id :: Int
+  { id :: SorN
   , isDQ :: Boolean
   , isBye :: Boolean
   , winner :: Maybe PairKey
@@ -76,6 +76,7 @@ type H2hSet =
   , roundText :: String
   , slots :: Pair Slot
   , overrideScoreText :: Maybe String
+  , eventOrder :: Int
   }
 
 type Phase =
@@ -87,7 +88,7 @@ type Phase =
 type PhaseGroup =
   { id :: SorN
   , displayIdentifier :: String
-  , sets :: HashMap Int H2hSet
+  , sets :: HashMap SorN H2hSet
   , phase :: Phase
   }
 

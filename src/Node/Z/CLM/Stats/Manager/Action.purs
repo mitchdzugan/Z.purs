@@ -17,9 +17,9 @@ data Action r
   | MarkDoneUpdating { slug :: String | r }
   | SetCurrentPeriodId { periodId :: Int | r }
   | BustCache { slug :: String | r }
+  | SetClmId { playerSorN :: String, clmId :: Int | r }
+  | SetClmIdForEvent { slug :: String, playerSorN :: String, clmId :: Int | r }
 
--- | AddAltId { baseId :: String, newId :: String }
--- | IdForEvent { baseId :: String, newId :: String, slug :: String }
 -- | OverrideSetData { setId :: String, slug :: String }
 
 newtype PureAction = PureAction (Action ())
@@ -42,6 +42,8 @@ encodePureAction action = case action of
   (PureAction (MarkDoneUpdating p)) -> "MarkDoneUpdating" /\ encodeJson p
   (PureAction (BustCache p)) -> "BustCache" /\ encodeJson p
   (PureAction (SetCurrentPeriodId p)) -> "SetCurrentPeriodId" /\ encodeJson p
+  (PureAction (SetClmId p)) -> "SetClmId" /\ encodeJson p
+  (PureAction (SetClmIdForEvent p)) -> "SetClmIdForEvent" /\ encodeJson p
   (PureAction (Bulk p)) -> (/\) "Bulk" $ encodeJson (PureAction <$> p.actions)
 
 decodePureAction :: String /\ Json -> Either RawJsonDecodeError PureAction
@@ -76,6 +78,8 @@ assignIds idBase actionsIn =
     MarkDoneUpdating props -> MarkDoneUpdating $ plusId props locId
     BustCache props -> BustCache $ plusId props locId
     SetCurrentPeriodId props -> SetCurrentPeriodId $ plusId props locId
+    SetClmId props -> SetClmId $ plusId props locId
+    SetClmIdForEvent props -> SetClmIdForEvent $ plusId props locId
     Bulk { actions } ->
       Bulk { actions: assignIds (extId locId) actions, id: extId locId }
   where
@@ -105,6 +109,8 @@ actionId (SetIsPrEligible props) = props.id
 actionId (MarkDoneUpdating props) = props.id
 actionId (BustCache props) = props.id
 actionId (SetCurrentPeriodId props) = props.id
+actionId (SetClmId props) = props.id
+actionId (SetClmIdForEvent props) = props.id
 actionId (Bulk props) = props.id
 
 handleAction :: forall x r. Action r -> Spec'M x @@> Unit
@@ -119,6 +125,10 @@ handleAction (MarkDoneUpdating { slug }) = x'cons @"doneUpdating" slug
 handleAction (BustCache { slug }) = x'cons @"eventsToRefetch" slug
 handleAction (SetCurrentPeriodId { periodId }) =
   x'assign @"currentPeriodId" periodId
+handleAction (SetClmId { clmId, playerSorN }) =
+  x'insert @"clmIdByPlayerId" (sOrN playerSorN) clmId
+handleAction (SetClmIdForEvent { slug, clmId, playerSorN }) =
+  x'insert @"eventPlayerIdMasks" (slug /\ sOrN playerSorN) clmId
 handleAction (Bulk { actions }) = forM_ actions handleAction
 handleAction (Undo _) = pure unit
 

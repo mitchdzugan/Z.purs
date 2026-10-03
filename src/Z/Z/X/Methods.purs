@@ -28,6 +28,10 @@ module Z.Z.X.Methods
   , x'clearAt
   , x'cons
   , x'consAt
+  , x'consLast
+  , x'cons_
+  , x'd1cons
+  , x'd1cons_
   , x'd1entries
   , x'd1keys
   , x'entries
@@ -558,6 +562,34 @@ x'cons
   -> Run x Unit
 x'cons = x'respondTo @p @"cons"
 
+x'cons_
+  :: forall @p m x' x t resp'rest t'rest
+   . ConsSymbol p m x' x
+  => X'RespondsTo m (VariantF $ T'cons t resp'rest) (T'element t t'rest)
+  => Generable t GDefault t
+  => Run x Unit
+x'cons_ = x'respondTo @p @"cons" default
+
+---------------------------------------------------------------------
+
+type T'd1cons t rest = (d1cons :: Responds t Unit | rest)
+
+x'd1cons
+  :: forall @p m x' x t resp'rest t'rest
+   . ConsSymbol p m x' x
+  => X'RespondsTo m (VariantF $ T'd1cons t resp'rest) (T'd1element t t'rest)
+  => t
+  -> Run x Unit
+x'd1cons = x'respondTo @p @"d1cons"
+
+x'd1cons_
+  :: forall @p m x' x t resp'rest t'rest
+   . ConsSymbol p m x' x
+  => X'RespondsTo m (VariantF $ T'd1cons t resp'rest) (T'd1element t t'rest)
+  => Generable t GDefault t
+  => Run x Unit
+x'd1cons_ = x'respondTo @p @"d1cons" default
+
 ---------------------------------------------------------------------
 
 type T'consAt k t rest = (consAt :: Responds (k /\ t) Unit | rest)
@@ -572,6 +604,20 @@ type T'x'consAt p =
 
 x'consAt :: forall @p. T'x'consAt p
 x'consAt k t = x'respondTo @p @"consAt" $ k /\ t
+
+---------------------------------------------------------------------
+
+type T'consLast t rest = (consLast :: Responds t Unit | rest)
+
+type T'x'consLast p =
+  forall m x' x t resp'rest t'rest
+   . ConsSymbol p m x' x
+  => X'RespondsTo m (VariantF $ T'consLast t resp'rest) (T'element t t'rest)
+  => t
+  -> Run x Unit
+
+x'consLast :: forall @p. T'x'consLast p
+x'consLast t = x'respondTo @p @"consLast" t
 
 ---------------------------------------------------------------------
 

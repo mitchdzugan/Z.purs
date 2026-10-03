@@ -1,4 +1,14 @@
-module Z.Z.X.Readables.RW.Vector2D where
+module Z.Z.X.Readables.RW.Vector2D
+  ( Array2D
+  , Eff'Vector2D
+  , R'Vector2D(..)
+  , X'Vector2D
+  , X'Vector2D'w
+  , x'vector2D
+  , x'vector2D'w
+  , x'vector2D_
+  , x'vector2D_'w
+  ) where
 
 import Z.Z.X.UtilPrelude
 
@@ -12,12 +22,23 @@ import Z.Z.Eff.Bin
   , eff'bin'lookup
   , eff'bin'new
   )
-import Z.Z.Eff.Bin2D (Eff'Bin2D, eff'bin2D'clear, eff'bin2D'insert, eff'bin2D'lookup, eff'bin2D'new)
+import Z.Z.Eff.Bin2D
+  ( Eff'Bin2D
+  , eff'bin2D'clear
+  , eff'bin2D'insert
+  , eff'bin2D'lookup
+  , eff'bin2D'new
+  )
 import Z.Z.Eff.Ref (Eff'Ref, eff'ref'get, eff'ref'new, eff'ref'set)
 import Z.Z.X.Core
   ( class X'R'RespondsTo'rw
   , class X'Readable'rw
   , class X'Results'R'rw
+  , RW'Tagged
+  , W'Tagged
+  , X'Evaluable
+  , x'evaluable
+  , x'evaluable_
   )
 import Z.Z.X.Responds
   ( Responds
@@ -64,10 +85,12 @@ instance
     )
     ( VariantF
         ( assign :: Responds (Array2D a) Unit
-        --, reset :: Responds'Const Unit
-        --, clear :: Responds'Const Unit
-        --, add :: Responds (Array a) Unit
-        --, cons :: Responds a Unit
+        , reset :: Responds'Const Unit
+        , clear :: Responds'Const Unit
+        , add :: Responds (Array2D a) Unit
+        , d1cons :: Responds (Array a) Unit
+        , consAt :: Responds (Int /\ a) Unit
+        , consLast :: Responds a Unit
         --, uncons :: Responds'Const (Maybe a)
         --, push :: Responds a Unit
         --, pop :: Responds'Const (Maybe a)
@@ -95,16 +118,35 @@ instance
     }
   x'r'mkResponds'w (R'Vector2D st) = match
     { assign: responds'run'eff \a -> eff'vec2D'set a st
-    --, reset: responds'const'eff $ eff'vec'set st.init st
-    --, clear: responds'const'eff $ eff'vec'clear st
-    --, add: responds'run'eff \a -> eff'vec'add a st
-    --, cons: responds'run'eff \el -> eff'vec'cons el st
+    , reset: responds'const'eff $ eff'vec2D'set st.init st
+    , clear: responds'const'eff $ eff'vec2D'clear st
+    , add: responds'run'eff \a -> eff'vec2D'add a st
+    , d1cons: responds'run'eff \el -> eff'vec2D'd1cons el st
+    , consAt: responds'run'eff \(ind /\ el) -> eff'vec2D'consAt ind el st
+    , consLast: responds'run'eff \el -> eff'vec2D'consLast el st
     --, uncons: responds'const'eff $ eff'vec'uncons st
     --, push: responds'run'eff \el -> eff'vec'push el st
     --, pop: responds'const'eff $ eff'vec'pop st
     --, replace: responds'run'eff \(ind /\ el) -> eff'bin'lookup ind st.b'els >>=
     --    \curr -> whenJust curr $ const $ eff'bin'insert ind { ind, el } st.b'els
     }
+
+---------------------------------------------------------------------
+
+type X'Vector2D a = Reader (RW'Tagged (R'Vector2D a))
+type X'Vector2D'w a = Reader (W'Tagged (R'Vector2D a))
+
+x'vector2D :: forall @a. Array2D a -> X'Evaluable (X'Vector2D a)
+x'vector2D t = x'evaluable t
+
+x'vector2D'w :: forall @a. Array2D a -> X'Evaluable (X'Vector2D'w a)
+x'vector2D'w t = x'evaluable t
+
+x'vector2D_ :: forall @a. X'Evaluable (X'Vector2D a)
+x'vector2D_ = x'evaluable_
+
+x'vector2D_'w :: forall @a. X'Evaluable (X'Vector2D'w a)
+x'vector2D_'w = x'evaluable_
 
 ---------------------------------------------------------------------
 
@@ -144,9 +186,8 @@ eff'vec2D'd1cons next st = do
 
 eff'vec2D'consAt :: forall a. Int -> a -> Eff'Vector2D a -> Effect Unit
 eff'vec2D'consAt ind1 el st = do
-  o'start <- eff'ref'get st.r'start
   o'length <- eff'ref'get st.r'length
-  if (ind1 < o'start || ind1 >= o'start + o'length) then pure unit
+  if (ind1 < 0 || ind1 >= o'length) then pure unit
   else do
     start <- eff'bin'lookup ind1 st.b'starts <#> fromMaybe 0
     length <- eff'bin'lookup ind1 st.b'lengths <#> fromMaybe 0
@@ -154,6 +195,11 @@ eff'vec2D'consAt ind1 el st = do
     let ind2 = start + length
     eff'bin2D'insert ind1 ind2 { ind: ind2, el } st.b'els
     pure unit
+
+eff'vec2D'consLast :: forall a. a -> Eff'Vector2D a -> Effect Unit
+eff'vec2D'consLast el st = do
+  o'length <- eff'ref'get st.r'length
+  eff'vec2D'consAt (o'length - 1) el st
 
 eff'vec2D'keys :: forall a. Eff'Vector2D a -> Effect (Array Int)
 eff'vec2D'keys { r'length } = eff'ref'get r'length <#> arr'range 0
