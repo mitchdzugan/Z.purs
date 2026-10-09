@@ -4,13 +4,17 @@ module Z.H2h.Module
   , Error
   , Event
   , EventSource
+  , H2hGameSelection
+  , H2hGameSelections
   , H2hSet
+  , ImageType(..)
   , Participant
   , Phase
   , PhaseGroup
   , Player
   , Score(..)
   , Slot
+  , SocialType(..)
   , Standing
   , Tournament
   , Warning
@@ -67,6 +71,14 @@ type Slot =
   , score :: Score
   }
 
+type H2hGameSelection =
+  { orderNum :: Maybe Int
+  , selectionValue :: Int
+  , character :: { id :: Int, name :: String }
+  }
+
+type H2hGameSelections = HashMap PairKey H2hGameSelection
+
 type H2hSet =
   { id :: SorN
   , isDQ :: Boolean
@@ -77,6 +89,14 @@ type H2hSet =
   , slots :: Pair Slot
   , overrideScoreText :: Maybe String
   , eventOrder :: Int
+  , games ::
+      Array
+        { winnerId :: Maybe Int
+        , orderNum :: Maybe Int
+        , entrant1Score :: Maybe Int
+        , entrant2Score :: Maybe Int
+        , selections :: H2hGameSelections
+        }
   }
 
 type Phase =
@@ -92,14 +112,40 @@ type PhaseGroup =
   , phase :: Phase
   }
 
+data SocialType = Discord | Twitter | Twitch | XBox | LuckyStats
+
+derive instance Generic SocialType _
+
+instance Identable SocialType where
+  ident'get = id'of <<< genericShow
+
+instance EncodeJson SocialType where
+  encodeJson = genericEncodeJson
+
+instance DecodeJson SocialType where
+  decodeJson = genericDecodeJson
+
+data ImageType = Profile | Banner
+
+derive instance Generic ImageType _
+
+instance Identable ImageType where
+  ident'get = id'of <<< genericShow
+
+instance EncodeJson ImageType where
+  encodeJson = genericEncodeJson
+
+instance DecodeJson ImageType where
+  decodeJson = genericDecodeJson
+
 type Player =
   { id :: SorN
   , gamerTag :: String
   , prefix :: Maybe String
   , pronouns :: Maybe String
   , name :: Maybe String
-  , socials :: HashMap String String
-  , images :: HashMap String String
+  , socials :: HashMap SocialType String
+  , images :: HashMap ImageType String
   }
 
 type Participant =
@@ -121,7 +167,7 @@ type Entrant =
 type Tournament =
   { id :: SorN
   , name :: String
-  , images :: HashMap String String
+  , images :: HashMap ImageType String
   , date :: DateTime
   }
 

@@ -48,7 +48,6 @@ module Z.Z.X.Core
   , x'r'mkResponds'types
   , x'r'mkResponds'w
   , x'readable'mk
-  , x'readable'run
   , x'readable'rw'mk
   , x'respondTo
   , x'respondTo_
@@ -158,7 +157,8 @@ type T'x'eval m p =
   -> Run x' a
 
 x'eval :: forall @p @m. T'x'eval m p
-x'eval param m = x'consable'impl @m (Proxy @p) param m <#> \(Identity v) -> v
+x'eval param m = pure unit >>= \_ ->
+  x'consable'impl @m (Proxy @p) param m <#> \(Identity v) -> v
 
 type T'x'run m p =
   forall x' x param a result
@@ -269,16 +269,6 @@ class
   | r -> responds responds'types where
   x'r'mkResponds'types :: Proxy (Record responds'types)
   x'r'mkResponds :: forall a. r -> responds a -> a
-
-x'readable'run
-  :: forall @p @r param x' x a
-   . X'Readable r param
-  => ConsSymbol p (Reader r) x' x
-  => param
-  -> Run x a
-  -> Run x' a
-x'readable'run param =
-  runReaderAt (Proxy @p) $ unsafePerformEffect $ x'readable'mk @r param
 
 ------------------------------------------------------------------------------
 

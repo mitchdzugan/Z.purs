@@ -6,6 +6,7 @@ module Z.Prelude
   , module ZDateTime
   , module ZDefaultable
   , module ZExt
+  , module ZFoldable
   , module ZMashMap
   , module ZMashSet
   , module ZId
@@ -324,6 +325,7 @@ import Z.Z.Ext
   , (/\)
   , (<|>)
   ) as ZExt
+import Z.Z.Foldable as ZFoldable
 import Z.Z.HashMap
   ( HashMap(..)
   , hm'empty
@@ -368,7 +370,7 @@ import Z.Z.Id
   , idented'mk
   , idented'v
   ) as ZId
-import Z.Z.Pair (Pair(..), (~)) as ZPair
+import Z.Z.Pair (Pair(..), pair'get, (~)) as ZPair
 import Z.Z.PairKey (PairKey(..)) as ZPairKey
 import Z.Z.Passable (pass) as ZPassable
 import Z.Z.Shorthand as ZShorthand

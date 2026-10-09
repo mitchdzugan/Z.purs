@@ -12,9 +12,11 @@ module Z.Z.X.Methods
   , T'x'set'b
   , T'x'toArrayOf
   , T'x'toArrayOf'b
+  , T'x'update
   , T'x'view
   , T'x'view'b
   , _'alter
+  , _'cons
   , _'consAt
   , _'insert
   , _'modify
@@ -554,12 +556,14 @@ x'addAt k t = x'respondTo @p @"addAt" $ k /\ t
 
 type T'cons t rest = (cons :: Responds t Unit | rest)
 
-x'cons
-  :: forall @p m x' x t resp'rest t'rest
+type T'x'cons p =
+  forall m x' x t resp'rest t'rest
    . ConsSymbol p m x' x
   => X'RespondsTo m (VariantF $ T'cons t resp'rest) (T'element t t'rest)
   => t
   -> Run x Unit
+
+x'cons :: forall @p. T'x'cons p
 x'cons = x'respondTo @p @"cons"
 
 x'cons_
@@ -731,6 +735,9 @@ x'modify k f = x'lookup @p k >>= case _ of
 
 _'insert :: forall p. T'use'_'AsSym p T'x'insert
 _'insert = x'insert @p
+
+_'cons :: forall p. T'use'_'AsSym p T'x'cons
+_'cons = x'cons @p
 
 _'consAt :: forall p. T'use'_'AsSym p T'x'consAt
 _'consAt = x'consAt @p

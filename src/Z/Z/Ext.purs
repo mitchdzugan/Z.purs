@@ -103,6 +103,7 @@ import Data.Foldable
   , maximumBy
   , minimum
   , minimumBy
+  , sum
   ) as Foldable
 import Data.Generic.Rep (class Generic) as Generic
 import Data.Identity (Identity(..)) as Identity

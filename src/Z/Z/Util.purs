@@ -10,6 +10,8 @@ module Z.Z.Util
   , arg2'
   , arg3'
   , arg4'
+  , arr'first
+  , arr'last
   , arr'reverse
   , arr'sort
   , arr'sortBy
@@ -107,6 +109,12 @@ urlPathSegments u = Url.pathSegments $ Url.path u
 
 nth :: forall a. Array a -> Int -> Maybe.Maybe a
 nth = Array.index
+
+arr'first :: forall a. Array a -> Maybe.Maybe a
+arr'first a = nth a 0
+
+arr'last :: forall a. Array a -> Maybe.Maybe a
+arr'last a = nth a ((Array.length a) - 1)
 
 arr'sort :: forall a. Ord.Ord a => Array a -> Array a
 arr'sort = Array.sort

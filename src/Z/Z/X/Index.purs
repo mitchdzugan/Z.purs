@@ -56,6 +56,8 @@ module Z.Z.X.Index
   , e'tryUntil''
   , e'unwrap
   , e'unwrap''
+  , e'unwrap_
+  , e'unwrap_''
   , e'withFinalizer
   , e'withFinalizer''
   , edit
@@ -85,6 +87,8 @@ module Z.Z.X.Index
   , s'update
   , s'view
   , s'view'b
+  , sc'unwrap
+  , sc'unwrap_
   , sync'_
   , sync'x
   , type (<@<)
@@ -133,6 +137,8 @@ module Z.Z.X.Index
   , x'timeout
   , x'withReturn
   , x'withReturn''
+  , x'withReturn_
+  , x'withReturn_''
   ) where
 
 import Z.Z.X.UtilPrelude
@@ -504,6 +510,30 @@ e'unwrap'' e v = case resultVal v of
 e'unwrap :: forall p. T'use'e'AsSym p T'e'unwrap
 e'unwrap = e'unwrap'' @p
 
+sc'unwrap :: forall p. T'use'sc'AsSym p T'e'unwrap
+sc'unwrap = e'unwrap'' @p
+
+--------------------------------------------
+
+type T'e'unwrap_ p =
+  forall x' x e f a
+   . ConsSymbol p (X'E e) x' x
+  => Resulting f
+  => Generable e GDefault e
+  => f a
+  -> Run x a
+
+e'unwrap_'' :: forall @p. T'e'unwrap_ p
+e'unwrap_'' v = case resultVal v of
+  Just result -> pure result
+  _ -> e'fail'' @p default
+
+e'unwrap_ :: forall p. T'use'e'AsSym p T'e'unwrap_
+e'unwrap_ = e'unwrap_'' @p
+
+sc'unwrap_ :: forall p. T'use'sc'AsSym p T'e'unwrap_
+sc'unwrap_ = e'unwrap_'' @p
+
 --------------------------------------------
 
 type T'e'tryUntil p =
@@ -835,6 +865,23 @@ x'withReturn'' fm = e'try'' @p (fm (e'fail'' @p)) >>= case _ of
 
 x'withReturn :: forall p. T'use'sc'AsSym p T'x'withReturn
 x'withReturn = x'withReturn'' @p
+
+--------------------------------------------
+
+type T'x'withReturn_ p =
+  forall x' x a
+   . ConsSymbol p (X'E a) x' x
+  => Generable a GDefault a
+  => (Run x Unit -> Run x a)
+  -> Run x' a
+
+x'withReturn_'' :: forall @p. T'x'withReturn_ p
+x'withReturn_'' fm = e'try'' @p (fm (e'fail'' @p default)) >>= case _ of
+  Left a -> pure a
+  Right a -> pure a
+
+x'withReturn_ :: forall p. T'use'sc'AsSym p T'x'withReturn_
+x'withReturn_ = x'withReturn_'' @p
 
 ---------------------------------------------------------------------
 

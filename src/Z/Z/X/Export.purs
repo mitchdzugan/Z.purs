@@ -50,3 +50,15 @@ import Z.Z.X.Readables.RW.Ref
   ) as ModuleReExports
 import Z.Z.X.Readables.RW.Vector as ModuleReExports
 import Z.Z.X.Readables.RW.Vector2D as ModuleReExports
+import Z.Z.X.Readables.RW.WholeHistoryRating
+  ( R'Whr(..)
+  , X'Whr
+  , whr'createGame
+  , whr'createGame''
+  , whr'eval
+  , whr'eval''
+  , whr'iterate
+  , whr'iterate''
+  , whr'ratingsForPlayer
+  , whr'ratingsForPlayer''
+  ) as ModuleReExports

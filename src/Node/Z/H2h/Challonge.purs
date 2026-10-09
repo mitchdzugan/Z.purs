@@ -220,6 +220,7 @@ getEventDataImpl = do
               , winner: baseSet.winner
               , slots: baseSet.slots
               , eventOrder: -1 * (Round.roundInd round)
+              , games: []
               }
           }
       hasReset <- x'extract @"hasReset"
@@ -252,7 +253,7 @@ getEventDataImpl = do
       , tournament:
           { id: sOrN $ "Challonge-" <> slug <> "-tournamentId"
           , name: tournamentName
-          , images: hm'fromFoldable [ "profile" /\ profileImageUrl ]
+          , images: hm'fromFoldable [ H2h.Profile /\ profileImageUrl ]
           , date: date
           }
       }

@@ -30,10 +30,10 @@ export const js_binEff_2d_delete = (unit) => (k1) => (k2) => (st) => () => {
   delete (st._[k1] || {})[k2];
   return unit;
 };
-export const js_binEff_2d_sizeAt = (st) => (k) => () => {
+export const js_binEff_2d_sizeAt = (k) => (st) => () => {
   return st.sizes[k] || 0;
 };
-export const js_binEff_2d_valsAt = (st) => (k) => () => {
+export const js_binEff_2d_valsAt = (k) => (st) => () => {
   return Object.values(st._[k] || {}).map((ref) => ref[0]);
 };
 export const js_binEff_2d_clearAt = (unit) => (k) => (st) => () => {

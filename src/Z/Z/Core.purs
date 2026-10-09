@@ -24,18 +24,22 @@ module Z.Z.Core
   , T2'1
   , antiUnit
   , arr'concat
+  , arr'concatMaybes
   , arr'drop
   , arr'empty
   , arr'filter
   , arr'fold
   , arr'fromFoldable
+  , arr'isEmpty
   , arr'range
   , arr'range'inc
+  , arr'remove
   , arr'size
   , arr'slice
   , arr'withInd
   , class C'Relate
   , class ConsSymbol
+  , class Numberable
   , class Resulting
   , class RtError
   , class SText
@@ -70,6 +74,14 @@ module Z.Z.Core
   , map'vals
   , mapL
   , mapM
+  , maximumWith
+  , may'filter
+  , may'or
+  , may'remove
+  , may'remove_
+  , may'toArray
+  , minimumWith
+  , numberable'toNumber
   , obj'empty
   , obj'entries
   , obj'fromFoldable
@@ -123,6 +135,7 @@ module Z.Z.Core
   , set'size
   , simpleHash
   , stext
+  , sumBy
   , tryParseInt
   , tryParseNum
   , tup'flip
@@ -130,6 +143,7 @@ module Z.Z.Core
   , var'match
   , varF'inj
   , whenNot
+  , zScoreToPercentile
   ) where
 
 import Prelude
@@ -142,6 +156,7 @@ import Data.Argonaut.Decode (class DecodeJson, decodeJson)
 import Data.Argonaut.Encode (class EncodeJson, encodeJson)
 import Data.Array as Arr
 import Data.Either as Eor
+import Data.Foldable (class Foldable, maximumBy, minimumBy, sum)
 import Data.Foldable as Foldable
 import Data.Functor as F
 import Data.Functor.Variant as VarF
@@ -179,6 +194,16 @@ import Routing.Duplex as Dup
 import Routing.Duplex.Parser as DupP
 import Type.Equality (class TypeEquals)
 import Type.Proxy (Proxy(..)) as Proxy
+import Z.Z.Defaultable (class Generable, GDefault, default)
+
+class Numberable n where
+  numberable'toNumber :: n -> Number
+
+instance Numberable Number where
+  numberable'toNumber = identity
+
+instance Numberable Int where
+  numberable'toNumber = Int.toNumber
 
 class C'Relate :: forall k1 k2 k3. k1 -> k2 -> k3 -> Constraint
 class C'Relate from relation to | from relation -> to
@@ -339,6 +364,11 @@ foreign import js_jsonStr :: Arg.Json -> String
 foreign import js_removeNils :: Arg.Json -> Arg.Json
 
 foreign import js_iniStringifyJson :: Arg.Json -> String
+
+foreign import js_zScoreToPercentile :: Number -> Number
+
+zScoreToPercentile :: Number -> Number
+zScoreToPercentile = js_zScoreToPercentile
 
 newtype AntiUnit = AntiUnit Unit
 
@@ -522,6 +552,48 @@ map'fromFoldable
   -> Map.Map k v
 map'fromFoldable = Map.fromFoldable
 
+may'or :: forall a. a -> May.Maybe a -> a
+may'or = May.fromMaybe
+
+may'toArray :: forall a. May.Maybe a -> Array a
+may'toArray (May.Just a) = [ a ]
+may'toArray _ = []
+
+may'filter :: forall a. (a -> Boolean) -> May.Maybe a -> May.Maybe a
+may'filter _ May.Nothing = May.Nothing
+may'filter f m@(May.Just a) = if (f a) then m else May.Nothing
+
+may'remove :: forall a. (a -> Boolean) -> May.Maybe a -> May.Maybe a
+may'remove f = may'filter $ not <<< f
+
+may'remove_
+  :: forall a. Generable a GDefault a => Eq a => May.Maybe a -> May.Maybe a
+may'remove_ = may'filter $ not <<< ((==) default)
+
+sumBy
+  :: forall f b a. Foldable f => Functor f => Semiring a => (b -> a) -> f b -> a
+sumBy f c = sum $ f <$> c
+
+maximumWith
+  :: forall f b a
+   . Foldable f
+  => Functor f
+  => Ord a
+  => (b -> a)
+  -> f b
+  -> Maybe b
+maximumWith f = maximumBy \a b -> compare (f a) (f b)
+
+minimumWith
+  :: forall f b a
+   . Foldable f
+  => Functor f
+  => Ord a
+  => (b -> a)
+  -> f b
+  -> Maybe b
+minimumWith f = minimumBy \a b -> compare (f a) (f b)
+
 type Set a = Set.Set a
 
 set'empty :: forall @a. Set a
@@ -555,8 +627,14 @@ arr'drop n a = Arr.slice n (arr'size a) a
 arr'size :: forall a. Array a -> Int
 arr'size = Arr.length
 
+arr'isEmpty :: forall a. Array a -> Boolean
+arr'isEmpty a = Arr.length a == 0
+
 arr'filter :: forall a. (a -> Boolean) -> Array a -> Array a
 arr'filter = Arr.filter
+
+arr'remove :: forall a. (a -> Boolean) -> Array a -> Array a
+arr'remove f = Arr.filter $ not <<< f
 
 arr'empty :: forall @a. Array a
 arr'empty = []
@@ -566,6 +644,9 @@ arr'fromFoldable = Arr.fromFoldable
 
 arr'concat :: forall a. Array (Array a) -> Array a
 arr'concat = Arr.concat
+
+arr'concatMaybes :: forall a. Array (May.Maybe a) -> Array a
+arr'concatMaybes = Arr.concat <<< map may'toArray
 
 arr'range'inc :: Int -> Int -> Array Int
 arr'range'inc = Arr.range

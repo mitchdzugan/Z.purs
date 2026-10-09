@@ -2,6 +2,7 @@ module Z.Z.Pair
   ( (~)
   , Pair(..)
   , pair'curry
+  , pair'get
   , pair'swap
   , pair'uncurry
   ) where
@@ -12,6 +13,7 @@ import Data.Distributive (class Distributive)
 import Data.Foldable (class Foldable)
 import Data.Traversable (class Traversable)
 import Z.Z.Ext as Z
+import Z.Z.PairKey (PairKey(..))
 
 data Pair p = Pair p p
 
@@ -33,8 +35,12 @@ pair'uncurry ∷ ∀ a b. (a → a → b) → Pair a → b
 pair'uncurry f (x ~ y) = f x y
 
 -- | Exchange the two components of the pair
-pair'swap ∷ ∀ a. Pair a → Pair a
+pair'swap ∷ ∀ a. Pair a -> Pair a
 pair'swap (x ~ y) = y ~ x
+
+pair'get ∷ ∀ a. PairKey -> Pair a -> a
+pair'get Pos (x ~ y) = x
+pair'get Neg (x ~ y) = y
 
 derive instance Z.Generic (Pair p) _
 derive instance Eq a => Eq (Pair a)
