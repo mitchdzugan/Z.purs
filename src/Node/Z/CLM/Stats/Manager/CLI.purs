@@ -4,7 +4,6 @@ import Node.Z.Prelude
 
 import Control.Monad.Rec.Class (Step(..), tailRecM)
 import Node.Z.CLM.Stats.Manager.Action as Act
-import Node.Z.CLM.Stats.Manager.Error (T(..))
 import Node.Z.CLM.Stats.Manager.Error as ClmStE
 import Node.Z.CLM.Stats.Manager.Legacy (CLMStatsLegacyBlob)
 import Node.Z.CLM.Stats.Manager.Spec as Spec
@@ -31,7 +30,7 @@ type EnvR r =
   | r
   }
 
-type ClmEvent =
+type ClmSeason'Event =
   { eventName :: String
   , numEntrants :: Int
   , date :: DateTime
@@ -42,90 +41,78 @@ type ClmEvent =
   , eventId :: SorN
   }
 
-type ClmCharUsage =
+type ClmSeason'Player'Char =
   { charId :: Int
   , color :: Int
   , usage :: Number
   }
 
-type ClmPlayerStub =
-  { image :: String
+type ClmSeason'Player =
+  { clmId :: Int
+  , rating :: Maybe Int
+  , clmRank :: Maybe Int
+  , wins :: Int
+  , losses :: Int
+  , prEvents :: Int
+  , lastEvent :: { id :: SorN, placing :: Int }
+  , image :: Maybe String
+  , socials :: HashMap H2h.SocialType String
   , gamerTag :: String
   , prefix :: Maybe String
   , realName :: Maybe String
+  , pronouns :: Maybe String
   , otherTags :: HashSet String
-  , seasons :: HashSet Int
-  , chars :: Array ClmCharUsage
-  , id :: Int
+  , otherSeasons :: HashSet Int
+  , chars :: Array ClmSeason'Player'Char
   }
 
-type ClmSeason r =
+type ClmSeason =
   { seasonId :: Int
   , title :: String
   , isAll :: Boolean
-  , ranks ::
-      Array
-        { clmId :: Int
-        , rating :: Maybe Number
-        , clmRank :: Maybe Int
-        , wins :: Int
-        , losses :: Int
-        , prEvents :: Int
-        , lastEvent :: { id :: SorN, placing :: Int }
-        , image :: String
-        , gamerTag :: String
-        , prefix :: Maybe String
-        , realName :: Maybe String
-        , otherTags :: HashSet String
-        , seasons :: HashSet Int
-        , chars :: Array ClmCharUsage
-        }
-  | r
+  , ranks :: Array ClmSeason'Player
+  , events :: HashMap SorN ClmSeason'Event
   }
 
-type ClmPlayerSeason =
-  { sets ::
-      HashMap SorN
-        { id :: SorN
-        , eventId :: SorN
-        , won :: Boolean
-        , dq :: Boolean
-        , round :: String
-        , wonGames :: String
-        , lostGames :: String
-        , opponentName :: Maybe String
-        , winnerName :: Maybe String
-        , loserName :: Maybe String
-        }
-  , events ::
-      Array
-        { eventId :: SorN
-        , placingString :: String
-        , setIds :: Array SorN
-        , numWins :: Int
-        , numLosses :: Int
-        , losses :: Array String
-        , didDQ :: Boolean
-        }
-  , h2hs ::
-      Array
-        { opponent :: String
-        , rank :: Int
-        , setIds :: Array SorN
-        }
+type ClmPlayer'Season'Set =
+  { id :: SorN
+  , eventId :: SorN
+  , won :: Boolean
+  , dq :: Boolean
+  , round :: String
+  , wonGames :: String
+  , lostGames :: String
+  , opponentName :: Maybe String
+  , winnerName :: Maybe String
+  , loserName :: Maybe String
   }
 
-type ClmBaseSeason = ClmSeason ()
+type ClmPlayer'Season'Event =
+  { eventId :: SorN
+  , placingString :: String
+  , setIds :: Array SorN
+  , numWins :: Int
+  , numLosses :: Int
+  , losses :: Array String
+  , didDQ :: Boolean
+  }
 
-type ClmFullSeason = ClmSeason
-  (players :: HashMap Int ClmPlayerStub, events :: HashMap SorN ClmEvent)
+type ClmPlayer'Season'H2h =
+  { opponent :: Either String Int
+  , setIds :: Array SorN
+  }
+
+type ClmPlayer'Season =
+  { sets :: HashMap SorN ClmPlayer'Season'Set
+  , events :: Array ClmPlayer'Season'Event
+  , h2hs :: Array ClmPlayer'Season'H2h
+  }
 
 type ClmV r x =
   ( RWaEA' (EnvR r) ClmStW.T ClmStE.T
-      ( seasons :: X'HashMap Int ClmBaseSeason
-      , players :: X'HashMap Int ClmPlayerStub
-      , playerSeasons :: X'HashMap2D Int Int ClmPlayerSeason
-      , seasonEvents :: X'HashMap2D Int SorN ClmEvent
+      ( seasons :: X'HashMap Int ClmSeason
+      , playerSeasons :: X'HashMap2D Int Int ClmPlayer'Season
+      , seasonEvents :: X'HashMap2D Int SorN ClmSeason'Event
       , nextClmId :: X'Ref Int
       , playerIdsByClmId :: X'HashSet2D Int SorN
       , clmIdByPlayerId :: X'HashMap SorN Int
@@ -207,16 +194,16 @@ getActions newActions usePrevAuto = do
     clmEvents <- wrapH2hWE $
       All.ggQueryAll Q.clmEvents initVars pSpecs client Gql.CacheFirst
     let slugs = clmEvents.tournaments.nodes <#> _.events # arr'concat <#> _.slug
-    newAuto <- pure do
-      slug <- slugs
-      let pieces = str'split (Pattern "/") slug
-      case pieces of
-        [ "tournament", tslug, "event", eslug ] -> do
-          tparse /\ eparse /\ mkAction <- autoActionDefs
-          case (runParser tslug tparse /\ runParser eslug eparse) of
-            (Right _ /\ Right _) -> pure $ mkAction slug
-            _ -> []
-        _ -> []
+    let
+      newAuto = slugs >>= \slug -> do
+        let pieces = str'split (Pattern "/") slug
+        case pieces of
+          [ "tournament", tslug, "event", eslug ] -> do
+            tparse /\ eparse /\ mkAction <- autoActionDefs
+            case (runParser tslug tparse /\ runParser eslug eparse) of
+              (Right _ /\ Right _) -> [ mkAction slug ]
+              _ -> []
+          _ -> []
     pure $ rec'set @"auto" newAuto baseRes
 
 seasonIdByDate :: DateTime -> Int
@@ -230,7 +217,7 @@ getH2hData
    . Spec.Spec
   -> Boolean
   -> ClmV r x @@> Array (Int /\ HashMap SorN H2h.Event)
-getH2hData spec allowRefetch = x'eval_ @"seasonEvents"
+getH2hData spec allowRefetch = x'eval_ @"seasonH2hEvents"
   @(X'HashMap2D Int SorN H2h.Event)
   do
     { client } <- r'ask
@@ -258,8 +245,8 @@ getH2hData spec allowRefetch = x'eval_ @"seasonEvents"
         if shouldRefetchEvent then getEventData Gql.ForceFetch
         else pure eventData'
       let seasonId = seasonIdByDate eventData.tournament.date
-      x'insert @"seasonEvents" (seasonId /\ eventData.id) eventData
-    x'd1entries @"seasonEvents" <#> arr'sortWith fst
+      x'insert @"seasonH2hEvents" (seasonId /\ eventData.id) eventData
+    x'd1entries @"seasonH2hEvents" <#> arr'sortWith fst
 
 type XSeason x =
   ( clmIdByEntrantId :: X'HashMap SorN Int
@@ -267,7 +254,7 @@ type XSeason x =
   , losses :: X'HashMap Int Int
   , lastEventId :: X'HashMap Int SorN
   , prEventIds :: X'HashSet2D Int SorN
-  , chars :: X'HashMap Int (Array ClmCharUsage)
+  , chars :: X'HashMap Int (Array ClmSeason'Player'Char)
   , ratingData ::
       X'HashMap Int
         { raw :: Number
@@ -277,11 +264,13 @@ type XSeason x =
         , clmId :: Int
         , participant :: H2h.Participant
         }
+  , eventPlacing :: X'HashMap (Int /\ SorN) Int
   , eventWins :: X'HashMap (Int /\ SorN) Int
   , eventLosses :: X'HashMap (Int /\ SorN) Int
   , eventSetIds :: X'HashSet2D (Int /\ SorN) SorN
   , eventBeaters :: X'HashSet2D (Int /\ SorN) Int
   , eventDidDQ :: X'HashMap (Int /\ SorN) Boolean
+  , h2hOpps :: X'HashSet2D Int Int
   , h2hSetIds :: X'HashSet2D (Int /\ Int) SorN
   , eventIdBySetId :: X'HashMap SorN SorN
   , setGroups :: X'Vector2D H2h.H2hSet
@@ -290,6 +279,7 @@ type XSeason x =
   , participants :: X'HashMap Int H2h.Participant
   , charUsedGames :: X'HashMap2D Int Int Int
   , charColorUsedGames :: X'HashMap2D (Int /\ Int) Int Int
+  , seasonOrds :: X'HashMap Int Int
   | x
   )
 
@@ -302,11 +292,13 @@ runSeason = id
   <<< x'eval_ @"prEventIds"
   <<< x'eval_ @"chars"
   <<< x'eval_ @"ratingData"
+  <<< x'eval_ @"eventPlacing"
   <<< x'eval_ @"eventWins"
   <<< x'eval_ @"eventLosses"
   <<< x'eval_ @"eventSetIds"
   <<< x'eval_ @"eventBeaters"
   <<< x'eval_ @"eventDidDQ"
+  <<< x'eval_ @"h2hOpps"
   <<< x'eval_ @"h2hSetIds"
   <<< x'eval_ @"setGroups"
   <<< x'eval_ @"sets"
@@ -315,6 +307,7 @@ runSeason = id
   <<< x'eval_ @"participants"
   <<< x'eval_ @"charUsedGames"
   <<< x'eval_ @"charColorUsedGames"
+  <<< x'eval_ @"seasonOrds"
 
 addPlayerIdToClmId :: forall x. SorN -> Int -> ClmV () x @@> Unit
 addPlayerIdToClmId playerId clmId = do
@@ -353,7 +346,6 @@ runClm m = do
   x'info playerIdsByClmId
   we'runResult
     $ x'eval_ @"seasons"
-    $ x'eval_ @"players"
     $ x'eval_ @"seasonEvents"
     $ x'eval_ @"playerSeasons"
     $ x'eval @"playerIdsByClmId" playerIdsByClmId
@@ -397,18 +389,29 @@ getClmId playerId = x'withReturn \x'return -> do
   addPlayerIdToClmId playerId clmId
   pure clmId
 
+getSeasonId :: DateTime -> Int
+getSeasonId dt = periodMonthContrib + periodYearContrib
+  where
+  periodYearContrib = (((dateTime'year dt) - 2022) * 3) + 2
+  periodMonthContrib = floor (toNumber (dateTime'month'i0 dt) / 4.0)
+
+getActiveSeasonId :: forall x. x @@> Int
+getActiveSeasonId = x'now <#> getSeasonId
+
 xRun :: forall x. Array String -> EA' JsError x @@> Unit
 xRun args = do
   x'info args
+  activeSeasonId <- getActiveSeasonId
   res <- runClm do
     actionData <- getActions [] false
     let spec = Act.buildSpec $ actionData.manual <> actionData.auto
     forM_ (hm'entries spec.clmIdByPlayerId) \(clmId /\ playerId) ->
       addPlayerIdToClmId clmId playerId
-    seasonEvents <- getH2hData spec true
-    forM_ seasonEvents \(seasonId /\ events) -> runSeason do
+    seasonH2hEvents <- getH2hData spec true
+    forM_ seasonH2hEvents \(seasonId /\ h2hEvents) -> runSeason do
       x'out { seasonId }
-      let eventList = arr'sortWith (\e -> e.tournament.date) $ hm'vals events
+      let isActiveSeason = seasonId == activeSeasonId
+      let eventList = arr'sortWith (\e -> e.tournament.date) $ hm'vals h2hEvents
       forM_ eventList \event -> x'withReturn \xReturn'outer -> do
         isSingles <- x'withReturn \xReturn -> do
           forM_ (hm'vals event.entrants) \entrant -> do
@@ -418,10 +421,12 @@ xRun args = do
         let prIneligible = hs'has event.slug spec.ineligibleSlugs
 
         forM_ (hm'vals event.entrants) \entrant -> do
-          let participant = entrant.participant
-          let player = participant.player
+          let { participant, standing } = entrant
+          let { player } = participant
           isMask /\ clmId <- getClmIdForEvent spec event player
           x'insert @"clmIdByEntrantId" entrant.id clmId
+          x'insert @"eventPlacing" (clmId /\ event.id) standing.placement
+          x'insert @"lastEventId" clmId event.id
           whenNot isMask do
             x'consAt @"usedTags" clmId participant.gamerTag
             x'insert @"participants" clmId participant
@@ -470,6 +475,8 @@ xRun args = do
               x'consAt @"eventBeaters" (clmIdL /\ eventId) clmIdW
               x'insert @"eventDidDQ" (clmIdL /\ eventId) false
               x'insert @"eventDidDQ" (clmIdL /\ eventId) set.isDQ
+              x'consAt @"h2hOpps" clmIdW clmIdL
+              x'consAt @"h2hOpps" clmIdL clmIdW
               x'consAt @"h2hSetIds" (clmIdW /\ clmIdL) set.id
               x'consAt @"h2hSetIds" (clmIdL /\ clmIdW) set.id
               when (not set.doesCount || not event.prEligible) x'return_
@@ -506,7 +513,7 @@ xRun args = do
           let rawRating = (+) 1000.0 <$> (arr'last ratings >>= flip nth 1)
           prEvents <- x'extractAt @"prEventIds" clmId
             <#> hs'vals
-            <#> map (\id -> hm'lookup id events <#> \e -> e.tournament.id)
+            <#> map (\id -> hm'lookup id h2hEvents <#> \e -> e.tournament.id)
             <#> arr'concatMaybes
             <#> hs'fromFoldable
             <#> hs'size
@@ -522,7 +529,7 @@ xRun args = do
             <#> (arr'reverse <<< arr'sortWith snd <<< hm'entries)
           let totGames = toNumber $ sumBy snd charUsedGames
           let mostGames = ceil $ totGames * 2.0 / 3.0
-          chars <- _'exec_ @(X'Vector ClmCharUsage) $ s'eval 0 do
+          chars <- _'exec_ @(X'Vector ClmSeason'Player'Char) $ s'eval 0 do
             forM_ charUsedGames \(charId /\ usedGames) -> do
               addedGames <- s'get
               when (addedGames <= mostGames) do
@@ -544,6 +551,73 @@ xRun args = do
         let getRating = \r -> floor $ 10.0 * (getPercentile r)
         let addRating = \r -> rec'insert @"rating" (getRating r) r
         x'out $ sortedRatingData <#> addRating
+        when (arr'size rated > 1) do
+          let title = ""
+          let isAll = false
+          seasonEvents <- x'extractAt @"seasonEvents" seasonId
+          ranks <- _'exec_ @(X'Vector ClmSeason'Player) do
+            s'eval 0 $ forM_ (arr'withInd sortedRatingData) \pair -> do
+              let seasonOrd /\ ratingData = pair
+              let { clmId, hasConfidence, prEvents, hasAny } = ratingData
+              let { participant } = ratingData
+              let { player } = participant
+              let { socials, gamerTag, prefix, pronouns } = player
+              let realName = player.name
+              let ratingVal = getRating ratingData
+              let rating = if hasConfidence then Just ratingVal else Nothing
+              let otherSeasons = hs'empty
+              let image = hm'lookup H2h.Profile player.images
+              let hasRank = if isActiveSeason then hasAny else hasConfidence
+              x'insert @"seasonOrds" clmId seasonOrd
+              clmRank <- case hasRank of
+                false -> pure Nothing
+                true -> s'update inc *> s'get <#> Just
+              wins <- x'lookup @"wins" clmId <#> may'or 0
+              losses <- x'lookup @"losses" clmId <#> may'or 0
+              chars <- x'lookup @"chars" clmId <#> may'or []
+              lastEventId <- x'lookup @"lastEventId" clmId >>=
+                e'unwrap (ClmStE.MissingEvent seasonId clmId)
+              lastEventPlacing <-
+                x'lookup @"eventPlacing" (clmId /\ lastEventId) >>=
+                  e'unwrap (ClmStE.MissingEvent seasonId clmId)
+              let lastEvent = { id: lastEventId, placing: lastEventPlacing }
+              otherTags <- x'extractAt @"usedTags" clmId
+              _'cons
+                { clmId
+                , chars
+                , rating
+                , clmRank
+                , wins
+                , losses
+                , prEvents
+                , image
+                , socials
+                , gamerTag
+                , prefix
+                , realName
+                , pronouns
+                , otherTags
+                , otherSeasons
+                , lastEvent
+                }
+          x'insert @"seasons" seasonId
+            { seasonId
+            , title
+            , isAll
+            , ranks
+            , events: seasonEvents
+            }
+          seasonOrds <- x'extract @"seasonOrds"
+          forM_ sortedRatingData \{ clmId } -> do
+            opps <- x'extractAt @"h2hOpps" clmId
+              <#> (arr'sortWith (flip hm'lookup seasonOrds) <<< hs'vals)
+            events <- _'exec_ @(X'Vector ClmPlayer'Season'Event) do
+              pure unit
+            h2hs <- _'exec_ @(X'Vector ClmPlayer'Season'H2h) do
+              pure unit
+            let sets = hm'empty
+            x'insert @"playerSeasons" (seasonId /\ clmId) { events, h2hs, sets }
+  x'info { activeSeasonId }
   x'info $ case res.v of
     Left e -> encode e
     Right _ -> "data intake: success"
@@ -574,4 +648,93 @@ sggSlippiCharIdMap = hm'fromFoldable
   , 24 /\ 17
   , 25 /\ 21
   , 26 /\ 18
+  ]
+
+luckyStatsIdByClmId :: HashMap Int String
+luckyStatsIdByClmId = show <$> hm'fromFoldable
+  [ 420 /\ 322 -- dz
+  , 1062 /\ 21081 -- ober
+  , 1286 /\ 72859 -- pleeba
+  , 845 /\ 12922 -- mof
+  , 870 /\ 240 -- DannyPhantom
+  , 665 /\ 21094 -- unsure
+  , 1978 /\ 100 -- Stella
+  , 450 /\ 39548 -- Latin
+  , 189 /\ 22100 -- Ferocitii
+  , 588 /\ 21103 -- Forest
+  , 1044 /\ 21115 -- Arpy
+  , 1 /\ 84416 -- Raymond
+  , 642 /\ 47243 -- GI0STAR
+  , 1543 /\ 49815 -- easy
+  , 1795 /\ 73996 -- eggy
+  , 397 /\ 8548 -- ReLaxn
+  , 417 /\ 11631 -- jisp
+  , 295 /\ 74000 -- Fasthands
+  , 238 /\ 474 -- Frost
+  , 1836 /\ 148 -- Fry
+  , 413 /\ 640 -- Kick
+  , 42069 /\ 91 -- Rocks
+  , 1513 /\ 369 -- Casual
+  , 946 /\ 74486 -- Umma
+  , 1449 /\ 1214031 -- JustJoe
+  , 1132 /\ 14460 -- WattPheasant
+  , 1755 /\ 74480 -- greg
+  , 703 /\ 816606 -- cratylus
+  , 1196 /\ 73029 -- mase
+  , 1868 /\ 59962 -- Basil
+  , 1187 /\ 6793944 -- Trix
+  , 1567 /\ 558313 -- evil lesbian
+  , 1576 /\ 11628 -- Trevor
+  , 569 /\ 85311 -- notsocrazy
+  , 26 /\ 33663 -- jade anxious
+  , 1186 /\ 74455 -- Orotis
+  , 422 /\ 73420 -- Surskim
+  , 1714 /\ 11625 -- Killablue
+  , 1163 /\ 73182 -- FeelinGood
+  , 192 /\ 60535 -- Merlisker
+  , 993 /\ 7125053 -- Rizz Princess
+  , 666 /\ 80605 -- ink
+  , 764 /\ 19408 -- Anconoid
+  , 741 /\ 1223 -- Tawm,
+  , 1436 /\ 21392 -- Nephenee
+  , 3 /\ 7455 -- jess dang3r
+  , 1732 /\ 51257 -- sambone
+  , 943 /\ 252971 -- Lazarous
+  , 10 /\ 11625 -- kevin tenacity
+  , 932 /\ 74538 -- yolk
+  , 1041 /\ 21147 -- sunshine
+  , 1440 /\ 110 -- kadence
+  , 1206 /\ 21166 -- homeslice
+  , 682 /\ 73168 -- jaq
+  , 1873 /\ 21139 -- kibby
+  , 432 /\ 60659 -- pregnanyand16
+  , 32 /\ 21400 -- prax
+  , 100 /\ 395433 -- Blowfishh
+  , 1704 /\ 74451 -- gamer
+  , 210 /\ 10032 -- Erebus
+  , 1033 /\ 1062907 -- Zoraakk
+  , 155 /\ 37559 -- CJ
+  , 1691 /\ 74630 -- pansy_scheme
+  , 2106 /\ 13046 -- jagr
+  , 777 /\ 68176 -- yuunia
+  , 1222 /\ 74565 -- Carter
+  , 1474 /\ 21403 -- Axel
+  , 218 /\ 1075246 -- Lil Nach
+  , 890 /\ 74560 -- sir ghei
+  , 35 /\ 73425 -- Grunker
+  , 249 /\ 21396 -- Brendan
+  , 1263 /\ 80722 -- June
+  , 517 /\ 394302 -- frog catcher
+  , 1997 /\ 74638 -- Monarc
+  , 272 /\ 85340 -- Scoob
+  , 1668 /\ 1017351 -- Mild
+  , 1459 /\ 589086 -- penny
+  , 879 /\ 17251 -- trail
+  , 1784 /\ 6119255 -- nobie
+  , 1447 /\ 17975 -- n0tch
+  , 2753 /\ 381359 -- cam
+  , 1437 /\ 243120 -- euph0ria
+  , 1865 /\ 1025879 -- genuinely
+  , 1620 /\ 74647 -- BENT
+  , 357 /\ 33729 -- lemmanade
   ]

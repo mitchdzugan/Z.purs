@@ -9,6 +9,8 @@ import Z.H2h.Module as H2h
 data T
   = H2h H2h.Error
   | LoadLegacyData FSDataError
+  | MissingEvent Int Int
+  | MissingEventPlacing Int Int SorN
   | DebugExit
 
 derive instance Generic T _
