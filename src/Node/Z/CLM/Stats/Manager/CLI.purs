@@ -17,7 +17,8 @@ import Node.Z.Gql as Gql
 import Node.Z.H2h as H2h
 import Node.Z.H2h.Startgg.All as All
 import Z.CLM.Stats.Types
-  ( ClmPlayer'Season
+  ( ClmPlayer
+  , ClmPlayer'Season
   , ClmPlayer'Season'Event
   , ClmPlayer'Season'H2h
   , ClmPlayer'Season'Set
@@ -47,8 +48,10 @@ type EnvR r =
 type ClmV r x =
   ( RWaEA' (EnvR r) ClmStW.T ClmStE.T
       ( seasons :: X'HashMap Int ClmSeason
+      , clmRanks :: X'HashMap Int (Array ClmSeason'Player)
+      , clmEvents :: X'HashMap2D Int SorN ClmSeason'Event
+      , clmPlayers :: X'HashMap Int ClmPlayer
       , playerSeasons :: X'HashMap2D Int Int ClmPlayer'Season
-      , seasonEvents :: X'HashMap2D Int SorN ClmSeason'Event
       , nextClmId :: X'Ref Int
       , playerIdsByClmId :: X'HashSet2D Int SorN
       , clmIdByPlayerId :: X'HashMap SorN Int
@@ -195,8 +198,6 @@ type XSeason x =
   , ratingData ::
       X'HashMap Int
         { raw :: Number
-        , hasAny :: Boolean
-        , hasConfidence :: Boolean
         , prEvents :: Int
         , clmId :: Int
         , participant :: H2h.Participant
@@ -282,7 +283,9 @@ runClm m = do
   x'info playerIdsByClmId
   we'runResult
     $ x'eval_ @"seasons"
-    $ x'eval_ @"seasonEvents"
+    $ x'eval_ @"clmRanks"
+    $ x'eval_ @"clmEvents"
+    $ x'eval_ @"clmPlayers"
     $ x'eval_ @"playerSeasons"
     $ x'eval @"playerIdsByClmId" playerIdsByClmId
     $ x'eval @"clmIdByPlayerId" clmIdByPlayerId
@@ -333,6 +336,36 @@ getSeasonId dt = periodMonthContrib + periodYearContrib
 getActiveSeasonId :: forall x. x @@> Int
 getActiveSeasonId = x'now <#> getSeasonId
 
+type RankData r =
+  { raw :: Number
+  , prEvents :: Int
+  | r
+  }
+
+normalizeRatingData
+  :: forall r
+   . Array (RankData r)
+  -> { sortedRatingData :: Array (RankData r)
+     , numRated :: Int
+     , getRating :: RankData r -> Int
+     }
+normalizeRatingData ratingData =
+  let
+    p'hasConfidence = \d -> d.prEvents > 2
+    sortedRatingData = multisort
+      [ sorter'rev \d -> d.prEvents > 0
+      , sorter'rev p'hasConfidence
+      , sorter'rev _.raw
+      , sorter'rev _.prEvents
+      ]
+      ratingData
+    rated = arr'filter p'hasConfidence sortedRatingData
+    rated'stats = statsBy _.raw rated
+    getPercentile = \r -> stats'percentile r.raw rated'stats
+    getRating = \r -> floor $ 10.0 * (getPercentile r)
+  in
+    { sortedRatingData, numRated: arr'size rated, getRating }
+
 buildCurrentSeasons :: forall x. Spec.Spec -> ClmV () x @@> Unit
 buildCurrentSeasons spec = do
   activeSeasonId <- getActiveSeasonId
@@ -368,7 +401,7 @@ buildCurrentSeasons spec = do
         x'insert @"eventIdBySetId" set.id event.id
         x'insert @"sets" set.id set
 
-      x'insert @"seasonEvents" (seasonId /\ event.id)
+      x'insert @"clmEvents" (seasonId /\ event.id)
         { eventName: event.name
         , numEntrants: hm'size event.entrants
         , date: event.tournament.date
@@ -385,8 +418,7 @@ buildCurrentSeasons spec = do
         anyCounted <- s'exec false do
           forM_ sets \set -> x'withReturn_ \x'return_ -> do
             eventId <- x'lookup @"eventIdBySetId" set.id >>= sc'unwrap_
-            event <- x'lookup @"seasonEvents" (seasonId /\ eventId) >>=
-              sc'unwrap_
+            event <- x'lookup @"clmEvents" (seasonId /\ eventId) >>= sc'unwrap_
             let
               getSlotClmId slot = do
                 entrantId <- sc'unwrap_ slot.entrantId
@@ -450,8 +482,6 @@ buildCurrentSeasons spec = do
         x'insert @"ratingData" clmId
           { raw: may'or 0.0 rawRating
           , prEvents
-          , hasAny: isJust rawRating
-          , hasConfidence: prEvents > 2
           , clmId
           , participant
           }
@@ -467,28 +497,16 @@ buildCurrentSeasons spec = do
                 <#> (hm'entries >>> maximumWith snd >>> map fst >>> may'or 0)
               _'cons { charId, usage: toNumber usedGames / totGames, color }
         x'insert @"chars" clmId chars
-      sortedRatingData <- x'extract @"ratingData"
-        <#> hm'vals
-        <#> multisort
-          [ sorter'rev _.hasAny
-          , sorter'rev _.hasConfidence
-          , sorter'rev _.raw
-          , sorter'rev _.prEvents
-          ]
-      let rated = arr'filter _.hasConfidence sortedRatingData
-      let rated'stats = statsBy _.raw rated
-      let getPercentile = \r -> stats'percentile r.raw rated'stats
-      let getRating = \r -> floor $ 10.0 * (getPercentile r)
-      let addRating = \r -> rec'insert @"rating" (getRating r) r
-      x'out $ sortedRatingData <#> addRating
-      when (arr'size rated > 1) do
-        let title = ""
-        let isAll = false
-        seasonEvents <- x'extractAt @"seasonEvents" seasonId
+      { sortedRatingData, numRated, getRating } <- x'extract @"ratingData"
+        <#> (normalizeRatingData <<< hm'vals)
+      when (numRated > 1) do
+        seasonEvents <- x'extractAt @"clmEvents" seasonId
         ranks <- _'exec_ @(X'Vector ClmSeason'Player) do
           s'eval 0 $ forM_ (arr'withInd sortedRatingData) \pair -> do
             let seasonOrd /\ ratingData = pair
-            let { clmId, hasConfidence, prEvents, hasAny } = ratingData
+            let { clmId, prEvents } = ratingData
+            let hasConfidence = prEvents > 2
+            let hasAny = prEvents > 0
             let { participant } = ratingData
             let { player } = participant
             let { gamerTag, prefix, pronouns } = player
@@ -517,12 +535,13 @@ buildCurrentSeasons spec = do
               otherTags <- x'extractAt @"usedTags" clmId
               _'cons
                 { clmId
-                , chars
                 , rating
                 , clmRank
                 , wins
                 , losses
                 , prEvents
+                , chars
+                {-}
                 , image
                 , socials
                 , gamerTag
@@ -531,14 +550,15 @@ buildCurrentSeasons spec = do
                 , pronouns
                 , otherTags
                 , otherSeasons
+                -}
                 , lastEvent
                 }
         x'insert @"seasons" seasonId
           { seasonId
-          , title
-          , isAll
           , ranks
           , events: seasonEvents
+
+          , players: hm'empty
           }
         seasonOrds <- x'extract @"seasonOrds"
         seasonSets <- x'extract @"sets"
@@ -593,12 +613,24 @@ buildLegacySeasons :: forall x. ClmV () x @@> Unit
 buildLegacySeasons = do
   { legacyBlob } <- r'ask
   forM_ (obj'vals legacyBlob.seasons) \season -> do
-    x'out season
-    let { seasonId, title, isAll } = season
-    let ranks = []
+    let { seasonId } = season
+    x'out { seasonId }
+    ranks <- _'exec_ @(X'Vector ClmSeason'Player) do
+      let
+        rawRatingData = season.ranks <#> \r ->
+          { prEvents: r.prEvents
+          , raw: r.conservativeRating
+          , rank: r
+          }
+        { sortedRatingData, getRating } = normalizeRatingData rawRatingData
+      s'eval 0 $ forM_ (arr'withInd sortedRatingData) \pair -> do
+        let seasonOrd /\ ratingData = pair
+        let { prEvents, rank } = ratingData
+        whenJust (obj'lookup rank.playerIdent season.players) \player -> do
+          when (prEvents > 2) do
+            x'out $ getRating ratingData /\ player.name /\ player.clmId
     events <- _'exec_ @(X'HashMap SorN ClmSeason'Event) do
       forM_ (obj'vals season.events) \{ eventId } -> do
-        x'out eventId
         whenJust (obj'lookup (show eventId) legacyBlob.events) \event -> do
           let trueEventId = sOrN eventId
           date <- e'unwrap (ClmStE.InvalidLegacyDate event.slug event.date)
@@ -615,10 +647,9 @@ buildLegacySeasons = do
             }
     x'insert @"seasons" seasonId
       { seasonId
-      , title
-      , isAll
       , ranks
       , events
+      , players: hm'empty
       }
   pure unit
 

@@ -1,10 +1,13 @@
 module Z.CLM.Stats.Types
-  ( ClmPlayer'Season
+  ( ClmPlayer
+  , ClmPlayer'Season
   , ClmPlayer'Season'Event
   , ClmPlayer'Season'H2h
+  , ClmPlayer'Season'Json
   , ClmPlayer'Season'Set
   , ClmSeason
   , ClmSeason'Event
+  , ClmSeason'Json
   , ClmSeason'Player
   , ClmSeason'Player'Char
   ) where
@@ -30,6 +33,15 @@ type ClmSeason'Player'Char =
   , usage :: Number
   }
 
+type ClmPlayer =
+  { image :: Maybe String
+  , socials :: HashMap H2h.SocialType String
+  , gamerTag :: String
+  , prefix :: Maybe String
+  , realName :: Maybe String
+  , pronouns :: Maybe String
+  }
+
 type ClmSeason'Player =
   { clmId :: Int
   , rating :: Maybe Int
@@ -38,23 +50,22 @@ type ClmSeason'Player =
   , losses :: Int
   , prEvents :: Int
   , lastEvent :: { id :: SorN, placing :: Int }
-  , image :: Maybe String
-  , socials :: HashMap H2h.SocialType String
-  , gamerTag :: String
-  , prefix :: Maybe String
-  , realName :: Maybe String
-  , pronouns :: Maybe String
-  , otherTags :: HashSet String
-  , otherSeasons :: HashSet Int
   , chars :: Array ClmSeason'Player'Char
   }
 
 type ClmSeason =
   { seasonId :: Int
-  , title :: String
-  , isAll :: Boolean
   , ranks :: Array ClmSeason'Player
   , events :: HashMap SorN ClmSeason'Event
+  , players :: HashMap Int ClmPlayer
+  }
+
+type ClmSeason'Json =
+  { ranks :: Array ClmSeason'Player
+  , events :: Array ClmSeason'Event
+  , players :: Array ClmPlayer
+  , otherTags :: Array (Int /\ Array String)
+  , otherSeasons :: Array (Int /\ Array Int)
   }
 
 type ClmPlayer'Season'Set =
@@ -87,6 +98,12 @@ type ClmPlayer'Season'H2h =
 
 type ClmPlayer'Season =
   { sets :: HashMap SorN ClmPlayer'Season'Set
+  , events :: Array ClmPlayer'Season'Event
+  , h2hs :: Array ClmPlayer'Season'H2h
+  }
+
+type ClmPlayer'Season'Json =
+  { sets :: Array ClmPlayer'Season'Set
   , events :: Array ClmPlayer'Season'Event
   , h2hs :: Array ClmPlayer'Season'H2h
   }
