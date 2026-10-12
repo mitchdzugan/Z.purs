@@ -8,6 +8,7 @@ module Z.Z.Foldable
   , hm'mapSomeKeys
   , keyBy
   , multisort
+  , ordinal
   , sorter
   , sorter'rev
   , stats
@@ -34,11 +35,12 @@ import Z.Z.Core
   , arr'withInd
   , ffmap
   , forM_
+  , may'or
   , numberable'toNumber
   , zScoreToPercentile
   )
-import Z.Z.HashMap (HashMap, hm'entries)
-import Z.Z.HashSet (hs'vals)
+import Z.Z.HashMap (HashMap, hm'entries, hm'fromFoldable, hm'lookup)
+import Z.Z.HashSet (HashSet, hs'fromFoldable, hs'has, hs'vals)
 import Z.Z.Id (class Identable, IdV, Idented, ident'get, idented'mk, idented'v)
 import Z.Z.Passable (pass)
 import Z.Z.Util (arr'sortBy)
@@ -171,3 +173,17 @@ stats'zScore n s = (numberable'toNumber n - s.avg) / s.stddev
 
 stats'percentile :: forall n. Numberable n => n -> Stats -> Number
 stats'percentile n s = zScoreToPercentile $ stats'zScore n s
+
+weirdOrdinalSuffixes :: HashSet Int
+weirdOrdinalSuffixes = hs'fromFoldable [ 11, 12, 13 ]
+
+baseOrdinalSuffixes :: HashMap Int String
+baseOrdinalSuffixes = hm'fromFoldable [ 1 /\ "st", 2 /\ "nd", 3 /\ "rd" ]
+
+ordinalSuffix :: Int -> String
+ordinalSuffix n =
+  if hs'has (n `mod` 100) weirdOrdinalSuffixes then "th"
+  else may'or "th" $ hm'lookup (n `mod` 10) baseOrdinalSuffixes
+
+ordinal :: Int -> String
+ordinal n = show n <> ordinalSuffix n

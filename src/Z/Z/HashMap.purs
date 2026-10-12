@@ -4,6 +4,7 @@ module Z.Z.HashMap
   , hm'entries
   , hm'fromFoldable
   , hm'has
+  , hm'insert
   , hm'keys
   , hm'lookup
   , hm'set
@@ -18,7 +19,7 @@ import Data.Foldable (class Foldable)
 import Data.Maybe (Maybe, isJust)
 import Data.Tuple.Nested (type (/\), (/\))
 import Z.Z.Bin as Bin
-import Z.Z.Core (arr'fromFoldable)
+import Z.Z.Core (arr'concat, arr'fromFoldable)
 import Z.Z.Defaultable (class Generable)
 import Z.Z.Ext (class Newtype)
 import Z.Z.Ext as Z
@@ -70,3 +71,5 @@ hm'keys (HashMap hm) = Bin.bin'vals hm <#> \{ k } -> k
 hm'vals :: forall @k @v. Identable k => HashMap k v -> Array v
 hm'vals (HashMap hm) = Bin.bin'vals hm <#> \{ v } -> v
 
+hm'insert :: forall @k @v. Identable k => k -> v -> HashMap k v -> HashMap k v
+hm'insert k v hm = hm'fromFoldable $ arr'concat [ hm'entries hm, [ k /\ v ] ]
