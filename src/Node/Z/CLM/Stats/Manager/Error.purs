@@ -11,10 +11,13 @@ data T
   | LoadLegacyData FSDataError
   | MissingPlacing Int Int SorN
   | MissingPlayer Int
+  | MissingPlayerSeason Int Int
   | InvalidLegacyDate String Int
   | LegacyMissingClmId Int String
   | RimrafDocs JsError
   | WriteSeasonJson Int JsError
+  | WritePlayerSeasonJson Int Int JsError
+  | MissingLegacyPlayerSeason Int String
   | DebugExit
 
 derive instance Generic T _

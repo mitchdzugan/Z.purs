@@ -19,6 +19,7 @@ module Z.Z.X.Methods
   , _'cons
   , _'consAt
   , _'insert
+  , _'lookup
   , _'modify
   , x'act
   , x'add
@@ -355,12 +356,14 @@ x'entries = x'respondTo_ @p @"entries"
 
 type T'lookup k v rest = (lookup :: Responds k (Maybe v) | rest)
 
-x'lookup
-  :: forall @p m x' x k v resp'rest t'rest
+type T'x'lookup p =
+  forall m x' x k v resp'rest t'rest
    . ConsSymbol p m x' x
   => X'RespondsTo m (VariantF $ T'lookup k v resp'rest) (T'entry k v t'rest)
   => k
   -> Run x (Maybe v)
+
+x'lookup :: forall @p. T'x'lookup p
 x'lookup = x'respondTo @p @"lookup"
 
 ---------------------------------------------------------------------
@@ -735,6 +738,9 @@ x'modify k f = x'lookup @p k >>= case _ of
 
 _'insert :: forall p. T'use'_'AsSym p T'x'insert
 _'insert = x'insert @p
+
+_'lookup :: forall p. T'use'_'AsSym p T'x'lookup
+_'lookup = x'lookup @p
 
 _'cons :: forall p. T'use'_'AsSym p T'x'cons
 _'cons = x'cons @p

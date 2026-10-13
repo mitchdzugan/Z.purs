@@ -21,6 +21,7 @@ import Z.CLM.Stats.Types
   , ClmPlayer'Season
   , ClmPlayer'Season'Event
   , ClmPlayer'Season'H2h
+  , ClmPlayer'Season'Json
   , ClmPlayer'Season'Set
   , ClmSeason
   , ClmSeason'Event
@@ -590,20 +591,40 @@ buildCurrentSeasons spec = do
 buildLegacySeasons :: forall x. ClmV () x @@> Unit
 buildLegacySeasons = do
   { legacyBlob } <- r'ask
+  playerSeasons <-
+    _'exec_ @(X'Vector ClmStLegacy.CLMStatsLegacyBlob'PlayerSeason) do
+      forM_ (obj'vals legacyBlob.players) \playerSeasons ->
+        forM_ (obj'entries playerSeasons) \(seasonId /\ playerSeason) -> do
+          whenNot (seasonId == "0") $ _'cons playerSeason
   clmIdBySetResult <- _'exec_ @(X'HashMap2D String PairKey Int) do
-    forM_ (obj'vals legacyBlob.players) \playerSeasons ->
-      forM_ (obj'entries playerSeasons) \(seasonId /\ playerSeason) -> do
-        whenNot (seasonId == "0") do
-          let { events, h2hs } = playerSeason
-          whenJust playerSeason.clmId \clmId -> do
-            let eventSetSummaries = events <#> _.setSummaries
-            let h2hSetSummaries = h2hs <#> \h2h -> h2h.sets <#> _.setInfo
-            let setSummaryGroups = [ eventSetSummaries, h2hSetSummaries ]
-            let setSummaries = arr'concat $ arr'concat setSummaryGroups
-            forM_ setSummaries \{ id, won } -> whenJust id \setId -> do
-              let pairKey = if won then Pos else Neg
-              _'insert (setId /\ pairKey) clmId
-  forM_ (obj'vals legacyBlob.seasons) \season -> do
+    forM_ playerSeasons \(playerSeason) -> do
+      let { events, h2hs } = playerSeason
+      whenJust playerSeason.clmId \clmId -> do
+        let eventSetSummaries = events <#> _.setSummaries
+        let h2hSetSummaries = h2hs <#> \h2h -> h2h.sets <#> _.setInfo
+        let setSummaryGroups = [ eventSetSummaries, h2hSetSummaries ]
+        let setSummaries = arr'concat $ arr'concat setSummaryGroups
+        forM_ setSummaries \{ id, won } -> whenJust id \setId -> do
+          let pairKey = if won then Pos else Neg
+          _'insert (setId /\ pairKey) clmId
+    forM_ playerSeasons \(playerSeason) -> do
+      forM_ playerSeason.h2hs \h2h -> do
+        may'oppId <- x'withReturn \x'return -> do
+          forM_ h2h.sets \{ setInfo } -> do
+            whenJust setInfo.id \setId -> do
+              let oppResult = if setInfo.won then Neg else Pos
+              may'may'oppId <- _'lookup (setId /\ oppResult) <#> Just
+              whenJust may'may'oppId x'return
+          pure Nothing
+        whenJust may'oppId \oppId -> do
+          forM_ h2h.sets \{ setInfo } -> do
+            whenJust setInfo.id \setId -> do
+              let oppResult = if setInfo.won then Neg else Pos
+              _'insert (setId /\ oppResult) oppId
+  x'out $ clmIdBySetResult # hm'vals # groupBy hm'size # map arr'size
+  let allSeasons = obj'vals legacyBlob.seasons
+  let usedSeasons = arr'remove ((==) 0 <<< _.seasonId) allSeasons
+  forM_ usedSeasons \season -> do
     let { seasonId } = season
     forM_ (obj'vals season.players) \player -> do
       let gamerTag = may'or player.name player.tag
@@ -633,6 +654,14 @@ buildLegacySeasons = do
         , lastEvent: { id: sOrN r.eventId, placing: r.placing }
         }
     addRanks seasonId rawRatingData
+    let playerByRank = keyBy _.rank season.ranks
+    forM_ season.ranks \r -> do
+      let
+        playerSeason =
+          obj'lookup r.playerIdent legacyBlob.players >>=
+            obj'lookup (show seasonId)
+      whenNot (isNothing playerSeason) do
+        e'fail $ ClmStE.MissingLegacyPlayerSeason seasonId r.playerIdent
     events <- _'exec_ @(X'HashMap SorN ClmSeason'Event) do
       forM_ (obj'vals season.events) \{ eventId } -> do
         whenJust (obj'lookup (show eventId) legacyBlob.events) \event -> do
@@ -680,6 +709,18 @@ buildSeasonJson allSeasonIds allPlayerSeasons otherPlayerTags seasonId = do
     , otherSeasons: removeCurrSeasonId allSeasonIds
     }
 
+buildPlayerSeasonJson
+  :: forall x. Int -> Int -> ClmV () x @@> ClmPlayer'Season'Json
+buildPlayerSeasonJson seasonId clmId = do
+  x'out { seasonId, clmId }
+  playerSeason <- x'lookup @"clmPlayerSeasons" (seasonId /\ clmId) >>=
+    e'unwrap (ClmStE.MissingPlayerSeason seasonId clmId)
+  pure
+    { sets: hm'vals playerSeason.sets
+    , events: playerSeason.events
+    , h2hs: playerSeason.h2hs
+    }
+
 xRun :: forall x. Array String -> EA' JsError x @@> Unit
 xRun args = do
   x'info args
@@ -705,12 +746,21 @@ xRun args = do
     docsPath <- r'ask <#> \r -> r.pagesCOPath /./ "docs"
     let dbPath = docsPath /./ "db"
     let seasonPath = \id -> dbPath /./ "seasons" /./ (show id <> ".json")
+    let
+      playerSeasonPath = \seasonId clmId ->
+        dbPath /./ "players" /./ show clmId /./ (show seasonId <> ".json")
     e'map ClmStE.RimrafDocs $ x'rimraf docsPath
     forM_ allSeasonIds \seasonId -> do
       seasonJson <-
         buildSeasonJson allSeasonIds allPlayerSeasons otherPlayerTags seasonId
       e'map (ClmStE.WriteSeasonJson seasonId) $
         x'encodeTextFileP (seasonPath seasonId) seasonJson
+    forM_ (hm'entries allPlayerSeasons) \(clmId /\ seasonIds) ->
+      forM_ seasonIds \seasonId -> do
+        playerSeasonJson <-
+          buildPlayerSeasonJson seasonId clmId
+        e'map (ClmStE.WritePlayerSeasonJson seasonId clmId) $
+          x'encodeTextFileP (playerSeasonPath seasonId clmId) playerSeasonJson
   x'info $ case res.v of
     Left e -> encode e
     Right _ -> "data intake: success"

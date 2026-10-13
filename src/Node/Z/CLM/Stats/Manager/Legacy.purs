@@ -1,5 +1,6 @@
 module Node.Z.CLM.Stats.Manager.Legacy
   ( CLMStatsLegacyBlob
+  , CLMStatsLegacyBlob'PlayerSeason
   , CLMStatsLegacyBlob'SetSummary
   ) where
 
@@ -15,6 +16,33 @@ type CLMStatsLegacyBlob'SetSummary =
   , opponentName :: Maybe String
   , winnerName :: Maybe String
   , loserName :: Maybe String
+  }
+
+type CLMStatsLegacyBlob'PlayerSeason =
+  { pid :: String
+  , clmId :: Maybe Int
+  , events ::
+      Array
+        { event :: { eventId :: Int }
+        , placingString :: String
+        , setSummaries :: Array CLMStatsLegacyBlob'SetSummary
+        , numWins :: Int
+        , numLosses :: Int
+        , losses :: Array String
+        , "DQ" :: Boolean
+        }
+  , h2hs ::
+      Array
+        { opponent :: String
+        , rank :: Int
+        , sets ::
+            Array
+              { setInfo :: CLMStatsLegacyBlob'SetSummary
+              , tournamentName :: String
+              , date :: String
+              , slug :: String
+              }
+        }
   }
 
 type CLMStatsLegacyBlob =
@@ -39,33 +67,7 @@ type CLMStatsLegacyBlob =
         , imageUrl :: String
         , eventId :: Int
         }
-  , players ::
-      Object $ Object
-        { pid :: String
-        , clmId :: Maybe Int
-        , events ::
-            Array
-              { event :: { eventId :: Int }
-              , placingString :: String
-              , setSummaries :: Array CLMStatsLegacyBlob'SetSummary
-              , numWins :: Int
-              , numLosses :: Int
-              , losses :: Array String
-              , "DQ" :: Boolean
-              }
-        , h2hs ::
-            Array
-              { opponent :: String
-              , rank :: Int
-              , sets ::
-                  Array
-                    { setInfo :: CLMStatsLegacyBlob'SetSummary
-                    , tournamentName :: String
-                    , date :: String
-                    , slug :: String
-                    }
-              }
-        }
+  , players :: Object $ Object CLMStatsLegacyBlob'PlayerSeason
   , seasons ::
       Object
         { seasonId :: Int
