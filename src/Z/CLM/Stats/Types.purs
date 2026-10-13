@@ -40,6 +40,7 @@ type ClmPlayer =
   , prefix :: Maybe String
   , realName :: Maybe String
   , pronouns :: Maybe String
+  , clmId :: Int
   }
 
 type ClmSeason'Player =
@@ -64,8 +65,9 @@ type ClmSeason'Json =
   { ranks :: Array ClmSeason'Player
   , events :: Array ClmSeason'Event
   , players :: Array ClmPlayer
-  , otherTags :: Array (Int /\ Array String)
-  , otherSeasons :: Array (Int /\ Array Int)
+  , otherPlayerTags :: Array (Int /\ Array String)
+  , otherPlayerSeasons :: Array (Int /\ Array Int)
+  , otherSeasons :: Array Int
   }
 
 type ClmPlayer'Season'Set =
@@ -74,12 +76,18 @@ type ClmPlayer'Season'Set =
   , won :: Boolean
   , dq :: Boolean
   , round :: String
-  , selfScore :: String
-  , oppoScore :: String
-  , opponentName :: Maybe String
-  , winnerName :: Maybe String
-  , loserName :: Maybe String
   , isOverridden :: Boolean
+  , opponentId :: Int
+  , self ::
+      { score :: String
+      , gamerTag :: String
+      , prefix :: Maybe String
+      }
+  , oppo ::
+      { score :: String
+      , gamerTag :: String
+      , prefix :: Maybe String
+      }
   }
 
 type ClmPlayer'Season'Event =

@@ -22,7 +22,7 @@ type Spec'Def k r =
   , doneUpdating :: B'HashSet k String
   , eventsToRefetch :: B'HashSet k String
   , tournamentNameOverrides :: B'HashMap k String String
-  , currentPeriodId :: B'Ref'nt k Int'Default0 Int
+  , defaultPeriodId :: B'Ref'nt k Int'Default0 Int
   , undone :: B'HashSet k String
   | r
   )

@@ -78,7 +78,12 @@ type CLMStatsLegacyBlob =
               { playerId :: Int
               , image :: String
               , name :: String
+              , tag :: Maybe String
               , realName :: Maybe String
+              , prefix :: Maybe String
+              , pronouns :: Maybe String
+              , twitter :: Maybe String
+              , twitch :: Maybe String
               , id :: Int
               , clmId :: Int
               }

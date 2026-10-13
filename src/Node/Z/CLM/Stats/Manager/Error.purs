@@ -10,7 +10,11 @@ data T
   = H2h H2h.Error
   | LoadLegacyData FSDataError
   | MissingPlacing Int Int SorN
+  | MissingPlayer Int
   | InvalidLegacyDate String Int
+  | LegacyMissingClmId Int String
+  | RimrafDocs JsError
+  | WriteSeasonJson Int JsError
   | DebugExit
 
 derive instance Generic T _

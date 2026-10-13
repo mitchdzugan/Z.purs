@@ -277,15 +277,17 @@ data SorN = SorN_S String | SorN_I Int
 class IsStringOrNum a where
   sOrN :: a -> SorN
 
-derive instance Generic.Generic SorN _
 derive instance Eq SorN
 derive instance Ord SorN
 
 instance Dec.DecodeJson SorN where
-  decodeJson x = DecodeGeneric.genericDecodeJson x
+  decodeJson x = case ADec.decodeJson x <#> SorN_S of
+    Either.Left _ -> ADec.decodeJson x <#> SorN_I
+    Either.Right v -> pure v
 
 instance Enc.EncodeJson SorN where
-  encodeJson x = EncodeGeneric.genericEncodeJson x
+  encodeJson (SorN_S s) = Enc.encodeJson s
+  encodeJson (SorN_I i) = Enc.encodeJson i
 
 instance IsStringOrNum String where
   sOrN = SorN_S
