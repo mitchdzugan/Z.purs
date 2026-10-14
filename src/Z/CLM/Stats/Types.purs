@@ -10,6 +10,7 @@ module Z.CLM.Stats.Types
   , ClmSeason'Json
   , ClmSeason'Player
   , ClmSeason'Player'Char
+  , ClmTimeline
   ) where
 
 import Z.Prelude
@@ -114,4 +115,10 @@ type ClmPlayer'Season'Json =
   { sets :: Array ClmPlayer'Season'Set
   , events :: Array ClmPlayer'Season'Event
   , h2hs :: Array ClmPlayer'Season'H2h
+  }
+
+type ClmTimeline =
+  { preDefault :: Array Int
+  , defaultSeasonId :: Int
+  , postDefault :: Array Int
   }

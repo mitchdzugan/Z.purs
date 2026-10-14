@@ -8,6 +8,7 @@ module Z.XDom.UrlState
   , mk
   , parsedHref
   , update
+  , xProvideStaticHistoryX
   ) where
 
 import Z.Prelude
@@ -51,3 +52,11 @@ type RProvider dr x =
   (URL -> Maybe String) -> (T -> XD.MDom dr x Unit) -> XD.MDom dr x Unit
 
 type XProvider dr x = RProvider dr (X'Base x)
+
+xProvideStaticHistoryX
+  :: forall dr x
+   . URL
+  -> (URL -> Maybe String)
+  -> (T -> XD.MDom dr x Unit)
+  -> XD.MDom dr x Unit
+xProvideStaticHistoryX url toTitleOr_ = (#) (mk toTitleOr_ url)
