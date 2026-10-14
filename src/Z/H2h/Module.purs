@@ -66,6 +66,13 @@ instance DecodeJson Score where
 instance EncodeJson Score where
   encodeJson x = genericEncodeJson x
 
+instance Show Score where
+  show (Count n) = show n
+  show (WLBinary { isSetWinner: true, setHasDQ: false }) = "W"
+  show (WLBinary { isSetWinner: false, setHasDQ: false }) = "L"
+  show (WLBinary { isSetWinner: false, setHasDQ: true }) = "DQ"
+  show _ = ""
+
 type Slot =
   { entrantId :: Maybe SorN
   , score :: Score

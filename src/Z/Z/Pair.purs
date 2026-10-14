@@ -3,6 +3,7 @@ module Z.Z.Pair
   , Pair(..)
   , pair'curry
   , pair'get
+  , pair'getOppo
   , pair'swap
   , pair'uncurry
   ) where
@@ -41,6 +42,10 @@ pair'swap (x ~ y) = y ~ x
 pair'get ∷ ∀ a. PairKey -> Pair a -> a
 pair'get Pos (x ~ y) = x
 pair'get Neg (x ~ y) = y
+
+pair'getOppo ∷ ∀ a. PairKey -> Pair a -> a
+pair'getOppo Neg (x ~ y) = x
+pair'getOppo Pos (x ~ y) = y
 
 derive instance Z.Generic (Pair p) _
 derive instance Eq a => Eq (Pair a)

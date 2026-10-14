@@ -12,12 +12,17 @@ data T
   | MissingPlacing Int Int SorN
   | MissingPlayer Int
   | MissingPlayerSeason Int Int
+  | MissingSetEventId Int SorN
+  | MissingTagData Int SorN
   | InvalidLegacyDate String Int
   | LegacyMissingClmId Int String
   | RimrafDocs JsError
   | WriteSeasonJson Int JsError
   | WritePlayerSeasonJson Int Int JsError
   | MissingLegacyPlayerSeason Int String
+  | MissingLegacyEventId Int String
+  | MissingLegacyEventName Int String
+  | MissingLegacyOpponentName String
   | DebugExit
 
 derive instance Generic T _

@@ -1,5 +1,6 @@
 module Node.Z.CLM.Stats.Manager.Legacy
   ( CLMStatsLegacyBlob
+  , CLMStatsLegacyBlob'Event
   , CLMStatsLegacyBlob'PlayerSeason
   , CLMStatsLegacyBlob'SetSummary
   ) where
@@ -18,12 +19,24 @@ type CLMStatsLegacyBlob'SetSummary =
   , loserName :: Maybe String
   }
 
+type CLMStatsLegacyBlob'Event =
+  { eventName :: Maybe String
+  , name :: Maybe String
+  , numEntrants :: Int
+  , date :: Int
+  , slug :: String
+  , prEligible :: Boolean
+  , tournamentName :: String
+  , imageUrl :: String
+  , eventId :: Int
+  }
+
 type CLMStatsLegacyBlob'PlayerSeason =
   { pid :: String
   , clmId :: Maybe Int
   , events ::
       Array
-        { event :: { eventId :: Int }
+        { event :: CLMStatsLegacyBlob'Event
         , placingString :: String
         , setSummaries :: Array CLMStatsLegacyBlob'SetSummary
         , numWins :: Int
@@ -56,17 +69,7 @@ type CLMStatsLegacyBlob =
         , timelineInd :: Int
         , season :: String
         }
-  , events ::
-      Object
-        { eventName :: String
-        , numEntrants :: Int
-        , date :: Int
-        , slug :: String
-        , prEligible :: Boolean
-        , tournamentName :: String
-        , imageUrl :: String
-        , eventId :: Int
-        }
+  , events :: Object CLMStatsLegacyBlob'Event
   , players :: Object $ Object CLMStatsLegacyBlob'PlayerSeason
   , seasons ::
       Object
@@ -74,7 +77,7 @@ type CLMStatsLegacyBlob =
         , title :: String
         , isAll :: Boolean
         , others :: Object Int
-        , events :: Object { eventId :: Int }
+        , events :: Object { eventId :: Int, slug :: String }
         , players ::
             Object
               { playerId :: Int

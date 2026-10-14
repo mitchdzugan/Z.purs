@@ -370,7 +370,7 @@ import Z.Z.Id
   , idented'mk
   , idented'v
   ) as ZId
-import Z.Z.Pair (Pair(..), pair'get, (~)) as ZPair
+import Z.Z.Pair (Pair(..), pair'get, pair'getOppo, pair'swap, (~)) as ZPair
 import Z.Z.PairKey (PairKey(..)) as ZPairKey
 import Z.Z.Passable (pass) as ZPassable
 import Z.Z.Shorthand as ZShorthand

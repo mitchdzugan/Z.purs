@@ -20,7 +20,7 @@ type ClmSeason'Event =
   { eventName :: String
   , numEntrants :: Int
   , date :: DateTime
-  , slug :: String
+  , source :: H2h.EventSource
   , prEligible :: Boolean
   , tournamentName :: String
   , imageUrl :: String
@@ -77,7 +77,7 @@ type ClmPlayer'Season'Set =
   , dq :: Boolean
   , round :: String
   , isOverridden :: Boolean
-  , opponentId :: Int
+  , opponentId :: Maybe Int
   , self ::
       { score :: String
       , gamerTag :: String

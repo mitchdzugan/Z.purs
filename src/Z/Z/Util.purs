@@ -295,6 +295,9 @@ instance IsStringOrNum String where
 instance IsStringOrNum Int where
   sOrN = SorN_I
 
+instance IsStringOrNum SorN where
+  sOrN = identity
+
 instance Show SorN where
   show (SorN_S s) = s
   show (SorN_I i) = show i
