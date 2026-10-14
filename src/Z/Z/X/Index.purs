@@ -123,7 +123,9 @@ module Z.Z.X.Index
   , we'unresult''
   , we'unresult'''
   , x'attemptAff
+  , x'decodeFetched
   , x'do
+  , x'fetch
   , x'info
   , x'logError
   , x'logWarning
@@ -144,10 +146,18 @@ module Z.Z.X.Index
 import Z.Z.X.UtilPrelude
 
 import Control.Promise (Promise, toAff)
+import Data.Argonaut.Decode (class DecodeJson)
 import Data.Either (Either(..))
 import Data.Int (floor)
 import Effect.Aff (Aff, attempt)
 import Effect.Class as EffC
+import Fetch
+  ( class ToCoreRequestOptions
+  , HighlevelRequestOptions
+  , Response
+  , fetch
+  )
+import JS.Fetch.Request (UnsafeRequestOptions)
 import Parsing (Parser)
 import Run.Except (Except, runExceptAt, throwAt)
 import Z.Z.Core
@@ -169,6 +179,7 @@ import Z.Z.Core
 import Z.Z.DateTime (DateTime, dateTime'toMS)
 import Z.Z.Defaultable.Util as D
 import Z.Z.String (str'joinWith)
+import Z.Z.Util (JsonDecodeError(..), decodeForeign)
 import Z.Z.X.Async (AffF(..), x'aff'')
 import Z.Z.X.Core (x'eval, x'eval_, x'exec, x'exec_, x'run, x'run_)
 import Z.Z.X.Methods
@@ -887,3 +898,20 @@ x'withReturn_ = x'withReturn_'' @p
 
 x'timeout :: forall x. Int -> Run (A' x) Unit
 x'timeout ms = fDiscard $ e'try $ e'runEffPromise $ js_timeout ms
+
+x'fetch
+  :: forall x input output @thruIn thruOut headers body
+   . Union input thruIn (HighlevelRequestOptions headers body)
+  => Union output thruOut UnsafeRequestOptions
+  => ToCoreRequestOptions input output
+  => String
+  -> Record input
+  -> Run (E' JsError (A' x)) Response
+x'fetch url opts = e'runAff $ fetch @thruIn url opts
+
+x'decodeFetched
+  :: forall @t x
+   . DecodeJson t
+  => Response
+  -> Run (E' JsError (A' x)) (Either JsonDecodeError t)
+x'decodeFetched { json } = e'runAff json <#> decodeForeign @t

@@ -2,6 +2,7 @@ import * as ini from "ini";
 
 export const js_JsAny = (a) => a;
 export const js_JsAnyToForeign = (a) => a;
+export const js_ForeignToJson = (a) => a;
 export const js_jsonStr = (j) => `${j}`;
 export const js_simpleHash = (str) => {
   let hash = 0;

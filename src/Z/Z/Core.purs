@@ -64,6 +64,7 @@ module Z.Z.Core
   , jsErrorMessage
   , jsErrorName
   , jsErrorStack
+  , jsonFromForeign
   , jsonRmNils
   , jsonStr
   , list'fromFoldable
@@ -357,6 +358,8 @@ foreign import js_JsAny :: forall a. a -> JsAny
 
 foreign import js_JsAnyToForeign :: Arg.Json -> Foreign.Foreign
 
+foreign import js_ForeignToJson :: Foreign.Foreign -> Arg.Json
+
 foreign import js_simpleHash :: String -> Int
 
 foreign import js_jsonStr :: Arg.Json -> String
@@ -383,6 +386,9 @@ jsAny = js_JsAny
 
 encodeForeign :: forall d. EncodeJson d => d -> Foreign.Foreign
 encodeForeign = js_JsAnyToForeign <<< encodeJson
+
+jsonFromForeign :: Foreign.Foreign -> Arg.Json
+jsonFromForeign = js_ForeignToJson
 
 jsonStr :: Arg.Json -> String
 jsonStr = js_jsonStr

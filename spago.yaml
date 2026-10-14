@@ -16,6 +16,7 @@ package:
     - either
     - exceptions
     - exists
+    - fetch
     - filterable
     - foreign-object
     - heterogeneous

@@ -18,3 +18,6 @@ slp-rec *args:
 
 clm-stats *args:
     spago run -m Test.CLMStatsManager -- {{args}}
+
+clm-stats-web:
+    vite test/Web/ClmStats

@@ -28,6 +28,7 @@ module Z.Z.Util
   , decode'
   , decodeErrTypeMismatch
   , decodeFailTypeMismatch
+  , decodeForeign
   , decodeJson
   , decodeJson'
   , decodeViaString
@@ -72,6 +73,7 @@ import Data.Maybe as Maybe
 import Data.Ord as Ord
 import Data.Ordering as Ordering
 import Data.Tuple as Tup
+import Foreign as Foreign
 import Foreign.Object as FO
 import Prim.Symbol as Symbol
 import Type.Proxy as Proxy
@@ -218,6 +220,13 @@ type JsonEncodeFn t = t -> Arg.Json
 
 jsonDecode :: String -> Either.Either JsonDecodeError Arg.Json
 jsonDecode = Dec.fromJsonString >>> Z.mapL JsonDecodeError
+
+decodeForeign
+  :: forall @v
+   . Dec.DecodeJson v
+  => Foreign.Foreign
+  -> Either.Either JsonDecodeError v
+decodeForeign = Z.jsonFromForeign >>> ADec.decodeJson >>> Z.mapL JsonDecodeError
 
 decodeJson'
   :: forall v
