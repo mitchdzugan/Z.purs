@@ -6,6 +6,8 @@ module Z.XDom.Preact
   , js_propsFromPropWs
   , js_renderEl
   , js_renderFragment
+  , js_renderToString
+  , js_renderToStringAsync
   , js_textEl
   , js_throwBoundedError
   , js_withBoundedError
@@ -40,6 +42,9 @@ foreign import js_withBoundedError
   :: forall e. String -> (e -> Unit -> ReactEl) -> (Unit -> ReactEl) -> ReactEl
 
 foreign import js_throwBoundedError :: forall e a. String -> e -> a
+
+foreign import js_renderToString :: ReactEl -> String
+foreign import js_renderToStringAsync :: ReactEl -> Effect (Promise String)
 
 foreign import data DomEvent :: Type
 

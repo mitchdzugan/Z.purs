@@ -62,12 +62,15 @@ module Z.XDom.Core
   , el'href
   , el'key
   , el'onClick
+  , el'renderToString
   , exec'xdom
   , op'el'text
+  , x'renderToStringAsync
   ) where
 
 import Z.Prelude
 
+import Z.XDom.Preact (js_renderToString, js_renderToStringAsync)
 import Z.XDom.Preact as D
 
 data Self dx x = Self (Runner dx) (Runner x)
@@ -358,6 +361,12 @@ baseSelf = Self runner'_ runner'_
 
 exec'xdom :: XDom_ () () -> D.ReactEl
 exec'xdom = renderMEl $ selfDomless $ selfExtend (x'eval_ @"_'x'base") baseSelf
+
+el'renderToString :: D.ReactEl -> String
+el'renderToString = js_renderToString
+
+x'renderToStringAsync :: forall x. D.ReactEl -> Run (EA' JsError x) String
+x'renderToStringAsync = e'runEffPromise <<< js_renderToStringAsync
 
 dom'div :: XDom_domElement_
 dom'div = dom'element "div"

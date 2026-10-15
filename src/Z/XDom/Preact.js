@@ -1,4 +1,9 @@
 import { Fragment, h, Component } from "preact";
+import { 
+    render as renderToString, 
+    renderToStringAsync, 
+    rendertoStringAsync 
+} from "preact-render-to-string"
 
 class StateComponent extends Component {
   constructor(props) {
@@ -87,3 +92,6 @@ export const js_withBoundedError = (at) => (renderError) => (renderChild) =>
 export const js_throwBoundedError = (at) => (e) => {
   throw new BoundedError(at, e);
 };
+
+export const js_renderToString = (el) => renderToString(el);
+export const js_renderToStringAsync = (el) => () => renderToStringAsync(el);
