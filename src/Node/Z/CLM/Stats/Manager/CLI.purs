@@ -905,7 +905,7 @@ xRun args = do
         usedTags <- x'extractAt @"usedTags" clmId <#> hs'vals
         forM_ usedTags \tag -> when (Just tag /= mainTag) do _'consAt clmId tag
     docsPath <- r'ask <#> \r -> r.pagesCOPath /./ "docs"
-    let dbPath = docsPath /./ "db"
+    let dbPath = docsPath /./ "_db"
     let seasonPath = \id -> dbPath /./ "seasons" /./ (show id <> ".json")
     let
       playerSeasonPath = \seasonId clmId ->
@@ -929,7 +929,19 @@ xRun args = do
         , preDefault: arr'filter ((>) spec.defaultSeasonId) allSeasonIds
         , postDefault: arr'filter ((<) spec.defaultSeasonId) allSeasonIds
         }
-    x'out $ mkHtmlDoc clmTimeline pass
+      buildOutputs = { timeline: clmTimeline, dbHash: "asdf" }
+    x'out $ mkHtmlDoc buildOutputs pass
   x'info $ case res.v of
     Left e -> encode e
     Right _ -> "data intake: success"
+
+{--
+Jekyll: _config.yml
+
+collections:
+  db:
+    output: true
+    permalink: /db/asdf234/:path
+
+
+--}

@@ -5,7 +5,7 @@ module Node.Z.CLM.Stats.App.HtmlDoc
 
 import Z.Prelude
 
-import Z.CLM.Stats.Types (ClmTimeline)
+import Z.CLM.Stats.Types (ClmBuildOutputs)
 
 type HtmlDocOpts =
   { jsPath :: String
@@ -15,8 +15,8 @@ type HtmlDocOpts =
   , seasonId :: Int
   }
 
-mkHtmlDoc :: ClmTimeline -> Edit HtmlDocOpts -> String
-mkHtmlDoc timeline edits = str'joinWith ""
+mkHtmlDoc :: ClmBuildOutputs -> Edit HtmlDocOpts -> String
+mkHtmlDoc build edits = str'joinWith ""
   [ """
 <!DOCTYPE html>
 <html lang="en">
@@ -35,12 +35,12 @@ mkHtmlDoc timeline edits = str'joinWith ""
       , encode opts.jsPath <> ">"
       ]
   , """
-        <link rel="preload" href="/db/seasons/"""
-  , show opts.seasonId
+        <link rel="preload" href="/db/"""
+  , build.dbHash <> "/seasons/" <> show opts.seasonId
   , """.json" as="fetch" crossorigin="anonymous">
         <script type="module">
-            document.head.setAttribute(":tl", JSON.stringify("""
-  , encode timeline
+            document.head.setAttribute(":clmBuildMeta", JSON.stringify("""
+  , encode build
   , """));
             import("""
   , encode opts.jsPath
@@ -106,6 +106,6 @@ mkHtmlDoc timeline edits = str'joinWith ""
     , cssPath: "./index.css"
     , body: ""
     , title: "clm stats dev"
-    , seasonId: timeline.defaultSeasonId
+    , seasonId: build.timeline.defaultSeasonId
     }
   opts = edit defaultOpts edits

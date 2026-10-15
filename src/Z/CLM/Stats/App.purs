@@ -2,13 +2,14 @@ module Z.CLM.Stats.App where
 
 import Z.XDom.Prelude
 
+import Z.CLM.Stats.Types (ClmBuildMeta)
 import Z.XDom.UrlState as UrlSt
 
 defaultSeasonId :: Int
 defaultSeasonId = 15
 
-app'mk :: forall dr x. UrlSt.XProvider dr x -> XDom dr x Unit
-app'mk = router'run'' @"router" printRoute parseUrl mkTitleOr_ do
+app'mk :: forall dr x. ClmBuildMeta -> UrlSt.XProvider dr x -> XDom dr x Unit
+app'mk buildMeta = router'run'' @"router" printRoute parseUrl mkTitleOr_ do
   r <- router'routeOrE'' @"router"
   x'out $ show r
   dom'div do

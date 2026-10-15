@@ -1,6 +1,8 @@
 module Z.CLM.Stats.Types
   ( ClmActionData
+  , ClmAppLoadError(..)
   , ClmBuildMeta
+  , ClmBuildOutputs
   , ClmPlayer
   , ClmPlayer'Season
   , ClmPlayer'Season'Event
@@ -128,8 +130,19 @@ type ClmTimeline =
 
 type ClmActionData = { manual :: Array PureAction, auto :: Array PureAction }
 
-type ClmBuildMeta =
-  { actionData :: ClmActionData
-  , timeline :: ClmTimeline
+type ClmBuildOutputs =
+  { timeline :: ClmTimeline
   , dbHash :: String
   }
+
+type ClmBuildMeta =
+  { actionData :: ClmActionData
+  , outputs :: ClmBuildOutputs
+  }
+
+data ClmAppLoadError
+  = MissingHtmlHead
+  | MissingHtmlBody
+  | MissingBuildMeta
+  | InvalidBuildMeta String
+  | HydrateError JsError

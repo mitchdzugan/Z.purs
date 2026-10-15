@@ -85,7 +85,7 @@ import Data.DateTime
   , canonicalDate
   ) as DateTime
 import Data.DateTime.Instant (Instant, instant) as DateTimeInst
-import Data.Either (Either(..), either, hush) as Either
+import Data.Either (Either(..), blush, either, hush) as Either
 import Data.Enum
   ( class BoundedEnum
   , class Enum
