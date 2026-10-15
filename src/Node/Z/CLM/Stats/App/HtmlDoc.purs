@@ -27,19 +27,25 @@ mkHtmlDoc timeline edits = str'joinWith ""
   , opts.title
   , """</title>
         <link href="""
-  , encode opts.cssPath
-  , """ rel="stylesheet">
+  , encode opts.cssPath <> """ rel="stylesheet">"""
+  , if (not $ str'startsWith "/" opts.jsPath) then ""
+    else str'joinWith ""
+      [ """
+        <link rel="modulepreload" href="""
+      , encode opts.jsPath <> ">"
+      ]
+  , """
         <link rel="preload" href="/db/seasons/"""
   , show opts.seasonId
   , """.json" as="fetch" crossorigin="anonymous">
-        <script>
-            document.head[":tl"] = ("""
+        <script type="module">
+            document.head.setAttribute(":tl", JSON.stringify("""
   , encode timeline
-  , """);
-        </script>
-        <script defer src="""
+  , """));
+            import("""
   , encode opts.jsPath
-  , """</script>
+  , """).then(m => m.main());
+        </script>
         <script>
             /*to prevent Firefox FOUC, this must be here*/
             let FF_FOUC_FIX;
@@ -87,7 +93,6 @@ mkHtmlDoc timeline edits = str'joinWith ""
     transform-origin: top;
   }
 }
-
         </style>
     </head>
     <body class="min-h-screen bg-info dark:bg-info-content">"""

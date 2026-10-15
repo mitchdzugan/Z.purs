@@ -1,5 +1,7 @@
 module Z.CLM.Stats.Types
-  ( ClmPlayer
+  ( ClmActionData
+  , ClmBuildMeta
+  , ClmPlayer
   , ClmPlayer'Season
   , ClmPlayer'Season'Event
   , ClmPlayer'Season'H2h
@@ -15,6 +17,7 @@ module Z.CLM.Stats.Types
 
 import Z.Prelude
 
+import Node.Z.CLM.Stats.Manager.Action (PureAction)
 import Z.H2h.Module as H2h
 
 type ClmSeason'Event =
@@ -121,4 +124,12 @@ type ClmTimeline =
   { preDefault :: Array Int
   , defaultSeasonId :: Int
   , postDefault :: Array Int
+  }
+
+type ClmActionData = { manual :: Array PureAction, auto :: Array PureAction }
+
+type ClmBuildMeta =
+  { actionData :: ClmActionData
+  , timeline :: ClmTimeline
+  , dbHash :: String
   }

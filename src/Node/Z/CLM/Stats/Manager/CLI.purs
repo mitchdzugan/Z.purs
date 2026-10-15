@@ -18,13 +18,14 @@ import Node.Z.Gql as Gql
 import Node.Z.H2h as H2h
 import Node.Z.H2h.Startgg.All as All
 import Z.CLM.Stats.Types
-  ( ClmPlayer
+  ( ClmActionData
+  , ClmBuildMeta
+  , ClmPlayer
   , ClmPlayer'Season
   , ClmPlayer'Season'Event
   , ClmPlayer'Season'H2h
   , ClmPlayer'Season'Json
   , ClmPlayer'Season'Set
-  , ClmSeason
   , ClmSeason'Event
   , ClmSeason'Json
   , ClmSeason'Player
@@ -67,10 +68,6 @@ type ClmV r x =
       )
   )
 
-type PureActions = Array Act.PureAction
-
-type ActionData = { manual :: PureActions, auto :: PureActions }
-
 type AutoActionDef =
   (Parser String Unit) /\ (Parser String Unit) /\ (String -> Act.PureAction)
 
@@ -90,7 +87,7 @@ autoActionDefs =
       \slug -> Act.SetIsPrEligible { slug, isEligible: false }
   ]
 
-initialManual :: PureActions
+initialManual :: Array Act.PureAction
 initialManual = map Act.PureAction
   [ Act.AddEvent { slug: "fgzs2x09" }
   , Act.AddEvent $ ggD "melee-at-my-house-1-the-first-one-3" "melee-singles" {}
@@ -119,17 +116,20 @@ initialManual = map Act.PureAction
   , Act.SetClmId { playerSorN: "4253823", clmId: 993 }
   , Act.SetClmId { playerSorN: "5211563", clmId: 1714 }
   , Act.SetClmId { playerSorN: "13423", clmId: 891 }
+  , Act.SetDefaultSeasonId { seasonId: 15 }
   ]
   where
   lastFudds = "fudds-house-17-last-fudds"
   ggD t e r = rec'insert @"slug" ("tournament/" <> t <> "/event/" <> e) r
 
-getActions :: forall r x. PureActions -> Boolean -> ClmV r x @@> ActionData
+getActions
+  :: forall r x. Array Act.PureAction -> Boolean -> ClmV r x @@> ClmActionData
 getActions newActions usePrevAuto = do
   buildDataPath <- r'ask <#> \r -> r.pagesCOPath /./ "build.json"
-  baseRes <- x'decodeTextFile @ActionData buildDataPath # e'try <#> case _ of
+  baseRes <- x'decodeTextFile @ClmBuildMeta buildDataPath # e'try <#> case _ of
     Left _ -> { manual: initialManual <> newActions, auto: [] }
-    Right d -> { manual: d.manual <> newActions, auto: d.auto }
+    Right { actionData } ->
+      { manual: actionData.manual <> newActions, auto: actionData.auto }
   if usePrevAuto then pure baseRes
   else do
     { client } <- r'ask
@@ -894,7 +894,7 @@ xRun args = do
     buildCurrentSeasons spec
     clmSeasonRanks <- x'extract @"clmRanks" <#> hm'entries
     let filtered = arr'filter ((<) 1 <<< arr'size <<< snd) clmSeasonRanks
-    let allSeasonIds = map fst filtered
+    let allSeasonIds = arr'sort $ map fst filtered
     allPlayerSeasons <- map hs'vals <$> _'exec_ @(X'HashSet2D Int Int) do
       forM_ filtered \(seasonId /\ ranks) -> forM_ ranks \{ clmId } -> do
         _'consAt clmId seasonId
@@ -923,13 +923,13 @@ xRun args = do
           buildPlayerSeasonJson seasonId clmId
         e'map (ClmStE.WritePlayerSeasonJson seasonId clmId) $
           x'encodeTextFileP (playerSeasonPath seasonId clmId) playerSeasonJson
-  let
-    clmTimeline =
-      { defaultSeasonId: 14
-      , preDefault: [ 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 ]
-      , postDefault: [ 15 ]
-      }
-  x'out $ mkHtmlDoc clmTimeline pass
+    let
+      clmTimeline =
+        { defaultSeasonId: spec.defaultSeasonId
+        , preDefault: arr'filter ((>) spec.defaultSeasonId) allSeasonIds
+        , postDefault: arr'filter ((<) spec.defaultSeasonId) allSeasonIds
+        }
+    x'out $ mkHtmlDoc clmTimeline pass
   x'info $ case res.v of
     Left e -> encode e
     Right _ -> "data intake: success"

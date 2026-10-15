@@ -15,7 +15,7 @@ data Action r
   | RemoveEvent { slug :: String | r }
   | SetIsPrEligible { slug :: String, isEligible :: Boolean | r }
   | MarkDoneUpdating { slug :: String | r }
-  | SetDefaultPeriodId { periodId :: Int | r }
+  | SetDefaultSeasonId { seasonId :: Int | r }
   | BustCache { slug :: String | r }
   | SetClmId { playerSorN :: String, clmId :: Int | r }
   | SetClmIdForEvent { slug :: String, playerSorN :: String, clmId :: Int | r }
@@ -41,7 +41,7 @@ encodePureAction action = case action of
   (PureAction (SetIsPrEligible p)) -> "SetIsPrEligible" /\ encodeJson p
   (PureAction (MarkDoneUpdating p)) -> "MarkDoneUpdating" /\ encodeJson p
   (PureAction (BustCache p)) -> "BustCache" /\ encodeJson p
-  (PureAction (SetDefaultPeriodId p)) -> "SetDefaultPeriodId" /\ encodeJson p
+  (PureAction (SetDefaultSeasonId p)) -> "SetDefaultSeasonId" /\ encodeJson p
   (PureAction (SetClmId p)) -> "SetClmId" /\ encodeJson p
   (PureAction (SetClmIdForEvent p)) -> "SetClmIdForEvent" /\ encodeJson p
   (PureAction (Bulk p)) -> (/\) "Bulk" $ encodeJson (PureAction <$> p.actions)
@@ -55,7 +55,7 @@ decodePureAction = case _ of
   ("SetIsPrEligible" /\ p) -> d p <#> PureAction <<< SetIsPrEligible
   ("MarkDoneUpdating" /\ p) -> d p <#> PureAction <<< MarkDoneUpdating
   ("BustCache" /\ p) -> d p <#> PureAction <<< BustCache
-  ("SetDefaultPeriodId" /\ p) -> d p <#> PureAction <<< SetDefaultPeriodId
+  ("SetDefaultSeasonId" /\ p) -> d p <#> PureAction <<< SetDefaultSeasonId
   ("Bulk" /\ p) -> d p <#> finishBulk
   (actionLbl /\ _) -> decodeFailTypeMismatch $ "Unknown Action: " <> actionLbl
   where
@@ -77,7 +77,7 @@ assignIds idBase actionsIn =
     SetIsPrEligible props -> SetIsPrEligible $ plusId props locId
     MarkDoneUpdating props -> MarkDoneUpdating $ plusId props locId
     BustCache props -> BustCache $ plusId props locId
-    SetDefaultPeriodId props -> SetDefaultPeriodId $ plusId props locId
+    SetDefaultSeasonId props -> SetDefaultSeasonId $ plusId props locId
     SetClmId props -> SetClmId $ plusId props locId
     SetClmIdForEvent props -> SetClmIdForEvent $ plusId props locId
     Bulk { actions } ->
@@ -108,7 +108,7 @@ actionId (RemoveEvent props) = props.id
 actionId (SetIsPrEligible props) = props.id
 actionId (MarkDoneUpdating props) = props.id
 actionId (BustCache props) = props.id
-actionId (SetDefaultPeriodId props) = props.id
+actionId (SetDefaultSeasonId props) = props.id
 actionId (SetClmId props) = props.id
 actionId (SetClmIdForEvent props) = props.id
 actionId (Bulk props) = props.id
@@ -123,8 +123,8 @@ handleAction (SetIsPrEligible { slug, isEligible }) = slug #
   if isEligible then x'remove @"ineligibleSlugs" else x'cons @"ineligibleSlugs"
 handleAction (MarkDoneUpdating { slug }) = x'cons @"doneUpdating" slug
 handleAction (BustCache { slug }) = x'cons @"eventsToRefetch" slug
-handleAction (SetDefaultPeriodId { periodId }) =
-  x'assign @"defaultPeriodId" periodId
+handleAction (SetDefaultSeasonId { seasonId }) =
+  x'assign @"defaultSeasonId" seasonId
 handleAction (SetClmId { clmId, playerSorN }) =
   x'insert @"clmIdByPlayerId" (sOrN playerSorN) clmId
 handleAction (SetClmIdForEvent { slug, clmId, playerSorN }) =
