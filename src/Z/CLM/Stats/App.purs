@@ -17,21 +17,36 @@ app'mk = router'run'' @"router" printRoute parseUrl mkTitleOr_ do
       dom'text "profile link"
   where
   mkTitleOr_ = Just <<< urlToString <<< _.url
-  parseRouteL Nil = pure $ mkRoute defaultSeasonId Stats
-  parseRouteL _ = Left "Invalid Route"
+  processClmIds (Just hashStr) = do
+    clmIds <- forM (str'split (Pattern "~") hashStr) \idStr -> do
+      case (tryParseInt idStr) of
+        Just clmId -> pure clmId
+        _ -> e'fail $ "clmIds must be integers separated by `~`: " <> hashStr
+    s'set'b @"!.clmIds" clmIds
+  processClmIds _ = pure unit
+  processRouteList Nil = pure unit
+  processRouteList _ = e'fail "Invalid Route"
+  parseUrl u = sync'x $ e'try $ s'exec (mkRoute defaultSeasonId Stats []) do
+    processClmIds $ urlHash u
+    processRouteList $ list'fromFoldable $ urlPathSegments u
+  printRoute (Route r) = "/" <> printRoutePage r.page <> printRouteClmIds
+    r.clmIds
+  printRoutePage Stats = ""
+  printRoutePage Player = "-/"
+  printRoutePage Compare = "compare/"
+  printRoutePage H2hGrid = "h2h/"
+  printRouteClmIds [] = ""
+  printRouteClmIds clmIds = (<>) "#" $ str'joinWith "~" $ clmIds <#> show
 
-  parseUrl :: URL -> Either String Route
-  parseUrl u = parseRouteL $ list'fromFoldable $ urlPathSegments u
+data RoutePage = Stats | Player | Compare | H2hGrid
 
-  printRoute :: Route -> String
-  printRoute _ = "/"
+newtype Route = Route
+  { page :: RoutePage, seasonId :: Int, clmIds :: Array Int }
 
-data RoutePage = Stats | Player | Compare | Grid
+derive instance Newtype Route _
 
-newtype Route = Route (Int /\ RoutePage)
-
-mkRoute :: Int -> RoutePage -> Route
-mkRoute seasonId = Route <<< (/\) seasonId
+mkRoute :: Int -> RoutePage -> Array Int -> Route
+mkRoute seasonId page clmIds = Route { page, seasonId, clmIds }
 
 derive instance Generic Route _
 instance Show Route where

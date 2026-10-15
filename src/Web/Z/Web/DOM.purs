@@ -10,10 +10,12 @@ module Web.Z.Web.DOM
   , runXWeb
   , toEventTarget
   , xAddEventListener
+  , xBody
   , xClosest
   , xDocument
   , xGetAttribute
   , xGetElementById
+  , xHead
   , xLocationUrl
   , xPreventDefault
   , xPushState
@@ -34,6 +36,7 @@ import Web.Event.EventTarget as WebEventT
 import Web.Event.Internal.Types as WET
 import Web.HTML as HTML
 import Web.HTML.HTMLDocument as HTMLDoc
+import Web.HTML.HTMLElement as HTMLEl
 import Web.HTML.History as History
 import Web.HTML.Location as Loc
 import Web.HTML.Window as Window
@@ -43,6 +46,8 @@ type X'Web x = (_'x'web :: X'R XWebR | x)
 type XWebR =
   { window :: XEffWeb Window.Window
   , document :: XEffWeb HTMLDoc.HTMLDocument
+  , body :: XEffWeb (Maybe T.Element)
+  , head :: XEffWeb (Maybe T.Element)
   , locationUrl :: XEffWeb URL
   , getElementById :: String -> XEffWeb (Maybe T.Element)
   , closest :: String -> WET.EventTarget -> XEffWeb (Maybe T.Element)
@@ -86,6 +91,12 @@ instance IsEventTarget HTML.Window where
 getElementById :: String -> HTMLDoc.HTMLDocument -> Effect (Maybe T.Element)
 getElementById s = NEPN.getElementById s <<< HTMLDoc.toNonElementParentNode
 
+getDocumentBody :: HTMLDoc.HTMLDocument -> Effect (Maybe T.Element)
+getDocumentBody doc = HTMLDoc.body doc <#> map HTMLEl.toElement
+
+getDocumentHead :: HTMLDoc.HTMLDocument -> Effect (Maybe T.Element)
+getDocumentHead doc = HTMLDoc.head doc <#> map HTMLEl.toElement
+
 xWindow :: forall x. Run (X'Web x) Window.Window
 xWindow = x'act @"_'x'web" _.window
 
@@ -94,6 +105,12 @@ xLocationUrl = x'act @"_'x'web" \r -> r.locationUrl
 
 xDocument :: forall x. Run (X'Web x) HTMLDoc.HTMLDocument
 xDocument = x'act @"_'x'web" \r -> r.document
+
+xBody :: forall x. Run (X'Web x) (Maybe T.Element)
+xBody = x'act @"_'x'web" \r -> r.body
+
+xHead :: forall x. Run (X'Web x) (Maybe T.Element)
+xHead = x'act @"_'x'web" \r -> r.head
 
 xGetElementById :: forall x. String -> Run (X'Web x) (Maybe T.Element)
 xGetElementById s = x'act @"_'x'web" \r -> r.getElementById s
@@ -206,6 +223,8 @@ xWebR :: XWebR
 xWebR =
   { window: tagEffWebX HTML.window
   , document: tagEffWebX $ HTML.window >>= Window.document
+  , body: tagEffWebX $ HTML.window >>= Window.document >>= getDocumentBody
+  , head: tagEffWebX $ HTML.window >>= Window.document >>= getDocumentHead
   , locationUrl: tagEffWebX do
       win <- HTML.window
       loc <- Window.location win

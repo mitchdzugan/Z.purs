@@ -3,6 +3,7 @@ module Node.Z.CLM.Stats.Manager.CLI where
 import Node.Z.Prelude
 
 import Control.Monad.Rec.Class (Step(..), tailRecM)
+import Node.Z.CLM.Stats.App.HtmlDoc (mkHtmlDoc)
 import Node.Z.CLM.Stats.Manager.Action as Act
 import Node.Z.CLM.Stats.Manager.Constants
   ( luckyStatsIdByClmId
@@ -112,11 +113,12 @@ initialManual = map Act.PureAction
   , Act.MarkDoneUpdating $ ggD "heat-check-uic-4" "melee-singles" {}
   , Act.MarkDoneUpdating $ ggD "vertex-1-1" "melee-singles" {}
   , Act.MarkDoneUpdating $ ggD "fight-night-uic-21" "melee-singles" {}
+  , Act.MarkDoneUpdating $ ggD "fight-night-uic-22" "melee-singles" {}
   , Act.MarkDoneUpdating $ ggD lastFudds "melee-singles" {}
   , Act.MarkDoneUpdating $ ggD lastFudds "melee-amateur-bracket" {}
-  , Act.SetClmId { clmId: 993, playerSorN: "4253823" }
-  , Act.SetClmId { clmId: 1714, playerSorN: "5211563" }
-  , Act.SetClmId { clmId: 891, playerSorN: "13423" }
+  , Act.SetClmId { playerSorN: "4253823", clmId: 993 }
+  , Act.SetClmId { playerSorN: "5211563", clmId: 1714 }
+  , Act.SetClmId { playerSorN: "13423", clmId: 891 }
   ]
   where
   lastFudds = "fudds-house-17-last-fudds"
@@ -872,7 +874,6 @@ buildSeasonJson allSeasonIds allPlayerSeasons otherPlayerTags seasonId = do
 buildPlayerSeasonJson
   :: forall x. Int -> Int -> ClmV () x @@> ClmPlayer'Season'Json
 buildPlayerSeasonJson seasonId clmId = do
-  x'out { seasonId, clmId }
   playerSeason <- x'lookup @"clmPlayerSeasons" (seasonId /\ clmId) >>=
     e'unwrap (ClmStE.MissingPlayerSeason seasonId clmId)
   pure
@@ -915,12 +916,20 @@ xRun args = do
         buildSeasonJson allSeasonIds allPlayerSeasons otherPlayerTags seasonId
       e'map (ClmStE.WriteSeasonJson seasonId) $
         x'encodeTextFileP (seasonPath seasonId) seasonJson
-    forM_ (hm'entries allPlayerSeasons) \(clmId /\ seasonIds) ->
+    forM_ (hm'entries allPlayerSeasons) \(clmId /\ seasonIds) -> do
+      x'out { clmId }
       forM_ seasonIds \seasonId -> do
         playerSeasonJson <-
           buildPlayerSeasonJson seasonId clmId
         e'map (ClmStE.WritePlayerSeasonJson seasonId clmId) $
           x'encodeTextFileP (playerSeasonPath seasonId clmId) playerSeasonJson
+  let
+    clmTimeline =
+      { defaultSeasonId: 14
+      , preDefault: [ 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 ]
+      , postDefault: [ 15 ]
+      }
+  x'out $ mkHtmlDoc clmTimeline pass
   x'info $ case res.v of
     Left e -> encode e
     Right _ -> "data intake: success"

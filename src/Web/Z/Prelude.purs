@@ -28,10 +28,12 @@ import Web.Z.Web.DOM
   , runXWeb
   , toEventTarget
   , xAddEventListener
+  , xBody
   , xClosest
   , xDocument
   , xGetAttribute
   , xGetElementById
+  , xHead
   , xLocationUrl
   , xPreventDefault
   , xPushState

@@ -1,8 +1,7 @@
 import { Fragment, h, Component } from "preact";
 import { 
     render as renderToString, 
-    renderToStringAsync, 
-    rendertoStringAsync 
+    renderToStringAsync,
 } from "preact-render-to-string"
 
 class StateComponent extends Component {

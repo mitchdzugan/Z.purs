@@ -12,6 +12,7 @@ type HtmlDocOpts =
   , cssPath :: String
   , title :: String
   , body :: String
+  , seasonId :: Int
   }
 
 mkHtmlDoc :: ClmTimeline -> Edit HtmlDocOpts -> String
@@ -28,6 +29,9 @@ mkHtmlDoc timeline edits = str'joinWith ""
         <link href="""
   , encode opts.cssPath
   , """ rel="stylesheet">
+        <link rel="preload" href="/db/seasons/"""
+  , show opts.seasonId
+  , """.json" as="fetch" crossorigin="anonymous">
         <script>
             document.head[":tl"] = ("""
   , encode timeline
@@ -92,5 +96,11 @@ mkHtmlDoc timeline edits = str'joinWith ""
 </html>"""
   ]
   where
-  defaultOpts = { jsPath: "", cssPath: "", body: "", title: "clm stats dev" }
+  defaultOpts =
+    { jsPath: "../../../output/Test.Web.ClmStats.Main/index.js"
+    , cssPath: "./index.css"
+    , body: ""
+    , title: "clm stats dev"
+    , seasonId: timeline.defaultSeasonId
+    }
   opts = edit defaultOpts edits

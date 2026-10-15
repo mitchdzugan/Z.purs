@@ -19,5 +19,11 @@ slp-rec *args:
 clm-stats *args:
     spago run -m Test.CLMStatsManager -- {{args}}
 
-clm-stats-web:
+[parallel]
+clm-stats-web: clm-stats-web-vite spago-watch
+
+clm-stats-web-vite:
     vite test/Web/ClmStats
+
+spago-watch:
+    find src/ test/ | entr -s 'spago build'
