@@ -2,6 +2,7 @@ module Node.Z.Git.Client
   ( GitClient
   , GitError(..)
   , git'add
+  , git'checkout
   , git'client
   , git'client'baseDir
   , git'commit
@@ -19,10 +20,9 @@ import Prelude
 import Data.Argonaut.Encode (class EncodeJson)
 import Data.Argonaut.Encode.Generic (genericEncodeJson)
 import Data.Generic.Rep (class Generic)
-import Effect (Effect)
 import Node.Z.Sys.SysImpl (class Pathlike, pathStr)
 import Z.Z.Core (EffPromise, JsError)
-import Z.Z.X.Index (type (@@>), EA', e'runEffA, e'runEffPromise, (!$!))
+import Z.Z.X.Index (type (@@>), EA', e'runEffPromise, (!$!))
 
 foreign import data GitClient :: Type
 
@@ -36,6 +36,7 @@ foreign import js_revParse
 
 foreign import js_add :: GitClient -> Boolean -> EffPromise Unit
 foreign import js_commit :: GitClient -> String -> EffPromise Unit
+foreign import js_checkout :: GitClient -> Array String -> EffPromise Unit
 
 data GitError
   = GitError'pull String JsError
@@ -44,6 +45,7 @@ data GitError
   | GitError'revParse String JsError
   | GitError'add String JsError
   | GitError'commit String JsError
+  | GitError'checkout String JsError
 
 derive instance Generic GitError _
 instance EncodeJson GitError where
@@ -66,6 +68,9 @@ err'add c = GitError'add $ js_clientBaseDir c
 
 err'commit :: GitClient -> JsError -> GitError
 err'commit c = GitError'commit $ js_clientBaseDir c
+
+err'checkout :: GitClient -> JsError -> GitError
+err'checkout c = GitError'checkout $ js_clientBaseDir c
 
 ----------------------------
 
@@ -104,3 +109,6 @@ git'add c all = err'add c !$! e'runEffPromise $ js_add c all
 
 git'commit :: forall x. GitClient -> String -> EA' GitError x @@> Unit
 git'commit c message = err'commit c !$! e'runEffPromise $ js_commit c message
+
+git'checkout :: forall x. GitClient -> Array String -> EA' GitError x @@> Unit
+git'checkout c paths = err'checkout c !$! e'runEffPromise $ js_checkout c paths

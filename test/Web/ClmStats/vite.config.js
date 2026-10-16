@@ -1,17 +1,19 @@
 import { defineConfig } from "vite";
 import tailwindcss from "@tailwindcss/vite";
-import path from "path";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const pagesDir = process.env["CLM_STATS_PAGES_CO"];
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-if (!pagesDir) {
-  throw "CLM_STATS_PAGES_CO required";
-}
+const publicDir = path.join(__dirname, "static");
 
-const publicDir = path.join(pagesDir, "docs");
+const target = "http://localhost:4000";
+const proxyServer = { proxy: { "/db": { target, changeOrigin: true } } };
 
 export default defineConfig({
   build: { watch: { buildDelay: 100 } },
   plugins: [tailwindcss()],
   publicDir,
+  server: proxyServer
 });

@@ -1,4 +1,6 @@
-module Node.Z.CLM.Stats.Manager.CLI where
+module Node.Z.CLM.Stats.Manager.CLI
+  ( xRun
+  ) where
 
 import Node.Z.Prelude
 
@@ -17,6 +19,7 @@ import Node.Z.CLM.Stats.Queries as Q
 import Node.Z.Git.Client
   ( GitClient
   , git'add
+  , git'checkout
   , git'client
   , git'client'baseDir
   , git'commit
@@ -179,9 +182,6 @@ getActions newActions usePrevAuto = do
     { client } <- r'ask
     before <- get'nowMS'Rounded
     let after = 1767225600
-    x'out { before, after }
-    (r'ask <#> _.nowMS'number <#> floor) >>= x'out
-    (r'ask <#> _.nowMS'number) >>= x'out
     let pSpecs = [ All.ggPageSpec (__ @"page") (__ @"tournaments") ]
     let initVars = { after, before, page: 0 }
     clmEvents <- wrapH2hWE $
@@ -314,9 +314,9 @@ runClm m = do
   appCOPath <- getEnv "CLM_STATS_APP_CO"
   pagesCOPath <- getEnv "CLM_STATS_PAGES_CO"
   client <- pure $ H2h.mkClient do
-    s'set'b @"authToken" $ Just ggAuth
+    s'setPure'b @"authToken" ggAuth
     let cachePath = dataRoot /./ "cache" /./ "startgg.gqlCache"
-    s'set'b @"cachePath" $ Just $ pathStr $ cachePath
+    s'setPure'b @"cachePath" $ pathStr cachePath
   activeSeasonId <- getActiveSeasonId
   let tryDecode = x'decodeTextFile $ dataRoot /./ "FULL_LEGACY.json"
   legacyBlob <- e'try tryDecode >>= e'ok <<< constL (jsError "legacy read" "")
@@ -482,7 +482,7 @@ buildCurrentSeasons spec = do
             hm'lookup H2h.Profile event.tournament.images
         , eventId: event.id
         }
-    s'eval 0 $ whr'eval @Int show (s'set'b @"w2" $ Just 20) do
+    s'eval 0 $ whr'eval @Int show (s'setPure'b @"w2" 20) do
       x'extract @"setGroups" >>= flip forM_ \sets -> do
         groupCount <- s'get
         anyCounted <- s'exec false do
@@ -976,14 +976,13 @@ xRun args = do
         e'map (ClmStE.WritePlayerSeasonJson seasonId clmId) $
           x'encodeTextFileP (playerSeasonPath seasonId clmId) playerSeasonJson
     pagesClient <- getGitClient GitClient'Pages
-    isCurrentlyClean <- ClmStE.GitClientError !$! git'isClean pagesClient
-    x'out { isCurrentlyClean }
+    hasDBChanges <- ClmStE.GitClientError !$! git'isClean pagesClient <#> not
     gitMsg'auto <- get'nowMS'Rounded <#> \n -> "autoActions:ts@" <:> n
-    gitMsg'ts <- r'ask <#> \r -> "ts@" <:> floor r.nowMS'number
+    gitMsg'ts <- r'ask <#> \r -> "ts@" <:> floor (r.nowMS'number / 1000.0)
     let gitMsg'new = "newActions[" <:> arr'size newActions <:> "]"
-    let gitMsg'parts l p = arr'concat [ [ "clm-stats", l, "|" ], p, [ "|" ] ]
-    let gitMsg'mk label pieces = str'joinWith " " $ gitMsg'parts label pieces
-    whenNot isCurrentlyClean do
+    let gitMsg'mkParts l p = arr'concat [ [ "clm-stats", l, "|" ], p, [ "|" ] ]
+    let gitMsg'mk label pieces = str'joinWith " " $ gitMsg'mkParts label pieces
+    when hasDBChanges do
       let gitMsg = gitMsg'mk "db" [ gitMsg'ts, gitMsg'auto, gitMsg'new ]
       ClmStE.GitClientError !$! git'add pagesClient true
       ClmStE.GitClientError !$! git'commit pagesClient gitMsg
@@ -996,21 +995,29 @@ xRun args = do
         , postDefault: arr'filter ((<) spec.defaultSeasonId) allSeasonIds
         }
       buildOutputs = { timeline: clmTimeline, dbHash }
+    e'map ClmStE.RimrafDB $ x'rimraf docsPath
     buildMetaPath <- getBuildMetaPath
     x'encodeTextFileP buildMetaPath (clmBuildMeta actionData buildOutputs) !!-
       ClmStE.WriteBuildMeta
-    x'out $ mkHtmlDoc buildOutputs pass
+    let configPath = docsPath /./ "_config.yml"
+    ClmStE.WriteJekyllConfig -!! x'writeTextFileP configPath $ w'str'nl \w -> do
+      w $ "collections:"
+      w $ "  db:"
+      w $ "    output: true"
+      w $ "    permalink: /db/" <> dbHash <> "/:path"
+      w $ ""
+    ClmStE.GitClientError !$! git'checkout pagesClient [ pathStr dbPath ]
+    hasDocsChanges <- ClmStE.GitClientError !$! git'isClean pagesClient <#> not
+    x'out { hasDocsChanges }
+    when hasDocsChanges do
+      appClient <- getGitClient GitClient'Pages
+      appHash <- ClmStE.GitClientError !$! git'lastCommitShort appClient
+      let gitMsg'app = "app#" <> appHash
+      let gitMsg'parts = [ gitMsg'ts, gitMsg'auto, gitMsg'new, gitMsg'app ]
+      let gitMsg = gitMsg'mk "docs" gitMsg'parts
+      ClmStE.GitClientError !$! git'add pagesClient true
+      ClmStE.GitClientError !$! git'commit pagesClient gitMsg
+      ClmStE.GitClientError !$! git'push pagesClient
   x'info $ case res.v of
     Left e -> encode e
     Right _ -> "data intake: success"
-
-{--
-Jekyll: _config.yml
-
-collections:
-  db:
-    output: true
-    permalink: /db/asdf234/:path
-
-
---}

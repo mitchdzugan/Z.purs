@@ -1,7 +1,7 @@
 module Z.Z.X.Index
-  ( (!#!)
+  ( (!!-)
+  , (!#!)
   , (!$!)
-  , (!!-)
   , (-!!)
   , A'
   , E'
@@ -88,6 +88,8 @@ module Z.Z.X.Index
   , s'run
   , s'set
   , s'set'b
+  , s'setPure
+  , s'setPure'b
   , s'toArrayOf
   , s'toArrayOf'b
   , s'update
@@ -196,6 +198,8 @@ import Z.Z.X.Methods
   , T'x'preview'b
   , T'x'set
   , T'x'set'b
+  , T'x'setPure
+  , T'x'setPure'b
   , T'x'toArrayOf
   , T'x'toArrayOf'b
   , T'x'view
@@ -211,6 +215,8 @@ import Z.Z.X.Methods
   , x'preview'b
   , x'set
   , x'set'b
+  , x'setPure
+  , x'setPure'b
   , x'toArrayOf
   , x'toArrayOf'b
   , x'update
@@ -728,6 +734,12 @@ s'set = Methods.x'set @p
 
 s'set'b :: forall @sym p. T'use's'AsSym p (T'x'set'b sym)
 s'set'b = Methods.x'set'b @p @sym
+
+s'setPure :: forall p. T'use's'AsSym p T'x'setPure
+s'setPure = Methods.x'setPure @p
+
+s'setPure'b :: forall @sym p. T'use's'AsSym p (T'x'setPure'b sym)
+s'setPure'b = Methods.x'setPure'b @p @sym
 
 s'over :: forall p. T'use's'AsSym p T'x'over
 s'over = Methods.x'over @p

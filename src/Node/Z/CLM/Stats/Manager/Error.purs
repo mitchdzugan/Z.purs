@@ -18,9 +18,11 @@ data T
   | InvalidLegacyDate String Int
   | LegacyMissingClmId Int String
   | RimrafDocs JsError
+  | RimrafDB JsError
   | WriteSeasonJson Int JsError
   | WritePlayerSeasonJson Int Int JsError
   | WriteBuildMeta
+  | WriteJekyllConfig
   | MissingLegacyPlayerSeason Int String
   | MissingLegacyEventId Int String
   | MissingLegacyEventName Int String

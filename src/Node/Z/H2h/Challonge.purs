@@ -49,8 +49,8 @@ getEventDataImpl = do
     { slug } <- r'ask
     let url = "https://challonge.com/" <> slug
     x'info { op: "xGoto", url }
-    pDo "xGoto" url $ P.xGoto page url $ s'set'b @"waitUntil" $ Just
-      P.DOMContentLoaded
+    pDo "xGoto" url $ P.xGoto page url do
+      s'setPure'b @"waitUntil" P.DOMContentLoaded
     pWaitFor page ".redesigned-meta-list .item .text"
     pWaitFor page ".title #title"
     pWaitFor page ".bracket-svg .match .match--player"
@@ -73,10 +73,9 @@ getEventDataImpl = do
       itemText <- pEl el ".text" >>= pInnerText
       when (itemLabel == "Start Time" || itemLabel == "Start") do
         date <- H2hE.ParseTime !$! e'runParser itemText parseDate
-        s'set'b @"dateOrE" $ Right date
-        pure unit
+        s'setPure'b @"dateOrE" date
       when (itemLabel == "Game") do
-        s'set'b @"nameOrE" $ Right itemText
+        s'setPure'b @"nameOrE" itemText
       when (itemLabel == "Format") do
         s'set'b @"isDE" $ itemText == "Double Elimination"
     name <- s'view'b @"nameOrE" >>= e'ok
@@ -326,7 +325,7 @@ getEventDataImpl = do
   pReadIdDataAttr e n = pReadDataAttr e n <#> sOrN
   pWaitFor page sel = pDo "waitFor" sel do
     x'info { op: "waitFor", sel }
-    P.xWaitForSelector page sel $ s'set'b @"timeout" $ Just 120000
+    P.xWaitForSelector page sel $ s'setPure'b @"timeout" 120000
 
 userAgent :: String
 userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" <+>

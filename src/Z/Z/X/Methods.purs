@@ -10,6 +10,8 @@ module Z.Z.X.Methods
   , T'x'preview'b
   , T'x'set
   , T'x'set'b
+  , T'x'setPure
+  , T'x'setPure'b
   , T'x'toArrayOf
   , T'x'toArrayOf'b
   , T'x'update
@@ -60,6 +62,8 @@ module Z.Z.X.Methods
   , x'result
   , x'set
   , x'set'b
+  , x'setPure
+  , x'setPure'b
   , x'size
   , x'sizeAt
   , x'toArrayOf
@@ -78,8 +82,12 @@ import Data.Lens (Forget, Optic, over, preview, set, toArrayOf, view)
 import Data.List (List)
 import Data.Maybe (isJust)
 import Data.Monoid.Endo (Endo)
-import Z.Z.Barlow (class C'Barlow, First, barlow)
-import Z.Z.Core (Eff'At, T'useAsSym)
+import Z.Z.Barlow
+  ( class C'Barlow
+  , First
+  , barlow
+  )
+import Z.Z.Core (Eff'At)
 import Z.Z.X.Core
   ( class X'RespondsTo
   , class X'Results
@@ -441,6 +449,36 @@ type T'x'set'b sym p =
 
 x'set'b :: forall @p @sym. T'x'set'b sym p
 x'set'b = x'set @p $ barlow @sym
+
+---------------------------------------------------------------------
+
+type T'x'setPure p =
+  forall m x' x t resp'rest t'rest a b app
+   . ConsSymbol p m x' x
+  => X'RespondsTo m (VariantF $ T'extract t $ T'assign t resp'rest)
+       (T'self t t'rest)
+  => Applicative app
+  => Optic Function t t a (app b)
+  -> b
+  -> Run x Unit
+
+x'setPure :: forall @p. T'x'setPure p
+x'setPure l = x'set @p l <<< pure
+
+---------------------------------------------------------------------
+
+type T'x'setPure'b sym p =
+  forall lenses m x' x t resp'rest t'rest a b app
+   . ConsSymbol p m x' x
+  => X'RespondsTo m (VariantF $ T'extract t $ T'assign t resp'rest)
+       (T'self t t'rest)
+  => Applicative app
+  => C'Barlow sym lenses Function t t a (app b)
+  => b
+  -> Run x Unit
+
+x'setPure'b :: forall @p @sym. T'x'setPure'b sym p
+x'setPure'b = x'set'b @p @sym <<< pure
 
 ---------------------------------------------------------------------
 
