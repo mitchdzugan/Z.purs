@@ -20,6 +20,7 @@
   "dependencies": {
     "@slippi/slippi-js": "^9.1.2",
     "env-paths": "^4.0.0",
+    "git-client": "^1.12.1",
     "graphql": "^16.14.2",
     "graphql-request": "^7.4.0",
     "ini": "^7.0.0",

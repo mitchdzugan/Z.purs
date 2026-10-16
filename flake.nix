@@ -17,6 +17,7 @@
               pkgs.nodejs_26
               pkgs.entr
               pkgs.esbuild
+              pkgs.git
               pkgs.just
             ];
             shellHook = ''

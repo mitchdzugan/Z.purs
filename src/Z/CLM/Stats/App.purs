@@ -10,6 +10,7 @@ defaultSeasonId = 15
 
 app'mk :: forall dr x. ClmBuildMeta -> UrlSt.XProvider dr x -> XDom dr x Unit
 app'mk buildMeta = router'run'' @"router" printRoute parseUrl mkTitleOr_ do
+  x'out { buildMeta }
   r <- router'routeOrE'' @"router"
   x'out $ show r
   dom'div do

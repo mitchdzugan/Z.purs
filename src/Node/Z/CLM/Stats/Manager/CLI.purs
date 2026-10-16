@@ -14,12 +14,24 @@ import Node.Z.CLM.Stats.Manager.Legacy as ClmStLegacy
 import Node.Z.CLM.Stats.Manager.Spec as Spec
 import Node.Z.CLM.Stats.Manager.Warning as ClmStW
 import Node.Z.CLM.Stats.Queries as Q
+import Node.Z.Git.Client
+  ( GitClient
+  , git'add
+  , git'client
+  , git'client'baseDir
+  , git'commit
+  , git'isClean
+  , git'lastCommitShort
+  , git'pull
+  , git'push
+  , git'status
+  )
 import Node.Z.Gql as Gql
 import Node.Z.H2h as H2h
 import Node.Z.H2h.Startgg.All as All
 import Z.CLM.Stats.Types
   ( ClmActionData
-  , ClmBuildMeta
+  , ClmBuildMeta(..)
   , ClmPlayer
   , ClmPlayer'Season
   , ClmPlayer'Season'Event
@@ -30,6 +42,7 @@ import Z.CLM.Stats.Types
   , ClmSeason'Json
   , ClmSeason'Player
   , ClmSeason'Player'Char
+  , clmBuildMeta
   )
 
 wrapH2hWE
@@ -37,6 +50,8 @@ wrapH2hWE
    . Run (WaE' H2h.Warning H2h.Error $ WaE' ClmStW.T ClmStE.T x) a
   -> Run (WaE' ClmStW.T ClmStE.T x) a
 wrapH2hWE = we'map ClmStW.H2h ClmStE.H2h
+
+data GitClientLabel = GitClient'App | GitClient'Pages
 
 type EnvR r =
   { isProdEnv :: Boolean
@@ -47,6 +62,9 @@ type EnvR r =
   , client :: Gql.Client
   , activeSeasonId :: Int
   , legacyBlob :: ClmStLegacy.CLMStatsLegacyBlob
+  , pages'git :: GitClient
+  , app'git :: GitClient
+  , nowMS'number :: Number
   | r
   }
 
@@ -78,7 +96,7 @@ defAutoAction
   -> (String -> Act.Action ())
   -> AutoActionDef
 defAutoAction p1 p2 f =
-  (p1 <#> const unit) /\ (p2 <#> const unit) /\ (Act.PureAction <<< f)
+  (p1 *> pure unit) /\ (p2 *> pure unit) /\ (Act.PureAction <<< f)
 
 autoActionDefs :: Array AutoActionDef
 autoActionDefs =
@@ -122,21 +140,48 @@ initialManual = map Act.PureAction
   lastFudds = "fudds-house-17-last-fudds"
   ggD t e r = rec'insert @"slug" ("tournament/" <> t <> "/event/" <> e) r
 
+getBuildMetaPath :: forall r x. ClmV r x @@> Path
+getBuildMetaPath = r'ask <#> \r -> r.pagesCOPath /./ "build.json"
+
+getGitClient :: forall r x. GitClientLabel -> ClmV r x @@> GitClient
+getGitClient GitClient'App = r'ask <#> \r -> r.app'git
+getGitClient GitClient'Pages = r'ask <#> \r -> r.pages'git
+
+git'ensureClean :: forall r x. GitClientLabel -> ClmV r x @@> Unit
+git'ensureClean label = do
+  client <- getGitClient label
+  let baseDir = git'client'baseDir client
+  status <- ClmStE.GitClientError !$! git'status client true
+  let uncleanErr = ClmStE.GitDirUnclean baseDir status
+  if status == "" then pure unit else e'fail uncleanErr
+
+git'ensureCleanLatest :: forall r x. GitClientLabel -> ClmV r x @@> Unit
+git'ensureCleanLatest label = do
+  client <- getGitClient label
+  git'ensureClean label
+  ClmStE.GitClientError !$! git'pull client
+  git'ensureClean label
+
+get'nowMS'Rounded :: forall r x. ClmV r x @@> Int
+get'nowMS'Rounded = r'ask <#> _.nowMS'number <#> \n ->
+  (60 * 60 * 24 * floor (n / 1000.0 / 24.0 / 60.0 / 60.0)) + (24 * 60 * 60)
+
 getActions
   :: forall r x. Array Act.PureAction -> Boolean -> ClmV r x @@> ClmActionData
 getActions newActions usePrevAuto = do
-  buildDataPath <- r'ask <#> \r -> r.pagesCOPath /./ "build.json"
-  baseRes <- x'decodeTextFile @ClmBuildMeta buildDataPath # e'try <#> case _ of
+  buildMetaPath <- getBuildMetaPath
+  baseRes <- x'decodeTextFile @ClmBuildMeta buildMetaPath # e'try <#> case _ of
     Left _ -> { manual: initialManual <> newActions, auto: [] }
-    Right { actionData } ->
+    Right (ClmBuildMeta { actionData }) ->
       { manual: actionData.manual <> newActions, auto: actionData.auto }
   if usePrevAuto then pure baseRes
   else do
     { client } <- r'ask
-    before <- x'nowMS'number <#>
-      \n -> (60 * 60 * 24 * floor (n / 1000.0 / 24.0 / 60.0 / 60.0)) +
-        (24 * 60 * 60)
+    before <- get'nowMS'Rounded
     let after = 1767225600
+    x'out { before, after }
+    (r'ask <#> _.nowMS'number <#> floor) >>= x'out
+    (r'ask <#> _.nowMS'number) >>= x'out
     let pSpecs = [ All.ggPageSpec (__ @"page") (__ @"tournaments") ]
     let initVars = { after, before, page: 0 }
     clmEvents <- wrapH2hWE $
@@ -285,6 +330,7 @@ runClm m = do
       pure $ sOrN ggId /\ clmId
   playerIdsByClmId <- _'exec_ @(X'HashSet2D Int SorN) do
     forM_ (hm'entries clmIdByPlayerId) \(pId /\ clmId) -> _'consAt clmId pId
+  nowMS'number <- x'nowMS'number
   we'runResult
     $ x'eval_ @"clmRanks"
     $ x'eval_ @"clmEvents"
@@ -305,6 +351,9 @@ runClm m = do
         , client
         , legacyBlob
         , activeSeasonId
+        , pages'git: git'client pagesCOPath
+        , app'git: git'client appCOPath
+        , nowMS'number
         }
 
 placeholderImageUrl :: String
@@ -886,7 +935,8 @@ xRun :: forall x. Array String -> EA' JsError x @@> Unit
 xRun args = do
   x'info args
   res <- runClm do
-    actionData <- getActions [] false
+    let newActions = []
+    actionData <- getActions newActions false
     let spec = Act.buildSpec $ actionData.manual <> actionData.auto
     forM_ (hm'entries spec.clmIdByPlayerId) \(clmId /\ playerId) ->
       addPlayerIdToClmId clmId playerId
@@ -904,13 +954,15 @@ xRun args = do
         mainTag <- x'lookup @"clmPlayers" clmId <#> map _.gamerTag
         usedTags <- x'extractAt @"usedTags" clmId <#> hs'vals
         forM_ usedTags \tag -> when (Just tag /= mainTag) do _'consAt clmId tag
+    git'ensureCleanLatest GitClient'Pages
+    git'ensureCleanLatest GitClient'App
     docsPath <- r'ask <#> \r -> r.pagesCOPath /./ "docs"
     let dbPath = docsPath /./ "_db"
     let seasonPath = \id -> dbPath /./ "seasons" /./ (show id <> ".json")
     let
       playerSeasonPath = \seasonId clmId ->
         dbPath /./ "players" /./ show clmId /./ (show seasonId <> ".json")
-    e'map ClmStE.RimrafDocs $ x'rimraf docsPath
+    e'map ClmStE.RimrafDocs $ x'rimraf dbPath
     forM_ allSeasonIds \seasonId -> do
       seasonJson <-
         buildSeasonJson allSeasonIds allPlayerSeasons otherPlayerTags seasonId
@@ -923,13 +975,30 @@ xRun args = do
           buildPlayerSeasonJson seasonId clmId
         e'map (ClmStE.WritePlayerSeasonJson seasonId clmId) $
           x'encodeTextFileP (playerSeasonPath seasonId clmId) playerSeasonJson
+    pagesClient <- getGitClient GitClient'Pages
+    isCurrentlyClean <- ClmStE.GitClientError !$! git'isClean pagesClient
+    x'out { isCurrentlyClean }
+    gitMsg'auto <- get'nowMS'Rounded <#> \n -> "autoActions:ts@" <:> n
+    gitMsg'ts <- r'ask <#> \r -> "ts@" <:> floor r.nowMS'number
+    let gitMsg'new = "newActions[" <:> arr'size newActions <:> "]"
+    let gitMsg'parts l p = arr'concat [ [ "clm-stats", l, "|" ], p, [ "|" ] ]
+    let gitMsg'mk label pieces = str'joinWith " " $ gitMsg'parts label pieces
+    whenNot isCurrentlyClean do
+      let gitMsg = gitMsg'mk "db" [ gitMsg'ts, gitMsg'auto, gitMsg'new ]
+      ClmStE.GitClientError !$! git'add pagesClient true
+      ClmStE.GitClientError !$! git'commit pagesClient gitMsg
+      ClmStE.GitClientError !$! git'push pagesClient
+    dbHash <- ClmStE.GitClientError !$! git'lastCommitShort pagesClient
     let
       clmTimeline =
         { defaultSeasonId: spec.defaultSeasonId
         , preDefault: arr'filter ((>) spec.defaultSeasonId) allSeasonIds
         , postDefault: arr'filter ((<) spec.defaultSeasonId) allSeasonIds
         }
-      buildOutputs = { timeline: clmTimeline, dbHash: "asdf" }
+      buildOutputs = { timeline: clmTimeline, dbHash }
+    buildMetaPath <- getBuildMetaPath
+    x'encodeTextFileP buildMetaPath (clmBuildMeta actionData buildOutputs) !!-
+      ClmStE.WriteBuildMeta
     x'out $ mkHtmlDoc buildOutputs pass
   x'info $ case res.v of
     Left e -> encode e

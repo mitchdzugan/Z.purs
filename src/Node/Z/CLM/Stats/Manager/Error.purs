@@ -4,6 +4,7 @@ module Node.Z.CLM.Stats.Manager.Error
 
 import Node.Z.Prelude
 
+import Node.Z.Git.Client (GitError)
 import Z.H2h.Module as H2h
 
 data T
@@ -19,11 +20,14 @@ data T
   | RimrafDocs JsError
   | WriteSeasonJson Int JsError
   | WritePlayerSeasonJson Int Int JsError
+  | WriteBuildMeta
   | MissingLegacyPlayerSeason Int String
   | MissingLegacyEventId Int String
   | MissingLegacyEventName Int String
   | MissingLegacyOpponentName String
   | DebugExit
+  | GitClientError GitError
+  | GitDirUnclean String String
 
 derive instance Generic T _
 instance EncodeJson T where

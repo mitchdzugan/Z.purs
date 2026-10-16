@@ -72,7 +72,7 @@ getEventDataImpl = do
       itemLabel <- pEl el ".item-label" >>= pInnerText
       itemText <- pEl el ".text" >>= pInnerText
       when (itemLabel == "Start Time" || itemLabel == "Start") do
-        date <- H2hE.ParseTime <!$> e'runParser itemText parseDate
+        date <- H2hE.ParseTime !$! e'runParser itemText parseDate
         s'set'b @"dateOrE" $ Right date
         pure unit
       when (itemLabel == "Game") do
@@ -88,7 +88,7 @@ getEventDataImpl = do
       matchEls <- pEls bracketEl ".match"
       forM_ matchEls \matchEl -> x'eval_ @"winnerId" @(X'Ref (Maybe SorN)) do
         setId <- pReadDataAttr matchEl "match" >>=
-          \matchAttr -> H2hE.ParseMatchId <!$> e'runParser matchAttr parseInt
+          \matchAttr -> H2hE.ParseMatchId !$! e'runParser matchAttr parseInt
         playerEls <- pEls matchEl ".match--player"
         slots <- forM playerEls $ \playerEl -> do
           entrantId <- pReadIdDataAttr playerEl "participant"
@@ -96,7 +96,7 @@ getEventDataImpl = do
           scoreEl <- pEl playerEl ".match--player-score"
           scoreClass <- pGetAttribute scoreEl "class"
           scoreS <- pInnerHtml scoreEl
-          score <- H2hE.ParseScore <!$> do
+          score <- H2hE.ParseScore !$! do
             e'runParser scoreS parseInt <#> H2h.mkScoreCount
           forM_ (str'split (Pattern " ") scoreClass) $ \cn -> do
             when (cn == "-winner") $ x'assign @"winnerId" $ Just entrantId
@@ -291,7 +291,7 @@ getEventDataImpl = do
     -> String
     -> E' JsError + EA' H2hE.T xx @@> a
     -> EA' H2hE.T xx @@> a
-  pDo s1 s2 m = H2hE.Puppeteer s1 s2 <!$> m
+  pDo s1 s2 m = H2hE.Puppeteer s1 s2 !$! m
 
   pDoPorE
     :: forall xx pOrE a
@@ -300,7 +300,7 @@ getEventDataImpl = do
     -> String
     -> E' JsError + EA' H2hE.T xx @@> a
     -> EA' H2hE.T xx @@> a
-  pDoPorE pOrE s m = H2hE.Puppeteer (P.context pOrE) s <!$> m
+  pDoPorE pOrE s m = H2hE.Puppeteer (P.context pOrE) s !$! m
 
   pEls
     :: forall xx pOrE

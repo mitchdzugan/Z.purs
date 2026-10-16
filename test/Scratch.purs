@@ -118,5 +118,5 @@ main = log "Hello World" *> runXAThenExit do
     xOut { v1, v2, s1, s2 }
   -}
   b <- x'readFile "/home/dz/Slippi/Game_20260709T183630.slp"
-  parsed <- SlpRead.xParse b <!#> un'
+  parsed <- SlpRead.xParse b !#! un'
   x'out $ ident'uuid parsed

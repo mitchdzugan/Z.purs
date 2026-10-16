@@ -4,6 +4,7 @@ module Z.Z.Core
   , AntiUnit
   , Deferred
   , Eff'At(..)
+  , EffPromise
   , JsAny
   , JsError(..)
   , Object
@@ -152,6 +153,7 @@ import Prelude
 import Control.Applicative as Applicative
 import Control.Monad as Monad
 import Control.Monad.ST (ST)
+import Control.Promise (Promise) as Prom
 import Data.Argonaut.Core as Arg
 import Data.Argonaut.Decode (class DecodeJson, decodeJson)
 import Data.Argonaut.Encode (class EncodeJson, encodeJson)
@@ -196,6 +198,8 @@ import Routing.Duplex.Parser as DupP
 import Type.Equality (class TypeEquals)
 import Type.Proxy (Proxy(..)) as Proxy
 import Z.Z.Defaultable (class Generable, GDefault, default)
+
+type EffPromise a = Eff.Effect (Prom.Promise a)
 
 class Numberable n where
   numberable'toNumber :: n -> Number

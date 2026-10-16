@@ -1,7 +1,7 @@
 module Z.CLM.Stats.Types
   ( ClmActionData
   , ClmAppLoadError(..)
-  , ClmBuildMeta
+  , ClmBuildMeta(..)
   , ClmBuildOutputs
   , ClmPlayer
   , ClmPlayer'Season
@@ -15,6 +15,7 @@ module Z.CLM.Stats.Types
   , ClmSeason'Player
   , ClmSeason'Player'Char
   , ClmTimeline
+  , clmBuildMeta
   ) where
 
 import Z.Prelude
@@ -135,10 +136,21 @@ type ClmBuildOutputs =
   , dbHash :: String
   }
 
-type ClmBuildMeta =
+newtype ClmBuildMeta = ClmBuildMeta
   { actionData :: ClmActionData
   , outputs :: ClmBuildOutputs
   }
+
+derive instance Generic ClmBuildMeta _
+
+instance DecodeJson ClmBuildMeta where
+  decodeJson x = genericDecodeJson x
+
+instance EncodeJson ClmBuildMeta where
+  encodeJson x = genericEncodeJson x
+
+clmBuildMeta :: ClmActionData -> ClmBuildOutputs -> ClmBuildMeta
+clmBuildMeta actionData outputs = ClmBuildMeta { actionData, outputs }
 
 data ClmAppLoadError
   = MissingHtmlHead

@@ -26,4 +26,4 @@ clm-stats-web-vite:
     vite test/Web/ClmStats
 
 spago-watch:
-    find src/ test/ | entr -s 'spago build'
+    find src/ test/ | entr -rs 'spago build'

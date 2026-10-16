@@ -66,7 +66,7 @@ requestGql apiUrl authToken query vars = doRequest
       { request: { query: query', variables }
       , response: { data: data', errors, extensions, status, headers }
       }
-  doRequest = GqlE.NetworkError <!$> e'runEffPromise $
+  doRequest = GqlE.NetworkError !$! e'runEffPromise $
     js_requestGql mkResponseError Right apiUrl authToken query vars
 
 newtype CacheVal = CacheVal
@@ -154,4 +154,4 @@ xOperate
   -> WaEA' GqlW.T GqlE.T x @@> res
 xOperate (Operation opString encode decode) vars client networkControl = do
   json <- xOperateUnknown opString (encode vars) client networkControl
-  GqlE.ResponseTypeError <!$> e'ok $ decode json
+  GqlE.ResponseTypeError !$! e'ok $ decode json

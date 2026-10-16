@@ -1,6 +1,8 @@
 module Z.Z.X.Index
-  ( (<!#>)
-  , (<!$>)
+  ( (!#!)
+  , (!$!)
+  , (!!-)
+  , (-!!)
   , A'
   , E'
   , EA'
@@ -33,6 +35,10 @@ module Z.Z.X.Index
   , X'Wa
   , X'flipped
   , async'x
+  , e'const
+  , e'const''
+  , e'const'flipped
+  , e'const'flipped''
   , e'fail
   , e'fail''
   , e'invert
@@ -474,6 +480,20 @@ e'map'' f m = e'try'' @p m <#> mapL f >>= e'ok'' @p
 e'map :: forall p. T'use'e'AsSym p T'e'map
 e'map = e'map'' @p
 
+type T'e'const p =
+  forall x'' x' x e1 e2 a
+   . ConsSymbol p (X'E e1) x'' x'
+  => ConsSymbol p (X'E e2) x' x
+  => e1
+  -> Run x a
+  -> Run x' a
+
+e'const'' :: forall @p. T'e'const p
+e'const'' e = e'map'' @p $ const e
+
+e'const :: forall p. T'use'e'AsSym p T'e'const
+e'const = e'const'' @p
+
 type T'e'map'flipped p =
   forall x'' x' x e1 e2 a
    . ConsSymbol p (X'E e1) x'' x'
@@ -485,8 +505,24 @@ type T'e'map'flipped p =
 e'map'flipped :: forall p. T'use'e'AsSym p T'e'map'flipped
 e'map'flipped = flip e'map
 
-infixr 0 e'map'flipped as <!#>
-infixr 0 e'map as <!$>
+type T'e'const'flipped p =
+  forall x'' x' x e1 e2 a
+   . ConsSymbol p (X'E e1) x'' x'
+  => ConsSymbol p (X'E e2) x' x
+  => Run x a
+  -> e1
+  -> Run x' a
+
+e'const'flipped'' :: forall @p. T'e'const'flipped p
+e'const'flipped'' = flip $ e'const'' @p
+
+e'const'flipped :: forall p. T'use'e'AsSym p T'e'const'flipped
+e'const'flipped = e'const'flipped'' @p
+
+infixr 0 e'map as !$!
+infixr 0 e'map'flipped as !#!
+infixr 0 e'const as -!!
+infixr 0 e'const'flipped as !!-
 
 --------------------------------------------
 

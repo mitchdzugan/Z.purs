@@ -104,7 +104,7 @@ x'decodeTextFile
   => p
   -> EA' Sys.FSDataError x @@> d
 x'decodeTextFile p = do
-  contents <- Sys.ReadError <!$> x'readTextFile p
+  contents <- Sys.ReadError !$! x'readTextFile p
   e'ok $ mapL Sys.DecodeError $ decode contents
 
 x'decodeYamlString
@@ -123,7 +123,7 @@ x'decodeYamlFile
   => p
   -> EA' Sys.FSDataError x @@> d
 x'decodeYamlFile p = do
-  contents <- Sys.ReadError <!$> x'readTextFile p
+  contents <- Sys.ReadError !$! x'readTextFile p
   x'decodeYamlString contents
 
 x'decodeAnyYamlExt
@@ -134,9 +134,9 @@ x'decodeAnyYamlExt
   -> EA' Sys.FSDataError x @@> d
 x'decodeAnyYamlExt p = do
   contents <- e'tryUntil
-    (Sys.ReadError <!$> x'readTextFile $ (pathStr p) <> ".yaml")
-    [ const $ Sys.ReadError <!$> x'readTextFile $ (pathStr p) <> ".json"
-    , const $ Sys.ReadError <!$> x'readTextFile $ p
+    (Sys.ReadError !$! x'readTextFile $ (pathStr p) <> ".yaml")
+    [ const $ Sys.ReadError !$! x'readTextFile $ (pathStr p) <> ".json"
+    , const $ Sys.ReadError !$! x'readTextFile $ p
     ]
   x'decodeYamlString contents
 

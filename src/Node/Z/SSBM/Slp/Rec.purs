@@ -14,33 +14,33 @@ launchAndRecord = do
   let workId = "wd" <-> ts <-> filename'hash <-> pid
   workDir <- r'ask <#> \r -> r.tempPath /./ "work" /./ workId
   let userDir = workDir /./ "User"
-  x'mkdirP userDir <!#> IoError
-  -- e'withFinalizer (const $ x'rimraf workDir <!#> CleanupError) do
+  x'mkdirP userDir !#! IoError
+  -- e'withFinalizer (const $ x'rimraf workDir !#! CleanupError) do
   e'withFinalizer (const $ pass) do
     let gsDir = userDir /./ "GameSettings"
     let gsFile = gsDir /./ "GALE01.ini"
     geckoCodes <- r'ask >>= \r ->
-      forM r.geckoCodes x'readTextFile <!#> ReadGeckoCode
+      forM r.geckoCodes x'readTextFile !#! ReadGeckoCode
     { geckoEnables, geckoDisables } <- r'ask
     let
       gameSettingsStr = w'str'nl $ \w -> do
         w "[Gecko]" *> forM_ geckoCodes w *> w ""
         w "[Gecko_Enabled]" *> forM_ geckoEnables w *> w ""
         w "[Gecko_Disabled]" *> forM_ geckoDisables w *> w ""
-    x'writeTextFileP gsFile gameSettingsStr <!#> WriteGameSettings
+    x'writeTextFileP gsFile gameSettingsStr !#! WriteGameSettings
     texturePathsWithInd <- r'ask <#> \r -> arr'withInd r.texturePaths
     let texturesDir = userDir /./ "Load" /./ "Textures"
-    x'mkdirP texturesDir <!#> IoError
+    x'mkdirP texturesDir !#! IoError
     forM_ texturePathsWithInd \(ind /\ texturePath) -> do
       whenM (x'isDirectory texturePath <#> not) do
         e'fail $ InvalidTexturePath $ pathStr texturePath
       let symlinkDst = texturesDir /./ ("tx_link" <:> ind)
-      x'symlink texturePath symlinkDst <!#> SymlinkTexturePath
+      x'symlink texturePath symlinkDst !#! SymlinkTexturePath
     inis <- r'ask <#> \r -> Ini.mkInis r.iniMods
     forM_ (obj'entries inis) \(iniFilename /\ iniData) -> do
       let fullIniFilename = userDir /./ "Config" /./ iniFilename <> ".ini"
       let iniFileStr = ini'stringify iniData
-      x'writeTextFileP fullIniFilename iniFileStr <!#> WriteIniFile iniFilename
+      x'writeTextFileP fullIniFilename iniFileStr !#! WriteIniFile iniFilename
     x'out { workDir }
     pure unit
 
