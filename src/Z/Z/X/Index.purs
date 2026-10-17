@@ -7,6 +7,7 @@ module Z.Z.X.Index
   , E'
   , EA'
   , Edit
+  , Edit'v
   , R'
   , REA'
   , RS'
@@ -14,6 +15,7 @@ module Z.Z.X.Index
   , RWaSEA'
   , RunMW
   , Runner
+  , Runner't(..)
   , S'
   , SEA'
   , StrW
@@ -24,6 +26,7 @@ module Z.Z.X.Index
   , Wa'
   , WaE'
   , WaEA'
+  , WaS'
   , X
   , X'A
   , X'Base
@@ -34,6 +37,7 @@ module Z.Z.X.Index
   , X'W
   , X'Wa
   , X'flipped
+  , async'_
   , async'x
   , e'const
   , e'const''
@@ -67,6 +71,7 @@ module Z.Z.X.Index
   , e'withFinalizer
   , e'withFinalizer''
   , edit
+  , edit'v
   , r'ask
   , r'run
   , r'run''
@@ -77,6 +82,7 @@ module Z.Z.X.Index
   , runner'extend
   , runner'mk
   , runner'mkDeferred
+  , runner'spawn
   , s'eval
   , s'exec
   , s'get
@@ -189,7 +195,15 @@ import Z.Z.Defaultable.Util as D
 import Z.Z.String (str'joinWith)
 import Z.Z.Util (JsonDecodeError(..), decodeForeign)
 import Z.Z.X.Async (AffF(..), x'aff'')
-import Z.Z.X.Core (x'eval, x'eval_, x'exec, x'exec_, x'run, x'run_)
+import Z.Z.X.Core
+  ( class X'Buildable
+  , x'eval
+  , x'eval_
+  , x'exec
+  , x'exec_
+  , x'run
+  , x'run_
+  )
 import Z.Z.X.Methods
   ( T'x'extract
   , T'x'over
@@ -292,6 +306,8 @@ type RS' r s x = R' r $ S' s x
 
 type EA' e x = E' e $ A' x
 
+type WaS' w s x = Wa' w $ S' s x
+
 type WaE' w e x = Wa' w $ E' e x
 
 type WaEA' w e x = Wa' w $ E' e $ A' x
@@ -307,7 +323,7 @@ type SEA' s e x = S' s $ E' e $ A' x
 x'permit :: forall @p x' x a. ConsSymbol p X'Permit x' x => Run x a -> Run x' a
 x'permit = x'eval_ @p
 
-x'do :: forall p x' x a. ConsSymbol p X'Permit x' x => Eff'At p a -> Run x a
+x'do :: forall @p x' x a. ConsSymbol p X'Permit x' x => Eff'At p a -> Run x a
 x'do (Eff'At eff) = pure $ unsafePerformEffect eff
 
 s'put :: forall x s. s -> Run (S' s x) Unit
@@ -334,9 +350,11 @@ sync'_ = unsafePerformEffect <<< runBaseEffect <<< expand
 sync'x :: forall a. () @@> a -> a
 sync'x = sync'_ <<< x'eval_ @"_'x'base" @X'BaseM
 
+async'_ :: forall a. Run (A' ()) a -> Aff a
+async'_ m = match { _'x'aff: \(AffCmd a) -> a } # run $ m
+
 async'x :: forall a. A' () @@> a -> Aff a
-async'x m = match { _'x'aff: \(AffCmd a) -> a } # run $ expand
-  $ x'eval_ @"_'x'base" @X'BaseM m
+async'x = async'_ <<< x'eval_ @"_'x'base" @X'BaseM
 
 effectPromiseToAff :: forall a. Effect (Promise a) -> Aff a
 effectPromiseToAff e = EffC.liftEffect e >>= toAff
@@ -345,10 +363,19 @@ effectPromiseToAff e = EffC.liftEffect e >>= toAff
 
 type RunMW x x' = forall a. Run x a -> Run x' a
 
-newtype Runner x = Runner (RunMW x ())
+newtype Runner't x x' = Runner (RunMW x x')
+type Runner x = Runner't x ()
+
+instance X'Buildable (Runner't x x') x' x Unit where
+  x'buildable'run (Runner r) m = r m <#> flip (/\) unit
 
 runner'eval :: forall x a. Runner x -> Run x a -> a
 runner'eval (Runner r) m = sync'_ $ r m
+
+runner'spawn :: forall x a. Runner x -> Run (A' x) a -> Aff a
+runner'spawn runner = run $
+  onMatch { _'x'aff: \(AffCmd a) -> a } \other ->
+    pure $ runner'eval runner $ send other
 
 runner'mkDeferred :: forall x a. Runner x -> Run x a -> Deferred a
 runner'mkDeferred runner m = \_ -> runner'eval runner m
@@ -749,10 +776,15 @@ s'over'b = Methods.x'over'b @p @sym
 
 --------------------------------------------
 
-type Edit t = S' t () @@> Unit
+type Edit'v t v = S' t () @@> v
+
+type Edit t = Edit'v t Unit
+
+edit'v :: forall t v. t -> Edit'v t v -> v /\ t
+edit'v init m = sync'x $ s'run init m
 
 edit :: forall t. t -> Edit t -> t
-edit init m = sync'x $ x'exec @"_'x'state" init m
+edit init m = sync'x $ s'exec init m
 
 ---------------------------------------------------------------------
 

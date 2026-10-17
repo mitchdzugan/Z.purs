@@ -16,6 +16,7 @@ module Z.XDom.Core
   , XDomA
   , XDomE
   , XDomEA
+  , class Dom'ConsSymbol
   , dom'a
   , dom'article
   , dom'br
@@ -45,6 +46,7 @@ module Z.XDom.Core
   , domEff'on'all'pre
   , domEff'on'post
   , domEff'on'pre
+  , domEffA'on
   , domR'run
   , domR'run''
   , domS'dispatch
@@ -57,6 +59,8 @@ module Z.XDom.Core
   , domS'runState''
   , domS'set
   , domS'set''
+  , domx'eval
+  , domx'eval_
   , el'cn
   , el'cnW
   , el'href
@@ -70,8 +74,11 @@ module Z.XDom.Core
 
 import Z.Prelude
 
+import Effect.Aff (error, killFiber)
+import Effect.Unsafe (unsafePerformEffect)
 import Z.XDom.Preact (js_renderToString, js_renderToStringAsync)
 import Z.XDom.Preact as D
+import Z.Z.Eff.Ref (eff'ref'get, eff'ref'new, eff'ref'set)
 
 data Self dx x = Self (Runner dx) (Runner x)
 type EffSelf x = Self () x
@@ -80,6 +87,10 @@ type R'Self dx x = X'R (Self dx x)
 
 eval'self :: forall dx x a. Self dx x -> Run (self :: R'Self dx x | x) a -> a
 eval'self self@(Self _ rn) m = runner'eval rn $ r'run'' @"self" self $ m
+
+spawn'self
+  :: forall dx x a. Self dx x -> Run (A' (self :: R'Self dx x | x)) a -> Aff a
+spawn'self self@(Self _ rn) m = runner'spawn rn $ r'run'' @"self" self $ m
 
 selfExtend :: forall dr x' x. RunMW x x' -> Self dr x' -> Self dr x
 selfExtend fm (Self drn rn) = Self drn (runner'extend fm rn)
@@ -96,7 +107,11 @@ type MDom dx x a = Run (Wa' D.ReactEl (self :: R'Self dx x | x)) a
 
 type ATTR x = (attr :: X'W $ Array D.PropWF | x)
 type MDOMEFF x = (self :: R'Self () (DomEffPermit x) | DomEffPermit x)
+type MDOMEFF'delta x' x = (self :: R'Self () (DomEffPermit x) | DomEffPermit x')
+
 type MDomEff x a = Run (MDOMEFF x) a
+type MDomEff'delta x' x a = Run (MDOMEFF'delta x' x) a
+type MDomEff'a x a = Run (A' (MDOMEFF x)) a
 type MDomEl dx x a =
   Run (ATTR $ Wa' D.ReactEl $ Wa' D.ReactEl (self :: R'Self dx x | x)) a
 
@@ -168,6 +183,22 @@ el'getEffSelf =
 
 --------------------------------------------------------------------------------
 
+class
+  ( ConsSymbol p m x' x
+  , ConsSymbol p m (MDOMEFF'delta x' x) (MDOMEFF x)
+  , ConsSymbol p m (MDOMEFF'delta (A' x') x) (A' (MDOMEFF x))
+  ) <=
+  Dom'ConsSymbol p m x' x
+
+instance
+  ( ConsSymbol p m x' x
+  , ConsSymbol p m (MDOMEFF'delta x' x) (MDOMEFF x)
+  , ConsSymbol p m (MDOMEFF'delta (A' x') x) (A' (MDOMEFF x))
+  ) =>
+  Dom'ConsSymbol p m x' x
+
+--------------------------------------------------------------------------------
+
 type T'domR'run p =
   forall r x' x dr ret
    . ConsSymbol p (X'R r) x' x
@@ -180,6 +211,24 @@ domR'run'' env m = dom'withAdapter (r'run'' @p env) m
 
 domR'run :: forall p. T'use'r'AsSym p T'domR'run
 domR'run = domR'run'' @p
+
+domx'eval
+  :: forall @p @m dr x' x param a
+   . ConsSymbol p m x' x
+  => X'Consable m param Identity
+  => param
+  -> MDom dr x a
+  -> MDom dr x' a
+domx'eval init m = dom'withAdapter (x'eval @p init) m
+
+domx'eval_
+  :: forall @p @m dr x' x param a
+   . ConsSymbol p m x' x
+  => X'Consable m param Identity
+  => Generable param GDefault param
+  => MDom dr x a
+  -> MDom dr x' a
+domx'eval_ m = dom'withAdapter (x'eval @p default) m
 
 --------------------------------------------------------------------------------
 
@@ -257,10 +306,10 @@ domS'get = domS'get'' @p
 
 type T'domS'setable s a p =
   forall x' x r
-   . ConsSymbol p (X'R $ Record $ ReducerR s a r) (DomEffPermit x')
-       (DomEffPermit x)
+   . ConsSymbol p (X'R $ Record $ ReducerR s a r) (domEff :: X'Permit | x')
+       (domEff :: X'Permit | x)
   => a
-  -> Run (DomEffPermit x) Unit
+  -> Run (domEff :: X'Permit | x) Unit
 
 type T'domS'dispatch p = forall s a. T'domS'setable s a p
 
@@ -280,11 +329,33 @@ domS'set = domS'set'' @p
 
 type MDomEff_D x = MDomEff x (MDomEff x Unit)
 
+type MDomEffA_D x = MDomEff'a x (MDomEff'a x Unit)
+
 domEff'on :: forall a dx x. Eq a => a -> MDomEff_D x -> MDom dx x Unit
 domEff'on comp on = do
   self <- dom'getEffSelf
   w'say $ D.js_effComponent eq comp $ \_ ->
     let r' = eval'self self on in \_ -> eval'self self r'
+
+domEffA'on :: forall a dx x. Eq a => a -> MDomEffA_D x -> MDom dx x Unit
+domEffA'on comp on = do
+  let ref'off = unsafePerformEffect $ eff'ref'new @(Effect Unit) $ pure unit
+  let
+    ref'offM = unsafePerformEffect
+      $ eff'ref'new @(Maybe (MDomEff'a x Unit))
+      $ Nothing
+  self <- dom'getEffSelf
+  w'say $ D.js_effComponent eq comp $ \_ -> unsafePerformEffect do
+    onFiber <- launchAff do
+      res <- spawn'self self on
+      liftEffect $ eff'ref'set (Just res) ref'offM
+      liftEffect $ eff'ref'set (pure unit) ref'off
+    off <- eff'ref'get ref'off
+    flip eff'ref'set ref'off $ launchAff_ $ killFiber (error "") onFiber
+    off
+    pure \_ -> unsafePerformEffect do
+      offM <- eff'ref'get ref'offM
+      whenJust offM $ launchAff_ <<< spawn'self self
 
 domEff'on'1 :: forall dx x. MDomEff_D x -> MDom dx x Unit
 domEff'on'1 = domEff'on unit

@@ -327,18 +327,7 @@ import Z.Z.Ext
   , (<|>)
   ) as ZExt
 import Z.Z.Foldable as ZFoldable
-import Z.Z.HashMap
-  ( HashMap(..)
-  , hm'empty
-  , hm'entries
-  , hm'fromFoldable
-  , hm'has
-  , hm'keys
-  , hm'lookup
-  , hm'set
-  , hm'size
-  , hm'vals
-  ) as ZMashMap
+import Z.Z.HashMap as ZMashMap
 import Z.Z.HashSet
   ( HashSet(..)
   , hs'add

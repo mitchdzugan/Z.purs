@@ -15,7 +15,7 @@ foreign import js_ref_new :: forall t. t -> Effect (Eff'Ref t)
 foreign import js_ref_get :: forall t. Eff'Ref t -> Effect t
 foreign import js_ref_set :: forall t. Unit -> t -> Eff'Ref t -> Effect Unit
 
-eff'ref'new :: forall t. t -> Effect (Eff'Ref t)
+eff'ref'new :: forall @t. t -> Effect (Eff'Ref t)
 eff'ref'new = js_ref_new
 
 eff'ref'get :: forall t. Eff'Ref t -> Effect t

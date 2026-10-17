@@ -56,6 +56,8 @@ decodePureAction = case _ of
   ("MarkDoneUpdating" /\ p) -> d p <#> PureAction <<< MarkDoneUpdating
   ("BustCache" /\ p) -> d p <#> PureAction <<< BustCache
   ("SetDefaultSeasonId" /\ p) -> d p <#> PureAction <<< SetDefaultSeasonId
+  ("SetClmId" /\ p) -> d p <#> PureAction <<< SetClmId
+  ("SetClmIdForEvent" /\ p) -> d p <#> PureAction <<< SetClmIdForEvent
   ("Bulk" /\ p) -> d p <#> finishBulk
   (actionLbl /\ _) -> decodeFailTypeMismatch $ "Unknown Action: " <> actionLbl
   where

@@ -1,5 +1,6 @@
 module Z.XDom.Prelude
-  ( Reducer
+  ( X'Reducer
+  , Router'
   , XurlStProviderX
   , module ModuleReExports
   ) where
@@ -18,6 +19,7 @@ import Z.XDom.Router
   , router'urlState
   , router'urlState''
   ) as ModuleReExports
+import Z.XDom.Router as Router
 import Z.XDom.UrlState
   ( HrefSpec
   , RProvider
@@ -33,5 +35,7 @@ import Z.XDom.UrlState as UrlSt
 
 type XurlStProviderX sx de = UrlSt.XProvider sx de
 
-type Reducer a s =
+type X'Reducer a s =
   (Z.X'R { get :: s, update :: a -> Z.Eff'At "domEff" Z.Unit })
+
+type Router' e r x = Router.X e r x

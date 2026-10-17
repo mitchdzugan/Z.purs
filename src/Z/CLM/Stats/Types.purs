@@ -141,6 +141,8 @@ newtype ClmBuildMeta = ClmBuildMeta
   , outputs :: ClmBuildOutputs
   }
 
+derive instance Newtype ClmBuildMeta _
+
 derive instance Generic ClmBuildMeta _
 
 instance DecodeJson ClmBuildMeta where

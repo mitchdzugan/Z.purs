@@ -37,6 +37,7 @@ package:
     - stringutils
     - typelevel-prelude
     - unsafe-coerce
+    - unsafe-reference
     - variant
     - web-dom
     - web-html

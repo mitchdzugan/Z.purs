@@ -36,6 +36,8 @@ type Warning = H2hW.T
 
 data BracketingSite = Startgg | Challonge
 
+derive instance Eq BracketingSite
+
 derive instance Generic BracketingSite _
 
 instance DecodeJson BracketingSite where

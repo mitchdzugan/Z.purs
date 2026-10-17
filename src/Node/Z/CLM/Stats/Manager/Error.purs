@@ -30,6 +30,7 @@ data T
   | DebugExit
   | GitClientError GitError
   | GitDirUnclean String String
+  | GitIncorrectBranch String String String
 
 derive instance Generic T _
 instance EncodeJson T where

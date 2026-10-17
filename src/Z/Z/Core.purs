@@ -197,6 +197,7 @@ import Routing.Duplex as Dup
 import Routing.Duplex.Parser as DupP
 import Type.Equality (class TypeEquals)
 import Type.Proxy (Proxy(..)) as Proxy
+import Unsafe.Reference (unsafeRefEq)
 import Z.Z.Defaultable (class Generable, GDefault, default)
 
 type EffPromise a = Eff.Effect (Prom.Promise a)
@@ -410,6 +411,9 @@ simpleHash :: String -> Int
 simpleHash = js_simpleHash
 
 newtype JsError = JsError Exc.Error
+
+instance Eq JsError where
+  eq (JsError e1) (JsError e2) = unsafeRefEq e1 e2
 
 type PureJsError =
   { "_" :: String, name :: String, message :: String }

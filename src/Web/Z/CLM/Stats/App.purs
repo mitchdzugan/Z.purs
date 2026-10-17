@@ -18,6 +18,6 @@ runClmStatsApp = runXAThenExit @Void @Void do
       decode @ClmBuildMeta buildMetaStr
     docBody <- xBody >>= e'unwrap MissingHtmlBody
     e'map HydrateError $ XDom.xPreactHydrate docBody $ XDom.exec'xdom do
-      XDom.xDomRunWeb $ app'mk buildMeta XDom.xProvideHistoryX
+      XDom.xDomRunWeb $ app'mk (g_ @"!.outputs" buildMeta) XDom.xProvideHistoryX
   whenJust (blush _OrError) \loadError -> do
     x'out { loadError }
