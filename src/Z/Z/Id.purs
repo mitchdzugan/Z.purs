@@ -114,19 +114,19 @@ instance IsId t => IsId (Z.Maybe t) where
   id'char Z.Nothing = '_'
   id'char _ = 'j'
   id'keyImpl Z.Nothing = ""
-  id'keyImpl (Z.Just v) = id'keyImpl v
+  id'keyImpl (Z.Just v) = id'key v
   id'bytesImpl Z.Nothing = []
-  id'bytesImpl (Z.Just v) = id'bytesImpl v
+  id'bytesImpl (Z.Just v) = id'bytes v
 
 instance (IsId l, IsId r) => IsId (l Z./\ r) where
   id'char _ = 'p'
-  id'keyImpl (l Z./\ r) = id'keyImpl l <> id'keyImpl r
-  id'bytesImpl (l Z./\ r) = id'bytesImpl l <> id'bytesImpl r
+  id'keyImpl (l Z./\ r) = id'key l <> id'key r
+  id'bytesImpl (l Z./\ r) = id'bytes l <> id'bytes r
 
 instance (IsId t) => IsId (ZP.Pair t) where
   id'char _ = 'p'
-  id'keyImpl (l ZP.~ r) = id'keyImpl l <> id'keyImpl r
-  id'bytesImpl (l ZP.~ r) = id'bytesImpl l <> id'bytesImpl r
+  id'keyImpl (l ZP.~ r) = id'key l <> id'key r
+  id'bytesImpl (l ZP.~ r) = id'bytes l <> id'bytes r
 
 instance IsId (Array Z.Byte) where
   id'char _ = 'b'
@@ -134,8 +134,8 @@ instance IsId (Array Z.Byte) where
   id'bytesImpl = identity
 else instance (IsId t) => IsId (Array t) where
   id'char _ = 'a'
-  id'keyImpl = str'joinWith "" <<< map id'keyImpl
-  id'bytesImpl = arr'concat <<< map id'bytesImpl
+  id'keyImpl = str'joinWith "" <<< map id'key
+  id'bytesImpl = arr'concat <<< map id'bytes
 
 id'key :: forall i. IsId i => i -> String
 id'key i = singleton (id'char i) <> id'keyImpl i

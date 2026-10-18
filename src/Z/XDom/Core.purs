@@ -24,7 +24,7 @@ module Z.XDom.Core
   , dom'div
   , dom'element
   , dom'iframe
-  , dom'pre
+  , dom'lead
   , dom'span
   , dom'text
   , dom'withAdapter
@@ -35,18 +35,26 @@ module Z.XDom.Core
   , domE'fail
   , domE'fail''
   , domEff'do
+  , domEff'every
+  , domEff'every'lag
+  , domEff'every'lead
   , domEff'getRunner
   , domEff'getSelf
-  , domEff'on
-  , domEff'on'1
-  , domEff'on'1'post
-  , domEff'on'1'pre
-  , domEff'on'all
-  , domEff'on'all'post
-  , domEff'on'all'pre
-  , domEff'on'post
-  , domEff'on'pre
-  , domEffA'on
+  , domEff'onNew
+  , domEff'onNew'lag
+  , domEff'onNew'lead
+  , domEff'once
+  , domEff'once'lag
+  , domEff'once'lead
+  , domEffA'every
+  , domEffA'every'lag
+  , domEffA'every'lead
+  , domEffA'onNew
+  , domEffA'onNew'lag
+  , domEffA'onNew'lead
+  , domEffA'once
+  , domEffA'once'lag
+  , domEffA'once'lead
   , domR'run
   , domR'run''
   , domS'dispatch
@@ -327,18 +335,49 @@ domS'set'' = domS'dispatch'' @p
 domS'set :: forall p. T'use's'AsSym p T'domS'set
 domS'set = domS'set'' @p
 
+------------------------------------------------------------------------
+
 type MDomEff_D x = MDomEff x (MDomEff x Unit)
 
 type MDomEffA_D x = MDomEff'a x (MDomEff'a x Unit)
 
-domEff'on :: forall a dx x. Eq a => a -> MDomEff_D x -> MDom dx x Unit
-domEff'on comp on = do
+-------------------------
+
+domEff'onNew :: forall a dx x. Eq a => a -> MDomEff_D x -> MDom dx x Unit
+domEff'onNew comp on = do
   self <- dom'getEffSelf
   w'say $ D.js_effComponent eq comp $ \_ ->
     let r' = eval'self self on in \_ -> eval'self self r'
 
-domEffA'on :: forall a dx x. Eq a => a -> MDomEffA_D x -> MDom dx x Unit
-domEffA'on comp on = do
+domEff'once :: forall dx x. MDomEff_D x -> MDom dx x Unit
+domEff'once = domEff'onNew unit
+
+domEff'every :: forall dx x. MDomEff_D x -> MDom dx x Unit
+domEff'every = domEff'onNew antiUnit
+
+domEff'onNew'lead
+  :: forall a dx x. Eq a => a -> MDomEff x Unit -> MDom dx x Unit
+domEff'onNew'lead a m = domEff'onNew a $ m *> pure (pure unit)
+
+domEff'once'lead :: forall dx x. MDomEff x Unit -> MDom dx x Unit
+domEff'once'lead m = domEff'onNew unit $ m *> pure (pure unit)
+
+domEff'every'lead :: forall dx x. MDomEff x Unit -> MDom dx x Unit
+domEff'every'lead m = domEff'onNew antiUnit $ m *> pure (pure unit)
+
+domEff'onNew'lag :: forall a dx x. Eq a => a -> MDomEff x Unit -> MDom dx x Unit
+domEff'onNew'lag a m = domEff'onNew a $ pure m
+
+domEff'once'lag :: forall dx x. MDomEff x Unit -> MDom dx x Unit
+domEff'once'lag m = domEff'onNew unit $ pure m
+
+domEff'every'lag :: forall dx x. MDomEff x Unit -> MDom dx x Unit
+domEff'every'lag m = domEff'onNew antiUnit $ pure m
+
+-------------------------
+
+domEffA'onNew :: forall a dx x. Eq a => a -> MDomEffA_D x -> MDom dx x Unit
+domEffA'onNew comp on = do
   let ref'off = unsafePerformEffect $ eff'ref'new @(Effect Unit) $ pure unit
   let
     ref'offM = unsafePerformEffect
@@ -357,29 +396,33 @@ domEffA'on comp on = do
       offM <- eff'ref'get ref'offM
       whenJust offM $ launchAff_ <<< spawn'self self
 
-domEff'on'1 :: forall dx x. MDomEff_D x -> MDom dx x Unit
-domEff'on'1 = domEff'on unit
+domEffA'once :: forall dx x. MDomEffA_D x -> MDom dx x Unit
+domEffA'once = domEffA'onNew unit
 
-domEff'on'all :: forall dx x. MDomEff_D x -> MDom dx x Unit
-domEff'on'all = domEff'on antiUnit
+domEffA'every :: forall dx x. MDomEffA_D x -> MDom dx x Unit
+domEffA'every = domEffA'onNew antiUnit
 
-domEff'on'pre :: forall a dx x. Eq a => a -> MDomEff x Unit -> MDom dx x Unit
-domEff'on'pre a m = domEff'on a $ m *> pure (pure unit)
+domEffA'onNew'lead
+  :: forall a dx x. Eq a => a -> MDomEff'a x Unit -> MDom dx x Unit
+domEffA'onNew'lead a m = domEffA'onNew a $ m *> pure (pure unit)
 
-domEff'on'1'pre :: forall dx x. MDomEff x Unit -> MDom dx x Unit
-domEff'on'1'pre m = domEff'on unit $ m *> pure (pure unit)
+domEffA'once'lead :: forall dx x. MDomEff'a x Unit -> MDom dx x Unit
+domEffA'once'lead m = domEffA'onNew unit $ m *> pure (pure unit)
 
-domEff'on'all'pre :: forall dx x. MDomEff x Unit -> MDom dx x Unit
-domEff'on'all'pre m = domEff'on antiUnit $ m *> pure (pure unit)
+domEffA'every'lead :: forall dx x. MDomEff'a x Unit -> MDom dx x Unit
+domEffA'every'lead m = domEffA'onNew antiUnit $ m *> pure (pure unit)
 
-domEff'on'post :: forall a dx x. Eq a => a -> MDomEff x Unit -> MDom dx x Unit
-domEff'on'post a m = domEff'on a $ pure m
+domEffA'onNew'lag
+  :: forall a dx x. Eq a => a -> MDomEff'a x Unit -> MDom dx x Unit
+domEffA'onNew'lag a m = domEffA'onNew a $ pure m
 
-domEff'on'1'post :: forall dx x. MDomEff x Unit -> MDom dx x Unit
-domEff'on'1'post m = domEff'on unit $ pure m
+domEffA'once'lag :: forall dx x. MDomEff'a x Unit -> MDom dx x Unit
+domEffA'once'lag m = domEffA'onNew unit $ pure m
 
-domEff'on'all'post :: forall dx x. MDomEff x Unit -> MDom dx x Unit
-domEff'on'all'post m = domEff'on antiUnit $ pure m
+domEffA'every'lag :: forall dx x. MDomEff'a x Unit -> MDom dx x Unit
+domEffA'every'lag m = domEffA'onNew antiUnit $ pure m
+
+------------------------------------------------------------------------
 
 dom'text :: forall t dr x. SText t => t -> MDom dr x Unit
 dom'text = w'say <<< D.js_textEl <<< stext
@@ -448,8 +491,8 @@ dom'a = dom'element "a"
 dom'button :: XDom_domElement_
 dom'button = dom'element "button"
 
-dom'pre :: XDom_domElement_
-dom'pre = dom'element "pre"
+dom'lead :: XDom_domElement_
+dom'lead = dom'element "pre"
 
 dom'span :: XDom_domElement_
 dom'span = dom'element "span"

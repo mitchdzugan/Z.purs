@@ -1,6 +1,7 @@
 module Z.Prelude
   ( module Prelude
   , module ZBl
+  , module ZBoxed
   , module ZBuffer
   , module ZCore
   , module ZDateTime
@@ -144,6 +145,7 @@ import Z.Z.Barlow
   , Proxy(..)
   , barlow
   ) as ZBl
+import Z.Z.Boxed as ZBoxed
 import Z.Z.Buffer (Buffer, ofArrayBuffer, sha256BytesOfBuffer, sha256OfBuffer) as ZBuffer
 import Z.Z.Core as ZCore
 import Z.Z.DateTime

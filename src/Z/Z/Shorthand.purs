@@ -11,6 +11,7 @@ module Z.Z.Shorthand
   , __
   , _o
   , _o_
+  , gArr_
   , g_
   , gmOr'_
   , gmOr_
@@ -37,6 +38,8 @@ module Z.Z.Shorthand
 
 import Prelude
 
+import Data.List (List)
+import Data.Monoid.Endo (Endo)
 import Type.Row (type (+)) as TypeRow
 import Z.Z.Barlow
   ( class C'Barlow
@@ -57,6 +60,7 @@ import Z.Z.Ext
   , over
   , preview
   , set
+  , toArrayOf
   , view
   ) as Z
 import Z.Z.Ext ((/\)) as ZExp
@@ -192,6 +196,15 @@ gmOr'_
   => Z.IsSymbol sym
   => Z.WithDefaultable a (s -> a)
 gmOr'_ d = Z.orDefault $ Z.preview (Z.barlow @sym) d
+
+gArr_
+  :: forall @sym lenses s t a b
+   . Z.ParseSymbol sym lenses
+  => Z.C'Barlow sym lenses (Z.Forget (Endo Function (List a))) s t a b
+  => Z.IsSymbol sym
+  => s
+  -> Array a
+gArr_ d = Z.toArrayOf (Z.barlow @sym) d
 
 __
   :: forall @string lenses p s t a b

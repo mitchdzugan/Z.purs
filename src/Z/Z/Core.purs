@@ -144,6 +144,7 @@ module Z.Z.Core
   , var'inj
   , var'match
   , varF'inj
+  , varf'match
   , whenNot
   , zScoreToPercentile
   ) where
@@ -162,6 +163,8 @@ import Data.Either as Eor
 import Data.Foldable (class Foldable, maximumBy, minimumBy, sum)
 import Data.Foldable as Foldable
 import Data.Functor as F
+import Data.Functor.Variant (class VariantFMatchCases)
+import Data.Functor.Variant as VarF
 import Data.Functor.Variant as VarF
 import Data.Int as Int
 import Data.Lens (Lens', lens')
@@ -300,6 +303,16 @@ var'match
   -> b
 var'match = Var.match
 
+varf'match
+  :: forall rl r r1 r2 a b
+   . RowToList r rl
+  => VariantFMatchCases rl r1 a b
+  => Union r1 () r2
+  => Record r
+  -> VarF.VariantF r2 a
+  -> b
+varf'match = VarF.match
+
 idLens :: forall a. Lens' a a
 idLens = lens' \a -> a TupN./\ identity
 
@@ -411,6 +424,9 @@ simpleHash :: String -> Int
 simpleHash = js_simpleHash
 
 newtype JsError = JsError Exc.Error
+
+instance Show JsError where
+  show (JsError e) = show e
 
 instance Eq JsError where
   eq (JsError e1) (JsError e2) = unsafeRefEq e1 e2

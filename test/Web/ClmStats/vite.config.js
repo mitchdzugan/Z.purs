@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import tailwindcss from "@tailwindcss/vite";
+import { visualizer } from "rollup-plugin-visualizer";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -13,7 +14,15 @@ const proxyServer = { proxy: { "/db": { target, changeOrigin: true } } };
 
 export default defineConfig({
   build: { watch: { buildDelay: 100 } },
-  plugins: [tailwindcss()],
+  plugins: [
+    tailwindcss(),
+    visualizer({
+      open: false,
+      filename: "stats.html",
+      gzipSize: true,
+      brotliSize: true,
+    }),
+  ],
   publicDir,
   server: proxyServer
 });

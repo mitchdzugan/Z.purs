@@ -39,7 +39,7 @@ mkHtmlDoc build edits = str'joinWith ""
   , build.dbHash <> "/seasons/" <> show opts.seasonId
   , """.json" as="fetch" crossorigin="anonymous">
         <script type="module">
-            document.head.setAttribute(":clmBuildMeta", JSON.stringify("""
+            document.head.setAttribute(":clmBuildOutputs", JSON.stringify("""
   , encode build
   , """));
             import("""

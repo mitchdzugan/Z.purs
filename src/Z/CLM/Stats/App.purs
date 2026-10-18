@@ -2,9 +2,15 @@ module Z.CLM.Stats.App where
 
 import Z.XDom.Prelude
 
-import Z.CLM.Stats.Types (ClmBuildOutputs, ClmSeason'Json)
+import Data.Functor.Variant (VariantF)
+import Z.CLM.Stats.Types
+  ( ClmBuildOutputs
+  , ClmPlayer
+  , ClmSeason'Event
+  , ClmSeason'Json
+  )
 import Z.XDom.UrlState as UrlSt
-import Z.Z.HashMap (hm'insert)
+import Z.Z.X.Responds (Responds'Const, responds'run)
 
 data FetchCache'ValState v
   = FetchCache'ValState'Loading (Maybe v)
@@ -74,6 +80,7 @@ type T'domFetchCache'run'helper p id v t'useResult =
   forall dr x' x
    . Identable id
   => Eq v
+  => DecodeJson v
   => Dom'ConsSymbol p (X'FetchCache id v) x' x
   => t'useResult (T'domFetchCache'run'helper'fn dr x' x id)
 
@@ -83,18 +90,24 @@ domFetchCache'run cachePreload mkFetchUrl getId m = do
   currIds <- getId
   let cacheInitial = cachePreload <#> FetchCache'ValState'Val
   domS'runReducer'' @p cacheInitial fetchCache'update do
-    domEffA'on (map ident'key currIds) do
+    domEffA'onNew'lead (map ident'key currIds) do
       forM_ currIds \currId -> do
         shouldFetch <- domS'get'' @p <#> fetchCache'shouldFetch currId
         when shouldFetch do
           domS'dispatch'' @p $ FetchCache'Action'MarkRequesting currId
-          fetchRes <- e'try $ x'fetch (mkFetchUrl currId) {}
-          pure unit
-      pure $ pure unit
+          vOrE <- e'try $ do
+            fetchRes <- x'fetch (mkFetchUrl currId) {}
+            decoded <- x'decodeFetched @v fetchRes
+            e'ok $ constL (jsError "decode error" "") decoded
+          case vOrE of
+            Left e -> do
+              domS'dispatch'' @p $ FetchCache'Action'SetError currId e
+            Right v -> do
+              domS'dispatch'' @p $ FetchCache'Action'SetVal currId v
     m
 
--- domFetchCache'run_ :: forall @p @id @v. T'domFetchCache'run'helper p id v T'id
--- domFetchCache'run_ = domFetchCache'run @p hm'empty
+domFetchCache'run_ :: forall @p @id @v. T'domFetchCache'run'helper p id v T'id
+domFetchCache'run_ = domFetchCache'run @p hm'empty
 
 domFetchCache'lookup
   :: forall @p id v x' x
@@ -104,18 +117,48 @@ domFetchCache'lookup
   -> Run x (Maybe v)
 domFetchCache'lookup id = domS'get'' @p <#> fetchCache'lookupVal id
 
-type ClmDom'X x = Router' String Route
-  ( buildOutputs :: X'R ClmBuildOutputs
-  , clmSeasons :: X'FetchCache Int ClmSeason'Json
+-----------------------------------------------------------------------
+
+foreign import data ClmSeason'Tag :: Type
+
+type ClmSeason'Responds = VariantF
+  ( events :: Responds'Const (HashMap SorN ClmSeason'Event)
+  , players :: Responds'Const (HashMap Int ClmPlayer)
+  )
+
+instance Boxable ClmSeason'Tag ClmSeason'Json ClmSeason'Responds where
+  boxable'mkResponds b = varf'match
+    { events: responds'run \_ -> keyBy _.eventId $ (boxed'v b).events
+    , players: responds'run \_ -> keyBy _.clmId $ (boxed'v b).players
+    }
+
+type ClmSeason'Boxed = Boxed ClmSeason'Tag
+
+-----------------------------------------------------------------------
+
+type ClmBuildOutputs'X x = (buildOutputs :: X'R ClmBuildOutputs | x)
+
+type ClmDom'X x = Router' String Route $ ClmBuildOutputs'X
+  ( clmSeasons :: X'FetchCache Int ClmSeason'Boxed
   | x
   )
 
 type ClmDom dr x a = XDom dr (ClmDom'X x) a
 
+router'seasonId
+  :: forall dx x. MDom dx (Router' String Route $ ClmBuildOutputs'X x) Int
+router'seasonId = do
+  defaultSeasonId <- x'extract @"buildOutputs" <#> _.timeline.defaultSeasonId
+  router'routeOrE <#> gmOr_ @">!.seasonId" defaultSeasonId
+
 app'body :: forall dr x. ClmDom dr x Unit
 app'body = do
-  r <- router'routeOrE
-  x'out $ show r
+  seasonId <- router'seasonId
+  seasonOr_ <- domFetchCache'lookup @"clmSeasons" seasonId
+  whenJust seasonOr_ \season -> do
+    let seasonEvents = boxed'call_ @"events" season
+    x'out { season }
+    x'out { seasonEvents }
   dom'div do
     el'cn "flex flex-col gap-4"
     dom'div $
@@ -124,12 +167,11 @@ app'body = do
 app'mk :: forall dr x. ClmBuildOutputs -> UrlSt.XProvider dr x -> XDom dr x Unit
 app'mk buildOutputs = router'run printRoute parseUrl mkTitleOr_
   $ domR'run'' @"buildOutputs" buildOutputs
-  $ domFetchCache'run @"clmSeasons" hm'empty mkClmSeasonFetchUrl getClmSeasonIds
+  $ domFetchCache'run_ @"clmSeasons" mkClmSeasonFetchUrl getClmSeasonIds
   $ app'body
   where
-  mkClmSeasonFetchUrl id = "/xd/" <:> id <:> ".json"
-  getClmSeasonIds =
-    router'routeOrE <#> hush <#> may'toArray <#> map (g_ @"!.seasonId")
+  mkClmSeasonFetchUrl id = "/db/" <:> dbHash <:> "/seasons/" <:> id <:> ".json"
+  getClmSeasonIds = router'seasonId <#> pure
   mkTitleOr_ = Just <<< urlToString <<< _.url
   processClmIds (Just hashStr) = do
     clmIds <- forM (str'split (Pattern "~") hashStr) \idStr -> do
@@ -140,6 +182,7 @@ app'mk buildOutputs = router'run printRoute parseUrl mkTitleOr_
   processClmIds _ = pure unit
   processRouteList Nil = pure unit
   processRouteList _ = e'fail "Invalid Route"
+  dbHash = buildOutputs.dbHash
   defaultSeasonId = buildOutputs.timeline.defaultSeasonId
   parseUrl u = sync'x $ e'try $ s'exec (mkRoute defaultSeasonId Stats []) do
     processClmIds $ urlHash u

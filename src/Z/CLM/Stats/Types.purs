@@ -157,6 +157,11 @@ clmBuildMeta actionData outputs = ClmBuildMeta { actionData, outputs }
 data ClmAppLoadError
   = MissingHtmlHead
   | MissingHtmlBody
-  | MissingBuildMeta
-  | InvalidBuildMeta String
+  | MissingBuildOutputs
+  | InvalidBuildOutputs String
   | HydrateError JsError
+
+derive instance Generic ClmAppLoadError _
+
+instance Show ClmAppLoadError where
+  show = genericShow

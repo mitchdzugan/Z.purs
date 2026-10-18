@@ -1000,13 +1000,14 @@ buildClm newActions = runClm do
         x'encodeTextFileP (playerSeasonPath seasonId clmId) playerSeasonJson
   x'out "Managing Git For Database"
   hasDBChanges <- usePagesGit git'isClean <#> not
-  gitMsg'ts <- r'ask <#> \r -> "ts@" <:> floor (r.nowMS'number / 1000.0)
+  nowS <- r'ask <#> \r -> floor (r.nowMS'number / 1000.0)
+  let gitMsg'ts = "ts@" <:> nowS
   let gitMsg'mkParts l p = arr'concat [ [ "clm-stats", l, "|" ], p, [ "|" ] ]
   let gitMsg'mk label pieces = str'joinWith " " $ gitMsg'mkParts label pieces
   dbHash <-
     if not hasDBChanges then do
       x'out "-- No Database Changes"
-      r'ask <#> _.lastBuildMeta <#> gm_ @"?!.outputs.dbHash" <#> may'or "_"
+      r'ask <#> gmOr_ @"lastBuildMeta?!.outputs.dbHash" (show nowS)
     else do
       gitMsg'auto <- get'nowMS'Rounded <#> \n -> "autoActions:ts@" <:> n
       let gitMsg'new = "newActions[" <:> arr'size newActions <:> "]"
