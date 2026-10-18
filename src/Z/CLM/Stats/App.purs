@@ -1,4 +1,6 @@
-module Z.CLM.Stats.App where
+module Z.CLM.Stats.App
+  ( app'mk
+  ) where
 
 import Z.XDom.Prelude
 
@@ -164,10 +166,6 @@ app'body = do
     el'cn "flex flex-col gap-4"
     dom'div $
       dom'text "profile link"
-
-tester :: forall dx x. XDom dx x Unit
-tester = do
-  dom'div $ dom'text "Hello"
 
 app'mk :: forall dr x. ClmBuildOutputs -> UrlSt.XProvider dr x -> XDom dr x Unit
 app'mk buildOutputs = router'run printRoute parseUrl mkTitleOr_
