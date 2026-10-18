@@ -28,7 +28,6 @@ package:
     - profunctor-lenses
     - record
     - routing-duplex
-    - run
     - stringutils
     - typelevel-prelude
     - unsafe-coerce

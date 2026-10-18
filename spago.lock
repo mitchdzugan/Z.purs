@@ -32,7 +32,6 @@
             "profunctor-lenses",
             "record",
             "routing-duplex",
-            "run",
             "stringutils",
             "typelevel-prelude",
             "unsafe-coerce",
@@ -1681,28 +1680,6 @@
         "record",
         "strings",
         "tuples"
-      ]
-    },
-    "run": {
-      "type": "registry",
-      "version": "5.0.0",
-      "integrity": "sha256-zGCyG7IamjYWypKMXTP9PFis2ShnoZJKZiu3SbXMc+M=",
-      "dependencies": [
-        "aff",
-        "control",
-        "effect",
-        "either",
-        "free",
-        "maybe",
-        "newtype",
-        "partial",
-        "prelude",
-        "tailrec",
-        "tuples",
-        "type-equality",
-        "typelevel-prelude",
-        "unsafe-coerce",
-        "variant"
       ]
     },
     "safe-coerce": {
