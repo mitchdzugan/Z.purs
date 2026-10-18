@@ -1,4 +1,6 @@
-module Z.Test.Prelude
+module Z.Test.Prelude where
+
+{-
   ( (=?=)
   , SpecMain
   , TestMain
@@ -19,3 +21,14 @@ type TestMain = ZPrelude.Effect ZPrelude.Unit
 type SpecMain = Spec.Spec ZPrelude.Unit
 
 infixr 0 SpecAssert.shouldEqual as =?=
+
+
+TODO add these back to spago.yaml when treeshaking figured out
+
+
+    - spec
+    - spec-discovery
+
+-}
+skipForNow :: Int
+skipForNow = 0

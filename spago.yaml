@@ -1,8 +1,6 @@
 package:
   name: z
   dependencies:
-    - aff
-    - aff-promise
     - argonaut-codecs
     - argonaut-core
     - argonaut-generic
@@ -16,7 +14,6 @@ package:
     - either
     - exceptions
     - exists
-    - fetch
     - filterable
     - foreign-object
     - heterogeneous
@@ -32,8 +29,6 @@ package:
     - record
     - routing-duplex
     - run
-    - spec
-    - spec-discovery
     - stringutils
     - typelevel-prelude
     - unsafe-coerce

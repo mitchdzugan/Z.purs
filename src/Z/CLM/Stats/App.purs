@@ -165,6 +165,10 @@ app'body = do
     dom'div $
       dom'text "profile link"
 
+tester :: forall dx x. XDom dx x Unit
+tester = do
+  dom'div $ dom'text "Hello"
+
 app'mk :: forall dr x. ClmBuildOutputs -> UrlSt.XProvider dr x -> XDom dr x Unit
 app'mk buildOutputs = router'run printRoute parseUrl mkTitleOr_
   $ domR'run'' @"buildOutputs" buildOutputs

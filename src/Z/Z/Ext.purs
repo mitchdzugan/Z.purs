@@ -156,10 +156,10 @@ import Prim.Row (class Cons, class Lacks, class Nub, class Union) as Row
 import Record (merge) as Record
 import Routing.Duplex (RouteDuplex, RouteDuplex') as Dup
 import Routing.Duplex.Parser (RouteError) as DupP
-import Run (Run, expand, extract, lift, on, run, send) as Run
-import Run.Except (Except) as RunE
-import Run.Reader (Reader) as RunR
-import Run.State (State, execState) as RunS
-import Run.Writer (Writer) as RunW
 import Type.Equality (class TypeEquals) as TypeEquals
 import Type.Proxy (Proxy(..)) as Proxy
+import Z.EXTERNAL.RUN.Run (Run, expand, extract, lift, on, run, send) as Run
+import Z.EXTERNAL.RUN.Run.Except (Except) as RunE
+import Z.EXTERNAL.RUN.Run.Reader (Reader) as RunR
+import Z.EXTERNAL.RUN.Run.State (State, execState) as RunS
+import Z.EXTERNAL.RUN.Run.Writer (Writer) as RunW

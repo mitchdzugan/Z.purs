@@ -201,7 +201,9 @@ import Prim.Row
   , Nub
   , Union
   ) as M
-import Run
+import Type.Equality (class TypeEquals) as M
+import Type.Proxy (Proxy(..)) as M
+import Z.EXTERNAL.RUN.Run
   ( EFFECT
   , Run(..)
   , Step(..)
@@ -230,9 +232,7 @@ import Run
   , runRec
   , send
   ) as M
-import Run.Reader (Reader, askAt, asksAt, runReaderAt) as M
-import Type.Equality (class TypeEquals) as M
-import Type.Proxy (Proxy(..)) as M
+import Z.EXTERNAL.RUN.Run.Reader (Reader, askAt, asksAt, runReaderAt) as M
 import Z.Z.Core
   ( class C'Relate
   , class ConsSymbol

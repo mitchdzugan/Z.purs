@@ -5,8 +5,8 @@ module Z.Z.X.Async
 
 import Prelude
 
-import Run (Run, lift)
 import Type.Proxy (Proxy(..))
+import Z.EXTERNAL.RUN.Run (Run, lift)
 import Z.Z.Core (class ConsSymbol)
 import Z.Z.Promise (Promise)
 
