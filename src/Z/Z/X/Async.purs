@@ -1,19 +1,20 @@
 module Z.Z.X.Async
-  ( AffF(..)
-  , x'aff''
+  ( AsyncF(..)
+  , x'async''
   ) where
 
 import Prelude
 
-import Effect.Aff (Aff)
 import Run (Run, lift)
 import Type.Proxy (Proxy(..))
 import Z.Z.Core (class ConsSymbol)
+import Z.Z.Promise (Promise)
 
-data AffF a = AffCmd (Aff a)
+data AsyncF a = AsyncSend (Promise a)
 
-derive instance Functor AffF
+derive instance Functor AsyncF
 
-x'aff'' :: forall @p f x' x. ConsSymbol p AffF x' x => (Aff f) -> Run x f
-x'aff'' f = lift (Proxy @p) (AffCmd f)
+x'async''
+  :: forall @p f x' x. ConsSymbol p AsyncF x' x => (Promise f) -> Run x f
+x'async'' promise = lift (Proxy @p) (AsyncSend promise)
 

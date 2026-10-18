@@ -52,14 +52,14 @@ module Z.Z.X.Index
   , e'map'flipped
   , e'ok
   , e'ok''
-  , e'runAff
-  , e'runAff''
   , e'runEffA
   , e'runEffA''
   , e'runEffPromise
   , e'runEffPromise''
   , e'runParser
   , e'runParser''
+  , e'runPromise
+  , e'runPromise''
   , e'try
   , e'try''
   , e'tryUntil
@@ -136,7 +136,6 @@ module Z.Z.X.Index
   , we'unresult
   , we'unresult''
   , we'unresult'''
-  , x'attemptAff
   , x'decodeFetched
   , x'do
   , x'fetch
@@ -159,19 +158,10 @@ module Z.Z.X.Index
 
 import Z.Z.X.UtilPrelude
 
-import Control.Promise (Promise, toAff)
 import Data.Argonaut.Decode (class DecodeJson)
 import Data.Either (Either(..))
 import Data.Int (floor)
-import Effect.Aff (Aff, attempt)
 import Effect.Class as EffC
-import Fetch
-  ( class ToCoreRequestOptions
-  , HighlevelRequestOptions
-  , Response
-  , fetch
-  )
-import JS.Fetch.Request (UnsafeRequestOptions)
 import Parsing (Parser)
 import Run.Except (Except, runExceptAt, throwAt)
 import Z.Z.Core
@@ -192,9 +182,11 @@ import Z.Z.Core
   )
 import Z.Z.DateTime (DateTime, dateTime'toMS)
 import Z.Z.Defaultable.Util as D
+import Z.Z.Fetch (Fetch'RequestOptions, Fetch'Response, fetch, fetchRes'json)
+import Z.Z.Promise (Promise, promise'fromEff, promise'try)
 import Z.Z.String (str'joinWith)
-import Z.Z.Util (JsonDecodeError(..), decodeForeign)
-import Z.Z.X.Async (AffF(..), x'aff'')
+import Z.Z.Util (JsonDecodeError(..), decodeForeign, decodeJson)
+import Z.Z.X.Async (AsyncF(..), x'async'')
 import Z.Z.X.Core
   ( class X'Buildable
   , x'eval
@@ -290,7 +282,7 @@ type X'S t = X'Ref t
 type X'E :: forall k. Type -> k -> Type
 type X'E e = Except e
 
-type X'A = AffF
+type X'A = AsyncF
 
 type R' r x = (_'x'reader :: X'R r | x)
 type W' w x = (_'x'writer :: X'W w | x)
@@ -300,7 +292,7 @@ type S' s x = (_'x'state :: X'S s | x)
 type E' :: forall k. Type -> Row (k -> Type) -> Row (k -> Type)
 type E' e x = (_'x'except :: X'E e | x)
 
-type A' x = (_'x'aff :: AffF | x)
+type A' x = (_'x'async :: AsyncF | x)
 
 type RS' r s x = R' r $ S' s x
 
@@ -341,8 +333,8 @@ s'eval = x'eval @"_'x'state"
 s'exec :: forall x r. r -> Run (S' r x) Unit -> Run x r
 s'exec = x'exec @"_'x'state"
 
-x'attemptAff :: forall x a. Aff a -> Run (A' x) (Either JsError a)
-x'attemptAff aff = x'aff'' @"_'x'aff" $ attempt aff <#> mapL JsError
+a'attempt :: forall x a. Promise a -> Run (A' x) (Either JsError a)
+a'attempt = x'async'' @"_'x'async" <<< promise'try
 
 sync'_ :: forall a. Run () a -> a
 sync'_ = unsafePerformEffect <<< runBaseEffect <<< expand
@@ -350,14 +342,11 @@ sync'_ = unsafePerformEffect <<< runBaseEffect <<< expand
 sync'x :: forall a. () @@> a -> a
 sync'x = sync'_ <<< x'eval_ @"_'x'base" @X'BaseM
 
-async'_ :: forall a. Run (A' ()) a -> Aff a
-async'_ m = match { _'x'aff: \(AffCmd a) -> a } # run $ m
+async'_ :: forall a. Run (A' ()) a -> Promise a
+async'_ m = match { _'x'async: \(AsyncSend a) -> a } # run $ m
 
-async'x :: forall a. A' () @@> a -> Aff a
+async'x :: forall a. A' () @@> a -> Promise a
 async'x = async'_ <<< x'eval_ @"_'x'base" @X'BaseM
-
-effectPromiseToAff :: forall a. Effect (Promise a) -> Aff a
-effectPromiseToAff e = EffC.liftEffect e >>= toAff
 
 ---------------------------------------------------------------------
 
@@ -372,9 +361,9 @@ instance X'Buildable (Runner't x x') x' x Unit where
 runner'eval :: forall x a. Runner x -> Run x a -> a
 runner'eval (Runner r) m = sync'_ $ r m
 
-runner'spawn :: forall x a. Runner x -> Run (A' x) a -> Aff a
+runner'spawn :: forall x a. Runner x -> Run (A' x) a -> Promise a
 runner'spawn runner = run $
-  onMatch { _'x'aff: \(AffCmd a) -> a } \other ->
+  onMatch { _'x'async: \(AsyncSend a) -> a } \other ->
     pure $ runner'eval runner $ send other
 
 runner'mkDeferred :: forall x a. Runner x -> Run x a -> Deferred a
@@ -456,17 +445,17 @@ e'ok = e'ok'' @p
 
 --------------------------------------------
 
-type T'e'runAff p =
+type T'e'runPromise p =
   forall x' x a
    . ConsSymbol p (X'E JsError) (A' x') (A' x)
-  => Aff a
+  => Promise a
   -> Run (A' x) a
 
-e'runAff'' :: forall @p. T'e'runAff p
-e'runAff'' aff = x'attemptAff aff >>= e'ok'' @p
+e'runPromise'' :: forall @p. T'e'runPromise p
+e'runPromise'' = (=<<) (e'ok'' @p) <<< a'attempt
 
-e'runAff :: forall p. T'use'e'AsSym p T'e'runAff
-e'runAff = e'runAff'' @p
+e'runPromise :: forall p. T'use'e'AsSym p T'e'runPromise
+e'runPromise = e'runPromise'' @p
 
 --------------------------------------------
 
@@ -477,7 +466,7 @@ type T'e'runEffPromise p =
   -> Run (A' x) a
 
 e'runEffPromise'' :: forall @p. T'e'runEffPromise p
-e'runEffPromise'' = e'runAff'' @p <<< effectPromiseToAff
+e'runEffPromise'' = e'runPromise'' @p <<< (=<<) identity <<< promise'fromEff
 
 e'runEffPromise :: forall p. T'use'e'AsSym p T'e'runEffPromise
 e'runEffPromise = e'runEffPromise'' @p
@@ -660,7 +649,7 @@ type T'e'runEffA p =
   -> Run (A' x) a
 
 e'runEffA'' :: forall @p. T'e'runEffA p
-e'runEffA'' eff = x'attemptAff (EffC.liftEffect eff) >>= e'ok'' @p
+e'runEffA'' eff = a'attempt (promise'fromEff eff) >>= e'ok'' @p
 
 e'runEffA :: forall p. T'use'e'AsSym p T'e'runEffA
 e'runEffA = e'runEffA'' @p
@@ -980,18 +969,15 @@ x'timeout :: forall x. Int -> Run (A' x) Unit
 x'timeout ms = fDiscard $ e'try $ e'runEffPromise $ js_timeout ms
 
 x'fetch
-  :: forall x input output @thruIn thruOut headers body
-   . Union input thruIn (HighlevelRequestOptions headers body)
-  => Union output thruOut UnsafeRequestOptions
-  => ToCoreRequestOptions input output
-  => String
-  -> Record input
-  -> Run (E' JsError (A' x)) Response
-x'fetch url opts = e'runAff $ fetch @thruIn url opts
+  :: forall x
+   . String
+  -> Edit Fetch'RequestOptions
+  -> Run (E' JsError (A' x)) Fetch'Response
+x'fetch url opts = e'runPromise $ fetch url $ edit default opts
 
 x'decodeFetched
   :: forall @t x
    . DecodeJson t
-  => Response
+  => Fetch'Response
   -> Run (E' JsError (A' x)) (Either JsonDecodeError t)
-x'decodeFetched { json } = e'runAff json <#> decodeForeign @t
+x'decodeFetched res = decodeJson @t <$> fetchRes'json res # e'runPromise

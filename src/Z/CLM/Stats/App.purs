@@ -98,7 +98,7 @@ domFetchCache'run cachePreload mkFetchUrl getId m = do
       when shouldFetch do
         domS'dispatch'' @p $ FetchCache'Action'MarkRequesting currId
         vOrE <- e'try $ do
-          fetchRes <- x'fetch (mkFetchUrl currId) {}
+          fetchRes <- x'fetch (mkFetchUrl currId) pass
           decoded <- x'decodeFetched @v fetchRes
           e'ok $ constL (jsError "decode error" "") decoded
         case vOrE of

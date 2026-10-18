@@ -74,7 +74,6 @@ module Z.XDom.Core
 
 import Z.Prelude
 
-import Effect.Aff (error, killFiber)
 import Effect.Unsafe (unsafePerformEffect)
 import Z.XDom.Preact (js_renderToString, js_renderToStringAsync)
 import Z.XDom.Preact as D
@@ -89,7 +88,10 @@ eval'self :: forall dx x a. Self dx x -> Run (self :: R'Self dx x | x) a -> a
 eval'self self@(Self _ rn) m = runner'eval rn $ r'run'' @"self" self $ m
 
 spawn'self
-  :: forall dx x a. Self dx x -> Run (A' (self :: R'Self dx x | x)) a -> Aff a
+  :: forall dx x a
+   . Self dx x
+  -> Run (A' (self :: R'Self dx x | x)) a
+  -> Promise a
 spawn'self self@(Self _ rn) m = runner'spawn rn $ r'run'' @"self" self $ m
 
 selfExtend :: forall dr x' x. RunMW x x' -> Self dr x' -> Self dr x
@@ -371,7 +373,7 @@ domEff'every'lag m = domEff'onNew antiUnit $ pure m
 domEff'async :: forall x. MDomEff'a x Unit -> MDomEff x Unit
 domEff'async m = do
   self <- domEff'getSelf
-  pure $ unsafePerformEffect $ launchAff_ $ spawn'self self m
+  pure (spawn'self self m) <#> const unit
 
 ------------------------------------------------------------------------
 
@@ -412,9 +414,9 @@ dom'element_noCh s m = do
   w'say $ D.js_renderEl s (encodeOpts props) []
 
 type XDom dr x a = MDom dr (X'Base x) a
-type XDomA dx x a = XDom (_'x'aff :: DomA | dx) x a
+type XDomA dx x a = XDom (_'x'async :: DomA | dx) x a
 type XDomE e dx x a = XDom (_'x'except :: (DomE e) | dx) x a
-type XDomEA e dx x a = XDom (_'x'except :: (DomE e), _'x'aff :: DomA | dx) x a
+type XDomEA e dx x a = XDom (_'x'except :: (DomE e), _'x'async :: DomA | dx) x a
 
 type XDom_ dr x = T'_ $ XDom dr x
 type XDomA_ dr x = T'_ $ XDom dr x

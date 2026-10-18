@@ -19,6 +19,7 @@ module Z.Prelude
   , module ZShorthand
   , module ZWraps
   , module ZPassable
+  , module ZPromise
   , module ZX
   ) where
 
@@ -201,7 +202,6 @@ import Z.Z.Ext
   , class TypeEquals
   , class Union
   , type (/\)
-  , Aff
   , AffineTraversal
   , Byte
   , Codec
@@ -236,7 +236,6 @@ import Z.Z.Ext
   , Pattern(..)
   , Prism
   , Prism'
-  , Promise
   , Proxy(..)
   , Reader
   , RouteDuplex
@@ -287,8 +286,6 @@ import Z.Z.Ext
   , jsonEmptyObject
   , jsonNull
   , lastOf
-  , launchAff
-  , launchAff_
   , lift
   , liftEffect
   , maximum
@@ -310,8 +307,6 @@ import Z.Z.Ext
   , review
   , round
   , run
-  , runAff
-  , runAff_
   , runExists
   , send
   , set
@@ -365,6 +360,7 @@ import Z.Z.Id
 import Z.Z.Pair (Pair(..), pair'get, pair'getOppo, pair'swap, (~)) as ZPair
 import Z.Z.PairKey (PairKey(..)) as ZPairKey
 import Z.Z.Passable (pass) as ZPassable
+import Z.Z.Promise as ZPromise
 import Z.Z.Shorthand as ZShorthand
 import Z.Z.String as ZString
 import Z.Z.Url (URL) as ZUrl

@@ -17,30 +17,9 @@ module Node.Z.Git.Client
   , git'status
   ) where
 
-import Prelude
+import Node.Z.Prelude
 
-import Data.Argonaut.Core (Json)
-import Data.Argonaut.Encode (class EncodeJson)
-import Data.Argonaut.Encode.Generic (genericEncodeJson)
-import Data.Generic.Rep (class Generic)
-import Data.Maybe (Maybe)
-import Data.Tuple.Nested ((/\))
-import Node.Z.Sys.SysImpl (class Pathlike, pathStr)
-import Z.Z.Core (EffPromise, JsError, encodeOpts)
-import Z.Z.Defaultable (class Generable, GDefault, default)
-import Z.Z.X.Index
-  ( type (@@>)
-  , EA'
-  , WaS'
-  , e'runEffPromise
-  , s'eval
-  , s'get
-  , s'setPure'b
-  , sync'x
-  , w'run
-  , w'say
-  , (!$!)
-  )
+import Z.Z.Promise (EffPromise)
 
 foreign import data GitClient :: Type
 

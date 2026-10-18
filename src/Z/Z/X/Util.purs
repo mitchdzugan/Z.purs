@@ -2,8 +2,8 @@ module Z.Z.X.Util where
 
 import Prelude
 
-import Control.Promise (Promise)
 import Effect (Effect)
+import Z.Z.Promise (Promise)
 
 foreign import js_timeout :: Int -> Effect (Promise Unit)
 

@@ -202,8 +202,7 @@ import Prim.Row
   , Union
   ) as M
 import Run
-  ( AFF
-  , EFFECT
+  ( EFFECT
   , Run(..)
   , Step(..)
   , VariantF
@@ -214,7 +213,6 @@ import Run
   , interpret
   , interpretRec
   , lift
-  , liftAff
   , liftEffect
   , match
   , on
@@ -226,8 +224,6 @@ import Run
   , runAccumCont
   , runAccumPure
   , runAccumRec
-  , runBaseAff
-  , runBaseAff'
   , runBaseEffect
   , runCont
   , runPure

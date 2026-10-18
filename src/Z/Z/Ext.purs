@@ -1,6 +1,5 @@
 module Z.Z.Ext
-  ( module Aff
-  , module Arg
+  ( module Arg
   , module Array
   , module ByteString
   , module CA
@@ -38,7 +37,6 @@ module Z.Z.Ext
   , module Newtype
   , module Parsing
   , module Prc
-  , module Promise
   , module Proxy
   , module Record
   , module Row
@@ -55,7 +53,6 @@ module Z.Z.Ext
   , module TypeEquals
   ) where
 
-import Control.Promise (Promise) as Promise
 import Data.Argonaut.Core
   ( Json
   , caseJsonNumber
@@ -150,7 +147,6 @@ import Data.Time.Duration (Hours(..), Milliseconds(..)) as DateTimeDuration
 import Data.Tuple (Tuple(..), fst, snd) as Tup
 import Data.Tuple.Nested (type (/\), (/\)) as TupNested
 import Effect (Effect) as Effect
-import Effect.Aff (Aff, launchAff, launchAff_, runAff, runAff_) as Aff
 import Effect.Class (liftEffect) as EffectClass
 import Foreign (Foreign) as Foreign
 import Heterogeneous.Mapping (class Mapping, hmap, hmapWithIndex) as HetMap

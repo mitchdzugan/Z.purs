@@ -9,14 +9,15 @@ import Prelude
 
 import Z.Z.Core as Z
 import Z.Z.Ext as E
+import Z.Z.Promise as P
 import Z.Z.X.Index as X
 
 foreign import data Buffer :: Type
 
 foreign import js_ofArrayBuffer :: Array Int -> Buffer
-foreign import js_sha256OfBuffer :: Buffer -> E.Effect (E.Promise String)
+foreign import js_sha256OfBuffer :: Buffer -> E.Effect (P.Promise String)
 foreign import js_sha256ArrOfBuffer
-  :: Buffer -> E.Effect (E.Promise (Array Int))
+  :: Buffer -> E.Effect (P.Promise (Array Int))
 
 ofArrayBuffer :: Array Int -> Buffer
 ofArrayBuffer = js_ofArrayBuffer

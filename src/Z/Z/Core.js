@@ -1,4 +1,4 @@
-import * as ini from "ini";
+import { stringify as iniStringify } from "ini";
 
 export const js_JsAny = (a) => a;
 export const js_JsAnyToForeign = (a) => a;
@@ -26,7 +26,7 @@ export const js_removeNils = (o) => {
 };
 export const js_runDeferred = (f) => f();
 export const js_arrWithInd = (mkTuple) => (a) => a.map((v, i) => mkTuple(i)(v));
-export const js_iniStringifyJson = (j) => ini.stringify(j);
+export const js_iniStringifyJson = (j) => iniStringify(j);
 export function js_zScoreToPercentile(z) {
   if (z < -6.5) return 0.0;
   if (z > 6.5) return 1.0;
