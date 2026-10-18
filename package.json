@@ -32,6 +32,7 @@
     "whr": "^0.3.2"
   },
   "devDependencies": {
+    "@preact/preset-vite": "^2.10.6",
     "@tailwindcss/vite": "^4.3.3",
     "cross-env": "^10.1.0",
     "daisyui": "^5.7.4",
@@ -44,6 +45,7 @@
     "serve": "^14.2.6",
     "spago": "^1.0.4",
     "tailwindcss": "^4.3.3",
+    "terser": "^5.51.2",
     "tsdown": "^0.21.10",
     "vite": "^8.1.5"
   },

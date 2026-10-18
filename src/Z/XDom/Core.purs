@@ -34,6 +34,7 @@ module Z.XDom.Core
   , domE'bind''
   , domE'fail
   , domE'fail''
+  , domEff'async
   , domEff'do
   , domEff'every
   , domEff'every'lag
@@ -46,15 +47,6 @@ module Z.XDom.Core
   , domEff'once
   , domEff'once'lag
   , domEff'once'lead
-  , domEffA'every
-  , domEffA'every'lag
-  , domEffA'every'lead
-  , domEffA'onNew
-  , domEffA'onNew'lag
-  , domEffA'onNew'lead
-  , domEffA'once
-  , domEffA'once'lag
-  , domEffA'once'lead
   , domR'run
   , domR'run''
   , domS'dispatch
@@ -376,51 +368,10 @@ domEff'every'lag m = domEff'onNew antiUnit $ pure m
 
 -------------------------
 
-domEffA'onNew :: forall a dx x. Eq a => a -> MDomEffA_D x -> MDom dx x Unit
-domEffA'onNew comp on = do
-  let ref'off = unsafePerformEffect $ eff'ref'new @(Effect Unit) $ pure unit
-  let
-    ref'offM = unsafePerformEffect
-      $ eff'ref'new @(Maybe (MDomEff'a x Unit))
-      $ Nothing
-  self <- dom'getEffSelf
-  w'say $ D.js_effComponent eq comp $ \_ -> unsafePerformEffect do
-    onFiber <- launchAff do
-      res <- spawn'self self on
-      liftEffect $ eff'ref'set (Just res) ref'offM
-      liftEffect $ eff'ref'set (pure unit) ref'off
-    off <- eff'ref'get ref'off
-    flip eff'ref'set ref'off $ launchAff_ $ killFiber (error "") onFiber
-    off
-    pure \_ -> unsafePerformEffect do
-      offM <- eff'ref'get ref'offM
-      whenJust offM $ launchAff_ <<< spawn'self self
-
-domEffA'once :: forall dx x. MDomEffA_D x -> MDom dx x Unit
-domEffA'once = domEffA'onNew unit
-
-domEffA'every :: forall dx x. MDomEffA_D x -> MDom dx x Unit
-domEffA'every = domEffA'onNew antiUnit
-
-domEffA'onNew'lead
-  :: forall a dx x. Eq a => a -> MDomEff'a x Unit -> MDom dx x Unit
-domEffA'onNew'lead a m = domEffA'onNew a $ m *> pure (pure unit)
-
-domEffA'once'lead :: forall dx x. MDomEff'a x Unit -> MDom dx x Unit
-domEffA'once'lead m = domEffA'onNew unit $ m *> pure (pure unit)
-
-domEffA'every'lead :: forall dx x. MDomEff'a x Unit -> MDom dx x Unit
-domEffA'every'lead m = domEffA'onNew antiUnit $ m *> pure (pure unit)
-
-domEffA'onNew'lag
-  :: forall a dx x. Eq a => a -> MDomEff'a x Unit -> MDom dx x Unit
-domEffA'onNew'lag a m = domEffA'onNew a $ pure m
-
-domEffA'once'lag :: forall dx x. MDomEff'a x Unit -> MDom dx x Unit
-domEffA'once'lag m = domEffA'onNew unit $ pure m
-
-domEffA'every'lag :: forall dx x. MDomEff'a x Unit -> MDom dx x Unit
-domEffA'every'lag m = domEffA'onNew antiUnit $ pure m
+domEff'async :: forall x. MDomEff'a x Unit -> MDomEff x Unit
+domEff'async m = do
+  self <- domEff'getSelf
+  pure $ unsafePerformEffect $ launchAff_ $ spawn'self self m
 
 ------------------------------------------------------------------------
 

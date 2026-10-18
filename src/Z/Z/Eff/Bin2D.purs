@@ -81,7 +81,7 @@ eff'bin2D'freezeAt k1 =
 
 eff'bin2D'valsAt
   :: forall @t k1. Identable k1 => k1 -> Eff'Bin2D k1 t -> Effect (Array t)
-eff'bin2D'valsAt k1 = js_binEff_2d_vals (ident'key k1)
+eff'bin2D'valsAt k1 = js_binEff_2d_valsAt (ident'key k1)
 
 eff'bin2D'sizeAt
   :: forall @t k1. Identable k1 => k1 -> Eff'Bin2D k1 t -> Effect Int
@@ -150,7 +150,7 @@ foreign import js_binEff_2d_size :: forall k1 t. Eff'Bin2D k1 t -> Effect Int
 foreign import js_binEff_2d_sizeAt
   :: forall k1 t. String -> Eff'Bin2D k1 t -> Effect Int
 
-foreign import js_binEff_2d_vals
+foreign import js_binEff_2d_valsAt
   :: forall k1 t. String -> Eff'Bin2D k1 t -> Effect (Array t)
 
 foreign import js_binEff_2d_d1keys

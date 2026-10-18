@@ -90,21 +90,22 @@ domFetchCache'run cachePreload mkFetchUrl getId m = do
   currIds <- getId
   let cacheInitial = cachePreload <#> FetchCache'ValState'Val
   domS'runReducer'' @p cacheInitial fetchCache'update do
-    domEffA'onNew'lead (map ident'key currIds) do
-      forM_ currIds \currId -> do
-        shouldFetch <- domS'get'' @p <#> fetchCache'shouldFetch currId
-        when shouldFetch do
-          domS'dispatch'' @p $ FetchCache'Action'MarkRequesting currId
-          vOrE <- e'try $ do
-            fetchRes <- x'fetch (mkFetchUrl currId) {}
-            decoded <- x'decodeFetched @v fetchRes
-            e'ok $ constL (jsError "decode error" "") decoded
-          case vOrE of
-            Left e -> do
-              domS'dispatch'' @p $ FetchCache'Action'SetError currId e
-            Right v -> do
-              domS'dispatch'' @p $ FetchCache'Action'SetVal currId v
-    m
+    domEff'onNew'lead (map ident'key currIds) (onNew currIds) *> m
+  where
+  onNew currIds = domEff'async do
+    forM_ currIds \currId -> do
+      shouldFetch <- domS'get'' @p <#> fetchCache'shouldFetch currId
+      when shouldFetch do
+        domS'dispatch'' @p $ FetchCache'Action'MarkRequesting currId
+        vOrE <- e'try $ do
+          fetchRes <- x'fetch (mkFetchUrl currId) {}
+          decoded <- x'decodeFetched @v fetchRes
+          e'ok $ constL (jsError "decode error" "") decoded
+        case vOrE of
+          Left e -> do
+            domS'dispatch'' @p $ FetchCache'Action'SetError currId e
+          Right v -> do
+            domS'dispatch'' @p $ FetchCache'Action'SetVal currId v
 
 domFetchCache'run_ :: forall @p @id @v. T'domFetchCache'run'helper p id v T'id
 domFetchCache'run_ = domFetchCache'run @p hm'empty
