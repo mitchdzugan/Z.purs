@@ -224,7 +224,6 @@ import Z.Z.Ext
   , Lens
   , Lens'
   , List(..)
-  , Map
   , Maybe(..)
   , Millisecond
   , Milliseconds(..)

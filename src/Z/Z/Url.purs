@@ -43,11 +43,8 @@ import Data.Array as Array
 import Data.Either (Either(..), note)
 import Data.Filterable (filter)
 import Data.Foldable (class Foldable, foldl, intercalate)
-import Data.FoldableWithIndex (foldlWithIndex)
 import Data.Generic.Rep (class Generic)
 import Data.Int as Int
-import Data.Map (Map)
-import Data.Map as Map
 import Data.Maybe (Maybe(..), fromJust, maybe)
 import Data.Newtype (wrap)
 import Data.Nullable (Nullable)
@@ -57,6 +54,8 @@ import Data.String (null, replace, split) as String
 import Data.String.Utils (startsWith) as String
 import Data.Tuple.Nested (type (/\), (/\))
 import Partial.Unsafe (unsafePartial)
+import Z.Z.Core (may'or)
+import Z.Z.HashMap (HashMap, hm'alter, hm'entries, hm'fromFoldable)
 
 class QueryParam a where
   queryParamTuple :: a -> String /\ Array String
@@ -81,7 +80,7 @@ instance Ord URL where
 
 type Parts =
   { path :: Path
-  , query :: Map String (Array String)
+  , query :: HashMap String (Array String)
   , hash :: Maybe String
   , host :: String
   , port :: Maybe Int
@@ -184,18 +183,19 @@ parts u =
   , protocol: protocol u
   }
 
-query :: URL -> Map String (Array String)
+query :: URL -> HashMap String (Array String)
 query u =
   let
     ks = queryKeysImpl u
     vals k = queryLookupImpl k u
   in
-    Map.fromFoldable $ map (\k -> k /\ vals k) ks
+    hm'fromFoldable $ map (\k -> k /\ vals k) ks
 
-setQuery :: Map String (Array String) -> URL -> URL
-setQuery qs u =
+setQuery :: HashMap String (Array String) -> URL -> URL
+setQuery qs'hm u =
   let
-    asRecord = foldlWithIndex (\k a vs -> a <> [ { k, vs } ]) [] qs
+    qs = hm'entries qs'hm
+    asRecord = foldl (\a (k /\ vs) -> a <> [ { k, vs } ]) [] qs
   in
     querySetAllImpl asRecord u
 
@@ -235,9 +235,7 @@ addQuery u p =
   let
     k /\ vs = queryParamTuple p
     q = query u
-    q'
-      | Just _ <- Map.lookup k q = Map.update (Just <<< append vs) k q
-      | otherwise = Map.insert k vs q
+    q' = flip (hm'alter k) q $ may'or [] >>> (<>) vs >>> Just
   in
     setQuery q' u
 

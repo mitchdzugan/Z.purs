@@ -10,7 +10,6 @@ module Z.Z.Core
   , P
   , ParseError
   , Result
-  , Set
   , T'Related
   , T'RelatedBy
   , T'_
@@ -68,11 +67,6 @@ module Z.Z.Core
   , jsonRmNils
   , jsonStr
   , list'fromFoldable
-  , map'empty
-  , map'fromFoldable
-  , map'set
-  , map'size
-  , map'vals
   , mapL
   , mapM
   , maximumWith
@@ -129,11 +123,6 @@ module Z.Z.Core
   , rtErrMessage
   , rtErrName
   , runParser
-  , set'add
-  , set'empty
-  , set'fromFoldable
-  , set'has
-  , set'size
   , simpleHash
   , stext
   , sumBy
@@ -163,18 +152,14 @@ import Data.Foldable as Foldable
 import Data.Functor as F
 import Data.Functor.Variant (class VariantFMatchCases)
 import Data.Functor.Variant as VarF
-import Data.Functor.Variant as VarF
 import Data.Int as Int
 import Data.Lens (Lens', lens')
 import Data.List as List
-import Data.Map as Map
 import Data.Maybe (Maybe)
 import Data.Maybe as May
 import Data.Newtype (class Newtype)
-import Data.Ord as Ord
 import Data.Ring as Ring
 import Data.Semiring as Semiring
-import Data.Set as Set
 import Data.Symbol (class IsSymbol)
 import Data.Traversable as Traversable
 import Data.Tuple as Tup
@@ -558,26 +543,6 @@ objST'peek = ObjSt.peek
 objST'has :: forall t581 r583. String -> STObject r583 t581 -> ST r583 Boolean
 objST'has k o = May.isJust <$> ObjSt.peek k o
 
-map'empty :: forall @k @v. Ord k => Map.Map k v
-map'empty = Map.empty
-
-map'size :: forall k v. Map.Map k v -> Int
-map'size = Map.size
-
-map'set :: forall @k @v. Ord k => k -> v -> Map.Map k v -> Map.Map k v
-map'set = Map.insert
-
-map'vals :: forall @k @v. Map.Map k v -> Array v
-map'vals = arr'fromFoldable <<< Map.values
-
-map'fromFoldable
-  :: forall @k @v f
-   . Foldable.Foldable f
-  => Ord k
-  => f (k TupN./\ v)
-  -> Map.Map k v
-map'fromFoldable = Map.fromFoldable
-
 may'or :: forall a. a -> May.Maybe a -> a
 may'or = May.fromMaybe
 
@@ -619,24 +584,6 @@ minimumWith
   -> f b
   -> Maybe b
 minimumWith f = minimumBy \a b -> compare (f a) (f b)
-
-type Set a = Set.Set a
-
-set'empty :: forall @a. Set a
-set'empty = Set.empty
-
-set'has :: forall a. Ord.Ord a => a -> Set a -> Boolean
-set'has = Set.member
-
-set'add :: forall a. Ord.Ord a => a -> Set a -> Set a
-set'add = Set.insert
-
-set'size :: forall a. Set a -> Int
-set'size = Set.size
-
-set'fromFoldable
-  :: forall a f. Foldable.Foldable f => Ord.Ord a => f a -> Set a
-set'fromFoldable = Set.fromFoldable
 
 foreign import js_arrWithInd
   :: forall v. (v -> Int -> v TupN./\ Int) -> Array v -> Array (Int TupN./\ v)

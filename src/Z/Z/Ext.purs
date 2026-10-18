@@ -30,7 +30,6 @@ module Z.Z.Ext
   , module LensRecord
   , module LensT
   , module List
-  , module Map
   , module Maybe
   , module MaybeFirst
   , module Monoid
@@ -128,7 +127,6 @@ import Data.Lens.Index (class Index, ix) as LensIndex
 import Data.Lens.Record (prop) as LensRecord
 import Data.Lens.Types (AffineTraversal) as LensT
 import Data.List (List(..)) as List
-import Data.Map (Map) as Map
 import Data.Maybe
   ( Maybe(..)
   , fromMaybe

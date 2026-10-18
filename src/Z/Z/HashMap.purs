@@ -127,3 +127,8 @@ hm'modify
   -> HashMap k v
   -> HashMap k v
 hm'modify k f = hm'alter k $ map f
+
+--------------------------------------------------------------------
+
+instance (Ord k, Ord v, Identable k) => Ord (HashMap k v) where
+  compare a b = compare (hm'entries a) (hm'entries b)

@@ -242,7 +242,7 @@ xWebR =
         , password: Nothing
         , protocol
         , host
-        , query: map'empty
+        , query: hm'empty
         , path: urlPathFromString pathname
         }
   , getElementById: \id -> tagEffWebX $ HTML.window >>= Window.document >>=

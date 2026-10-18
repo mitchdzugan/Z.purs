@@ -69,7 +69,6 @@ import Data.Argonaut.Encode.Generic (genericEncodeJson) as EncodeGeneric
 import Data.Array as Array
 import Data.Either as Either
 import Data.Generic.Rep (class Generic) as Generic
-import Data.Map as Map
 import Data.Maybe as Maybe
 import Data.Ord as Ord
 import Data.Ordering as Ordering
@@ -89,7 +88,7 @@ urlFromParts = Url.fromParts
 urlFromString :: String -> Maybe.Maybe Url.URL
 urlFromString = Url.fromString
 
-urlQuery :: Url.URL -> Map.Map String (Array String)
+urlQuery :: Url.URL -> HashMap String (Array String)
 urlQuery = Url.query
 
 urlPathFromString :: String -> Url.Path
