@@ -1,10 +1,13 @@
-module Z.Z.Lens.Barlow where
+module Z.EXTERNAL.BARLOW.Barlow where
 
 import Data.Lens (Optic)
-import Z.Z.Lens.Barlow.Construction (class ConstructBarlow, constructBarlow)
-import Z.Z.Lens.Barlow.Parser (class ParseSymbol)
-import Type.Proxy (Proxy(..))
 import Data.Symbol (class IsSymbol)
+import Type.Proxy (Proxy(..))
+import Z.EXTERNAL.BARLOW.Barlow.Construction
+  ( class ConstructBarlow
+  , constructBarlow
+  )
+import Z.EXTERNAL.BARLOW.Barlow.Parser (class ParseSymbol)
 
 class Barlow (string :: Symbol) p s t a b | string -> s t a b where
   barlowImpl :: Proxy string -> Optic p s t a b

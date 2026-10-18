@@ -1,17 +1,17 @@
-module Z.Z.Lens.Barlow.Helpers where
+module Z.EXTERNAL.BARLOW.Barlow.Helpers where
 
 import Prelude
 
 import Data.Lens (Forget)
 import Data.Lens as Lens
-import Z.Z.Lens.Barlow (barlow)
-import Z.Z.Lens.Barlow.Construction (class ConstructBarlow)
-import Z.Z.Lens.Barlow.Parser (class ParseSymbol)
 import Data.List (List)
 import Data.Maybe (Maybe)
 import Data.Maybe.First (First)
 import Data.Monoid.Endo (Endo)
 import Data.Symbol (class IsSymbol)
+import Z.EXTERNAL.BARLOW.Barlow (barlow)
+import Z.EXTERNAL.BARLOW.Barlow.Construction (class ConstructBarlow)
+import Z.EXTERNAL.BARLOW.Barlow.Parser (class ParseSymbol)
 
 view
   :: forall s t a b @sym lenses

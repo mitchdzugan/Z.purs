@@ -1,7 +1,15 @@
-module Z.Z.Lens.Barlow.Generic where
+module Z.EXTERNAL.BARLOW.Barlow.Generic where
 
 import Data.Either (Either(..))
-import Data.Generic.Rep (class Generic, Argument(..), Constructor(..), Product(..), Sum(..), from, to)
+import Data.Generic.Rep
+  ( class Generic
+  , Argument(..)
+  , Constructor(..)
+  , Product(..)
+  , Sum(..)
+  , from
+  , to
+  )
 import Data.Lens (Iso', Lens', Prism', iso, lens', prism, united)
 import Data.Profunctor.Strong (class Strong)
 import Data.Tuple (Tuple(..))

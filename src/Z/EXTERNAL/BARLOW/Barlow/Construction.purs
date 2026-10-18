@@ -1,10 +1,15 @@
-module Z.Z.Lens.Barlow.Construction where
+module Z.EXTERNAL.BARLOW.Barlow.Construction where
 
 import Data.Either (Either)
-import Data.Generic.Rep (class Generic, Argument, Constructor, NoArguments, Product, Sum)
+import Data.Generic.Rep
+  ( class Generic
+  , Argument
+  , Constructor
+  , NoArguments
+  , Product
+  , Sum
+  )
 import Data.Lens (class Wander, Optic, _Just, _Left, _Right, traversed)
-import Z.Z.Lens.Barlow.Generic (_Argument, _Constructor, _NoArguments, _ProductLeft, _ProductRight, _SumLeft, _SumRight, _ToGeneric)
-import Z.Z.Lens.Barlow.Types (ExclamationMark, LeftArrow, N1, Percentage, Plus, QuestionMark, RecordField, RightArrow, S, TCons, TList, TNil)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Maybe (Maybe)
@@ -17,6 +22,30 @@ import Prelude (Unit, (<<<))
 import Prim.Row as Row
 import Type.Prelude (class IsSymbol)
 import Type.Proxy (Proxy(..))
+import Z.EXTERNAL.BARLOW.Barlow.Generic
+  ( _Argument
+  , _Constructor
+  , _NoArguments
+  , _ProductLeft
+  , _ProductRight
+  , _SumLeft
+  , _SumRight
+  , _ToGeneric
+  )
+import Z.EXTERNAL.BARLOW.Barlow.Types
+  ( ExclamationMark
+  , LeftArrow
+  , N1
+  , Percentage
+  , Plus
+  , QuestionMark
+  , RecordField
+  , RightArrow
+  , S
+  , TCons
+  , TList
+  , TNil
+  )
 
 -- Type class for barlow lens construction of generic representations. 
 -- This type class is never instantiated immediately, but rather if ConstructBarlow fails.

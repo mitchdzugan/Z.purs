@@ -1,4 +1,4 @@
-module Z.Z.Lens.Barlow.Types where
+module Z.EXTERNAL.BARLOW.Barlow.Types where
 
 -- typelevel list
 data TList

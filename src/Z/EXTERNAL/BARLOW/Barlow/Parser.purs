@@ -1,6 +1,7 @@
-module Z.Z.Lens.Barlow.Parser where
+module Z.EXTERNAL.BARLOW.Barlow.Parser where
 
-import Z.Z.Lens.Barlow.Types
+import Z.EXTERNAL.BARLOW.Barlow.Types
+
 import Prim.Symbol as Symbol
 
 class ParsePercentage :: forall k. Symbol -> Symbol -> k -> Symbol -> Constraint
