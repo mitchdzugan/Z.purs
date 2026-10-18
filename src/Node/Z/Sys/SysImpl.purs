@@ -46,7 +46,7 @@ import Z.Prelude
 import Effect.Unsafe as Unsafe
 import Z.Sys.Module as Sys
 import Z.Z.Opt as O
-import Z.Z.Promise (promise'run)
+import Z.Z.Promise (future'run)
 
 foreign import js_readTextFile
   :: String -> Effect $ Promise String
@@ -214,8 +214,8 @@ x'lookupEnv k = e'try (e'runEffA $ lookupEnv k) <#> getRes
   getRes (Right (Just v)) = Just v
   getRes _ = Nothing
 
-effAffThenExit :: forall e a. RtError e => Promise (Either e a) -> Effect Unit
-effAffThenExit = promise'run onDone onError
+effAffThenExit :: forall e a. RtError e => Future (Either e a) -> Effect Unit
+effAffThenExit = future'run onDone onError
   where
   onError e = do
     js_errorLog "process failed with UNHANDLED UNKNOWN error ⌄"

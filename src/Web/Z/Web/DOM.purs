@@ -40,7 +40,7 @@ import Web.HTML.HTMLElement as HTMLEl
 import Web.HTML.History as History
 import Web.HTML.Location as Loc
 import Web.HTML.Window as Window
-import Z.Z.Promise (promise'run)
+import Z.Z.Promise (future'run)
 
 type XEffWeb a = Eff'At "_'x'web" a
 type X'Web x = (_'x'web :: X'R XWebR | x)
@@ -276,8 +276,8 @@ runXWeb = x'eval @"_'x'web" @(X'R XWebR) xWebR
 
 foreign import js_errorLog :: forall a. a -> Effect Unit
 
-effAffThenExit :: forall e a. RtError e => Promise (Either e a) -> Effect Unit
-effAffThenExit = promise'run onDone onError
+effAffThenExit :: forall e a. RtError e => Future (Either e a) -> Effect Unit
+effAffThenExit = future'run onDone onError
   where
   onError e = do
     js_errorLog "process failed with UNHANDLED UNKNOWN error ⌄"

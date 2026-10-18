@@ -77,7 +77,6 @@ import Z.Prelude
 import Effect.Unsafe (unsafePerformEffect)
 import Z.XDom.Preact (js_renderToString, js_renderToStringAsync)
 import Z.XDom.Preact as D
-import Z.Z.Eff.Ref (eff'ref'get, eff'ref'new, eff'ref'set)
 
 data Self dx x = Self (Runner dx) (Runner x)
 type EffSelf x = Self () x
@@ -87,12 +86,12 @@ type R'Self dx x = X'R (Self dx x)
 eval'self :: forall dx x a. Self dx x -> Run (self :: R'Self dx x | x) a -> a
 eval'self self@(Self _ rn) m = runner'eval rn $ r'run'' @"self" self $ m
 
-spawn'self
+evalA'self
   :: forall dx x a
    . Self dx x
   -> Run (A' (self :: R'Self dx x | x)) a
-  -> Promise a
-spawn'self self@(Self _ rn) m = runner'spawn rn $ r'run'' @"self" self $ m
+  -> Future a
+evalA'self self@(Self _ rn) m = runner'evalA rn $ r'run'' @"self" self $ m
 
 selfExtend :: forall dr x' x. RunMW x x' -> Self dr x' -> Self dr x
 selfExtend fm (Self drn rn) = Self drn (runner'extend fm rn)
@@ -373,7 +372,7 @@ domEff'every'lag m = domEff'onNew antiUnit $ pure m
 domEff'async :: forall x. MDomEff'a x Unit -> MDomEff x Unit
 domEff'async m = do
   self <- domEff'getSelf
-  pure (spawn'self self m) <#> const unit
+  pure $ unsafePerformEffect $ future'run_ $ evalA'self self m
 
 ------------------------------------------------------------------------
 

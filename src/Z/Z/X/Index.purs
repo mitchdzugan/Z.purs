@@ -82,7 +82,7 @@ module Z.Z.X.Index
   , runner'extend
   , runner'mk
   , runner'mkDeferred
-  , runner'spawn
+  , runner'evalA
   , s'eval
   , s'exec
   , s'get
@@ -183,7 +183,13 @@ import Z.Z.Core
 import Z.Z.DateTime (DateTime, dateTime'toMS)
 import Z.Z.Defaultable.Util as D
 import Z.Z.Fetch (Fetch'RequestOptions, Fetch'Response, fetch, fetchRes'json)
-import Z.Z.Promise (Promise, promise'fromEff, promise'try)
+import Z.Z.Promise
+  ( EffPromise
+  , Future
+  , future'fromEff
+  , future'fromEffPromise
+  , future'try
+  )
 import Z.Z.String (str'joinWith)
 import Z.Z.Util (JsonDecodeError(..), decodeForeign, decodeJson)
 import Z.Z.X.Async (AsyncF(..), x'async'')
@@ -333,19 +339,28 @@ s'eval = x'eval @"_'x'state"
 s'exec :: forall x r. r -> Run (S' r x) Unit -> Run x r
 s'exec = x'exec @"_'x'state"
 
-a'attempt :: forall x a. Promise a -> Run (A' x) (Either JsError a)
-a'attempt = x'async'' @"_'x'async" <<< promise'try
+a'attempt :: forall x a. Future a -> Run (A' x) (Either JsError a)
+a'attempt = x'async'' @"_'x'async" <<< future'try
+
+---------------------------------------------------------------
+
+data IdF a = IdSend (Identity a)
+
+derive instance Functor IdF
+
+sync'id :: forall a. Run (id :: IdF) a -> a
+sync'id m = unwrap $ flip runRec m $ match { id: \(IdSend a) -> a }
 
 sync'_ :: forall a. Run () a -> a
-sync'_ = unsafePerformEffect <<< runBaseEffect <<< expand
+sync'_ = sync'id <<< expand
 
 sync'x :: forall a. () @@> a -> a
 sync'x = sync'_ <<< x'eval_ @"_'x'base" @X'BaseM
 
-async'_ :: forall a. Run (A' ()) a -> Promise a
+async'_ :: forall a. Run (A' ()) a -> Future a
 async'_ m = match { _'x'async: \(AsyncSend a) -> a } # run $ m
 
-async'x :: forall a. A' () @@> a -> Promise a
+async'x :: forall a. A' () @@> a -> Future a
 async'x = async'_ <<< x'eval_ @"_'x'base" @X'BaseM
 
 ---------------------------------------------------------------------
@@ -361,8 +376,8 @@ instance X'Buildable (Runner't x x') x' x Unit where
 runner'eval :: forall x a. Runner x -> Run x a -> a
 runner'eval (Runner r) m = sync'_ $ r m
 
-runner'spawn :: forall x a. Runner x -> Run (A' x) a -> Promise a
-runner'spawn runner = run $
+runner'evalA :: forall x a. Runner x -> Run (A' x) a -> Future a
+runner'evalA runner = run $
   onMatch { _'x'async: \(AsyncSend a) -> a } \other ->
     pure $ runner'eval runner $ send other
 
@@ -448,7 +463,7 @@ e'ok = e'ok'' @p
 type T'e'runPromise p =
   forall x' x a
    . ConsSymbol p (X'E JsError) (A' x') (A' x)
-  => Promise a
+  => Future a
   -> Run (A' x) a
 
 e'runPromise'' :: forall @p. T'e'runPromise p
@@ -462,11 +477,11 @@ e'runPromise = e'runPromise'' @p
 type T'e'runEffPromise p =
   forall x' x a
    . ConsSymbol p (X'E JsError) (A' x') (A' x)
-  => Effect (Promise a)
+  => EffPromise a
   -> Run (A' x) a
 
 e'runEffPromise'' :: forall @p. T'e'runEffPromise p
-e'runEffPromise'' = e'runPromise'' @p <<< (=<<) identity <<< promise'fromEff
+e'runEffPromise'' = e'runPromise'' @p <<< future'fromEffPromise
 
 e'runEffPromise :: forall p. T'use'e'AsSym p T'e'runEffPromise
 e'runEffPromise = e'runEffPromise'' @p
@@ -649,7 +664,7 @@ type T'e'runEffA p =
   -> Run (A' x) a
 
 e'runEffA'' :: forall @p. T'e'runEffA p
-e'runEffA'' eff = a'attempt (promise'fromEff eff) >>= e'ok'' @p
+e'runEffA'' eff = a'attempt (future'fromEff eff) >>= e'ok'' @p
 
 e'runEffA :: forall p. T'use'e'AsSym p T'e'runEffA
 e'runEffA = e'runEffA'' @p
@@ -973,11 +988,11 @@ x'fetch
    . String
   -> Edit Fetch'RequestOptions
   -> Run (E' JsError (A' x)) Fetch'Response
-x'fetch url opts = e'runPromise $ fetch url $ edit default opts
+x'fetch url opts = e'runEffPromise $ fetch url $ edit default opts
 
 x'decodeFetched
   :: forall @t x
    . DecodeJson t
   => Fetch'Response
   -> Run (E' JsError (A' x)) (Either JsonDecodeError t)
-x'decodeFetched res = decodeJson @t <$> fetchRes'json res # e'runPromise
+x'decodeFetched res = decodeJson @t <$> e'runEffPromise (fetchRes'json res)

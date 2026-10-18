@@ -1,9 +1,12 @@
 module Z.Z.Promise
   ( EffPromise
+  , Future
   , Promise
-  , promise'fromEff
-  , promise'run
-  , promise'try
+  , future'fromEff
+  , future'fromEffPromise
+  , future'run
+  , future'run_
+  , future'try
   ) where
 
 import Prelude
@@ -12,55 +15,73 @@ import Data.Either (Either(..))
 import Effect (Effect)
 import Effect.Exception (Error)
 import Z.Z.Core (JsError(..))
+import Z.Z.Passable (pass)
 
 foreign import data Promise :: Type -> Type
 
+foreign import data Future :: Type -> Type
+
 type EffPromise a = Effect (Promise a)
 
-instance Functor Promise where
-  map = js_promiseMap
+instance Functor Future where
+  map = js_futureMap
 
-instance Apply Promise where
-  apply = js_promiseApply
+instance Apply Future where
+  apply = js_futureApply
 
-instance Applicative Promise where
-  pure = js_promisePure
+instance Applicative Future where
+  pure = js_futurePure
 
-instance Bind Promise where
-  bind = js_promiseBind
+instance Bind Future where
+  bind = js_futureBind
 
-instance Monad Promise
+instance Monad Future
 
-promise'try :: forall a. Promise a -> Promise (Either JsError a)
-promise'try = js_promiseTry (Left <<< JsError) Right
+future'try :: forall a. Future a -> Future (Either JsError a)
+future'try = js_futureTry (Left <<< JsError) Right
 
-promise'fromEff :: forall a. Effect a -> Promise a
-promise'fromEff = js_promiseFromEff
+future'fromEff :: forall a. Effect a -> Future a
+future'fromEff = js_futureFromEff
 
-promise'run
+future'fromEffPromise :: forall a. EffPromise a -> Future a
+future'fromEffPromise = js_futureFromEffPromise
+
+future'run
   :: forall a
    . (a -> Effect Unit)
   -> (JsError -> Effect Unit)
-  -> Promise a
+  -> Future a
   -> Effect Unit
-promise'run onDone onError promise = do
-  pure unit
+future'run = js_futureRun
 
-foreign import js_promiseMap :: forall a b. (a -> b) -> (Promise a) -> Promise b
+future'run_ :: forall a. Future a -> Effect Unit
+future'run_ = js_futureRun (const pass) (const pass)
 
-foreign import js_promiseApply
-  :: forall a b. Promise (a -> b) -> (Promise a) -> Promise b
+foreign import js_futureMap
+  :: forall a b. (a -> b) -> (Future a) -> Future b
 
-foreign import js_promisePure :: forall a. a -> (Promise a)
+foreign import js_futureApply
+  :: forall a b. Future (a -> b) -> (Future a) -> Future b
 
-foreign import js_promiseBind
-  :: forall a b. Promise a -> (a -> Promise b) -> Promise b
+foreign import js_futurePure :: forall a. a -> (Future a)
 
-foreign import js_promiseTry
+foreign import js_futureBind
+  :: forall a b. Future a -> (a -> Future b) -> Future b
+
+foreign import js_futureTry
   :: forall a
    . (Error -> Either JsError a)
   -> (a -> Either JsError a)
-  -> Promise a
-  -> Promise (Either JsError a)
+  -> Future a
+  -> Future (Either JsError a)
 
-foreign import js_promiseFromEff :: forall a. Effect a -> Promise a
+foreign import js_futureFromEff :: forall a. Effect a -> Future a
+
+foreign import js_futureRun
+  :: forall a
+   . (a -> Effect Unit)
+  -> (JsError -> Effect Unit)
+  -> Future a
+  -> Effect Unit
+
+foreign import js_futureFromEffPromise :: forall a. EffPromise a -> Future a

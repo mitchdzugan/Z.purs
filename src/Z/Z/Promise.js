@@ -1,19 +1,19 @@
-export const js_promiseMap = (f) => async (pv) => {
-  const v = await pv;
+export const js_futureMap = (f) => (pv) => async () => {
+  const v = await pv();
   return f(v);
 };
 
-export const js_promiseApply = (pf) => async (pv) => {
-  const f = await pf;
-  const v = await pv;
+export const js_futureApply = (pf) => (pv) => async () => {
+  const f = await pf();
+  const v = await pv();
   return f(v);
 };
 
-export const js_promisePure = (v) => Promise.resolve(v);
+export const js_futurePure = (v) => () => Promise.resolve(v);
 
-export const js_promiseBind = (pv) => async (fp) => {
-  const v = await pv;
-  return await fp(v);
+export const js_futureBind = (pv) => (fp) => async () => {
+  const v = await pv();
+  return await fp(v)();
 };
 
 class NonError extends Error {
@@ -22,9 +22,9 @@ class NonError extends Error {
   }
 }
 
-export const js_promiseTry = (Left) => (Right) => async (pv) => {
+export const js_futureTry = (Left) => (Right) => (pv) => async () => {
   try {
-    return Right(await pv);
+    return Right(await pv());
   } catch (caught) {
     const error = (() => {
       if (caught instanceof Error) {
@@ -36,6 +36,11 @@ export const js_promiseTry = (Left) => (Right) => async (pv) => {
   }
 };
 
-export const js_promiseFromEff = async (eff) => {
-  return eff();
-};
+export const js_futureFromEff = (eff) => async () => eff();
+
+export const js_futureRun = (onDone) => (onError) => (p) => () =>
+  p()
+    .then((v) => onDone(v)())
+    .catch((e) => onError(e)());
+
+export const js_futureFromEffPromise = (effPromise) => effPromise;
