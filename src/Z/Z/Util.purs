@@ -7,6 +7,7 @@ module Z.Z.Util
   , SorN(..)
   , Type_Ap
   , Type_Ap_R
+  , UrlParts
   , arg2'
   , arg3'
   , arg4'
@@ -49,8 +50,9 @@ module Z.Z.Util
   , urlFromString
   , urlHash
   , urlOrigin
-  , urlPathFromString
   , urlPathSegments
+  , urlPathSegmentsFromPathname
+  , urlPathname
   , urlQuery
   , urlRelative
   , urlToString
@@ -82,6 +84,8 @@ import Z.Z.HashMap (HashMap, hm'entries)
 import Z.Z.Id (class Identable, id'of)
 import Z.Z.Url as Url
 
+type UrlParts = Url.Parts
+
 urlFromParts :: Url.Parts -> Url.URL
 urlFromParts = Url.fromParts
 
@@ -91,11 +95,8 @@ urlFromString = Url.fromString
 urlQuery :: Url.URL -> HashMap String (Array String)
 urlQuery = Url.query
 
-urlPathFromString :: String -> Url.Path
-urlPathFromString = Url.pathFromString
-
-urlRelative :: Url.URL -> String
-urlRelative = Url.relative
+urlPathSegmentsFromPathname :: String -> Array String
+urlPathSegmentsFromPathname = Url.pathSegmentsFromPathname
 
 urlToString :: Url.URL -> String
 urlToString = Url.toString
@@ -107,10 +108,16 @@ urlOrigin url = Url.protocol url <> "://" <> rest (Url.port url)
   rest (Maybe.Just n) = Url.host url <> ":" <> show n
 
 urlPathSegments :: Url.URL -> Array String
-urlPathSegments u = Url.pathSegments $ Url.path u
+urlPathSegments = Url.path
 
 urlHash :: Url.URL -> Maybe.Maybe String
-urlHash u = Url.hash u
+urlHash = Url.hash
+
+urlPathname :: Url.URL -> String
+urlPathname = Url.pathname
+
+urlRelative :: Url.URL -> String
+urlRelative = Url.relative
 
 nth :: forall a. Array a -> Int -> Maybe.Maybe a
 nth = Array.index
