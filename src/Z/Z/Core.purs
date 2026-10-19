@@ -2,7 +2,6 @@ module Z.Z.Core
   ( (<##>)
   , (<$$>)
   , AntiUnit
-  , Deferred
   , Eff'At(..)
   , JsAny
   , JsError(..)
@@ -44,7 +43,7 @@ module Z.Z.Core
   , class SText
   , constL
   , dec
-  , deferred'run
+  , eff'defer
   , eff'tag
   , encodeForeign
   , encodeOpts
@@ -209,12 +208,8 @@ class (IsSymbol p, Cons p m x' x) <= ConsSymbol p m x' x
 
 instance (IsSymbol p, Cons p m x' x) => ConsSymbol p m x' x
 
-type Deferred a = Void -> a
-
-foreign import js_runDeferred :: forall a. Deferred a -> a
-
-deferred'run :: forall a. Deferred a -> a
-deferred'run = js_runDeferred
+eff'defer :: forall a. (Unit -> a) -> Eff.Effect a
+eff'defer deferred = pure unit <#> deferred
 
 rec'get ∷ forall r r' @l a. IsSymbol l ⇒ Cons l a r' r ⇒ Record r → a
 rec'get = Record.get (Proxy.Proxy @l)

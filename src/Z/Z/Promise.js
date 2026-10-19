@@ -44,3 +44,15 @@ export const js_futureRun = (onDone) => (onError) => (p) => () =>
     .catch((e) => onError(e)());
 
 export const js_futureFromEffPromise = (effPromise) => effPromise;
+
+export const js_futureTailRecM = (useStep) => (nextF) => (a1) => async () => {
+  let a = a1;
+  let resRef = [];
+  while (resRef.length == 0) {
+    const step = await nextF(a)();
+    const useLoop = (ax) => () => (a = ax);
+    const useDone = (res) => () => (resRef = [res]);
+    useStep(useLoop)(useDone)(step)();
+  }
+  return resRef[0];
+};

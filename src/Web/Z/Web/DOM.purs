@@ -27,6 +27,7 @@ module Web.Z.Web.DOM
 
 import Z.Prelude
 
+import Effect.Unsafe (unsafePerformEffect)
 import Web.DOM.Element as Element
 import Web.DOM.Internal.Types as T
 import Web.DOM.NonElementParentNode as NEPN
@@ -60,7 +61,7 @@ type XWebR =
       WebEvent.EventType
       -> WebEventT.EventTarget
       -> EventListenerOpts
-      -> (WebEvent.Event -> Unit)
+      -> (WebEvent.Event -> Effect Unit)
       -> XEffWeb WebEventT.EventListener
   , rmEventListener ::
       WebEvent.EventType
@@ -73,7 +74,7 @@ type XWebR =
       WebEvent.EventType
       -> WebEventT.EventTarget
       -> Edit EventListenerOpts
-      -> (WebEvent.Event -> Run () Unit)
+      -> (WebEvent.Event -> Effect Unit)
       -> XEffWeb (XEffWeb Unit)
   }
 
@@ -147,13 +148,12 @@ xAddEventListener
   => WebEvent.EventType
   -> t
   -> Edit EventListenerOpts
-  -> (WebEvent.Event -> Deferred Unit)
+  -> (WebEvent.Event -> Effect Unit)
   -> Run (X'Web x) (Run (X'Web x) Unit)
 xAddEventListener eType target opts onE = do
   let o = edit defaultEventListenerOpts opts
   let tgt = toEventTarget target
-  let evalEvent = deferred'run <<< onE
-  el <- x'act @"_'x'web" \r -> r.addEventListener eType tgt o evalEvent
+  el <- x'act @"_'x'web" \r -> r.addEventListener eType tgt o onE
   pure $ x'act @"_'x'web" \r -> r.rmEventListener eType tgt o.capture el
 
 xPushState
@@ -192,10 +192,10 @@ raw_addEventListener
   :: WebEvent.EventType
   -> WebEventT.EventTarget
   -> EventListenerOpts
-  -> (WebEvent.Event -> Unit)
+  -> (WebEvent.Event -> Effect Unit)
   -> Effect WebEventT.EventListener
 raw_addEventListener et t o h = do
-  el <- WebEventT.eventListener \e -> pure $ h e
+  el <- WebEventT.eventListener h
   WebEventT.addEventListenerWithOptions et el o t
   pure el
 
@@ -211,13 +211,12 @@ raw_subToEvent
   :: WebEvent.EventType
   -> WebEventT.EventTarget
   -> Edit EventListenerOpts
-  -> (WebEvent.Event -> Run () Unit)
+  -> (WebEvent.Event -> Effect Unit)
   -> Effect (XEffWeb Unit)
 raw_subToEvent eType target opts onE = do
   let o = edit defaultEventListenerOpts opts
   let tgt = target
-  let evalEvent = sync'_ <<< onE
-  el <- raw_addEventListener eType tgt o evalEvent
+  el <- raw_addEventListener eType tgt o onE
   pure $ tagEffWebX $ raw_rmEventListener eType tgt o.capture el
 
 xWebR :: XWebR

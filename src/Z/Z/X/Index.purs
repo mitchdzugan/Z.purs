@@ -166,12 +166,12 @@ import Parsing (Parser)
 import Z.EXTERNAL.RUN.Run.Except (Except, runExceptAt, throwAt)
 import Z.Z.Core
   ( class Resulting
-  , Deferred
   , Eff'At(..)
   , JsError(..)
   , ParseError
   , Result
   , T'useAsSym
+  , eff'defer
   , fDiscard
   , forM_
   , invert
@@ -358,7 +358,7 @@ sync'x :: forall a. () @@> a -> a
 sync'x = sync'_ <<< x'eval_ @"_'x'base" @X'BaseM
 
 async'_ :: forall a. Run (A' ()) a -> Future a
-async'_ m = match { _'x'async: \(AsyncSend a) -> a } # run $ m
+async'_ m = match { _'x'async: \(AsyncSend a) -> a } # runRec $ m
 
 async'x :: forall a. A' () @@> a -> Future a
 async'x = async'_ <<< x'eval_ @"_'x'base" @X'BaseM
@@ -381,8 +381,8 @@ runner'evalA runner = run $
   onMatch { _'x'async: \(AsyncSend a) -> a } \other ->
     pure $ runner'eval runner $ send other
 
-runner'mkDeferred :: forall x a. Runner x -> Run x a -> Deferred a
-runner'mkDeferred runner m = \_ -> runner'eval runner m
+runner'mkDeferred :: forall x a. Runner x -> Run x a -> Effect a
+runner'mkDeferred runner m = eff'defer \_ -> runner'eval runner m
 
 runner'_ :: Runner ()
 runner'_ = Runner identity

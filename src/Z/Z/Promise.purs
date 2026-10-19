@@ -11,6 +11,7 @@ module Z.Z.Promise
 
 import Prelude
 
+import Control.Monad.Rec.Class (class MonadRec, Step(..))
 import Data.Either (Either(..))
 import Effect (Effect)
 import Effect.Exception (Error)
@@ -36,6 +37,9 @@ instance Bind Future where
   bind = js_futureBind
 
 instance Monad Future
+
+instance MonadRec Future where
+  tailRecM = js_futureTailRecM useStep
 
 future'try :: forall a. Future a -> Future (Either JsError a)
 future'try = js_futureTry (Left <<< JsError) Right
@@ -85,3 +89,13 @@ foreign import js_futureRun
   -> Effect Unit
 
 foreign import js_futureFromEffPromise :: forall a. EffPromise a -> Future a
+
+foreign import js_futureTailRecM
+  :: forall a b. T'useStep a b -> (a -> Future (Step a b)) -> a -> Future b
+
+type T'useStep a b =
+  (a -> Effect Unit) -> (b -> Effect Unit) -> Step a b -> Effect Unit
+
+useStep :: forall a b. T'useStep a b
+useStep useLoop _ (Loop a) = useLoop a
+useStep _ useDone (Done b) = useDone b

@@ -15,8 +15,9 @@ import Data.Argonaut.Encode (class EncodeJson, encodeJson)
 import Data.Functor.Variant (VariantF, inj)
 import Data.Symbol (reflectSymbol)
 import Data.Tuple.Nested ((/\))
+import Effect (Effect)
 import Type.Proxy (Proxy(..))
-import Z.Z.Core (class ConsSymbol)
+import Z.Z.Core (class ConsSymbol, eff'defer)
 import Z.Z.Defaultable (class Generable, GDefault, default)
 import Z.Z.Id (class Identable, ident'key)
 import Z.Z.X.Responds (Responds, responds'id)
@@ -47,7 +48,7 @@ boxed'call b args =
   let
     proxy = Proxy @method
     varf = inj proxy (responds'id args)
-    mk = \_ -> boxable'mkResponds @tag b varf
+    mk = eff'defer \_ -> boxable'mkResponds @tag b varf
     fnAndArgId = ident'key $ reflectSymbol proxy /\ args
   in
     js_boxedGetCachedOrEval fnAndArgId mk b
@@ -60,15 +61,7 @@ boxed'call_
   => Generable args GDefault args
   => Boxed tag
   -> res
-boxed'call_ b =
-  let
-    args = default @args
-    proxy = Proxy @method
-    varf = inj proxy (responds'id args)
-    mk = \_ -> boxable'mkResponds @tag b varf
-    fnAndArgId = ident'key $ reflectSymbol proxy /\ args
-  in
-    js_boxedGetCachedOrEval fnAndArgId mk b
+boxed'call_ b = boxed'call @method b default
 
 instance (Boxable tag value responds, Eq value) => Eq (Boxed tag) where
   eq b1 b2 = boxed'v b1 == boxed'v b2
@@ -85,4 +78,4 @@ foreign import js_newBoxed
 foreign import js_boxedVal :: forall tag value. Boxed tag -> value
 
 foreign import js_boxedGetCachedOrEval
-  :: forall v res. String -> (Unit -> res) -> Boxed v -> res
+  :: forall v res. String -> (Effect res) -> Boxed v -> res

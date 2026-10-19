@@ -245,8 +245,8 @@ domE'bind'' em m = do
   oldSelf <- x'extract @"self"
   let self = selfExtendDom (r'run'' @p (Proxy @(DomETag /\ e))) oldSelf
   w'say $ D.js_withBoundedError (reflectSymbol $ p @p)
-    (\e _ -> renderMEl oldSelf $ em e)
-    (\_ -> renderMEl self m)
+    (\e -> eff'defer \_ -> renderMEl oldSelf $ em e)
+    (eff'defer \_ -> renderMEl self m)
 
 domE'bind :: forall e p. T'use'e'AsSym p $ T'domE'bind e
 domE'bind = domE'bind'' @p
@@ -339,8 +339,9 @@ type MDomEffA_D x = MDomEff'a x (MDomEff'a x Unit)
 domEff'onNew :: forall a dx x. Eq a => a -> MDomEff_D x -> MDom dx x Unit
 domEff'onNew comp on = do
   self <- dom'getEffSelf
-  w'say $ D.js_effComponent eq comp $ \_ ->
-    let r' = eval'self self on in \_ -> eval'self self r'
+  w'say $ D.js_effComponent eq comp do
+    r' <- eff'defer \_ -> eval'self self on
+    pure $ eff'defer \_ -> eval'self self r'
 
 domEff'once :: forall dx x. MDomEff_D x -> MDom dx x Unit
 domEff'once = domEff'onNew unit

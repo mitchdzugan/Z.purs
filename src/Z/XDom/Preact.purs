@@ -35,11 +35,11 @@ foreign import js_effComponent
   :: forall a
    . (a -> a -> Boolean)
   -> a
-  -> (Unit -> (Unit -> Unit))
+  -> (Effect (Effect Unit))
   -> ReactEl
 
 foreign import js_withBoundedError
-  :: forall e. String -> (e -> Unit -> ReactEl) -> (Unit -> ReactEl) -> ReactEl
+  :: forall e. String -> (e -> Effect ReactEl) -> (Effect ReactEl) -> ReactEl
 
 foreign import js_throwBoundedError :: forall e a. String -> e -> a
 
