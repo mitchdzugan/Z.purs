@@ -10,12 +10,6 @@ import Z.CLM.Stats.Types (ClmAppLoadError(..), ClmBuildOutputs)
 
 runClmStatsApp :: Effect Unit
 runClmStatsApp = runXAThenExit @Void @Void do
-  let
-    defaultUrlParts = edit (default @UrlParts) do
-      s'setPure'b @"hash" "sdf"
-  x'out { defaultUrlParts }
-  let defaultUrl = urlFromParts defaultUrlParts
-  x'out { defaultUrl: show defaultUrl, local: urlRelative defaultUrl }
   _OrError <- e'try do
     docHead <- xHead >>= e'unwrap MissingHtmlHead
     buildOutputsStr <- xGetAttribute docHead ":clmBuildOutputs" >>=
