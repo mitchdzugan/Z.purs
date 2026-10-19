@@ -2,8 +2,12 @@ module Z.XDom.Router
   ( R
   , T
   , X
-  , router'href
-  , router'href''
+  , router'setHref
+  , router'setHref''
+  , router'mkRel
+  , router'mkRel''
+  , router'mkUrl
+  , router'mkUrl''
   , router'routeOrE
   , router'routeOrE''
   , router'run
@@ -80,18 +84,40 @@ router'mkUrl'' route =
 router'mkUrl :: forall @p. T'useAsSym "router" p T'router'mkUrl
 router'mkUrl = router'mkUrl'' @p
 
-type T'router'href p =
-  forall e r x'' x' x
+type T'router'mkRel p =
+  forall e r x x'. IsSymbol p => Cons p (R e r) x' x => r -> Z.Run x String
+
+router'mkRel'' :: forall @p. T'router'mkRel p
+router'mkRel'' route = router'mkUrl'' @p route <#> url'relative
+
+router'mkRel :: forall @p. T'useAsSym "router" p T'router'mkRel
+router'mkRel = router'mkRel'' @p
+
+type T'router'setHref p =
+  forall e r x' x
    . IsSymbol p
-  => Cons p (R e r) x'' x
-  => Cons p (R e r) x' (attr :: X'W (Array PropWF) | x)
+  => Cons p (R e r)
+       (attr :: X'W (Array PropWF) | x')
+       (attr :: X'W (Array PropWF) | x)
   => r
   -> Z.Run (attr :: X'W (Array PropWF) | x) Unit
 
-router'href'' :: forall @p. T'router'href p
-router'href'' route = do
+router'setHref'' :: forall @p. T'router'setHref p
+router'setHref'' route = do
   href <- router'mkUrl'' @p route <#> url'relative
   w'tell'' @"attr" $ pure $ Href href
 
-router'href :: forall @p. T'useAsSym "router" p T'router'href
-router'href = router'href'' @p
+{-
+  TODO
+for some reason this causes compiler to get stuck in an infinite loop when
+defined as:
+```
+router'setHref :: forall @p. T'useAsSym "router" p T'router'setHref
+router'setHref = router'setHref'' @p
+```
+-}
+router'setHref
+  :: forall e r x
+   . r
+  -> Z.Run (attr :: X'W (Array PropWF), router :: R e r | x) Unit
+router'setHref = router'setHref'' @"router"

@@ -13,7 +13,6 @@ const target = "http://localhost:4000";
 const proxyServer = { proxy: { "/db": { target, changeOrigin: true } } };
 
 export default defineConfig({
-  build: { watch: { buildDelay: 100 } },
   plugins: [
     tailwindcss(),
     visualizer({
@@ -24,5 +23,5 @@ export default defineConfig({
     }),
   ],
   publicDir,
-  server: proxyServer
+  server: proxyServer,
 });

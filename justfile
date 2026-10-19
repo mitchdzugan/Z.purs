@@ -20,10 +20,14 @@ clm-stats *args:
     spago run -m Test.CLMStatsManager -- {{args}}
 
 [parallel]
-clm-stats-web: clm-stats-jekyll-serve clm-stats-web-vite
+clm-stats-web: clm-stats-jekyll-serve clm-stats-web-vite-preview
 
-clm-stats-web-vite:
-    vite test/Web/ClmStats
+clm-stats-build:
+    spago build
+    vite build test/Web/ClmStats
+
+clm-stats-web-vite-preview:
+    vite preview test/Web/ClmStats
 
 clm-stats-jekyll-serve:
     cd $CLM_STATS_PAGES_CO/docs && jekyll serve

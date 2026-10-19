@@ -1,6 +1,7 @@
 module Z.Z.Core
   ( (<##>)
   , (<$$>)
+  , (=@=)
   , AntiUnit
   , Eff'At(..)
   , JsAny
@@ -467,6 +468,8 @@ ffmap
 ffmap f = map (map f)
 
 infixl 2 ffmap as <$$>
+
+infixl 2 unsafeRefEq as =@=
 
 ffmapFlipped
   :: forall f g a b

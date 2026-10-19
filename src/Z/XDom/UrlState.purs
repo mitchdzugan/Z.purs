@@ -10,7 +10,7 @@ module Z.XDom.UrlState
   , parsedHref
   , update
   , useProvider
-  , xProvideStaticHistoryX
+  , mkStaticHistoryProvider
   ) where
 
 import Z.Prelude
@@ -78,10 +78,7 @@ useProvider (RProvider { getBaseUrl, provide }) toTitleOr_ render = do
 
 type XProvider dr x = RProvider dr (X'Base x)
 
-xProvideStaticHistoryX
-  :: forall dr x
-   . URL
-  -> (URL -> Maybe String)
-  -> (T -> XD.MDom dr x Unit)
-  -> XD.MDom dr x Unit
-xProvideStaticHistoryX url toTitleOr_ = (#) (mk toTitleOr_ url)
+mkStaticHistoryProvider :: forall dr x. URL -> Edit UrlParts -> RProvider dr x
+mkStaticHistoryProvider baseUrl toStaticUrl =
+  mkProvider (pure baseUrl) \_ toTitleOr_ ->
+    (#) $ mk toTitleOr_ $ url'edit baseUrl toStaticUrl

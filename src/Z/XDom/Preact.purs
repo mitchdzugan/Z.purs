@@ -52,16 +52,25 @@ data PropWF
   = Href String
   | ClassName String
   | OnClick (DomEvent -> Unit)
+  | Id String
   | PKey String
+  | Role String
+  | Target String
 
 propWFKey :: PropWF -> String
 propWFKey (ClassName _) = "className"
 propWFKey (Href _) = "href"
 propWFKey (OnClick _) = "onClick"
+propWFKey (Id _) = "id"
 propWFKey (PKey _) = "key"
+propWFKey (Role _) = "role"
+propWFKey (Target _) = "target"
 
 propWFVal :: PropWF -> JsAny
 propWFVal (ClassName s) = jsAny s
 propWFVal (Href s) = jsAny s
 propWFVal (OnClick s) = jsAny s
+propWFVal (Id s) = jsAny s
 propWFVal (PKey s) = jsAny s
+propWFVal (Role s) = jsAny s
+propWFVal (Target s) = jsAny s

@@ -973,20 +973,20 @@ x'withReturn = x'withReturn'' @p
 
 --------------------------------------------
 
-type T'x'withReturn_ p =
-  forall x' x a
+type T'x'withReturn_ a p =
+  forall x' x
    . ConsSymbol p (X'E a) x' x
   => Generable a GDefault a
   => (Run x Unit -> Run x a)
   -> Run x' a
 
-x'withReturn_'' :: forall @p. T'x'withReturn_ p
+x'withReturn_'' :: forall @p @a. T'x'withReturn_ a p
 x'withReturn_'' fm = e'try'' @p (fm (e'fail'' @p default)) >>= case _ of
   Left a -> pure a
   Right a -> pure a
 
-x'withReturn_ :: forall p. T'use'sc'AsSym p T'x'withReturn_
-x'withReturn_ = x'withReturn_'' @p
+x'withReturn_ :: forall p @a. T'use'sc'AsSym p (T'x'withReturn_ a)
+x'withReturn_ = x'withReturn_'' @p @a
 
 ---------------------------------------------------------------------
 

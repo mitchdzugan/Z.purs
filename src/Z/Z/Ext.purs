@@ -20,6 +20,7 @@ module Z.Z.Ext
   , module Exists
   , module Foldable
   , module Foreign
+  , module FuncVar
   , module Generic
   , module HetMap
   , module Identity
@@ -101,6 +102,7 @@ import Data.Foldable
   , minimumBy
   , sum
   ) as Foldable
+import Data.Functor.Variant (VariantF) as FuncVar
 import Data.Generic.Rep (class Generic) as Generic
 import Data.Identity (Identity(..)) as Identity
 import Data.Int (ceil, floor, pow, quot, round, toNumber, trunc) as Int

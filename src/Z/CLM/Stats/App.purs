@@ -4,8 +4,16 @@ module Z.CLM.Stats.App
 
 import Z.XDom.Prelude
 
-import Data.Functor.Variant (VariantF)
-import Z.CLM.Stats.Route (Route, route'urlEdits, route'urlParse)
+import Z.CLM.Stats.Route
+  ( Route
+  , RoutePage(..)
+  , route'isH2hPage
+  , route'isStatsPage
+  , route'mk
+  , route'urlEdits
+  , route'urlParse
+  )
+import Z.CLM.Stats.Season (seasonId'title)
 import Z.CLM.Stats.Types
   ( ClmBuildOutputs
   , ClmPlayer
@@ -14,112 +22,6 @@ import Z.CLM.Stats.Types
   )
 import Z.XDom.UrlState as UrlSt
 import Z.Z.X.Responds (Responds'Const, responds'run)
-
-data FetchCache'ValState v
-  = FetchCache'ValState'Loading (Maybe v)
-  | FetchCache'ValState'Error JsError (Maybe v)
-  | FetchCache'ValState'Val v
-
-derive instance Eq v => Eq (FetchCache'ValState v)
-
-type FetchCache'State id v = HashMap id (FetchCache'ValState v)
-
-data FetchCache'Action id v
-  = FetchCache'Action'MarkRequesting id
-  | FetchCache'Action'SetVal id v
-  | FetchCache'Action'SetError id JsError
-  | FetchCache'Action'ImportVals (HashMap id v)
-
-fetchCache'lookupVal
-  :: forall id v. Identable id => id -> FetchCache'State id v -> Maybe v
-fetchCache'lookupVal id hm = case hm'lookup id hm of
-  Just (FetchCache'ValState'Loading res) -> res
-  Just (FetchCache'ValState'Error _ res) -> res
-  Just (FetchCache'ValState'Val v) -> Just v
-  _ -> Nothing
-
-fetchCache'valState'shouldFetch :: forall v. FetchCache'ValState v -> Boolean
-fetchCache'valState'shouldFetch (FetchCache'ValState'Error _ _) = true
-fetchCache'valState'shouldFetch _ = false
-
-fetchCache'shouldFetch
-  :: forall id v. Identable id => id -> FetchCache'State id v -> Boolean
-fetchCache'shouldFetch id hm =
-  may'or true $ hm'lookup id hm <#> fetchCache'valState'shouldFetch
-
-fetchCache'xUpdate
-  :: forall id v
-   . Identable id
-  => Eq v
-  => FetchCache'Action id v
-  -> Edit (FetchCache'State id v)
-fetchCache'xUpdate (FetchCache'Action'MarkRequesting id) = do
-  currVal <- s'get <#> fetchCache'lookupVal id
-  s'update $ hm'insert id $ FetchCache'ValState'Loading currVal
-fetchCache'xUpdate (FetchCache'Action'SetVal id v) = do
-  s'update $ hm'insert id $ FetchCache'ValState'Val v
-fetchCache'xUpdate (FetchCache'Action'SetError id e) = do
-  currVal <- s'get <#> fetchCache'lookupVal id
-  s'update $ hm'insert id $ FetchCache'ValState'Error e currVal
-fetchCache'xUpdate (FetchCache'Action'ImportVals hm'new) = do
-  s'update \hm'curr -> hm'merge [ hm'curr, map FetchCache'ValState'Val hm'new ]
-
-fetchCache'update
-  :: forall id v
-   . Identable id
-  => Eq v
-  => FetchCache'State id v
-  -> FetchCache'Action id v
-  -> FetchCache'State id v
-fetchCache'update s a = edit s $ fetchCache'xUpdate a
-
-type X'FetchCache id v =
-  X'Reducer (FetchCache'Action id v) (FetchCache'State id v)
-
-type T'domFetchCache'run'helper'fn dr x' x id =
-  (id -> String) -> MDom dr x' (Array id) -> MDom dr x Unit -> MDom dr x' Unit
-
-type T'domFetchCache'run'helper p id v t'useResult =
-  forall dr x' x
-   . Identable id
-  => Eq v
-  => DecodeJson v
-  => Dom'ConsSymbol p (X'FetchCache id v) x' x
-  => t'useResult (T'domFetchCache'run'helper'fn dr x' x id)
-
-domFetchCache'run
-  :: forall @p @id @v. T'domFetchCache'run'helper p id v $ (->) $ HashMap id v
-domFetchCache'run cachePreload mkFetchUrl getId m = do
-  currIds <- getId
-  let cacheInitial = cachePreload <#> FetchCache'ValState'Val
-  domS'runReducer'' @p cacheInitial fetchCache'update do
-    domEff'onNew'lead (map ident'key currIds) (onNew currIds) *> m
-  where
-  onNew currIds = domEff'async do
-    forM_ currIds \currId -> do
-      shouldFetch <- domS'get'' @p <#> fetchCache'shouldFetch currId
-      when shouldFetch do
-        domS'dispatch'' @p $ FetchCache'Action'MarkRequesting currId
-        vOrE <- e'try $ do
-          fetchRes <- x'fetch (mkFetchUrl currId) pass
-          decoded <- x'decodeFetched @v fetchRes
-          e'ok $ constL (jsError "decode error" "") decoded
-        case vOrE of
-          Left e -> do
-            domS'dispatch'' @p $ FetchCache'Action'SetError currId e
-          Right v -> do
-            domS'dispatch'' @p $ FetchCache'Action'SetVal currId v
-
-domFetchCache'run_ :: forall @p @id @v. T'domFetchCache'run'helper p id v T'id
-domFetchCache'run_ = domFetchCache'run @p hm'empty
-
-domFetchCache'lookup
-  :: forall @p id v x' x
-   . ConsSymbol p (X'FetchCache id v) x' x
-  => Identable id
-  => id
-  -> Run x (Maybe v)
-domFetchCache'lookup id = domS'get'' @p <#> fetchCache'lookupVal id
 
 -----------------------------------------------------------------------
 
@@ -144,42 +46,80 @@ type ClmBuildOutputs'X x = (buildOutputs :: X'R ClmBuildOutputs | x)
 
 type ClmDom'X x = Router' String Route $ ClmBuildOutputs'X
   ( clmSeasons :: X'FetchCache Int ClmSeason'Boxed
+  , route :: X'R Route
+  , routeErr :: X'R (Maybe String)
+  , editRoute :: X'R (Edit Route -> Route)
   | x
   )
 
 type ClmDom dr x a = XDom dr (ClmDom'X x) a
 
-router'seasonId
-  :: forall dx x. MDom dx (Router' String Route $ ClmBuildOutputs'X x) Int
-router'seasonId = do
-  defaultSeasonId <- x'extract @"buildOutputs" <#> _.timeline.defaultSeasonId
-  router'routeOrE <#> gmOr_ @">!.seasonId" defaultSeasonId
-
 app'body :: forall dr x. ClmDom dr x Unit
 app'body = do
-  routeOrE <- router'routeOrE
-  x'out { routeOrE: show routeOrE }
-  seasonId <- router'seasonId
+  route <- x'extract @"route"
+  editRoute <- x'extract @"editRoute"
+  let seasonId = g_ @"!.seasonId" route
+  let title = seasonId'title seasonId
   seasonOr_ <- domFetchCache'lookup @"clmSeasons" seasonId
   whenJust seasonOr_ \season -> do
     let seasonEvents = boxed'call_ @"events" season
     x'out { season }
     x'out { seasonEvents }
+  let isH2hPage = route'isH2hPage route
+  let isStatsPage = route'isStatsPage route
   dom'div do
-    el'cn "flex flex-col gap-4"
-    dom'div $
-      dom'text "profile link"
+    el'cnW \w -> do
+      w "container overflow-hidden max-w-290 rounded-none min-h-screen mx-auto"
+      w "px-0 card bg-base-100 shadow-xl m-4 my-0"
+    dom'div do
+      el'cnW \w -> do
+        w "w-auto max-w-screen min-h-screen max-h-screen"
+        whenNot isH2hPage $ w "overflow-scroll"
+      dom'div do
+        el'cnW \w -> do
+          w "flex max-w-screen flex-col self-stretch sticky z-750 left-0 top-0"
+        dom'div do
+          el'id "navbar"
+          el'cnW \w -> do
+            w "navbar h-15 border-b-2 border-gray-300 dark:border-gray-700"
+            w "relative z-50 p-2 py-0 bg-base-200 shadow-sm"
+          dom'div do
+            el'cn "navbar-start relative w-auto gap-1 lg:gap-2"
+          dom'div do
+            el'cnW \w -> do
+              w "lg:hidden border-gray-100 dark:border-gray-900 rounded-md"
+              w "absolute -top-px left-0 w-27"
+              w $ if isStatsPage then "border-0" else "border-1"
+          whenNot isStatsPage do
+            dom'a do
+              router'setHref $ editRoute $ s'set'b @"!.page" Stats
+              el'roleButton
+              el'targetBlank
+              el'cnW \w -> do
+                w "btn btn-soft btn-outline px-0 w-full"
+                -- TODO animateInCn
+                w "border-gray-300 dark:border-gray-700 whitespace-nowrap"
+              dom'pre $ dom'text "⬑"
+              dom'span $ el'cn "text-xs" *> dom'text title
 
 app'mk :: forall dr x. ClmBuildOutputs -> UrlSt.XProvider dr x -> XDom dr x Unit
-app'mk buildOutputs = router'run urlEdits parseUrl mkTitleOr_
-  $ domR'run'' @"buildOutputs" buildOutputs
-  $ domFetchCache'run_ @"clmSeasons" mkClmSeasonFetchUrl getClmSeasonIds
-  $ app'body
+app'mk buildOutputs = router'run urlEdits parseUrl mkTitleOr_ do
+  route <- router'routeOrE <#> hush <#> may'or defaultRoute
+  routeErr <- router'routeOrE <#> blush
+  let editRoute = edit route
+  id
+    $ domR'run'' @"buildOutputs" buildOutputs
+    $ domR'run'' @"route" route
+    $ domR'run'' @"routeErr" routeErr
+    $ domR'run'' @"editRoute" editRoute
+    $ domFetchCache'run_ @"clmSeasons" mkClmSeasonFetchUrl getClmSeasonIds
+    $ app'body
   where
   mkClmSeasonFetchUrl id = "/db/" <:> dbHash <:> "/seasons/" <:> id <:> ".json"
-  getClmSeasonIds = router'seasonId <#> pure
+  getClmSeasonIds = x'extract @"route" <#> g_ @"!.seasonId" <#> pure
   mkTitleOr_ = Just <<< url'toString <<< _.url
   dbHash = buildOutputs.dbHash
   defaultSeasonId = buildOutputs.timeline.defaultSeasonId
-  parseUrl = route'urlParse defaultSeasonId
+  parseUrl = route'urlParse buildOutputs
   urlEdits = route'urlEdits defaultSeasonId
+  defaultRoute = route'mk defaultSeasonId Stats []

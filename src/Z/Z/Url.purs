@@ -34,6 +34,7 @@ import Data.String (null, replace, split) as String
 import Data.Tuple.Nested (type (/\), (/\))
 import Partial.Unsafe (unsafePartial)
 import Z.Z.Core (arr'drop)
+import Z.Z.Defaultable (class Generable, GDefault, default)
 import Z.Z.HashMap (HashMap, hm'entries, hm'fromFoldable)
 import Z.Z.String (str'drop, str'startsWith)
 
@@ -57,6 +58,9 @@ instance Eq URL where
 
 instance Ord URL where
   compare a b = compare (parts a) (parts b)
+
+instance Generable URL GDefault URL where
+  mkGenerable = fromParts default
 
 type Parts =
   { path :: Array String
@@ -156,7 +160,7 @@ pathSegmentsFromPathname pname = String.split (wrap "/") cleanPname
   cleanPname = if str'startsWith "/" pname then str'drop 1 pname else pname
 
 path :: URL -> Array String
-path = arr'drop 1 <<< pathSegmentsFromPathname <<< pathnameImpl
+path = pathSegmentsFromPathname <<< pathnameImpl
 
 pathname :: URL -> String
 pathname = pathnameImpl
@@ -183,4 +187,3 @@ username = filter (not <<< String.null) <<< Just <<< usernameImpl
 
 setPort :: Int -> URL -> URL
 setPort = setPortImpl <<< Int.toStringAs Int.decimal
-

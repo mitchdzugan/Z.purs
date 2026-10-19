@@ -10,4 +10,4 @@ main = runXAThenExit do
   let notFoundError = jsError "element not found!" "#root"
   domEl <- xGetElementById "root" <#> jOrE notFoundError >>= e'ok
   XDom.xPreactHydrate domEl $ XDom.exec'xdom do
-    XDom.xDomRunWeb $ app'mk XDom.xProvideHistoryX
+    XDom.xDomRunWeb $ app'mk XDom.xweb'historyProvider

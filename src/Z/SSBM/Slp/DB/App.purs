@@ -53,7 +53,7 @@ app'mk = router'run'' @"router" urlEdits parseUrl mkTitleOr_ do
     el'cn "flex flex-col gap-4"
     dom'iframe $ pure unit
     dom'div $ dom'a do
-      router'href $ Profile "Jimmy"
+      router'setHref $ Profile "Jimmy"
       el'cn "btn link btn-primary"
       dom'text "profile link"
     domS'runReducer'' @"count" 3 countAct $ domE'bind app'onE app'body

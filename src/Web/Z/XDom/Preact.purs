@@ -1,7 +1,7 @@
 module Web.Z.XDom.Preact
   ( xDomRunWeb
   , xPreactHydrate
-  , xProvideHistoryX
+  , xweb'historyProvider
   ) where
 
 import Web.Z.Prelude
@@ -18,8 +18,8 @@ xPreactHydrate d r = e'runEffPromise $ js_renderIn r d
 xDomRunWeb :: forall dr x. XD.MDom dr (X'Web x) Unit -> XD.MDom dr x Unit
 xDomRunWeb = XD.dom'withAdapter DOM.runXWeb
 
-xProvideHistoryX :: forall dr x. UrlSt.RProvider dr (X'Web x)
-xProvideHistoryX = UrlSt.mkProvider DOM.xLocationUrl provideHistory
+xweb'historyProvider :: forall dr x. UrlSt.RProvider dr (X'Web x)
+xweb'historyProvider = UrlSt.mkProvider DOM.xLocationUrl provideHistory
 
 provideHistory
   :: forall dr x

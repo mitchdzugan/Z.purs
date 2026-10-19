@@ -7,11 +7,13 @@ module Z.XDom.Core
   , DomETag
   , DomEffPermit
   , MDOMEFF
+  , MDOMEL
   , MDom
   , MDomEff
   , MDomEl
   , R'Self
   , Self
+  , X'Reducer
   , XDom
   , XDomA
   , XDomE
@@ -25,6 +27,7 @@ module Z.XDom.Core
   , dom'element
   , dom'iframe
   , dom'lead
+  , dom'pre
   , dom'span
   , dom'text
   , dom'withAdapter
@@ -64,6 +67,11 @@ module Z.XDom.Core
   , el'cn
   , el'cnW
   , el'href
+  , el'id
+  , el'role
+  , el'roleButton
+  , el'target
+  , el'targetBlank
   , el'key
   , el'onClick
   , el'renderToString
@@ -113,8 +121,9 @@ type MDOMEFF'delta x' x = (self :: R'Self () (DomEffPermit x) | DomEffPermit x')
 type MDomEff x a = Run (MDOMEFF x) a
 type MDomEff'delta x' x a = Run (MDOMEFF'delta x' x) a
 type MDomEff'a x a = Run (A' (MDOMEFF x)) a
-type MDomEl dx x a =
-  Run (ATTR $ Wa' D.ReactEl $ Wa' D.ReactEl (self :: R'Self dx x | x)) a
+
+type MDOMEL dx x = ATTR $ Wa' D.ReactEl (self :: R'Self dx x | x)
+type MDomEl dx x a = Run (MDOMEL dx x) a
 
 foreign import data DomETag :: Type
 foreign import data DomATag :: Type
@@ -383,6 +392,21 @@ dom'text = w'say <<< D.js_textEl <<< stext
 el'key :: forall dr x. String -> MDomEl dr x Unit
 el'key = w'tell'' @"attr" <<< pure <<< D.PKey
 
+el'id :: forall dr x. String -> MDomEl dr x Unit
+el'id = w'tell'' @"attr" <<< pure <<< D.Id
+
+el'role :: forall dr x. String -> MDomEl dr x Unit
+el'role = w'tell'' @"attr" <<< pure <<< D.Role
+
+el'roleButton :: forall dr x. MDomEl dr x Unit
+el'roleButton = el'role "button"
+
+el'target :: forall dr x. String -> MDomEl dr x Unit
+el'target = w'tell'' @"attr" <<< pure <<< D.Target
+
+el'targetBlank :: forall dr x. MDomEl dr x Unit
+el'targetBlank = el'target "_blank"
+
 el'href :: forall dr x. String -> MDomEl dr x Unit
 el'href = w'tell'' @"attr" <<< pure <<< D.Href
 
@@ -397,7 +421,8 @@ el'onClick f = do
   self <- el'getEffSelf
   w'tell'' @"attr" $ pure $ D.OnClick $ \e -> eval'self self $ f e
 
-type XDom_domElement_ = forall dr x. MDomEl dr x Unit -> MDom dr x Unit
+type XDom_domElement_ =
+  forall dr x. Run (Wa' D.ReactEl (MDOMEL dr x)) Unit -> MDom dr x Unit
 
 dom'element :: String -> XDom_domElement_
 dom'element s m = do
@@ -447,6 +472,9 @@ dom'button = dom'element "button"
 dom'lead :: XDom_domElement_
 dom'lead = dom'element "pre"
 
+dom'pre :: XDom_domElement_
+dom'pre = dom'element "pre"
+
 dom'span :: XDom_domElement_
 dom'span = dom'element "span"
 
@@ -463,3 +491,5 @@ op'el'text :: forall t dr x. SText t => XDom_domElement_ -> t -> MDom dr x Unit
 op'el'text el t = el $ dom'text t
 
 infixr 0 op'el'text as %%
+
+type X'Reducer a s = X'R { get :: s, update :: a -> Eff'At "domEff" Unit }
