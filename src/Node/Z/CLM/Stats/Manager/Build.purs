@@ -34,6 +34,7 @@ import Node.Z.Git.Client
 import Node.Z.Gql as Gql
 import Node.Z.H2h as H2h
 import Node.Z.H2h.Startgg.All as All
+import Z.CLM.Stats.Season (seasonId'fromDateTime)
 import Z.CLM.Stats.Types
   ( ClmActionData
   , ClmBuildMeta(..)
@@ -448,14 +449,8 @@ addRanks seasonId ratingData = do
           }
     x'insert @"clmRanks" seasonId ranks
 
-getSeasonId :: DateTime -> Int
-getSeasonId dt = periodMonthContrib + periodYearContrib
-  where
-  periodYearContrib = (((dateTime'year dt) - 2022) * 3) + 2
-  periodMonthContrib = floor (toNumber (dateTime'month'i0 dt) / 4.0)
-
 getActiveSeasonId :: forall x. x @@> Int
-getActiveSeasonId = x'now <#> getSeasonId
+getActiveSeasonId = x'now <#> seasonId'fromDateTime
 
 buildCurrentSeasons :: forall x. Spec.Spec -> ClmV () x @@> Unit
 buildCurrentSeasons spec = do

@@ -5,6 +5,7 @@ module Z.CLM.Stats.App
 import Z.XDom.Prelude
 
 import Data.Functor.Variant (VariantF)
+import Z.CLM.Stats.Route (Route, route'urlEdits, route'urlParse)
 import Z.CLM.Stats.Types
   ( ClmBuildOutputs
   , ClmPlayer
@@ -170,16 +171,10 @@ app'body = do
       dom'text "profile link"
 
 app'mk :: forall dr x. ClmBuildOutputs -> UrlSt.XProvider dr x -> XDom dr x Unit
-app'mk buildOutputs = router'run printRoute parseUrl mkTitleOr_
+app'mk buildOutputs = router'run urlEdits parseUrl mkTitleOr_
   $ domR'run'' @"buildOutputs" buildOutputs
   $ domFetchCache'run_ @"clmSeasons" mkClmSeasonFetchUrl getClmSeasonIds
-  $ do
-      x'out
-        { r1: printRoute $ mkRoute 13 Player [ 1, 2, 3 ]
-        , r2: printRoute $ mkRoute 15 Compare [ 1, 2, 3 ]
-        , r3: printRoute $ mkRoute 1 Stats []
-        }
-      app'body
+  $ app'body
   where
   mkClmSeasonFetchUrl id = "/db/" <:> dbHash <:> "/seasons/" <:> id <:> ".json"
   getClmSeasonIds = router'seasonId <#> pure
@@ -187,56 +182,4 @@ app'mk buildOutputs = router'run printRoute parseUrl mkTitleOr_
   dbHash = buildOutputs.dbHash
   defaultSeasonId = buildOutputs.timeline.defaultSeasonId
   parseUrl = route'urlParse defaultSeasonId
-  printRoute r = url'relative $ url'mk $ route'urlEdits defaultSeasonId r
-
-data RoutePage = Stats | Player | Compare | H2hGrid
-
-derive instance Generic RoutePage _
-
-instance Show RoutePage where
-  show = genericShow
-
-newtype Route = Route
-  { page :: RoutePage, seasonId :: Int, clmIds :: Array Int }
-
-derive instance Newtype Route _
-
-derive instance Generic Route _
-
-instance Show Route where
-  show = genericShow
-
-mkRoute :: Int -> RoutePage -> Array Int -> Route
-mkRoute seasonId page clmIds = Route { page, seasonId, clmIds }
-
-route'urlEdits :: Int -> Route -> Edit UrlParts
-route'urlEdits defaultSeasonId (Route { page, seasonId, clmIds }) = do
-  s'set'b @"hash" (getHash clmIds)
-  s'set'b @"path" path
-  where
-  path = sync'x $ _'exec_ @(X'Vector String) do
-    when (seasonId /= defaultSeasonId) do
-      _'cons $ "season-" <> show seasonId
-    case page of
-      Player -> _'cons "-"
-      Compare -> _'cons "compare"
-      H2hGrid -> _'cons "h2h"
-      _ -> pure unit
-  getHash [] = Nothing
-  getHash clmIds = Just $ str'joinWith "~" $ clmIds <#> show
-
-route'urlParse :: Int -> URL -> Either String Route
-route'urlParse defaultSeasonId u =
-  sync'x $ e'try $ s'exec (mkRoute defaultSeasonId Stats []) do
-    processClmIds $ url'hash u
-    processRouteList $ list'fromFoldable $ url'pathSegments u
-  where
-  processClmIds (Just hashStr) = do
-    clmIds <- forM (str'split (Pattern "~") hashStr) \idStr -> do
-      case (tryParseInt idStr) of
-        Just clmId -> pure clmId
-        _ -> e'fail $ "clmIds must be integers separated by `~`: " <> hashStr
-    s'set'b @"!.clmIds" clmIds
-  processClmIds _ = pure unit
-  processRouteList Nil = pure unit
-  processRouteList _ = e'fail "Invalid Route"
+  urlEdits = route'urlEdits defaultSeasonId

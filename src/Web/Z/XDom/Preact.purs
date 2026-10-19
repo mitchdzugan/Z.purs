@@ -18,13 +18,16 @@ xPreactHydrate d r = e'runEffPromise $ js_renderIn r d
 xDomRunWeb :: forall dr x. XD.MDom dr (X'Web x) Unit -> XD.MDom dr x Unit
 xDomRunWeb = XD.dom'withAdapter DOM.runXWeb
 
-xProvideHistoryX
+xProvideHistoryX :: forall dr x. UrlSt.RProvider dr (X'Web x)
+xProvideHistoryX = UrlSt.mkProvider DOM.xLocationUrl provideHistory
+
+provideHistory
   :: forall dr x
-   . (URL -> Maybe String)
+   . URL
+  -> (URL -> Maybe String)
   -> (UrlSt.T -> XD.MDom dr (X'Web x) Unit)
   -> XD.MDom dr (X'Web x) Unit
-xProvideHistoryX toTitleOr_ urlStateToDom = do
-  locUrl <- DOM.xLocationUrl
+provideHistory locUrl toTitleOr_ urlStateToDom = do
   let baseUrlState = UrlSt.mk toTitleOr_ locUrl
   let origin = url'origin locUrl
   XD.dom'withNewState baseUrlState \urlState setUrlState -> do

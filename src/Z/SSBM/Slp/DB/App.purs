@@ -46,7 +46,7 @@ app'body = do
       dom'text "inc"
 
 app'mk :: forall dr x. UrlSt.XProvider dr x -> XDom dr x Unit
-app'mk = router'run'' @"router" printRoute parseUrl mkTitleOr_ do
+app'mk = router'run'' @"router" urlEdits parseUrl mkTitleOr_ do
   r <- router'routeOrE'' @"router"
   x'out $ show r
   dom'div do
@@ -66,9 +66,9 @@ app'mk = router'run'' @"router" printRoute parseUrl mkTitleOr_ do
   parseUrl :: URL -> Either String Route
   parseUrl u = parseRouteL $ list'fromFoldable $ url'pathSegments u
 
-  printRoute :: Route -> String
-  printRoute Home = "/"
-  printRoute (Profile s) = "/profile/" <> s
+  urlEdits :: Route -> Edit UrlParts
+  urlEdits (Profile s) = s'set'b @"path" [ "profile", s ]
+  urlEdits _ = pure unit
 
 data Route = Home | Profile String
 

@@ -6,8 +6,10 @@ module Z.XDom.UrlState
   , actualHref
   , hrefFromUrl
   , mk
+  , mkProvider
   , parsedHref
   , update
+  , useProvider
   , xProvideStaticHistoryX
   ) where
 
@@ -48,8 +50,31 @@ update toTitleOr_ state s = onParse $ url'fromString s
     , titleOr_: toTitleOr_ state.url
     }
 
-type RProvider dr x =
+type ProvideFn dr x =
   (URL -> Maybe String) -> (T -> XD.MDom dr x Unit) -> XD.MDom dr x Unit
+
+newtype RProvider dr x = RProvider
+  { getBaseUrl :: XD.MDom dr x URL
+  , provide :: ProvideFn dr x
+  }
+
+mkProvider
+  :: forall dr x. XD.MDom dr x URL -> (URL -> ProvideFn dr x) -> RProvider dr x
+mkProvider getBaseUrl mkProvide = RProvider
+  { getBaseUrl
+  , provide: \toTitleOr_ render -> getBaseUrl >>= \baseUrl ->
+      mkProvide baseUrl toTitleOr_ render
+  }
+
+useProvider
+  :: forall dr x
+   . RProvider dr x
+  -> (URL -> Maybe String)
+  -> (URL -> T -> XD.MDom dr x Unit)
+  -> XD.MDom dr x Unit
+useProvider (RProvider { getBaseUrl, provide }) toTitleOr_ render = do
+  baseUrl <- getBaseUrl
+  provide toTitleOr_ (render baseUrl)
 
 type XProvider dr x = RProvider dr (X'Base x)
 

@@ -20,7 +20,11 @@ import Z.XDom.Preact (PropWF(..))
 import Z.XDom.UrlState as UrlSt
 
 type T e r =
-  { print :: r -> String, routeOrE :: Either e r, urlState :: UrlSt.T }
+  { baseUrl :: URL
+  , urlEdits :: r -> Edit UrlParts
+  , routeOrE :: Either e r
+  , urlState :: UrlSt.T
+  }
 
 type R e r = X'R (T e r)
 type X e r x = ("router" :: R e r | x)
@@ -29,7 +33,7 @@ type T'router'run p =
   forall e r dr x x'
    . IsSymbol p
   => Cons p (R e r) x' x
-  => (r -> String)
+  => (r -> Edit UrlParts)
   -> (URL -> Either e r)
   -> ({ url :: URL, routeOrE :: Either e r } -> Maybe String)
   -> XDom.MDom dr x Unit
@@ -37,10 +41,10 @@ type T'router'run p =
   -> XDom.MDom dr x' Unit
 
 router'run'' :: forall @p. T'router'run p
-router'run'' print parse mkTitle m provider = do
-  provider toTitleOr_ \urlState -> do
+router'run'' urlEdits parse mkTitle m provider = do
+  UrlSt.useProvider provider toTitleOr_ \baseUrl urlState -> do
     let routeOrE = parse urlState.url
-    XDom.domR'run'' @p { routeOrE, print, urlState } m
+    XDom.domR'run'' @p { routeOrE, urlEdits, baseUrl, urlState } m
   where
   toTitleOr_ url = finTitle url $ parse url
   finTitle url routeOrE = mkTitle { url, routeOrE }
@@ -66,6 +70,16 @@ router'urlState'' = x'extract @p <#> _.urlState
 router'urlState :: forall @p. T'useAsSym "router" p T'router'urlState
 router'urlState = router'urlState'' @p
 
+type T'router'mkUrl p =
+  forall e r x x'. IsSymbol p => Cons p (R e r) x' x => r -> Z.Run x URL
+
+router'mkUrl'' :: forall @p. T'router'mkUrl p
+router'mkUrl'' route =
+  x'extract @p <#> \r -> url'edit r.baseUrl $ r.urlEdits route
+
+router'mkUrl :: forall @p. T'useAsSym "router" p T'router'mkUrl
+router'mkUrl = router'mkUrl'' @p
+
 type T'router'href p =
   forall e r x'' x' x
    . IsSymbol p
@@ -76,7 +90,7 @@ type T'router'href p =
 
 router'href'' :: forall @p. T'router'href p
 router'href'' route = do
-  href <- x'extract @p <#> _.print <#> (#) route
+  href <- router'mkUrl'' @p route <#> url'relative
   w'tell'' @"attr" $ pure $ Href href
 
 router'href :: forall @p. T'useAsSym "router" p T'router'href

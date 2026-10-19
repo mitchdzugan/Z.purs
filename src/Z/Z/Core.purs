@@ -55,6 +55,7 @@ module Z.Z.Core
   , idLens
   , inc
   , ini'stringify
+  , int'romanNumeral
   , invert
   , jsAny
   , jsError
@@ -71,6 +72,7 @@ module Z.Z.Core
   , maximumWith
   , may'filter
   , may'or
+  , may'or'lazy
   , may'remove
   , may'remove_
   , may'toArray
@@ -364,6 +366,8 @@ foreign import js_iniStringifyJson :: Arg.Json -> String
 
 foreign import js_zScoreToPercentile :: Number -> Number
 
+foreign import js_toRomanNumeral :: Int -> String
+
 zScoreToPercentile :: Number -> Number
 zScoreToPercentile = js_zScoreToPercentile
 
@@ -540,6 +544,9 @@ objST'has k o = May.isJust <$> ObjSt.peek k o
 
 may'or :: forall a. a -> May.Maybe a -> a
 may'or = May.fromMaybe
+
+may'or'lazy :: forall a. (Unit -> a) -> May.Maybe a -> a
+may'or'lazy = May.fromMaybe'
 
 may'toArray :: forall a. May.Maybe a -> Array a
 may'toArray (May.Just a) = [ a ]
@@ -795,3 +802,6 @@ derive instance Newtype (Eff'At p a) _
 
 eff'tag :: forall @p a. Eff.Effect a -> Eff'At p a
 eff'tag = Eff'At
+
+int'romanNumeral :: Int -> String
+int'romanNumeral = js_toRomanNumeral

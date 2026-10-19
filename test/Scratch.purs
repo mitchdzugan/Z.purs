@@ -3,6 +3,7 @@ module Test.Scratch where
 import Node.Z.Prelude
 
 import Effect.Class.Console (log)
+import Z.CLM.Stats.Season (seasonId'props)
 import Z.SSBM.Slp.Read.Impl as SlpRead
 import Z.Z.Id as Id
 
@@ -53,7 +54,7 @@ st't2 = do
   pure prev-}
 
 main :: Effect Unit
-main = log "Hello World" *> runXAThenExit do
+main = log "Hello World" *> runXAThenExit @Void @Void do
   {-
   let
     (st'spec :: ST'Spec) =
@@ -117,6 +118,8 @@ main = log "Hello World" *> runXAThenExit do
     s2 <- xhs'size @"test"
     xOut { v1, v2, s1, s2 }
   -}
-  b <- x'readFile "/home/dz/Slippi/Game_20260709T183630.slp"
-  parsed <- SlpRead.xParse b !#! un'
-  x'out $ ident'uuid parsed
+  -- b <- x'readFile "/home/dz/Slippi/Game_20260709T183630.slp"
+  -- parsed <- SlpRead.xParse b !#! un'
+  -- x'out $ ident'uuid parsed
+  flip forM_ x'out $ arr'range (-2) 1234 <#> \i -> i /\ int'romanNumeral i
+  x'out $ arr'range 0 20 <#> \i -> i /\ seasonId'props i
