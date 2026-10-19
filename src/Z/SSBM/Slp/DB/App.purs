@@ -58,13 +58,13 @@ app'mk = router'run'' @"router" printRoute parseUrl mkTitleOr_ do
       dom'text "profile link"
     domS'runReducer'' @"count" 3 countAct $ domE'bind app'onE app'body
   where
-  mkTitleOr_ = Just <<< urlToString <<< _.url
+  mkTitleOr_ = Just <<< url'toString <<< _.url
   parseRouteL Nil = pure Home
   parseRouteL (Cons "profile" (Cons slug Nil)) = pure $ Profile slug
   parseRouteL _ = Left "Invalid Route"
 
   parseUrl :: URL -> Either String Route
-  parseUrl u = parseRouteL $ list'fromFoldable $ urlPathSegments u
+  parseUrl u = parseRouteL $ list'fromFoldable $ url'pathSegments u
 
   printRoute :: Route -> String
   printRoute Home = "/"

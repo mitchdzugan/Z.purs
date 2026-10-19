@@ -156,6 +156,8 @@ router'seasonId = do
 
 app'body :: forall dr x. ClmDom dr x Unit
 app'body = do
+  routeOrE <- router'routeOrE
+  x'out { routeOrE: show routeOrE }
   seasonId <- router'seasonId
   seasonOr_ <- domFetchCache'lookup @"clmSeasons" seasonId
   whenJust seasonOr_ \season -> do
@@ -171,33 +173,21 @@ app'mk :: forall dr x. ClmBuildOutputs -> UrlSt.XProvider dr x -> XDom dr x Unit
 app'mk buildOutputs = router'run printRoute parseUrl mkTitleOr_
   $ domR'run'' @"buildOutputs" buildOutputs
   $ domFetchCache'run_ @"clmSeasons" mkClmSeasonFetchUrl getClmSeasonIds
-  $ app'body
+  $ do
+      x'out
+        { r1: printRoute $ mkRoute 13 Player [ 1, 2, 3 ]
+        , r2: printRoute $ mkRoute 15 Compare [ 1, 2, 3 ]
+        , r3: printRoute $ mkRoute 1 Stats []
+        }
+      app'body
   where
   mkClmSeasonFetchUrl id = "/db/" <:> dbHash <:> "/seasons/" <:> id <:> ".json"
   getClmSeasonIds = router'seasonId <#> pure
-  mkTitleOr_ = Just <<< urlToString <<< _.url
-  processClmIds (Just hashStr) = do
-    clmIds <- forM (str'split (Pattern "~") hashStr) \idStr -> do
-      case (tryParseInt idStr) of
-        Just clmId -> pure clmId
-        _ -> e'fail $ "clmIds must be integers separated by `~`: " <> hashStr
-    s'set'b @"!.clmIds" clmIds
-  processClmIds _ = pure unit
-  processRouteList Nil = pure unit
-  processRouteList _ = e'fail "Invalid Route"
+  mkTitleOr_ = Just <<< url'toString <<< _.url
   dbHash = buildOutputs.dbHash
   defaultSeasonId = buildOutputs.timeline.defaultSeasonId
-  parseUrl u = sync'x $ e'try $ s'exec (mkRoute defaultSeasonId Stats []) do
-    processClmIds $ urlHash u
-    processRouteList $ list'fromFoldable $ urlPathSegments u
-  printRoute (Route r) = "/" <> printRoutePage r.page <> printRouteClmIds
-    r.clmIds
-  printRoutePage Stats = ""
-  printRoutePage Player = "-/"
-  printRoutePage Compare = "compare/"
-  printRoutePage H2hGrid = "h2h/"
-  printRouteClmIds [] = ""
-  printRouteClmIds clmIds = (<>) "#" $ str'joinWith "~" $ clmIds <#> show
+  parseUrl = route'urlParse defaultSeasonId
+  printRoute r = url'relative $ url'mk $ route'urlEdits defaultSeasonId r
 
 data RoutePage = Stats | Player | Compare | H2hGrid
 
@@ -218,3 +208,35 @@ instance Show Route where
 
 mkRoute :: Int -> RoutePage -> Array Int -> Route
 mkRoute seasonId page clmIds = Route { page, seasonId, clmIds }
+
+route'urlEdits :: Int -> Route -> Edit UrlParts
+route'urlEdits defaultSeasonId (Route { page, seasonId, clmIds }) = do
+  s'set'b @"hash" (getHash clmIds)
+  s'set'b @"path" path
+  where
+  path = sync'x $ _'exec_ @(X'Vector String) do
+    when (seasonId /= defaultSeasonId) do
+      _'cons $ "season-" <> show seasonId
+    case page of
+      Player -> _'cons "-"
+      Compare -> _'cons "compare"
+      H2hGrid -> _'cons "h2h"
+      _ -> pure unit
+  getHash [] = Nothing
+  getHash clmIds = Just $ str'joinWith "~" $ clmIds <#> show
+
+route'urlParse :: Int -> URL -> Either String Route
+route'urlParse defaultSeasonId u =
+  sync'x $ e'try $ s'exec (mkRoute defaultSeasonId Stats []) do
+    processClmIds $ url'hash u
+    processRouteList $ list'fromFoldable $ url'pathSegments u
+  where
+  processClmIds (Just hashStr) = do
+    clmIds <- forM (str'split (Pattern "~") hashStr) \idStr -> do
+      case (tryParseInt idStr) of
+        Just clmId -> pure clmId
+        _ -> e'fail $ "clmIds must be integers separated by `~`: " <> hashStr
+    s'set'b @"!.clmIds" clmIds
+  processClmIds _ = pure unit
+  processRouteList Nil = pure unit
+  processRouteList _ = e'fail "Invalid Route"

@@ -47,7 +47,7 @@ export const querySetAllImpl = (qs) => (u) => {
 };
 
 const setOnCloned = (k) => (s) => (u) => {
-  const u_ = cloned(u);
+  const u_ = clone(u);
   u_[k] = s;
   return u_;
 };

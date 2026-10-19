@@ -27,7 +27,6 @@ module Web.Z.Web.DOM
 
 import Z.Prelude
 
-import Effect.Unsafe (unsafePerformEffect)
 import Web.DOM.Element as Element
 import Web.DOM.Internal.Types as T
 import Web.DOM.NonElementParentNode as NEPN
@@ -234,7 +233,7 @@ xWebR =
       protocol <- Loc.protocol loc
       ports <- Loc.port loc
       let port = tryParseInt ports
-      pure $ urlFromParts
+      pure $ url'fromParts
         { hash: if (eq hashs "") then Nothing else Just hashs
         , port
         , username: Nothing
@@ -242,7 +241,7 @@ xWebR =
         , protocol
         , host
         , query: hm'empty
-        , path: urlPathSegmentsFromPathname pathname
+        , path: url'pathSegmentsFromPathname pathname
         }
   , getElementById: \id -> tagEffWebX $ HTML.window >>= Window.document >>=
       getElementById id

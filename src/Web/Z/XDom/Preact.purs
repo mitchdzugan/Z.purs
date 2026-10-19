@@ -26,7 +26,7 @@ xProvideHistoryX
 xProvideHistoryX toTitleOr_ urlStateToDom = do
   locUrl <- DOM.xLocationUrl
   let baseUrlState = UrlSt.mk toTitleOr_ locUrl
-  let origin = urlOrigin locUrl
+  let origin = url'origin locUrl
   XD.dom'withNewState baseUrlState \urlState setUrlState -> do
     XD.domEff'once do
       doc <- DOM.xDocument

@@ -32,14 +32,14 @@ parsedHref { href: Left { parsed } } = parsed
 parsedHref { href: Right parsed } = parsed
 
 hrefFromUrl :: URL -> HrefSpec
-hrefFromUrl url = Right $ urlToString url
+hrefFromUrl url = Right $ url'toString url
 
 mk :: (URL -> Maybe String) -> URL -> T
 mk toTitleOr_ url =
   { href: hrefFromUrl url, url, titleOr_: toTitleOr_ url }
 
 update :: (URL -> Maybe String) -> T -> String -> T
-update toTitleOr_ state s = onParse $ urlFromString s
+update toTitleOr_ state s = onParse $ url'fromString s
   where
   onParse (Just url) = mk toTitleOr_ url
   onParse _ =

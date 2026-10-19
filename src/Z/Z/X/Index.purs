@@ -79,10 +79,10 @@ module Z.Z.X.Index
   , r'view'b
   , runner'_
   , runner'eval
+  , runner'evalA
   , runner'extend
   , runner'mk
   , runner'mkDeferred
-  , runner'evalA
   , s'eval
   , s'exec
   , s'get
@@ -109,6 +109,8 @@ module Z.Z.X.Index
   , type (<@@)
   , type (>@>)
   , type (@@>)
+  , url'edit
+  , url'mk
   , w'eval
   , w'exec
   , w'map
@@ -191,7 +193,15 @@ import Z.Z.Promise
   , future'try
   )
 import Z.Z.String (str'joinWith)
-import Z.Z.Util (JsonDecodeError(..), decodeForeign, decodeJson)
+import Z.Z.Url (URL)
+import Z.Z.Util
+  ( JsonDecodeError(..)
+  , UrlParts
+  , decodeForeign
+  , decodeJson
+  , url'fromParts
+  , url'parts
+  )
 import Z.Z.X.Async (AsyncF(..), x'async'')
 import Z.Z.X.Core
   ( class X'Buildable
@@ -996,3 +1006,11 @@ x'decodeFetched
   => Fetch'Response
   -> Run (E' JsError (A' x)) (Either JsonDecodeError t)
 x'decodeFetched res = decodeJson @t <$> e'runEffPromise (fetchRes'json res)
+
+----------------------------------------------------------------
+
+url'mk :: Edit UrlParts -> URL
+url'mk edits = url'fromParts $ edit default edits
+
+url'edit :: URL -> Edit UrlParts -> URL
+url'edit url edits = url'fromParts $ edit (url'parts url) edits

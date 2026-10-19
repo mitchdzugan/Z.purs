@@ -46,16 +46,17 @@ module Z.Z.Util
   , sOrN
   , type (#)
   , type ($)
-  , urlFromParts
-  , urlFromString
-  , urlHash
-  , urlOrigin
-  , urlPathSegments
-  , urlPathSegmentsFromPathname
-  , urlPathname
-  , urlQuery
-  , urlRelative
-  , urlToString
+  , url'fromParts
+  , url'fromString
+  , url'hash
+  , url'origin
+  , url'parts
+  , url'pathSegments
+  , url'pathSegmentsFromPathname
+  , url'pathname
+  , url'query
+  , url'relative
+  , url'toString
   ) where
 
 import Prelude
@@ -86,38 +87,41 @@ import Z.Z.Url as Url
 
 type UrlParts = Url.Parts
 
-urlFromParts :: Url.Parts -> Url.URL
-urlFromParts = Url.fromParts
+url'fromParts :: Url.Parts -> Url.URL
+url'fromParts = Url.fromParts
 
-urlFromString :: String -> Maybe.Maybe Url.URL
-urlFromString = Url.fromString
+url'fromString :: String -> Maybe.Maybe Url.URL
+url'fromString = Url.fromString
 
-urlQuery :: Url.URL -> HashMap String (Array String)
-urlQuery = Url.query
+url'query :: Url.URL -> HashMap String (Array String)
+url'query = Url.query
 
-urlPathSegmentsFromPathname :: String -> Array String
-urlPathSegmentsFromPathname = Url.pathSegmentsFromPathname
+url'pathSegmentsFromPathname :: String -> Array String
+url'pathSegmentsFromPathname = Url.pathSegmentsFromPathname
 
-urlToString :: Url.URL -> String
-urlToString = Url.toString
+url'toString :: Url.URL -> String
+url'toString = Url.toString
 
-urlOrigin :: Url.URL -> String
-urlOrigin url = Url.protocol url <> "://" <> rest (Url.port url)
+url'origin :: Url.URL -> String
+url'origin url = Url.protocol url <> "://" <> rest (Url.port url)
   where
   rest Maybe.Nothing = Url.host url
   rest (Maybe.Just n) = Url.host url <> ":" <> show n
 
-urlPathSegments :: Url.URL -> Array String
-urlPathSegments = Url.path
+url'pathSegments :: Url.URL -> Array String
+url'pathSegments = Url.path
 
-urlHash :: Url.URL -> Maybe.Maybe String
-urlHash = Url.hash
+url'hash :: Url.URL -> Maybe.Maybe String
+url'hash = Url.hash
 
-urlPathname :: Url.URL -> String
-urlPathname = Url.pathname
+url'pathname :: Url.URL -> String
+url'pathname = Url.pathname
 
-urlRelative :: Url.URL -> String
-urlRelative = Url.relative
+url'relative :: Url.URL -> String
+url'relative = Url.relative
+
+url'parts :: Url.URL -> UrlParts
+url'parts = Url.parts
 
 nth :: forall a. Array a -> Int -> Maybe.Maybe a
 nth = Array.index

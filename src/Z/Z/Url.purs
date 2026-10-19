@@ -33,7 +33,9 @@ import Data.Nullable as Nullable
 import Data.String (null, replace, split) as String
 import Data.Tuple.Nested (type (/\), (/\))
 import Partial.Unsafe (unsafePartial)
+import Z.Z.Core (arr'drop)
 import Z.Z.HashMap (HashMap, hm'entries, hm'fromFoldable)
+import Z.Z.String (str'drop, str'startsWith)
 
 class QueryParam a where
   queryParamTuple :: a -> String /\ Array String
@@ -110,7 +112,7 @@ fromParts u =
     perhaps f a = maybe identity f a
   in
     setQuery u.query
-      $ setPathnameImpl (intercalate "/" u.path)
+      $ setPathnameImpl ("/" <> intercalate "/" u.path)
       $ setHostImpl u.host
       $ perhaps setUsernameImpl u.username
       $ perhaps setPasswordImpl u.password
@@ -149,10 +151,12 @@ setQuery qs'hm u =
     querySetAllImpl asRecord u
 
 pathSegmentsFromPathname :: String -> Array String
-pathSegmentsFromPathname = String.split (wrap "/")
+pathSegmentsFromPathname pname = String.split (wrap "/") cleanPname
+  where
+  cleanPname = if str'startsWith "/" pname then str'drop 1 pname else pname
 
 path :: URL -> Array String
-path = pathSegmentsFromPathname <<< pathnameImpl
+path = arr'drop 1 <<< pathSegmentsFromPathname <<< pathnameImpl
 
 pathname :: URL -> String
 pathname = pathnameImpl
