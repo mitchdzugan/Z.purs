@@ -56,6 +56,12 @@ data PropWF
   | PKey String
   | Role String
   | Target String
+  | TabIndex Int
+  | Src String
+  | XmlNS String
+  | ViewBox String
+  | Fill String
+  | D String
 
 propWFKey :: PropWF -> String
 propWFKey (ClassName _) = "className"
@@ -65,12 +71,24 @@ propWFKey (Id _) = "id"
 propWFKey (PKey _) = "key"
 propWFKey (Role _) = "role"
 propWFKey (Target _) = "target"
+propWFKey (TabIndex _) = "tabIndex"
+propWFKey (Src _) = "src"
+propWFKey (XmlNS _) = "xmlns"
+propWFKey (ViewBox _) = "viewBox"
+propWFKey (Fill _) = "fill"
+propWFKey (D _) = "d"
 
 propWFVal :: PropWF -> JsAny
-propWFVal (ClassName s) = jsAny s
+propWFVal (ClassName f) = jsAny f
 propWFVal (Href s) = jsAny s
 propWFVal (OnClick s) = jsAny s
 propWFVal (Id s) = jsAny s
 propWFVal (PKey s) = jsAny s
 propWFVal (Role s) = jsAny s
 propWFVal (Target s) = jsAny s
+propWFVal (TabIndex i) = jsAny i
+propWFVal (Src s) = jsAny s
+propWFVal (XmlNS s) = jsAny s
+propWFVal (ViewBox s) = jsAny s
+propWFVal (Fill s) = jsAny s
+propWFVal (D s) = jsAny s

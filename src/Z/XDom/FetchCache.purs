@@ -17,7 +17,7 @@ import Z.XDom.Core
   ( class Dom'ConsSymbol
   , MDom
   , MDomEff
-  , X'Reducer
+  , XDom'Reducer
   , domEff'async
   , domEff'onNew'lead
   , domS'dispatch''
@@ -93,7 +93,7 @@ type FetchCache'R id v =
   }
 
 type X'FetchCache id v =
-  X'Reducer (FetchCache'Action id v) (FetchCache'R id v)
+  XDom'Reducer (FetchCache'Action id v) (FetchCache'R id v)
 
 domFetchCache'ensureRequested
   :: forall @p id v x' x

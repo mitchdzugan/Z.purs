@@ -42,8 +42,8 @@ import Z.CLM.Stats.Types
   , ClmPlayer'Season
   , ClmPlayer'Season'Event
   , ClmPlayer'Season'H2h
-  , ClmPlayer'Season'Json
   , ClmPlayer'Season'Set
+  , ClmPlayerSeason'Json
   , ClmSeason'Event
   , ClmSeason'Json
   , ClmSeason'Player
@@ -938,7 +938,7 @@ buildSeasonJson allSeasonIds allPlayerSeasons otherPlayerTags seasonId = do
     }
 
 buildPlayerSeasonJson
-  :: forall x. Int -> Int -> ClmV () x @@> ClmPlayer'Season'Json
+  :: forall x. Int -> Int -> ClmV () x @@> ClmPlayerSeason'Json
 buildPlayerSeasonJson seasonId clmId = do
   playerSeason <- x'lookup @"clmPlayerSeasons" (seasonId /\ clmId) >>=
     e'unwrap (ClmStE.MissingPlayerSeason seasonId clmId)

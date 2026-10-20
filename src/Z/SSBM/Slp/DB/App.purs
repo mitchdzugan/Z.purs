@@ -11,7 +11,7 @@ countAct n Inc = n + 1
 countAct n Dec = n - 1
 countAct _ Reset = 3
 
-type COUNT x = (count :: X'Reducer CountAction Int | x)
+type COUNT x = (count :: XDom'Reducer CountAction Int | x)
 
 app'onE :: forall dr x. String -> XDom dr (COUNT x) Unit
 app'onE message = do

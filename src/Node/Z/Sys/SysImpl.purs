@@ -45,8 +45,8 @@ import Z.Prelude
 
 import Effect.Unsafe as Unsafe
 import Z.Sys.Module as Sys
+import Z.Z.Future (future'run)
 import Z.Z.Opt as O
-import Z.Z.Promise (future'run)
 
 foreign import js_readTextFile
   :: String -> Effect $ Promise String

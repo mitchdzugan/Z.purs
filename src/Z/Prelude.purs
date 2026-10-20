@@ -19,7 +19,7 @@ module Z.Prelude
   , module ZShorthand
   , module ZWraps
   , module ZPassable
-  , module ZPromise
+  , module ZFuture
   , module ZX
   ) where
 
@@ -185,6 +185,7 @@ import Z.Z.Defaultable
   ) as ZDefaultable
 import Z.Z.Ext as ZExt
 import Z.Z.Foldable as ZFoldable
+import Z.Z.Future as ZFuture
 import Z.Z.HashMap as ZMashMap
 import Z.Z.HashSet
   ( HashSet(..)
@@ -221,7 +222,6 @@ import Z.Z.Id
 import Z.Z.Pair (Pair(..), pair'get, pair'getOppo, pair'swap, (~)) as ZPair
 import Z.Z.PairKey (PairKey(..)) as ZPairKey
 import Z.Z.Passable (pass) as ZPassable
-import Z.Z.Promise as ZPromise
 import Z.Z.Shorthand as ZShorthand
 import Z.Z.String as ZString
 import Z.Z.Url (URL) as ZUrl

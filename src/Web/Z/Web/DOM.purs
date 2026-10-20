@@ -40,7 +40,7 @@ import Web.HTML.HTMLElement as HTMLEl
 import Web.HTML.History as History
 import Web.HTML.Location as Loc
 import Web.HTML.Window as Window
-import Z.Z.Promise (future'run)
+import Z.Z.Future (future'run)
 
 type XEffWeb a = Eff'At "_'x'web" a
 type X'Web x = (_'x'web :: X'R XWebR | x)

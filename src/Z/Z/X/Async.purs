@@ -8,7 +8,7 @@ import Prelude
 import Type.Proxy (Proxy(..))
 import Z.EXTERNAL.RUN.Run (Run, lift)
 import Z.Z.Core (class ConsSymbol)
-import Z.Z.Promise (Future)
+import Z.Z.Future (Future)
 
 data AsyncF a = AsyncSend (Future a)
 

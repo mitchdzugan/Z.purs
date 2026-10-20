@@ -20,8 +20,8 @@ import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Z.Z.Core (encodeOpts)
 import Z.Z.Defaultable (class Generable, GDefault, default)
+import Z.Z.Future (Promise)
 import Z.Z.HashMap (HashMap, hm'fromFoldable, hm'lookup)
-import Z.Z.Promise (Promise)
 import Z.Z.Util (decodeViaString)
 
 foreign import data Fetch'Response :: Type

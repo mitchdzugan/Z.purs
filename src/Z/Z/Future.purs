@@ -1,9 +1,11 @@
-module Z.Z.Promise
+module Z.Z.Future
   ( EffPromise
   , Future
   , Promise
   , future'fromEff
   , future'fromEffPromise
+  , future'of
+  , future'parallel
   , future'run
   , future'run_
   , future'try
@@ -41,6 +43,9 @@ instance Monad Future
 instance MonadRec Future where
   tailRecM = js_futureTailRecM useStep
 
+future'of :: forall a. a -> Future a
+future'of = js_futurePure
+
 future'try :: forall a. Future a -> Future (Either JsError a)
 future'try = js_futureTry (Left <<< JsError) Right
 
@@ -49,6 +54,9 @@ future'fromEff = js_futureFromEff
 
 future'fromEffPromise :: forall a. EffPromise a -> Future a
 future'fromEffPromise = js_futureFromEffPromise
+
+future'parallel :: forall a. Array (Future a) -> Future (Array a)
+future'parallel = js_futureParallel
 
 future'run
   :: forall a
@@ -99,3 +107,6 @@ type T'useStep a b =
 useStep :: forall a b. T'useStep a b
 useStep useLoop _ (Loop a) = useLoop a
 useStep _ useDone (Done b) = useDone b
+
+foreign import js_futureParallel
+  :: forall a. Array (Future a) -> Future (Array a)

@@ -19,7 +19,7 @@ module Node.Z.Git.Client
 
 import Node.Z.Prelude
 
-import Z.Z.Promise (EffPromise)
+import Z.Z.Future (EffPromise)
 
 foreign import data GitClient :: Type
 

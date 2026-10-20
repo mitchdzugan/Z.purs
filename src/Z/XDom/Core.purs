@@ -1,5 +1,6 @@
 module Z.XDom.Core
   ( (%%)
+  , (*%%)
   , ATTR
   , DomA
   , DomATag
@@ -11,10 +12,12 @@ module Z.XDom.Core
   , MDom
   , MDomEff
   , MDomEl
+  , MDomEl2
   , R'Self
   , Self
-  , X'Reducer
   , XDom
+  , XDom'Reducer
+  , XDom'State
   , XDomA
   , XDomE
   , XDomEA
@@ -26,10 +29,15 @@ module Z.XDom.Core
   , dom'div
   , dom'element
   , dom'iframe
+  , dom'img
   , dom'lead
+  , dom'li
+  , dom'path
   , dom'pre
   , dom'span
+  , dom'svg
   , dom'text
+  , dom'ul
   , dom'withAdapter
   , dom'withKey
   , dom'withNewState
@@ -66,17 +74,25 @@ module Z.XDom.Core
   , domx'eval_
   , el'cn
   , el'cnW
+  , el'd
+  , el'fill
   , el'href
   , el'id
-  , el'role
-  , el'roleButton
-  , el'target
-  , el'targetBlank
   , el'key
   , el'onClick
   , el'renderToString
+  , el'role
+  , el'roleButton
+  , el'src
+  , el'tabIndex
+  , el'tabIndex0
+  , el'target
+  , el'targetBlank
+  , el'viewBox
+  , el'xmlns
   , exec'xdom
   , op'el'text
+  , op'mdom'andText
   , x'renderToStringAsync
   ) where
 
@@ -124,6 +140,7 @@ type MDomEff'a x a = Run (A' (MDOMEFF x)) a
 
 type MDOMEL dx x = ATTR $ Wa' D.ReactEl (self :: R'Self dx x | x)
 type MDomEl dx x a = Run (MDOMEL dx x) a
+type MDomEl2 dx x a = Run (Wa' D.ReactEl $ MDOMEL dx x) a
 
 foreign import data DomETag :: Type
 foreign import data DomATag :: Type
@@ -395,6 +412,12 @@ el'key = w'tell'' @"attr" <<< pure <<< D.PKey
 el'id :: forall dr x. String -> MDomEl dr x Unit
 el'id = w'tell'' @"attr" <<< pure <<< D.Id
 
+el'tabIndex :: forall dr x. Int -> MDomEl dr x Unit
+el'tabIndex = w'tell'' @"attr" <<< pure <<< D.TabIndex
+
+el'tabIndex0 :: forall dr x. MDomEl dr x Unit
+el'tabIndex0 = el'tabIndex 0
+
 el'role :: forall dr x. String -> MDomEl dr x Unit
 el'role = w'tell'' @"attr" <<< pure <<< D.Role
 
@@ -409,6 +432,21 @@ el'targetBlank = el'target "_blank"
 
 el'href :: forall dr x. String -> MDomEl dr x Unit
 el'href = w'tell'' @"attr" <<< pure <<< D.Href
+
+el'src :: forall dr x. String -> MDomEl dr x Unit
+el'src = w'tell'' @"attr" <<< pure <<< D.Src
+
+el'xmlns :: forall dr x. String -> MDomEl dr x Unit
+el'xmlns = w'tell'' @"attr" <<< pure <<< D.XmlNS
+
+el'viewBox :: forall dr x. String -> MDomEl dr x Unit
+el'viewBox = w'tell'' @"attr" <<< pure <<< D.ViewBox
+
+el'fill :: forall dr x. String -> MDomEl dr x Unit
+el'fill = w'tell'' @"attr" <<< pure <<< D.Fill
+
+el'd :: forall dr x. String -> MDomEl dr x Unit
+el'd = w'tell'' @"attr" <<< pure <<< D.D
 
 el'cn :: forall dr x. String -> MDomEl dr x Unit
 el'cn = w'tell'' @"attr" <<< pure <<< D.ClassName
@@ -484,12 +522,42 @@ dom'article = dom'element "article"
 dom'iframe :: XDom_domElement_
 dom'iframe = dom'element "iframe"
 
+dom'img :: XDom_domElement_
+dom'img = dom'element "img"
+
+dom'svg :: XDom_domElement_
+dom'svg = dom'element "svg"
+
+dom'ul :: XDom_domElement_
+dom'ul = dom'element "ul"
+
+dom'li :: XDom_domElement_
+dom'li = dom'element "li"
+
+{-
+------------------------------------------------------------------
+TODO all below here should be NoCh
+TODO allow NoCh to have element properties
+-}
+
 dom'br :: XDom_domElement_NoCh
 dom'br = dom'element_noCh "br"
+
+dom'path :: XDom_domElement_
+dom'path = dom'element "path"
+
+------------------------------------------------------------------
 
 op'el'text :: forall t dr x. SText t => XDom_domElement_ -> t -> MDom dr x Unit
 op'el'text el t = el $ dom'text t
 
-infixr 0 op'el'text as %%
+op'mdom'andText
+  :: forall t dr x. SText t => MDomEl dr x Unit -> t -> MDomEl dr x Unit
+op'mdom'andText m t = m *> dom'text t
 
-type X'Reducer a s = X'R { get :: s, update :: a -> Eff'At "domEff" Unit }
+infixr 0 op'el'text as %%
+infixr 0 op'mdom'andText as *%%
+
+type XDom'Reducer a s = X'R { get :: s, update :: a -> Eff'At "domEff" Unit }
+
+type XDom'State s = XDom'Reducer s s

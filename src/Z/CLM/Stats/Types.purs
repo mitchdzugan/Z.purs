@@ -7,7 +7,7 @@ module Z.CLM.Stats.Types
   , ClmPlayer'Season
   , ClmPlayer'Season'Event
   , ClmPlayer'Season'H2h
-  , ClmPlayer'Season'Json
+  , ClmPlayerSeason'Json
   , ClmPlayer'Season'Set
   , ClmSeason
   , ClmSeason'Event
@@ -117,7 +117,7 @@ type ClmPlayer'Season =
   , h2hs :: Array ClmPlayer'Season'H2h
   }
 
-type ClmPlayer'Season'Json =
+type ClmPlayerSeason'Json =
   { sets :: Array ClmPlayer'Season'Set
   , events :: Array ClmPlayer'Season'Event
   , h2hs :: Array ClmPlayer'Season'H2h

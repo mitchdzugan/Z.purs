@@ -38,6 +38,7 @@ module Z.Z.X.Index
   , X'Wa
   , X'flipped
   , async'_
+  , async'run
   , async'x
   , e'const
   , e'const''
@@ -163,13 +164,14 @@ import Z.Z.X.UtilPrelude
 import Data.Argonaut.Decode (class DecodeJson)
 import Data.Either (Either(..))
 import Data.Int (floor)
-import Effect.Class as EffC
 import Parsing (Parser)
+import Unsafe.Coerce (unsafeCoerce)
+import Z.EXTERNAL.RUN.Run as Run
 import Z.EXTERNAL.RUN.Run.Except (Except, runExceptAt, throwAt)
 import Z.Z.Core
   ( class Resulting
   , Eff'At(..)
-  , JsError(..)
+  , JsError
   , ParseError
   , Result
   , T'useAsSym
@@ -185,19 +187,19 @@ import Z.Z.Core
 import Z.Z.DateTime (DateTime, dateTime'toMS)
 import Z.Z.Defaultable.Util as D
 import Z.Z.Fetch (Fetch'RequestOptions, Fetch'Response, fetch, fetchRes'json)
-import Z.Z.Promise
+import Z.Z.Future
   ( EffPromise
   , Future
   , future'fromEff
   , future'fromEffPromise
+  , future'of
   , future'try
   )
 import Z.Z.String (str'joinWith)
 import Z.Z.Url (URL)
 import Z.Z.Util
-  ( JsonDecodeError(..)
+  ( JsonDecodeError
   , UrlParts
-  , decodeForeign
   , decodeJson
   , url'fromParts
   , url'parts
@@ -386,8 +388,22 @@ instance X'Buildable (Runner't x x') x' x Unit where
 runner'eval :: forall x a. Runner x -> Run x a -> a
 runner'eval (Runner r) m = sync'_ $ r m
 
+async'run :: forall x a. Run (A' x) a -> Future (Run x a)
+async'run = loop
+  where
+  handle = Run.on (Proxy @"_'x'async") Left Right
+  loop r = case Run.peel r of
+    Left a -> case handle a of
+      Left (AsyncSend a') -> do
+        next <- a'
+        loop next
+      Right a' -> async'run do
+        inner <- unsafeCoerce $ Run.send a'
+        inner
+    Right a -> future'of (pure a)
+
 runner'evalA :: forall x a. Runner x -> Run (A' x) a -> Future a
-runner'evalA runner = run $
+runner'evalA runner = runRec $
   onMatch { _'x'async: \(AsyncSend a) -> a } \other ->
     pure $ runner'eval runner $ send other
 
