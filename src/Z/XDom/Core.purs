@@ -30,7 +30,8 @@ module Z.XDom.Core
   , dom'element
   , dom'iframe
   , dom'img
-  , dom'lead
+  , dom'input
+  , dom'label
   , dom'li
   , dom'path
   , dom'pre
@@ -72,9 +73,11 @@ module Z.XDom.Core
   , domS'set''
   , domx'eval
   , domx'eval_
+  , el'checked
   , el'cn
   , el'cnW
   , el'd
+  , el'data
   , el'fill
   , el'href
   , el'id
@@ -88,6 +91,7 @@ module Z.XDom.Core
   , el'tabIndex0
   , el'target
   , el'targetBlank
+  , el'type
   , el'viewBox
   , el'xmlns
   , exec'xdom
@@ -99,6 +103,7 @@ module Z.XDom.Core
 import Z.Prelude
 
 import Effect.Unsafe (unsafePerformEffect)
+import Web.Event.Internal.Types as WET
 import Z.XDom.Preact (js_renderToString, js_renderToStringAsync)
 import Z.XDom.Preact as D
 
@@ -412,6 +417,12 @@ el'key = w'tell'' @"attr" <<< pure <<< D.PKey
 el'id :: forall dr x. String -> MDomEl dr x Unit
 el'id = w'tell'' @"attr" <<< pure <<< D.Id
 
+el'type :: forall dr x. String -> MDomEl dr x Unit
+el'type = w'tell'' @"attr" <<< pure <<< D.Type
+
+el'checked :: forall dr x. Boolean -> MDomEl dr x Unit
+el'checked = w'tell'' @"attr" <<< pure <<< D.Checked
+
 el'tabIndex :: forall dr x. Int -> MDomEl dr x Unit
 el'tabIndex = w'tell'' @"attr" <<< pure <<< D.TabIndex
 
@@ -451,10 +462,13 @@ el'd = w'tell'' @"attr" <<< pure <<< D.D
 el'cn :: forall dr x. String -> MDomEl dr x Unit
 el'cn = w'tell'' @"attr" <<< pure <<< D.ClassName
 
+el'data :: forall dr x. String -> String -> MDomEl dr x Unit
+el'data k = w'tell'' @"attr" <<< pure <<< D.Data k
+
 el'cnW :: forall dr x. ((String -> StrW) -> StrW) -> MDomEl dr x Unit
 el'cnW fm = el'cn $ w'str'sp fm
 
-el'onClick :: forall dr x. (D.DomEvent -> MDomEff x Unit) -> MDomEl dr x Unit
+el'onClick :: forall dr x. (WET.Event -> MDomEff x Unit) -> MDomEl dr x Unit
 el'onClick f = do
   self <- el'getEffSelf
   w'tell'' @"attr" $ pure $ D.OnClick $ \e -> eval'self self $ f e
@@ -507,8 +521,11 @@ dom'a = dom'element "a"
 dom'button :: XDom_domElement_
 dom'button = dom'element "button"
 
-dom'lead :: XDom_domElement_
-dom'lead = dom'element "pre"
+dom'label :: XDom_domElement_
+dom'label = dom'element "label"
+
+dom'input :: XDom_domElement_
+dom'input = dom'element "input"
 
 dom'pre :: XDom_domElement_
 dom'pre = dom'element "pre"

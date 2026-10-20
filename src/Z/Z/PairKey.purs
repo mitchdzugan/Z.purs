@@ -9,12 +9,17 @@ import Data.Argonaut.Decode.Generic (genericDecodeJson) as DecodeGeneric
 import Data.Argonaut.Encode (class EncodeJson) as Enc
 import Data.Argonaut.Encode.Generic (genericEncodeJson) as EncodeGeneric
 import Data.Generic.Rep (class Generic) as Generic
+import Data.Show.Generic (genericShow)
 
 data PairKey = Pos | Neg
 
 derive instance Eq PairKey
 derive instance Ord PairKey
 derive instance Generic.Generic PairKey _
+
+instance Show PairKey where
+  show = genericShow
+
 instance Dec.DecodeJson PairKey where
   decodeJson x = DecodeGeneric.genericDecodeJson x
 

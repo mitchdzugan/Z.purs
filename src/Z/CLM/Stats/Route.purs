@@ -1,7 +1,11 @@
 module Z.CLM.Stats.Route
-  ( PlayerTab(..)
+  ( Filters
+  , Filters'rt
+  , PlayerTab(..)
   , Route(..)
   , RoutePage(..)
+  , Sort
+  , SortBy(..)
   , route'gotoPlayer
   , route'gotoStats
   , route'isH2hPage
@@ -9,37 +13,67 @@ module Z.CLM.Stats.Route
   , route'isSamePage
   , route'isStatsPage
   , route'mk
+  , route'mkDefault
   , route'playerPageId
   , route'playerPageTab
+  , route'toggleFilter
   , route'urlEdits
   , route'urlParse
   ) where
 
 import Z.Prelude
 
-import Data.Eq.Generic (genericEq)
-import Z.CLM.Stats.Season (seasonId'slug)
+import Z.CLM.Stats.Season (seasonId'active, seasonId'slug)
 import Z.CLM.Stats.Types (ClmBuildOutputs)
 
 data PlayerTab = PlayerTab'H2hs | PlayerTab'Tournaments
 
 derive instance Generic PlayerTab _
 
-instance Eq PlayerTab where
-  eq = genericEq
+derive instance Eq PlayerTab
 
 instance Show PlayerTab where
   show = genericShow
 
-data RoutePage = Stats | Player PlayerTab | Compare | H2hGrid
+data SortBy
+  = SortBy'Ord
+  | SortBy'Name
+  | SortBy'Qual
+  | SortBy'Acc
+  | SortBy'Att
+  | SortBy'Mru
+
+derive instance Generic SortBy _
+
+derive instance Eq SortBy
+
+instance Show SortBy where
+  show = genericShow
+
+type Sort = { by :: SortBy, dir :: PairKey }
+
+defaultSort :: Sort
+defaultSort = { by: SortBy'Ord, dir: Pos }
+
+type Filters'rt = (insufficientAttendance :: Boolean)
+type Filters = Record Filters'rt
+
+defaultFilters :: Boolean -> Filters
+defaultFilters isActiveSeason = { insufficientAttendance: not isActiveSeason }
+
+data RoutePage = Stats Sort Filters | Player PlayerTab | Compare | H2hGrid
 
 derive instance Generic RoutePage _
 
-instance Eq RoutePage where
-  eq = genericEq
+derive instance Eq RoutePage
 
 instance Show RoutePage where
   show = genericShow
+
+x'defaultStatsPage :: forall x. Int -> x @@> RoutePage
+x'defaultStatsPage seasonId = do
+  activeSeasonId <- seasonId'active
+  pure $ Stats defaultSort $ defaultFilters $ activeSeasonId == seasonId
 
 newtype Route = Route
   { page :: RoutePage, seasonId :: Int, clmIds :: Array Int }
@@ -54,42 +88,51 @@ instance Show Route where
 route'mk :: Int -> RoutePage -> Array Int -> Route
 route'mk seasonId page clmIds = Route { page, seasonId, clmIds }
 
+getActualPage :: forall x. Route -> x @@> RoutePage
+getActualPage (Route { page, seasonId, clmIds }) =
+  if isValidPage then pure page else getDefaultPage
+  where
+  idCount = arr'size clmIds
+  getDefaultPage = case idCount of
+    0 -> x'defaultStatsPage seasonId
+    1 -> pure $ Player PlayerTab'H2hs
+    2 -> pure Compare
+    _ -> pure H2hGrid
+  isValidPage = case page of
+    Stats _ _ -> idCount == 0
+    Player _ -> idCount < 2
+    Compare -> idCount < 3
+    _ -> true
+
 route'urlEdits :: Int -> Route -> Edit UrlParts
-route'urlEdits defaultSeasonId (Route { page, seasonId, clmIds }) = do
+route'urlEdits defaultSeasonId route@(Route { seasonId, clmIds }) = do
   s'set'b @"hash" (getHash clmIds)
   s'set'b @"path" path
   s'set'b @"query" query
   where
-  idCount = arr'size clmIds
-  defaultPage = case idCount of
-    0 -> Stats
-    1 -> Player PlayerTab'H2hs
-    2 -> Compare
-    _ -> H2hGrid
-  isValidPage = case page of
-    Stats -> idCount == 0
-    Player _ -> idCount < 2
-    Compare -> idCount < 3
-    _ -> true
-  actualPage = if isValidPage then page else defaultPage
   path = sync'x $ _'exec_ @(X'Vector String) do
     when (seasonId /= defaultSeasonId) do
       _'cons $ seasonId'slug seasonId
-    case actualPage of
+    getActualPage route >>= case _ of
       Player _ -> _'cons "-"
       Compare -> _'cons "compare"
       H2hGrid -> _'cons "h2h"
       _ -> pure unit
   query = sync'x $ _'exec_ @(X'HashMap String (Array String)) do
-    case actualPage of
+    getActualPage route >>= case _ of
       Player PlayerTab'Tournaments -> _'insert "tab" [ "tournaments" ]
       _ -> pure unit
   getHash [] = Nothing
   getHash ids = Just $ str'joinWith "~" $ ids <#> show
 
+route'mkDefault :: Int -> Route
+route'mkDefault defaultSeasonId = route'mk defaultSeasonId defaultStatsPage []
+  where
+  defaultStatsPage = sync'x $ x'defaultStatsPage defaultSeasonId
+
 urlParse'impl :: Int -> HashMap String Int -> URL -> Either String Route
 urlParse'impl defaultSeasonId seasonIdBySlug u =
-  sync'x $ e'try $ s'exec (route'mk defaultSeasonId Stats []) do
+  sync'x $ e'try $ s'exec (route'mkDefault defaultSeasonId) do
     processClmIds $ url'hash u
     processRouteList false $ list'fromFoldable $ url'pathSegments u
     processQuery $ url'query u
@@ -132,7 +175,7 @@ route'isH2hPage (Route { page: H2hGrid }) = true
 route'isH2hPage _ = false
 
 route'isStatsPage :: Route -> Boolean
-route'isStatsPage (Route { page: Stats }) = true
+route'isStatsPage (Route { page: Stats _ _ }) = true
 route'isStatsPage _ = false
 
 route'isPlayerPage :: Route -> Boolean
@@ -149,9 +192,10 @@ route'playerPageTab _ = Nothing
 
 route'gotoStats :: Edit Route
 route'gotoStats = do
+  seasonId <- s'view'b @"!.seasonId"
   isStatsPage <- s'get <#> route'isStatsPage
   whenNot isStatsPage do
-    s'set'b @"!.page" $ Stats
+    s'set'b @"!.page" =<< x'defaultStatsPage seasonId
 
 route'gotoPlayer :: Edit Route
 route'gotoPlayer = do
@@ -161,3 +205,10 @@ route'gotoPlayer = do
 
 route'isSamePage :: Route -> Route -> Boolean
 route'isSamePage r1 r2 = g_ @"!.page" r1 == g_ @"!.page" r2
+
+route'toggleFilter
+  :: forall @p x'. ConsSymbol p Boolean x' Filters'rt => Edit Route
+route'toggleFilter = s'view'b @"!.page" >>= case _ of
+  Stats sort filters ->
+    s'set'b @"!.page" $ Stats sort $ rec'modify @p not filters
+  _ -> pure unit

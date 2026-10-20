@@ -1,5 +1,6 @@
 module Z.CLM.Stats.Season
   ( ClmSeason'Props
+  , seasonId'active
   , seasonId'fromDateTime
   , seasonId'props
   , seasonId'slug
@@ -14,6 +15,9 @@ seasonId'fromDateTime dt = periodMonthContrib + periodYearContrib
   where
   periodYearContrib = (((dateTime'year dt) - 2022) * 3) + 2
   periodMonthContrib = floor $ toNumber (dateTime'month'i0 dt) / 4.0
+
+seasonId'active :: forall x. x @@> Int
+seasonId'active = x'now <#> seasonId'fromDateTime
 
 type ClmSeason'Props =
   { year :: Int

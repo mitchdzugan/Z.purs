@@ -34,7 +34,7 @@ import Node.Z.Git.Client
 import Node.Z.Gql as Gql
 import Node.Z.H2h as H2h
 import Node.Z.H2h.Startgg.All as All
-import Z.CLM.Stats.Season (seasonId'fromDateTime)
+import Z.CLM.Stats.Season (seasonId'active, seasonId'fromDateTime)
 import Z.CLM.Stats.Types
   ( ClmActionData
   , ClmBuildMeta(..)
@@ -337,7 +337,7 @@ runClm m = do
     s'setPure'b @"authToken" ggAuth
     let cachePath = dataRoot /./ "cache" /./ "startgg.gqlCache"
     s'setPure'b @"cachePath" $ pathStr cachePath
-  activeSeasonId <- getActiveSeasonId
+  activeSeasonId <- seasonId'active
   let tryDecode = x'decodeTextFile $ dataRoot /./ "FULL_LEGACY.json"
   legacyBlob <- e'try tryDecode >>= e'ok <<< constL (jsError "legacy read" "")
   clmIdByPlayerId <- hm'fromFoldable <$> forM
@@ -448,9 +448,6 @@ addRanks seasonId ratingData = do
           , lastEvent
           }
     x'insert @"clmRanks" seasonId ranks
-
-getActiveSeasonId :: forall x. x @@> Int
-getActiveSeasonId = x'now <#> seasonId'fromDateTime
 
 buildCurrentSeasons :: forall x. Spec.Spec -> ClmV () x @@> Unit
 buildCurrentSeasons spec = do

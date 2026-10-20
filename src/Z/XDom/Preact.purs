@@ -19,6 +19,8 @@ module Z.XDom.Preact
 
 import Z.Prelude
 
+import Web.Event.Internal.Types as WET
+
 foreign import data ReactEl :: Type
 
 foreign import js_textEl :: String -> ReactEl
@@ -51,7 +53,7 @@ foreign import data DomEvent :: Type
 data PropWF
   = Href String
   | ClassName String
-  | OnClick (DomEvent -> Unit)
+  | OnClick (WET.Event -> Unit)
   | Id String
   | PKey String
   | Role String
@@ -62,6 +64,9 @@ data PropWF
   | ViewBox String
   | Fill String
   | D String
+  | Data String String
+  | Type String
+  | Checked Boolean
 
 propWFKey :: PropWF -> String
 propWFKey (ClassName _) = "className"
@@ -77,6 +82,9 @@ propWFKey (XmlNS _) = "xmlns"
 propWFKey (ViewBox _) = "viewBox"
 propWFKey (Fill _) = "fill"
 propWFKey (D _) = "d"
+propWFKey (Data k _) = "data-" <> k
+propWFKey (Type _) = "type"
+propWFKey (Checked _) = "checked"
 
 propWFVal :: PropWF -> JsAny
 propWFVal (ClassName f) = jsAny f
@@ -92,3 +100,6 @@ propWFVal (XmlNS s) = jsAny s
 propWFVal (ViewBox s) = jsAny s
 propWFVal (Fill s) = jsAny s
 propWFVal (D s) = jsAny s
+propWFVal (Data _ v) = jsAny v
+propWFVal (Type s) = jsAny s
+propWFVal (Checked b) = jsAny b

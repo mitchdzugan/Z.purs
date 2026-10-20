@@ -20,8 +20,10 @@ import Z.CLM.Stats.Route
   , route'isSamePage
   , route'isStatsPage
   , route'mk
+  , route'mkDefault
   , route'playerPageId
   , route'playerPageTab
+  , route'toggleFilter
   , route'urlEdits
   , route'urlParse
   )
@@ -183,7 +185,7 @@ app'body = do
                 w $ if isStatsPage then "border-0" else "border-1"
               whenNot isStatsPage do
                 dom'a do
-                  router'setHref $ editRoute $ s'set'b @"!.page" Stats
+                  router'setHref $ editRoute route'gotoStats
                   el'roleButton
                   el'targetBlank
                   el'tabIndex0
@@ -228,7 +230,24 @@ app'body = do
                     el'cn "absolute z-15 right-[-2px] top-0 h-full"
                   -- TODO ActivePlayerIcons
                   dom'a do
-                    dom'text "i"
+                    router'setHref $ editRoute $
+                      route'toggleFilter @"insufficientAttendance"
+                    el'data "tip" "test tooltip" -- TODO tooltip
+                    dom'button do
+                      el'tabIndex0
+                      el'roleButton
+                      el'cnW \w -> do
+                        w "btn btn-sm h-full btn-soft rounded-r-none"
+                        w "rounded-l-xs p-px w-8 border-0 hover:bg-base-200"
+                        w "transition transition-colors duration-500 relative"
+                      dom'div $ el'cn "relative" *> dom'div do
+                        el'cnW \w -> do
+                          w "absolute -bottom-3 left-0 w-full h-full"
+                          w "flex justify-center align-center"
+                        dom'label do
+                          el'cn "swap swap-rotate h-3 w-3"
+                        dom'input do
+                          el'type "checkbox"
 
 app'mk :: forall dr x. ClmBuildOutputs -> UrlSt.XProvider dr x -> XDom dr x Unit
 app'mk buildOutputs = router'run urlEdits parseUrl mkTitleOr_ do
@@ -285,4 +304,4 @@ app'mk buildOutputs = router'run urlEdits parseUrl mkTitleOr_ do
   defaultSeasonId = buildOutputs.timeline.defaultSeasonId
   parseUrl = route'urlParse buildOutputs
   urlEdits = route'urlEdits defaultSeasonId
-  defaultRoute = route'mk defaultSeasonId Stats []
+  defaultRoute = route'mkDefault defaultSeasonId
