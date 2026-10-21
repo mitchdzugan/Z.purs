@@ -2,11 +2,13 @@ module Z.XDom.Core
   ( (%%)
   , (*%%)
   , ATTR
+  , ATTREL
   , DomA
   , DomATag
   , DomE
   , DomETag
   , DomEffPermit
+  , EL
   , MDOMEFF
   , MDOMEL
   , MDom
@@ -87,6 +89,7 @@ module Z.XDom.Core
   , el'role
   , el'roleButton
   , el'src
+  , el'style
   , el'tabIndex
   , el'tabIndex0
   , el'target
@@ -136,6 +139,8 @@ type DomEffPermit x = (domEff :: X'Permit | x)
 type MDom dx x a = Run (Wa' D.ReactEl (self :: R'Self dx x | x)) a
 
 type ATTR x = (attr :: X'W $ Array D.PropWF | x)
+type EL x = Wa' D.ReactEl x
+type ATTREL x = ATTR (EL x)
 type MDOMEFF x = (self :: R'Self () (DomEffPermit x) | DomEffPermit x)
 type MDOMEFF'delta x' x = (self :: R'Self () (DomEffPermit x) | DomEffPermit x')
 
@@ -464,6 +469,9 @@ el'cn = w'tell'' @"attr" <<< pure <<< D.ClassName
 
 el'data :: forall dr x. String -> String -> MDomEl dr x Unit
 el'data k = w'tell'' @"attr" <<< pure <<< D.Data k
+
+el'style :: forall dx x. D.ElStyles -> MDomEl dx x Unit
+el'style = w'tell'' @"attr" <<< pure <<< D.Style
 
 el'cnW :: forall dr x. ((String -> StrW) -> StrW) -> MDomEl dr x Unit
 el'cnW fm = el'cn $ w'str'sp fm

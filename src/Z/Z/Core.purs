@@ -2,6 +2,7 @@ module Z.Z.Core
   ( (<##>)
   , (<$$>)
   , (=@=)
+  , (?)
   , AntiUnit
   , Eff'At(..)
   , JsAny
@@ -128,6 +129,7 @@ module Z.Z.Core
   , simpleHash
   , stext
   , sumBy
+  , tern
   , tryParseInt
   , tryParseNum
   , tup'flip
@@ -808,3 +810,8 @@ eff'tag = Eff'At
 
 int'romanNumeral :: Int -> String
 int'romanNumeral = js_toRomanNumeral
+
+tern :: forall a. Boolean -> a -> a -> a
+tern cond vthen velse = if cond then vthen else velse
+
+infixl 2 tern as ?

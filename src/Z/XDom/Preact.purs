@@ -1,5 +1,6 @@
 module Z.XDom.Preact
   ( DomEvent
+  , ElStyles
   , PropWF(..)
   , ReactEl
   , js_effComponent
@@ -50,6 +51,8 @@ foreign import js_renderToStringAsync :: ReactEl -> Effect (Promise String)
 
 foreign import data DomEvent :: Type
 
+type ElStyles = Object String
+
 data PropWF
   = Href String
   | ClassName String
@@ -67,6 +70,7 @@ data PropWF
   | Data String String
   | Type String
   | Checked Boolean
+  | Style ElStyles
 
 propWFKey :: PropWF -> String
 propWFKey (ClassName _) = "className"
@@ -85,6 +89,7 @@ propWFKey (D _) = "d"
 propWFKey (Data k _) = "data-" <> k
 propWFKey (Type _) = "type"
 propWFKey (Checked _) = "checked"
+propWFKey (Style _) = "style"
 
 propWFVal :: PropWF -> JsAny
 propWFVal (ClassName f) = jsAny f
@@ -103,3 +108,4 @@ propWFVal (D s) = jsAny s
 propWFVal (Data _ v) = jsAny v
 propWFVal (Type s) = jsAny s
 propWFVal (Checked b) = jsAny b
+propWFVal (Style o) = jsAny o

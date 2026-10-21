@@ -6,6 +6,8 @@ module Z.CLM.Stats.Route
   , RoutePage(..)
   , Sort
   , SortBy(..)
+  , page'key
+  , page'sort
   , route'gotoPlayer
   , route'gotoStats
   , route'isH2hPage
@@ -14,11 +16,16 @@ module Z.CLM.Stats.Route
   , route'isStatsPage
   , route'mk
   , route'mkDefault
+  , route'pageKey
   , route'playerPageId
   , route'playerPageTab
+  , route'setSort
+  , route'sort
   , route'toggleFilter
   , route'urlEdits
   , route'urlParse
+  , sortBy'defaultDir
+  , sortBy'title
   ) where
 
 import Z.Prelude
@@ -36,8 +43,7 @@ instance Show PlayerTab where
   show = genericShow
 
 data SortBy
-  = SortBy'Ord
-  | SortBy'Name
+  = SortBy'Name
   | SortBy'Qual
   | SortBy'Acc
   | SortBy'Att
@@ -50,10 +56,21 @@ derive instance Eq SortBy
 instance Show SortBy where
   show = genericShow
 
+sortBy'title :: SortBy -> String
+sortBy'title SortBy'Name = "Player"
+sortBy'title SortBy'Qual = "Rating"
+sortBy'title SortBy'Acc = "W - L"
+sortBy'title SortBy'Att = "PR Events"
+sortBy'title SortBy'Mru = "Last Event"
+
+sortBy'defaultDir :: SortBy -> PairKey
+sortBy'defaultDir SortBy'Name = Pos
+sortBy'defaultDir _ = Neg
+
 type Sort = { by :: SortBy, dir :: PairKey }
 
 defaultSort :: Sort
-defaultSort = { by: SortBy'Ord, dir: Pos }
+defaultSort = { by: SortBy'Qual, dir: Neg }
 
 type Filters'rt = (insufficientAttendance :: Boolean)
 type Filters = Record Filters'rt
@@ -69,6 +86,16 @@ derive instance Eq RoutePage
 
 instance Show RoutePage where
   show = genericShow
+
+page'key :: RoutePage -> String
+page'key (Stats _ _) = "stats"
+page'key (Player _) = "player"
+page'key Compare = "compare"
+page'key H2hGrid = "h2h"
+
+page'sort :: RoutePage -> Sort
+page'sort (Stats sort _) = sort
+page'sort _ = defaultSort
 
 x'defaultStatsPage :: forall x. Int -> x @@> RoutePage
 x'defaultStatsPage seasonId = do
@@ -212,3 +239,15 @@ route'toggleFilter = s'view'b @"!.page" >>= case _ of
   Stats sort filters ->
     s'set'b @"!.page" $ Stats sort $ rec'modify @p not filters
   _ -> pure unit
+
+route'setSort :: Sort -> Edit Route
+route'setSort sort = s'view'b @"!.page" >>= case _ of
+  Stats _ filters ->
+    s'set'b @"!.page" $ Stats sort filters
+  _ -> pure unit
+
+route'pageKey :: Route -> String
+route'pageKey (Route { page }) = page'key page
+
+route'sort :: Route -> Sort
+route'sort (Route { page }) = page'sort page

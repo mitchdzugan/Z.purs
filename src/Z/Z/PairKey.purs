@@ -1,5 +1,6 @@
 module Z.Z.PairKey
   ( PairKey(..)
+  , pairKey'inv
   ) where
 
 import Prelude
@@ -25,3 +26,7 @@ instance Dec.DecodeJson PairKey where
 
 instance Enc.EncodeJson PairKey where
   encodeJson x = EncodeGeneric.genericEncodeJson x
+
+pairKey'inv :: PairKey -> PairKey
+pairKey'inv Pos = Neg
+pairKey'inv Neg = Pos

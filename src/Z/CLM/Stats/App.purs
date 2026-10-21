@@ -5,14 +5,27 @@ module Z.CLM.Stats.App
 import Z.XDom.Prelude
 
 import Z.CLM.Stats.Icon
-  ( icon'chartColumn
+  ( icon'bars
+  , icon'calendar
+  , icon'chartColumn
+  , icon'magnifyingGlass
+  , icon'minus
+  , icon'sort
+  , icon'sortDown
+  , icon'sortUp
   , icon'tableCells
+  , icon'turnDown
   , icon'user
   , icon'userGroup
+  , icon'xmark
   )
 import Z.CLM.Stats.Route
-  ( Route
+  ( Filters
+  , PlayerTab
+  , Route
   , RoutePage(..)
+  , Sort
+  , SortBy(..)
   , route'gotoPlayer
   , route'gotoStats
   , route'isH2hPage
@@ -21,11 +34,16 @@ import Z.CLM.Stats.Route
   , route'isStatsPage
   , route'mk
   , route'mkDefault
+  , route'pageKey
   , route'playerPageId
   , route'playerPageTab
+  , route'setSort
+  , route'sort
   , route'toggleFilter
   , route'urlEdits
   , route'urlParse
+  , sortBy'defaultDir
+  , sortBy'title
   )
 import Z.CLM.Stats.Season (seasonId'title)
 import Z.CLM.Stats.Types
@@ -98,7 +116,8 @@ type ClmDom dr x a = XDom dr (ClmDom'X x) a
 getAnimateInCn :: forall dr x. Boolean -> String -> ClmDom dr x String
 getAnimateInCn shouldForce animationCn = do
   { isInitialPage } <- x'extract @"isInitials"
-  let shouldUse = not isInitialPage || shouldForce
+  x'out { isInitialPage }
+  let shouldUse = (not isInitialPage) || shouldForce
   pure $ if shouldUse then "animate animate-once " <> animationCn else ""
 
 getAnimateInCn_ :: forall dr x. ClmDom dr x String
@@ -123,6 +142,9 @@ menuCn isActive = w'str'sp \w -> do
   when isActive do
     w "active bg-primary/25 dark:bg-primary-content/25"
 
+nbsp :: String
+nbsp = "\x00A0"
+
 periodMenu :: forall dx x. String -> ClmDom dx x Unit
 periodMenu ulCn = do
   dom'ul do
@@ -144,7 +166,144 @@ periodMenu ulCn = do
         el'cn $ menuCn isActive
         router'setHref linkedRoute
         icon pass
-        dom'text $ "\x00A0" <> text
+        dom'text $ nbsp <> text
+
+playerSearch :: forall dx x. ClmDom dx x Unit
+playerSearch = do
+  route <- x'extract @"route"
+  let isStatsPage = route'isStatsPage route
+  dom'div do
+    el'cnW \w -> do
+      w "dropdown"
+    dom'label do
+      el'cnW \w -> do
+        w "group input h-9 border-0 px-2 rounded-none"
+        w "transition transition-transform duration-300 shadow-none"
+        w "relative outline-hidden focus-within:outline-solid"
+        if isStatsPage then w "translate-x-8" else w "translate-x-0"
+      el'style $ obj'fromFoldable
+        [ "outlineOffset" /\ "-6px"
+        , "outlineWidth" /\ "2px"
+        ]
+      icon'magnifyingGlass $ el'cn "size-4"
+      dom'input do
+        el'tabIndex0
+        el'type "text"
+      dom'div do
+        el'key "outline-spacer"
+        el'cnW \w -> do
+          w "hidden absolute top-[5px] right-[calc(2rem_-_1px)]"
+          w "w-[5px] h-[calc(100%_-_10px)]"
+          when isStatsPage $ w "group-focus-within:block"
+        el'style $ obj'fromFoldable
+          [ "outlineStyle" /\ "inherit"
+          , "outlineOffset" /\ "0px"
+          , "outlineWidth" /\ "0px"
+          ]
+        dom'div do
+          el'cnW \w -> do
+            w "absolute w-0 h-full top-0 -right-px"
+            w "outline-white dark:outline-black"
+          el'style $ obj'fromFoldable
+            [ "outlineStyle" /\ "inherit"
+            , "outlineOffset" /\ "0px"
+            , "outlineWidth" /\ "5px"
+            ]
+        dom'div do
+          el'cnW \w -> do
+            w "absolute w-0 h-full top-0 left-px"
+            w "outline-black dark:outline-white"
+          el'style $ obj'fromFoldable
+            [ "outlineStyle" /\ "inherit"
+            , "outlineOffset" /\ "0px"
+            , "outlineWidth" /\ "1px"
+            ]
+    dom'div do
+      pure unit
+
+type TableCell dx x = MDom dx (ATTREL $ ATTREL $ ATTREL $ ATTREL x) Unit
+
+type TableCells dx x = Array (TableCell dx x)
+
+pageTableRow
+  :: forall dx x. String -> String -> TableCells dx x -> MDom dx x Unit
+pageTableRow rowKey rowCn cells = do
+  dom'div do
+    el'key rowKey
+    el'cn $ "table text-base w-[100%] min-w-240 " <> rowCn
+    dom'div do
+      el'cn "table-row"
+      dom'div $ el'cn "relative table-cell w-22" *> cell 0
+      dom'div $ el'cn "relative table-cell min-w-80 w-auto" *> cell 1
+      dom'div $ el'cn "relative table-cell w-28" *> cell 2
+      dom'div $ el'cn "relative table-cell w-28" *> cell 3
+      dom'div $ el'cn "relative table-cell w-28" *> cell 4
+      dom'div do
+        el'style $ obj'fromFoldable [ "width" /\ "max(16rem, 18vw)" ]
+        el'cn "relative table-cell"
+        cell 5
+  where
+  cell i = do
+    let isStart = i == 1 || i == 5
+    let mcell = may'or pass $ nth cells i
+    dom'div do
+      el'cnW \w -> do
+        w "left-0 top-0 absolute h-full w-full flex items-center"
+        if isStart then w "justify-start" else w "justify-center"
+        when (i == 5) do w "px-1"
+      mcell
+
+page'stats :: forall dx x. Sort -> Filters -> ClmDom dx x Unit
+page'stats sort filters = do
+  animateInCn <- getAnimateInCn false "animate-flip-down"
+  dom'div do
+    el'cn "sticky z-30 top-16"
+    pageTableRow
+      "headers"
+      ("h-10 rounded-none border-b-2 bg-base-300" <+> borderG3 <+> animateInCn)
+      [ dom'span $ el'cn "font-bold" *%% "#"
+      , tableHead SortBy'Name
+      , tableHead SortBy'Qual
+      , tableHead SortBy'Acc
+      , tableHead SortBy'Att
+      , tableHead SortBy'Mru
+      ]
+  dom'div do
+    el'cn "relative"
+  where
+  tableHead sortBy = do
+    editRoute <- x'extract @"editRoute"
+    let s4 = "size-4"
+    let isCurr = sort.by == sortBy
+    let isPos = sort.dir == Pos
+    let dir = if isCurr then pairKey'inv sort.dir else sortBy'defaultDir sortBy
+    let targetSort = { dir, by: sortBy }
+    dom'a do
+      router'setHref $ editRoute $ route'setSort targetSort
+      el'cnW \w -> do
+        w "group transition ease-in-out duration-300 whitespace-nowrap"
+        w "flex font-bold hover:underline hover:text-primary items-center"
+        when isCurr $ w "text-primary underline"
+      dom'text $ sortBy'title sortBy <> nbsp
+      dom'span do
+        el'cn "relative"
+        dom'span do
+          el'cn $ isCurr ? "group-hover:opacity-25" $ "group-hover:opacity-0"
+          if isCurr then
+            isPos ? icon'sortUp (el'cn s4) $ icon'sortDown (el'cn s4)
+          else icon'sort (el'cn s4)
+
+page'player :: forall dx x. PlayerTab -> ClmDom dx x Unit
+page'player tab = do
+  pure unit
+
+page'compare :: forall dx x. ClmDom dx x Unit
+page'compare = do
+  pure unit
+
+page'h2h :: forall dx x. ClmDom dx x Unit
+page'h2h = do
+  pure unit
 
 app'body :: forall dr x. ClmDom dr x Unit
 app'body = do
@@ -240,14 +399,55 @@ app'body = do
                         w "btn btn-sm h-full btn-soft rounded-r-none"
                         w "rounded-l-xs p-px w-8 border-0 hover:bg-base-200"
                         w "transition transition-colors duration-500 relative"
-                      dom'div $ el'cn "relative" *> dom'div do
-                        el'cnW \w -> do
-                          w "absolute -bottom-3 left-0 w-full h-full"
-                          w "flex justify-center align-center"
-                        dom'label do
-                          el'cn "swap swap-rotate h-3 w-3"
-                        dom'input do
-                          el'type "checkbox"
+                      dom'div do
+                        el'cn "relative"
+                        dom'div do
+                          el'cnW \w -> do
+                            w "absolute -bottom-3 left-0 w-full h-full"
+                            w "flex justify-center align-center"
+                          dom'label do
+                            el'cn "swap swap-rotate h-3 w-3"
+                            dom'input do
+                              el'type "checkbox"
+                            dom'div do
+                              el'cn "swap-on text-accent"
+                              icon'minus $ el'cn "h-3 w-3 opacity-50"
+                            dom'div do
+                              el'cn "swap-off text-secondary"
+                              icon'xmark $ el'cn "h-3 w-3"
+                        icon'turnDown do
+                          el'cn
+                            "w-4 h-4 relative -top-1 border-b-0 text-warning"
+                playerSearch
+              dom'div do
+                el'key $ route'pageKey route
+                el'cnW \w -> do
+                  w "lg:hidden dropdown dropdown-hover dropdown-end"
+                  w "join-item border" *> w'borderG3
+                dom'button do
+                  el'tabIndex0
+                  el'roleButton
+                  el'cn "btn px-1 btn-sm h-full btn-soft rounded-none border-0"
+                  icon'bars pass
+                pure unit -- TODO periodMenu
+              dom'div do
+                el'key $ show $ g_ @"!.seasonId" route
+                el'cnW \w -> do
+                  w "dropdown dropdown-hover dropdown-end"
+                  w "join-item border rounded-r-md" *> w'borderG3
+                dom'button do
+                  el'tabIndex0
+                  el'roleButton
+                  el'cnW \w -> do
+                    w "btn px-1 btn-sm h-full btn-soft"
+                    w "rounded-none border-0 rounded-r-sm"
+                  icon'calendar pass
+                pure unit -- TODO periodMenu
+      case g_ @"!.page" route of
+        Stats sort filters -> page'stats sort filters
+        Player tab -> page'player tab
+        Compare -> page'compare
+        H2hGrid -> page'h2h
 
 app'mk :: forall dr x. ClmBuildOutputs -> UrlSt.XProvider dr x -> XDom dr x Unit
 app'mk buildOutputs = router'run urlEdits parseUrl mkTitleOr_ do
@@ -273,10 +473,13 @@ app'mk buildOutputs = router'run urlEdits parseUrl mkTitleOr_ do
     let
       isStillInitialSeason = isInitialSeason &&
         (g_ @"!.seasonId" route == g_ @"!.seasonId" initialRoute)
+      isStillInitialPage = isStillInitialSeason && isInitialPage &&
+        (g_ @"!.page" route == g_ @"!.page" initialRoute)
+    x'out { isStillInitialPage }
+    x'out $ show route
     x'assign @"isInitials"
       { initialRoute
-      , isInitialPage: isStillInitialSeason && isInitialPage &&
-          (g_ @"!.page" route == g_ @"!.page" initialRoute)
+      , isInitialPage: isStillInitialPage
       , isInitialSeason: isStillInitialSeason && isStillInitialSeason
       , isInitialPlayer: isStillInitialSeason && isInitialPlayer &&
           (route'playerPageId route == route'playerPageId route)

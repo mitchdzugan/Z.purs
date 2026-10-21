@@ -1,8 +1,22 @@
-import { Fragment, h, Component } from "preact";
-import { 
-    render as renderToString, 
-    renderToStringAsync,
-} from "preact-render-to-string"
+import { Fragment, h, Component, createRef } from "preact";
+import {
+  render as renderToString,
+  renderToStringAsync,
+} from "preact-render-to-string";
+
+class RefComponent extends Component {
+  constructor(props) {
+    super(props);
+    this.ref = createRef();
+    this.ref.current = props.initialVal;
+  }
+
+  render() {
+    const getter = () => this.ref.current;
+    const setter = (v) => () => (this.ref.current = v);
+    return h(Fragment, {}, ...this.props.renderEls(getter)(setter));
+  }
+}
 
 class StateComponent extends Component {
   constructor(props) {
@@ -11,9 +25,7 @@ class StateComponent extends Component {
   }
 
   render() {
-    const setter = (st) => {
-      return () => this.setState({ st });
-    };
+    const setter = (st) => () => this.setState({ st });
     return h(Fragment, {}, ...this.props.renderEls(this.state.st)(setter));
   }
 }
@@ -61,6 +73,8 @@ export const js_propsFromPropWs = (getK) => (getV) => (kvs) => {
   }
   return res;
 };
+export const js_withRef = (renderEls) => (initialVal) =>
+  h(RefComponent, { renderEls, initialVal });
 export const js_withState = (renderEls) => (initialState) =>
   h(StateComponent, { renderEls, initialState });
 export const js_withKey = (key) => (el) => h(KeyComponent, { key, el });
