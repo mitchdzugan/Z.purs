@@ -253,8 +253,30 @@ pageTableRow rowKey rowCn cells = do
         when (i == 5) do w "px-1"
       mcell
 
+type TableRowProps =
+  { cn :: String
+  , key :: String
+  }
+
+tableContentRow :: forall dx x. Edit TableRowProps -> ClmDom dx x Unit
+tableContentRow propEdits = do
+  let props = edit default propEdits
+  let cn = "h-25 border-gray-300 dark:border-gray-700 rounded-none " <> props.cn
+  pageTableRow props.key cn
+    [ dom'div do
+        el'cn "font-extrabold text-4xl"
+        dom'text 1
+    ]
+
+tableSkelRow :: forall dx x. Int -> ClmDom dx x Unit
+tableSkelRow id = tableContentRow do
+  s'set'b @"key" $ "skelRow" <-> id
+  s'set'b @"cn" "border-b-1"
+
 page'stats :: forall dx x. Sort -> Filters -> ClmDom dx x Unit
 page'stats sort filters = do
+  seasonId <- x'extract @"route" <#> g_ @"!.seasonId"
+  seasonOr_ <- domFetchCache'lookup @"clmSeasons" seasonId
   animateInCn <- getAnimateInCn false "animate-flip-down"
   dom'div do
     el'cn "sticky z-30 top-16"
@@ -270,6 +292,11 @@ page'stats sort filters = do
       ]
   dom'div do
     el'cn "relative"
+    case seasonOr_ of
+      Nothing -> do
+        forM_ (arr'range 1 17) \id -> tableSkelRow id
+      Just season -> do
+        forM_ (arr'range 1 17) \id -> tableSkelRow id
   where
   tableHead sortBy = do
     editRoute <- x'extract @"editRoute"
@@ -317,11 +344,6 @@ app'body = do
   editRoute <- x'extract @"editRoute"
   let seasonId = g_ @"!.seasonId" route
   let title = seasonId'title seasonId
-  seasonOr_ <- domFetchCache'lookup @"clmSeasons" seasonId
-  whenJust seasonOr_ \season -> do
-    let seasonEvents = boxed'call_ @"events" season
-    x'out { season }
-    x'out { seasonEvents }
   let isH2hPage = route'isH2hPage route
   let isStatsPage = route'isStatsPage route
   animateInCn <- getAnimateInCn_
