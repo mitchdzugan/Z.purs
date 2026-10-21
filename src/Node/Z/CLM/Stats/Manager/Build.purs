@@ -1046,3 +1046,5 @@ buildClm newActions = runClm do
     usePagesGit $ git'push pass
     deployHash <- usePagesGit git'lastCommitShort
     x'out { deployHash }
+  x'out "TEST::index.html"
+  x'out $ mkHtmlDoc buildOutputs pass

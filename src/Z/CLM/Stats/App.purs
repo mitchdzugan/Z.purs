@@ -292,6 +292,12 @@ page'stats sort filters = do
           if isCurr then
             isPos ? icon'sortUp (el'cn s4) $ icon'sortDown (el'cn s4)
           else icon'sort (el'cn s4)
+        dom'div do
+          el'cnW \w -> do
+            w "absolute top-0 left-0 w-full h-full"
+            w "flex justify-center items-center"
+            w "hidden group-hover:block"
+          dir == Pos ? icon'sortUp (el'cn s4) $ icon'sortDown (el'cn s4)
 
 page'player :: forall dx x. PlayerTab -> ClmDom dx x Unit
 page'player tab = do
