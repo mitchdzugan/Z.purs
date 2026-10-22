@@ -1,5 +1,17 @@
 import { stringify as iniStringify } from "ini";
 
+export const js_pseudoRng = (inputs) => {
+  const key = [...inputs].join("|");
+  const lim = 254740888;
+  let num = lim + 100;
+  for (let i = 0; i < key.length; i++) {
+    const ch = key.charCodeAt(i);
+    num *= ch;
+    num = num % lim;
+  }
+  const rngVal = ((num * num) % lim) / lim;
+  return rngVal;
+};
 export const js_JsAny = (a) => a;
 export const js_JsAnyToForeign = (a) => a;
 export const js_ForeignToJson = (a) => a;

@@ -17,12 +17,12 @@ import Z.XDom.Core
   ( class Dom'ConsSymbol
   , MDom
   , MDomEff
-  , XDom'Reducer
+  , XDom'StateReducer
   , domEff'async
   , domEff'onNew'lead
-  , domS'dispatch''
-  , domS'get''
-  , domS'runReducer''
+  , domState'dispatch''
+  , domState'get''
+  , domState'runReducer''
   )
 
 data FetchCache'ValState v
@@ -93,7 +93,7 @@ type FetchCache'R id v =
   }
 
 type X'FetchCache id v =
-  XDom'Reducer (FetchCache'Action id v) (FetchCache'R id v)
+  XDom'StateReducer (FetchCache'Action id v) (FetchCache'R id v)
 
 domFetchCache'ensureRequested
   :: forall @p id v x' x
@@ -104,7 +104,7 @@ domFetchCache'ensureRequested
   => id
   -> MDomEff x Unit
 domFetchCache'ensureRequested id = do
-  { state } <- domS'get'' @p
+  { state } <- domState'get'' @p
   when (fetchCache'shouldFetch id state) $ domFetchCache'forceRequest @p id
 
 domFetchCache'forceRequest
@@ -116,18 +116,18 @@ domFetchCache'forceRequest
   => id
   -> MDomEff x Unit
 domFetchCache'forceRequest id = do
-  { mkFetchUrl } <- domS'get'' @p
+  { mkFetchUrl } <- domState'get'' @p
   domEff'async do
-    domS'dispatch'' @p $ FetchCache'Action'MarkRequesting id
+    domState'dispatch'' @p $ FetchCache'Action'MarkRequesting id
     vOrE <- e'try $ do
       fetchRes <- x'fetch (mkFetchUrl id) pass
       decoded <- x'decodeFetched @v fetchRes
       e'ok $ constL (jsError "decode error" "") decoded
     case vOrE of
       Left e -> do
-        domS'dispatch'' @p $ FetchCache'Action'SetError id e
+        domState'dispatch'' @p $ FetchCache'Action'SetError id e
       Right v -> do
-        domS'dispatch'' @p $ FetchCache'Action'SetVal id v
+        domState'dispatch'' @p $ FetchCache'Action'SetVal id v
 
 type T'domFetchCache'run'helper'fn dr x' x id =
   (id -> String) -> MDom dr x' (Array id) -> MDom dr x Unit -> MDom dr x' Unit
@@ -145,7 +145,7 @@ domFetchCache'run
 domFetchCache'run cachePreload mkFetchUrl getId m = do
   currIds <- getId
   let init = { mkFetchUrl, state: cachePreload <#> FetchCache'ValState'Val }
-  domS'runReducer'' @p init fetchCache'update do
+  domState'runReducer'' @p init fetchCache'update do
     domEff'onNew'lead (map ident'key currIds) (onNew currIds) *> m
   where
   onNew currIds = do
@@ -161,4 +161,5 @@ domFetchCache'lookup
   => Identable id
   => id
   -> Run x (Maybe v)
-domFetchCache'lookup id = domS'get'' @p <#> _.state <#> fetchCache'lookupVal id
+domFetchCache'lookup id = domState'get'' @p <#> _.state <#> fetchCache'lookupVal
+  id

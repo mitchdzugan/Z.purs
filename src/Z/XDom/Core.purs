@@ -8,6 +8,7 @@ module Z.XDom.Core
   , DomE
   , DomETag
   , DomEffPermit
+  , DomPermit
   , EL
   , MDOMEFF
   , MDOMEL
@@ -16,10 +17,13 @@ module Z.XDom.Core
   , MDomEl
   , MDomEl2
   , R'Self
+  , SELF
   , Self
   , XDom
-  , XDom'Reducer
+  , XDom'Ref
+  , XDom'RefReducer
   , XDom'State
+  , XDom'StateReducer
   , XDomA
   , XDomE
   , XDomEA
@@ -29,6 +33,7 @@ module Z.XDom.Core
   , dom'br
   , dom'button
   , dom'div
+  , dom'do
   , dom'element
   , dom'iframe
   , dom'img
@@ -43,11 +48,8 @@ module Z.XDom.Core
   , dom'ul
   , dom'withAdapter
   , dom'withKey
+  , dom'withNewRef
   , dom'withNewState
-  , domE'bind
-  , domE'bind''
-  , domE'fail
-  , domE'fail''
   , domEff'async
   , domEff'do
   , domEff'every
@@ -61,18 +63,32 @@ module Z.XDom.Core
   , domEff'once
   , domEff'once'lag
   , domEff'once'lead
+  , domError'bind
+  , domError'bind''
+  , domError'fail
+  , domError'fail''
   , domR'run
   , domR'run''
-  , domS'dispatch
-  , domS'dispatch''
-  , domS'get
-  , domS'get''
-  , domS'runReducer
-  , domS'runReducer''
-  , domS'runState
-  , domS'runState''
-  , domS'set
-  , domS'set''
+  , domRef'dispatch
+  , domRef'dispatch''
+  , domRef'get
+  , domRef'get''
+  , domRef'run
+  , domRef'run''
+  , domRef'runReducer
+  , domRef'runReducer''
+  , domRef'set
+  , domRef'set''
+  , domState'dispatch
+  , domState'dispatch''
+  , domState'get
+  , domState'get''
+  , domState'run
+  , domState'run''
+  , domState'runReducer
+  , domState'runReducer''
+  , domState'set
+  , domState'set''
   , domx'eval
   , domx'eval_
   , el'checked
@@ -115,13 +131,15 @@ type EffSelf x = Self () x
 
 type R'Self dx x = X'R (Self dx x)
 
+type SELF dx x = (self :: R'Self dx x | x)
+
 eval'self :: forall dx x a. Self dx x -> Run (self :: R'Self dx x | x) a -> a
 eval'self self@(Self _ rn) m = runner'eval rn $ r'run'' @"self" self $ m
 
 evalA'self
   :: forall dx x a
    . Self dx x
-  -> Run (A' (self :: R'Self dx x | x)) a
+  -> Run (A' (SELF dx x)) a
   -> Future a
 evalA'self self@(Self _ rn) m = runner'evalA rn $ r'run'' @"self" self $ m
 
@@ -136,7 +154,9 @@ selfDomless (Self _ r) = Self runner'_ r
 
 type DomEffPermit x = (domEff :: X'Permit | x)
 
-type MDom dx x a = Run (Wa' D.ReactEl (self :: R'Self dx x | x)) a
+type DomPermit x = (dom :: X'Permit | x)
+
+type MDom dx x a = Run (Wa' D.ReactEl (SELF dx x)) a
 
 type ATTR x = (attr :: X'W $ Array D.PropWF | x)
 type EL x = Wa' D.ReactEl x
@@ -178,6 +198,18 @@ domRenderMEl m = domRenderM m <#> D.js_renderFragment
 dom'withKey :: forall dr x. String -> MDom dr x Unit -> MDom dr x Unit
 dom'withKey k m = domRenderMEl m >>= w'say <<< D.js_withKey k
 
+dom'withNewRef
+  :: forall sx de s
+   . s
+  -> (Eff'At "dom" s -> (s -> Eff'At "dom" Unit) -> MDom sx de Unit)
+  -> MDom sx de Unit
+dom'withNewRef initalState fm = do
+  self <- x'extract @"self"
+  w'say $ D.js_withRef (renderFn self) initalState
+  where
+  renderFn self s ss = renderM self $ fm (eff'tag @"dom" s) (w ss)
+  w ss s = eff'tag @"dom" $ ss s
+
 dom'withNewState
   :: forall sx de s
    . s
@@ -209,6 +241,9 @@ domEff'getRunner = domEff'getSelf <#> \s -> runner'mk (pure <<< eval'self s)
 
 domEff'do :: forall x a. Eff'At "domEff" a -> Run (DomEffPermit x) a
 domEff'do = x'do
+
+dom'do :: forall dx x a. Eff'At "dom" a -> Run (SELF dx x) a
+dom'do = x'permit @"dom" <<< x'do
 
 dom'getEffSelf :: forall dr x. MDom dr x (Self () (DomEffPermit x))
 dom'getEffSelf =
@@ -269,100 +304,177 @@ domx'eval_ m = dom'withAdapter (x'eval @p default) m
 
 --------------------------------------------------------------------------------
 
-type T'domE'bind e p =
+type T'domError'bind e p =
   forall dx' dx x
    . ConsSymbol p (DomE e) dx' dx
   => (->) e $ MDom dx' x Unit
   -> MDom dx x Unit
   -> MDom dx' x Unit
 
-domE'bind'' :: forall @p e. T'domE'bind e p
-domE'bind'' em m = do
+domError'bind'' :: forall @p e. T'domError'bind e p
+domError'bind'' em m = do
   oldSelf <- x'extract @"self"
   let self = selfExtendDom (r'run'' @p (Proxy @(DomETag /\ e))) oldSelf
   w'say $ D.js_withBoundedError (reflectSymbol $ p @p)
     (\e -> eff'defer \_ -> renderMEl oldSelf $ em e)
     (eff'defer \_ -> renderMEl self m)
 
-domE'bind :: forall e p. T'use'e'AsSym p $ T'domE'bind e
-domE'bind = domE'bind'' @p
+domError'bind :: forall e p. T'use'e'AsSym p $ T'domError'bind e
+domError'bind = domError'bind'' @p
 
-type T'domE'fail p =
+type T'domError'fail p =
   forall e dx' dx x xx a
    . ConsSymbol p (DomE e) dx' dx
   => e
   -> Run (self :: R'Self dx x | xx) a
 
-domE'fail'' :: forall @p. T'domE'fail p
-domE'fail'' e = x'extract @"self" <#> \_ ->
+domError'fail'' :: forall @p. T'domError'fail p
+domError'fail'' e = x'extract @"self" <#> \_ ->
   D.js_throwBoundedError (reflectSymbol $ Proxy @p) e
 
-domE'fail :: forall p. T'use'e'AsSym p $ T'domE'fail
-domE'fail = domE'fail'' @p
+domError'fail :: forall p. T'use'e'AsSym p $ T'domError'fail
+domError'fail = domError'fail'' @p
 
 --------------------------------------------------------------------------------
 
-type ReducerR s a r = (get :: s, update :: a -> Eff'At "domEff" Unit | r)
+type StateReducerR s a r =
+  (get :: s, update :: a -> Eff'At "domEff" Unit | r)
 
-type T'domS'runable s a tf p =
+type T'domState'runable s a tf p =
   forall dr x' x
-   . ConsSymbol p (X'R $ Record $ ReducerR s a ()) x' x
+   . ConsSymbol p (X'R $ Record $ StateReducerR s a ()) x' x
   => (tf (MDom dr x Unit -> MDom dr x' Unit))
 
 type Tf'reducer s a res = s -> (s -> a -> s) -> res
-type T'domS'runReducer p = forall s a. T'domS'runable s a (Tf'reducer s a) p
+type T'domState'runReducer p =
+  forall s a. T'domState'runable s a (Tf'reducer s a) p
 
-domS'runReducer'' :: forall @p. T'domS'runReducer p
-domS'runReducer'' inits ups m = dom'withNewState inits \s sets -> do
+domState'runReducer'' :: forall @p. T'domState'runReducer p
+domState'runReducer'' inits ups m = dom'withNewState inits \s sets -> do
   domR'run'' @p { get: s, update: sets <<< ups s } m
 
-domS'runReducer :: forall @p. T'useAsSym "state" p T'domS'runReducer
-domS'runReducer = domS'runReducer'' @p
+domState'runReducer :: forall @p. T'useAsSym "state" p T'domState'runReducer
+domState'runReducer = domState'runReducer'' @p
 
 type Tf'state s res = s -> res
-type T'domS'run p = forall s. T'domS'runable s s (Tf'state s) p
+type T'domState'run p = forall s. T'domState'runable s s (Tf'state s) p
 
-domS'runState'' :: forall @p. T'domS'run p
-domS'runState'' inits m = dom'withNewState inits \s sets -> do
+domState'run'' :: forall @p. T'domState'run p
+domState'run'' inits m = dom'withNewState inits \s sets -> do
   domR'run'' @p { get: s, update: sets } m
 
-domS'runState :: forall @p. T'use's'AsSym p T'domS'run
-domS'runState = domS'runState'' @p
+domState'run :: forall @p. T'use's'AsSym p T'domState'run
+domState'run = domState'run'' @p
 
-type T'domS'get p =
+type T'domState'get p =
   forall s x' x r
    . IsSymbol p
   => Cons p (X'R $ Record (get :: s | r)) x' x
   => Run x s
 
-domS'get'' :: forall @p. T'domS'get p
-domS'get'' = x'extract @p <#> _.get
+domState'get'' :: forall @p. T'domState'get p
+domState'get'' = x'extract @p <#> _.get
 
-domS'get :: forall p. T'use's'AsSym p T'domS'get
-domS'get = domS'get'' @p
+domState'get :: forall p. T'use's'AsSym p T'domState'get
+domState'get = domState'get'' @p
 
-type T'domS'setable s a p =
+type T'domState'setable s a p =
   forall x' x r
-   . ConsSymbol p (X'R $ Record $ ReducerR s a r) (domEff :: X'Permit | x')
+   . ConsSymbol p (X'R $ Record $ StateReducerR s a r) (domEff :: X'Permit | x')
        (domEff :: X'Permit | x)
   => a
   -> Run (domEff :: X'Permit | x) Unit
 
-type T'domS'dispatch p = forall s a. T'domS'setable s a p
+type T'domState'dispatch p = forall s a. T'domState'setable s a p
 
-domS'dispatch'' :: forall @p. T'domS'dispatch p
-domS'dispatch'' a = x'extract @p >>= \r -> x'do (r.update a)
+domState'dispatch'' :: forall @p. T'domState'dispatch p
+domState'dispatch'' a = x'extract @p >>= \r -> x'do (r.update a)
 
-domS'dispatch :: forall p. T'use's'AsSym p T'domS'dispatch
-domS'dispatch = domS'dispatch'' @p
+domState'dispatch :: forall p. T'use's'AsSym p T'domState'dispatch
+domState'dispatch = domState'dispatch'' @p
 
-type T'domS'set p = forall s. T'domS'setable s s p
+type T'domState'set p = forall s. T'domState'setable s s p
 
-domS'set'' :: forall @p. T'domS'set p
-domS'set'' = domS'dispatch'' @p
+domState'set'' :: forall @p. T'domState'set p
+domState'set'' = domState'dispatch'' @p
 
-domS'set :: forall p. T'use's'AsSym p T'domS'set
-domS'set = domS'set'' @p
+domState'set :: forall p. T'use's'AsSym p T'domState'set
+domState'set = domState'set'' @p
+
+----------------------------
+
+domUpdateRefState
+  :: forall a s
+   . Eff'At "dom" s
+  -> (s -> Eff'At "dom" Unit)
+  -> (s -> a -> s)
+  -> a
+  -> Eff'At "dom" Unit
+domUpdateRefState get sets update act = eff'tag @"dom" do
+  s <- eff'untag @"dom" get
+  eff'untag @"dom" $ sets $ update s act
+
+type RefReducerR s a r =
+  (get :: Eff'At "dom" s, update :: a -> Eff'At "dom" Unit | r)
+
+type T'domRef'runable s a tf p =
+  forall dr x' x
+   . ConsSymbol p (X'R $ Record $ RefReducerR s a ()) x' x
+  => (tf (MDom dr x Unit -> MDom dr x' Unit))
+
+type T'domRef'runReducer p =
+  forall s a. T'domRef'runable s a (Tf'reducer s a) p
+
+domRef'runReducer'' :: forall @p. T'domRef'runReducer p
+domRef'runReducer'' inits ups m = dom'withNewRef inits \get sets -> do
+  domR'run'' @p { get, update: domUpdateRefState get sets ups } m
+
+domRef'runReducer :: forall @p. T'useAsSym "state" p T'domRef'runReducer
+domRef'runReducer = domRef'runReducer'' @p
+
+type T'domRef'run p = forall s. T'domRef'runable s s (Tf'state s) p
+
+domRef'run'' :: forall @p. T'domRef'run p
+domRef'run'' inits m = dom'withNewRef inits \s sets -> do
+  domR'run'' @p { get: s, update: sets } m
+
+domRef'run :: forall @p. T'use's'AsSym p T'domRef'run
+domRef'run = domRef'run'' @p
+
+type T'domRef'get p =
+  forall s x' x r
+   . IsSymbol p
+  => Cons p (X'R $ Record (get :: Eff'At "dom" s | r)) x' x
+  => Run x s
+
+domRef'get'' :: forall @p. T'domRef'get p
+domRef'get'' = (x'extract @p <#> _.get) >>= x'permit @"dom" <<< x'do
+
+domRef'get :: forall p. T'use's'AsSym p T'domRef'get
+domRef'get = domRef'get'' @p
+
+type T'domRef'setable s a p =
+  forall x' x r
+   . ConsSymbol p (X'R $ Record $ RefReducerR s a r) x' x
+  => a
+  -> Run x Unit
+
+type T'domRef'dispatch p = forall s a. T'domRef'setable s a p
+
+domRef'dispatch'' :: forall @p. T'domRef'dispatch p
+domRef'dispatch'' a = x'extract @p >>= \r ->
+  x'permit @"dom" $ x'do (r.update a)
+
+domRef'dispatch :: forall p. T'use's'AsSym p T'domRef'dispatch
+domRef'dispatch = domRef'dispatch'' @p
+
+type T'domRef'set p = forall s. T'domRef'setable s s p
+
+domRef'set'' :: forall @p. T'domRef'set p
+domRef'set'' = domRef'dispatch'' @p
+
+domRef'set :: forall p. T'use's'AsSym p T'domRef'set
+domRef'set = domRef'set'' @p
 
 ------------------------------------------------------------------------
 
@@ -583,6 +695,12 @@ op'mdom'andText m t = m *> dom'text t
 infixr 0 op'el'text as %%
 infixr 0 op'mdom'andText as *%%
 
-type XDom'Reducer a s = X'R { get :: s, update :: a -> Eff'At "domEff" Unit }
+type XDom'StateReducer a s =
+  X'R { get :: s, update :: a -> Eff'At "domEff" Unit }
 
-type XDom'State s = XDom'Reducer s s
+type XDom'State s = XDom'StateReducer s s
+
+type XDom'RefReducer a s =
+  X'R { get :: Eff'At "dom" s, update :: a -> Eff'At "dom" Unit }
+
+type XDom'Ref s = XDom'RefReducer s s

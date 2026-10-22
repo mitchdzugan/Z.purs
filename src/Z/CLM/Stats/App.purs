@@ -101,7 +101,7 @@ type ClmDom'X x = Router' String Route $ ClmBuildOutputs'X
   , routeErr :: X'R (Maybe String)
   , editRoute :: X'R (Edit Route -> Route)
   , isInitials ::
-      X'S
+      XDom'Ref
         { isInitialPage :: Boolean
         , isInitialTab :: Boolean
         , isInitialPlayer :: Boolean
@@ -115,8 +115,7 @@ type ClmDom dr x a = XDom dr (ClmDom'X x) a
 
 getAnimateInCn :: forall dr x. Boolean -> String -> ClmDom dr x String
 getAnimateInCn shouldForce animationCn = do
-  { isInitialPage } <- x'extract @"isInitials"
-  x'out { isInitialPage }
+  { isInitialPage } <- domRef'get'' @"isInitials"
   let shouldUse = (not isInitialPage) || shouldForce
   pure $ if shouldUse then "animate animate-once " <> animationCn else ""
 
@@ -255,23 +254,64 @@ pageTableRow rowKey rowCn cells = do
 
 type TableRowProps =
   { cn :: String
-  , key :: String
+  , ord :: String
+  , clmId :: Int
+  , name :: String
   }
 
-tableContentRow :: forall dx x. Edit TableRowProps -> ClmDom dx x Unit
-tableContentRow propEdits = do
-  let props = edit default propEdits
-  let cn = "h-25 border-gray-300 dark:border-gray-700 rounded-none " <> props.cn
-  pageTableRow props.key cn
+tableContentRow
+  :: forall dx x. String -> Maybe TableRowProps -> ClmDom dx x Unit
+tableContentRow key props = do
+  let loadingCn = "h-25 border-gray-300 dark:border-gray-700 rounded-none "
+  { clmIds, seasonId } <- x'extract @"route" <#> unwrap
+  let rngEls a = arr'concat [ a, [ key, show seasonId ], map show clmIds ]
+  let trunc3 n = flip (/) 1000.0 $ toNumber $ floor (n * 1000.0)
+  let skelRng cn l h = pseudoRng $ rngEls [ cn, show l, show h ]
+  let skelSize cn l h = show $ trunc3 $ l + ((h - l) * skelRng cn l h)
+  let skelWidth cn l h = skelSize cn l h <> "rem"
+  let skelStyle cn l h = obj'fromFoldable [ "width" /\ skelWidth cn l h ]
+  pageTableRow key (may'or loadingCn $ props <#> _.cn)
     [ dom'div do
         el'cn "font-extrabold text-4xl"
-        dom'text 1
+        case _.ord <$> props of
+          Just ord -> dom'text ord
+          _ -> dom'div $ el'cn "skeleton h-6 w-10"
+    , do
+        editRoute <- x'extract @"editRoute"
+        let
+          topCn = w'str'sp \w -> do
+            w "flex items-center justify-start flex-1"
+            when (isJust props) $ w "group"
+          body = do
+            dom'div $ el'cn "w-2"
+            dom'div do
+              el'cnW \w -> do
+                w "h-13 w-13 rounded-full overflow-hidden shadow-md"
+                w "transition transition-shadow transition-colors duration-300"
+                w "group-hover:shadow-primary/33"
+            dom'div $ el'cn "w-4"
+            dom'div do
+              el'cn
+                "flex flex-col justify-center flex-1 relative overflow-hidden"
+              dom'div do
+                el'cnW \w -> do
+                  w "whitespace-nowrap text-xl font-bold"
+                  w "text-primary group-hover:underline"
+                case _.name <$> props of
+                  Just name -> dom'text name
+                  _ -> dom'div do
+                    el'cn "skeleton h-4" *> el'style (skelStyle "name" 5.0 7.5)
+
+          useBody tag m = tag $ el'cn topCn *> m *> body
+        case (_.clmId <$> props) of
+          Just clmId -> do
+            useBody dom'a $ router'setHref do
+              editRoute $ route'gotoPlayer *> s'setPure'b @"!.clmIds" clmId
+          _ -> useBody dom'div $ pure unit
     ]
 
 tableSkelRow :: forall dx x. Int -> ClmDom dx x Unit
-tableSkelRow id = tableContentRow do
-  s'set'b @"key" $ "skelRow" <-> id
-  s'set'b @"cn" "border-b-1"
+tableSkelRow id = tableContentRow ("skelRow" <-> id) Nothing
 
 page'stats :: forall dx x. Sort -> Filters -> ClmDom dx x Unit
 page'stats sort filters = do
@@ -491,21 +531,19 @@ app'mk buildOutputs = router'run urlEdits parseUrl mkTitleOr_ do
       , isInitialTab: isPlayerPage
       , initialRoute: route
       }
-  domx'eval @"isInitials" initIsInitials do
+  domRef'run'' @"isInitials" initIsInitials do
     { initialRoute
     , isInitialPage
     , isInitialSeason
     , isInitialPlayer
     , isInitialTab
-    } <- x'extract @"isInitials"
+    } <- domRef'get'' @"isInitials"
     let
       isStillInitialSeason = isInitialSeason &&
         (g_ @"!.seasonId" route == g_ @"!.seasonId" initialRoute)
       isStillInitialPage = isStillInitialSeason && isInitialPage &&
         (g_ @"!.page" route == g_ @"!.page" initialRoute)
-    x'out { isStillInitialPage }
-    x'out $ show route
-    x'assign @"isInitials"
+    domRef'set'' @"isInitials"
       { initialRoute
       , isInitialPage: isStillInitialPage
       , isInitialSeason: isStillInitialSeason && isStillInitialSeason

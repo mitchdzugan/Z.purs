@@ -13,6 +13,7 @@ module Z.XDom.Preact
   , js_throwBoundedError
   , js_withBoundedError
   , js_withKey
+  , js_withRef
   , js_withState
   , propWFKey
   , propWFVal
@@ -29,6 +30,9 @@ foreign import js_renderFragment :: Array ReactEl -> ReactEl
 foreign import js_renderEl :: String -> Json -> Array ReactEl -> ReactEl
 foreign import js_propsFromPropWs
   :: (PropWF -> String) -> (PropWF -> JsAny) -> Array PropWF -> Json
+
+foreign import js_withRef
+  :: forall s. (Effect s -> (s -> Effect Unit) -> Array ReactEl) -> s -> ReactEl
 
 foreign import js_withState
   :: forall s. (s -> (s -> Effect Unit) -> Array ReactEl) -> s -> ReactEl

@@ -47,6 +47,7 @@ module Z.Z.Core
   , dec
   , eff'defer
   , eff'tag
+  , eff'untag
   , encodeForeign
   , encodeOpts
   , fDiscard
@@ -110,6 +111,7 @@ module Z.Z.Core
   , parseStringEofAs
   , parseString_
   , parseTry
+  , pseudoRng
   , pureF
   , rec'get
   , rec'insert
@@ -161,7 +163,7 @@ import Data.Lens (Lens', lens')
 import Data.List as List
 import Data.Maybe (Maybe)
 import Data.Maybe as May
-import Data.Newtype (class Newtype)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Ring as Ring
 import Data.Semiring as Semiring
 import Data.Symbol (class IsSymbol)
@@ -353,6 +355,8 @@ instance Resulting (Eor.Either e) where
 
 foreign import data JsAny :: Type
 
+foreign import js_pseudoRng :: Array String -> Number
+
 foreign import js_JsAny :: forall a. a -> JsAny
 
 foreign import js_JsAnyToForeign :: Arg.Json -> Foreign.Foreign
@@ -381,6 +385,9 @@ instance Eq AntiUnit where
 
 antiUnit :: AntiUnit
 antiUnit = AntiUnit unit
+
+pseudoRng :: Array String -> Number
+pseudoRng = js_pseudoRng
 
 jsAny :: forall a. a -> JsAny
 jsAny = js_JsAny
@@ -807,6 +814,9 @@ derive instance Newtype (Eff'At p a) _
 
 eff'tag :: forall @p a. Eff.Effect a -> Eff'At p a
 eff'tag = Eff'At
+
+eff'untag :: forall @p a. Eff'At p a -> Eff.Effect a
+eff'untag = unwrap
 
 int'romanNumeral :: Int -> String
 int'romanNumeral = js_toRomanNumeral

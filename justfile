@@ -34,3 +34,6 @@ clm-stats-jekyll-serve:
 
 spago-watch:
     find src/ test/ | entr -s 'spago build'
+
+clm-stats-watch:
+    find src/ test/ | entr -s 'just clm-stats-build'
