@@ -108,15 +108,5 @@ router'setHref'' route = do
   href <- router'mkUrl'' @p route <#> url'relative
   attrW'addAttr $ Href href
 
-{-
-  TODO
-for some reason this causes compiler to get stuck in an infinite loop when
-defined as:
-```
 router'setHref :: forall @p. T'useAsSym "router" p T'router'setHref
 router'setHref = router'setHref'' @p
-```
--}
-router'setHref
-  :: forall t e r x. r -> Z.Run (AttrW' t (router :: R e r | x)) Unit
-router'setHref = router'setHref'' @"router"

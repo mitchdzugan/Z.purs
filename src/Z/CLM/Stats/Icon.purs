@@ -23,7 +23,7 @@ defIcon d el'svg = do
     el'svg
     el'xmlns "http://www.w3.org/2000/svg"
     el'viewBox "0 0 640 640"
-    el'setChildren $ dom'path do
+    el'setM $ dom'path do
       el'fill "currentColor"
       el'd d
 

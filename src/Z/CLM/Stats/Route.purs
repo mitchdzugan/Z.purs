@@ -223,12 +223,14 @@ route'gotoStats = do
   isStatsPage <- s'get <#> route'isStatsPage
   whenNot isStatsPage do
     s'set'b @"!.page" =<< x'defaultStatsPage seasonId
+  s'set'b @"!.clmIds" []
 
 route'gotoPlayer :: Edit Route
 route'gotoPlayer = do
   isPlayerPage <- s'get <#> route'isPlayerPage
   whenNot isPlayerPage do
     s'set'b @"!.page" $ Player PlayerTab'H2hs
+  s'over'b @"!.clmIds" $ arr'take 1
 
 route'isSamePage :: Route -> Route -> Boolean
 route'isSamePage r1 r2 = g_ @"!.page" r1 == g_ @"!.page" r2

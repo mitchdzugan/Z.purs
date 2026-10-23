@@ -7,13 +7,14 @@ module Z.CLM.Stats.Types
   , ClmPlayer'Season
   , ClmPlayer'Season'Event
   , ClmPlayer'Season'H2h
-  , ClmPlayerSeason'Json
   , ClmPlayer'Season'Set
+  , ClmPlayerSeason'Json
   , ClmSeason
   , ClmSeason'Event
   , ClmSeason'Json
   , ClmSeason'Player
   , ClmSeason'Player'Char
+  , ClmSeason'Player'Full
   , ClmTimeline
   , clmBuildMeta
   ) where
@@ -58,6 +59,18 @@ type ClmSeason'Player =
   , losses :: Int
   , prEvents :: Int
   , lastEvent :: { id :: SorN, placing :: Int }
+  , chars :: Array ClmSeason'Player'Char
+  }
+
+type ClmSeason'Player'Full =
+  { clmId :: Int
+  , player :: ClmPlayer
+  , rating :: Maybe Int
+  , clmRank :: Maybe Int
+  , wins :: Int
+  , losses :: Int
+  , prEvents :: Int
+  , lastEvent :: { id :: SorN, placing :: Int, data :: ClmSeason'Event }
   , chars :: Array ClmSeason'Player'Char
   }
 

@@ -160,6 +160,8 @@ domFetchCache'lookup
    . ConsSymbol p (X'FetchCache id v) x' x
   => Identable id
   => id
-  -> Run x (Maybe v)
-domFetchCache'lookup id = domState'get'' @p <#> _.state <#> fetchCache'lookupVal
-  id
+  -> Run x (FetchCache'ValState v)
+domFetchCache'lookup id =
+  domState'get'' @p <#> _.state <#> hm'lookup id <#> case _ of
+    Nothing -> FetchCache'ValState'Loading Nothing
+    Just res -> res

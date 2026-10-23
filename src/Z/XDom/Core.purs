@@ -6,6 +6,7 @@ module Z.XDom.Core
   , DomA
   , DomATag
   , DomE
+  , DomE'
   , DomETag
   , DomEffPermit
   , DomPermit
@@ -68,6 +69,8 @@ module Z.XDom.Core
   , domError'bind''
   , domError'fail
   , domError'fail''
+  , domError'ok
+  , domError'ok''
   , domRef'dispatch
   , domRef'dispatch''
   , domRef'get
@@ -90,8 +93,8 @@ module Z.XDom.Core
   , domState'set''
   , domx'eval
   , domx'eval_
-  , el'addChildren
   , el'addCn
+  , el'addM
   , el'addStyle
   , el'addStyles
   , el'checked
@@ -103,13 +106,14 @@ module Z.XDom.Core
   , el'id
   , el'key
   , el'onClick
+  , el'ref
   , el'renderToString
-  , el'resetChildren
   , el'resetCn
+  , el'resetM
   , el'resetStyles
   , el'role
   , el'roleButton
-  , el'setChildren
+  , el'setM
   , el'setStyles
   , el'src
   , el'tabIndex
@@ -130,7 +134,8 @@ import Z.Prelude
 import Data.Traversable (class Traversable)
 import Effect.Unsafe (unsafePerformEffect)
 import Z.XDom.Preact
-  ( DomEvent
+  ( DomEl
+  , DomEvent
   , PropWF(..)
   , ReactEl
   , js_effComponent
@@ -391,6 +396,19 @@ domError'fail'' e = x'extract @"self" <#> \_ ->
 domError'fail :: forall p. T'use'e'AsSym p $ T'domError'fail
 domError'fail = domError'fail'' @p
 
+type T'domError'ok p =
+  forall e dx' dx x xx a
+   . ConsSymbol p (DomE e) dx' dx
+  => Either e a
+  -> Run (self :: R'Self dx x | xx) a
+
+domError'ok'' :: forall @p. T'domError'ok p
+domError'ok'' (Left e) = domError'fail'' @p e
+domError'ok'' (Right v) = pure v
+
+domError'ok :: forall p. T'use'e'AsSym p $ T'domError'ok
+domError'ok = domError'ok'' @p
+
 --------------------------------------------------------------------------------
 
 type StateReducerR s a r =
@@ -586,6 +604,8 @@ type XDomE e dx x a = XDom (_'x'except :: (DomE e) | dx) x a
 type XDomA dx x a = XDom (_'x'async :: DomA | dx) x a
 type XDomEA e dx x a = XDom (_'x'except :: (DomE e), _'x'async :: DomA | dx) x a
 
+type DomE' e dx = (_'x'except :: DomE e | dx)
+
 baseSelf :: Self () ()
 baseSelf = Self runner'_ runner'_
 
@@ -661,6 +681,11 @@ el'onClick f = do
   self <- dom'getEffSelf
   attrW'addAttr $ OnClick $ \e -> eval'self self $ f e
 
+el'ref
+  :: forall t dx x. (Maybe DomEl -> Eff'At "dom" Unit) -> MDomEl'g t dx x Unit
+el'ref f =
+  attrW'addAttr $ Ref $ unsafePerformEffect <<< eff'untag @"dom" <<< f <<< Just
+
 ---------------------
 
 el'resetStyles :: forall t dx x. MDomEl'g t dx x Unit
@@ -696,17 +721,17 @@ el'cn cn = el'resetCn *> el'addCn cn
 
 ---------------------
 
-el'resetChildren :: forall dx x. MDomEl dx x Unit
-el'resetChildren = attrW'resetChildren
+el'resetM :: forall dx x. MDomEl dx x Unit
+el'resetM = attrW'resetChildren
 
-el'addChildren :: forall dx x. MDom dx x Unit -> MDomEl dx x Unit
-el'addChildren m = do
+el'addM :: forall dx x. MDom dx x Unit -> MDomEl dx x Unit
+el'addM m = do
   self <- x'extract @"self"
   let els = renderM self m
   attrW'addChildren els
 
-el'setChildren :: forall dx x. MDom dx x Unit -> MDomEl dx x Unit
-el'setChildren m = el'resetChildren *> el'addChildren m
+el'setM :: forall dx x. MDom dx x Unit -> MDomEl dx x Unit
+el'setM m = el'resetM *> el'addM m
 
 ------------------------------
 
@@ -757,12 +782,12 @@ dom'path = dom'element'Childless "path"
 
 ------------------------------------------------------------------
 
-op'el'text :: forall t dr x. SText t => MDom_domElement -> t -> MDom dr x Unit
-op'el'text el t = el $ el'addChildren $ dom'text t
+op'el'text :: forall t dx x. SText t => MDom_domElement -> t -> MDom dx x Unit
+op'el'text el t = el $ el'addM $ dom'text t
 
 op'mdom'andText
-  :: forall t dr x. SText t => MDomEl dr x Unit -> t -> MDomEl dr x Unit
-op'mdom'andText m t = m *> el'addChildren (dom'text t)
+  :: forall t dx x. SText t => MDomEl dx x Unit -> t -> MDomEl dx x Unit
+op'mdom'andText m t = m *> el'addM (dom'text t)
 
 infixr 0 op'el'text as %%
 infixr 0 op'mdom'andText as *%%

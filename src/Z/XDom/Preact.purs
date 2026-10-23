@@ -1,5 +1,6 @@
 module Z.XDom.Preact
-  ( DomEvent
+  ( DomEl
+  , DomEvent
   , ElStyles
   , PropWF(..)
   , ReactEl
@@ -55,11 +56,13 @@ foreign import js_renderToStringAsync :: ReactEl -> Effect (Promise String)
 
 foreign import data DomEvent :: Type
 
+foreign import data DomEl :: Type
+
 type ElStyles = Object String
 
 data PropWF
   = Href String
-  | ClassName String
+  | Ref (DomEl -> Unit)
   | OnClick (DomEvent -> Unit)
   | Id String
   | PKey String
@@ -74,11 +77,10 @@ data PropWF
   | Data String String
   | Type String
   | Checked Boolean
-  | Style ElStyles
 
 propWFKey :: PropWF -> String
-propWFKey (ClassName _) = "className"
 propWFKey (Href _) = "href"
+propWFKey (Ref _) = "ref"
 propWFKey (OnClick _) = "onClick"
 propWFKey (Id _) = "id"
 propWFKey (PKey _) = "key"
@@ -93,11 +95,10 @@ propWFKey (D _) = "d"
 propWFKey (Data k _) = "data-" <> k
 propWFKey (Type _) = "type"
 propWFKey (Checked _) = "checked"
-propWFKey (Style _) = "style"
 
 propWFVal :: PropWF -> JsAny
-propWFVal (ClassName f) = jsAny f
 propWFVal (Href s) = jsAny s
+propWFVal (Ref f) = jsAny f
 propWFVal (OnClick s) = jsAny s
 propWFVal (Id s) = jsAny s
 propWFVal (PKey s) = jsAny s
@@ -112,4 +113,3 @@ propWFVal (D s) = jsAny s
 propWFVal (Data _ v) = jsAny v
 propWFVal (Type s) = jsAny s
 propWFVal (Checked b) = jsAny b
-propWFVal (Style o) = jsAny o

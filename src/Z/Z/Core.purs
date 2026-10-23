@@ -36,6 +36,7 @@ module Z.Z.Core
   , arr'remove
   , arr'size
   , arr'slice
+  , arr'take
   , arr'withInd
   , class C'Relate
   , class ConsSymbol
@@ -610,6 +611,9 @@ arr'slice = Arr.slice
 
 arr'drop :: forall a. Int -> Array a -> Array a
 arr'drop n a = Arr.slice n (arr'size a) a
+
+arr'take :: forall a. Int -> Array a -> Array a
+arr'take n a = Arr.slice 0 n a
 
 arr'size :: forall a. Array a -> Int
 arr'size = Arr.length
