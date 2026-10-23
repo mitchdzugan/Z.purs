@@ -13,7 +13,7 @@ module Z.XDom.FetchCache
 
 import Z.Prelude
 
-import Z.XDom.Core3
+import Z.XDom.Core
   ( class Dom'ConsSymbol
   , MDom
   , MDomEff

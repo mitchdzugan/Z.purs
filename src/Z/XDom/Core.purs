@@ -1,4 +1,4 @@
-module Z.XDom.Core3
+module Z.XDom.Core
   ( (%%)
   , (*%%)
   , ATTRW

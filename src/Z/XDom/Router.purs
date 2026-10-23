@@ -19,7 +19,7 @@ module Z.XDom.Router
 import Z.Prelude hiding (Run)
 
 import Z.Prelude as Z
-import Z.XDom.Core3 as XDom
+import Z.XDom.Core as XDom
 import Z.XDom.Preact (PropWF(..))
 import Z.XDom.UrlState as UrlSt
 import Z.XDom.X (AttrW', attrW'addAttr)

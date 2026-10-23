@@ -15,8 +15,8 @@ module Z.XDom.UrlState
 
 import Z.Prelude
 
-import Z.XDom.Core3 (DomPermit)
-import Z.XDom.Core3 as XD
+import Z.XDom.Core (DomPermit)
+import Z.XDom.Core as XD
 
 type HrefSpec = Either { actual :: String, parsed :: String } String
 

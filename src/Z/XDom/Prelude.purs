@@ -6,7 +6,7 @@ module Z.XDom.Prelude
 
 import Z.Prelude as ModuleReExports
 import Z.Prelude as Z
-import Z.XDom.Core3 as ModuleReExports
+import Z.XDom.Core as ModuleReExports
 import Z.XDom.FetchCache as ModuleReExports
 import Z.XDom.Preact (ReactEl) as ModuleReExports
 import Z.XDom.Router
