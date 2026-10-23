@@ -1,24 +1,23 @@
-module Z.XDom.Core
+module Z.XDom.Core3
   ( (%%)
   , (*%%)
-  , ATTR
-  , ATTREL
+  , ATTRW
+  , ATTRW'Childless
   , DomA
   , DomATag
   , DomE
   , DomETag
   , DomEffPermit
   , DomPermit
-  , EL
   , MDOMEFF
-  , MDOMEL
   , MDom
   , MDomEff
   , MDomEl
-  , MDomEl2
+  , MDomEl'g
   , R'Self
   , SELF
-  , Self
+  , SELF'x
+  , Self(..)
   , XDom
   , XDom'Ref
   , XDom'RefReducer
@@ -35,6 +34,9 @@ module Z.XDom.Core
   , dom'div
   , dom'do
   , dom'element
+  , dom'element'Childless
+  , dom'getRunner
+  , dom'getSelf
   , dom'iframe
   , dom'img
   , dom'input
@@ -42,6 +44,7 @@ module Z.XDom.Core
   , dom'li
   , dom'path
   , dom'pre
+  , dom'runReader
   , dom'span
   , dom'svg
   , dom'text
@@ -55,8 +58,6 @@ module Z.XDom.Core
   , domEff'every
   , domEff'every'lag
   , domEff'every'lead
-  , domEff'getRunner
-  , domEff'getSelf
   , domEff'onNew
   , domEff'onNew'lag
   , domEff'onNew'lead
@@ -67,8 +68,6 @@ module Z.XDom.Core
   , domError'bind''
   , domError'fail
   , domError'fail''
-  , domR'run
-  , domR'run''
   , domRef'dispatch
   , domRef'dispatch''
   , domRef'get
@@ -91,9 +90,12 @@ module Z.XDom.Core
   , domState'set''
   , domx'eval
   , domx'eval_
+  , el'addChildren
+  , el'addCn
+  , el'addStyle
+  , el'addStyles
   , el'checked
   , el'cn
-  , el'cnW
   , el'd
   , el'data
   , el'fill
@@ -102,10 +104,14 @@ module Z.XDom.Core
   , el'key
   , el'onClick
   , el'renderToString
+  , el'resetChildren
+  , el'resetCn
+  , el'resetStyles
   , el'role
   , el'roleButton
+  , el'setChildren
+  , el'setStyles
   , el'src
-  , el'style
   , el'tabIndex
   , el'tabIndex0
   , el'target
@@ -121,17 +127,50 @@ module Z.XDom.Core
 
 import Z.Prelude
 
+import Data.Traversable (class Traversable)
 import Effect.Unsafe (unsafePerformEffect)
-import Web.Event.Internal.Types as WET
-import Z.XDom.Preact (js_renderToString, js_renderToStringAsync)
-import Z.XDom.Preact as D
+import Z.XDom.Preact
+  ( DomEvent
+  , PropWF(..)
+  , ReactEl
+  , js_effComponent
+  , js_renderEl
+  , js_renderFragment
+  , js_renderToString
+  , js_renderToStringAsync
+  , js_textEl
+  , js_throwBoundedError
+  , js_withBoundedError
+  , js_withKey
+  , js_withRef
+  , js_withState
+  )
+import Z.XDom.X
+  ( AttrW'
+  , DomW'
+  , attrW'addAttr
+  , attrW'addChildren
+  , attrW'addClassname
+  , attrW'addStyle
+  , attrW'exec
+  , attrW'resetChildren
+  , attrW'resetClassnames
+  , attrW'resetStyles
+  , domW'concat
+  , domW'exec
+  , domW'push
+  , domW'run
+  )
 
 data Self dx x = Self (Runner dx) (Runner x)
-type EffSelf x = Self () x
 
 type R'Self dx x = X'R (Self dx x)
 
-type SELF dx x = (self :: R'Self dx x | x)
+type SELF'x dx x x' = (self :: R'Self dx x | x')
+
+type SELF dx x = SELF'x dx x x
+
+type EFFSELF x = SELF () x
 
 eval'self :: forall dx x a. Self dx x -> Run (self :: R'Self dx x | x) a -> a
 eval'self self@(Self _ rn) m = runner'eval rn $ r'run'' @"self" self $ m
@@ -143,8 +182,8 @@ evalA'self
   -> Future a
 evalA'self self@(Self _ rn) m = runner'evalA rn $ r'run'' @"self" self $ m
 
-selfExtend :: forall dr x' x. RunMW x x' -> Self dr x' -> Self dr x
-selfExtend fm (Self drn rn) = Self drn (runner'extend fm rn)
+selfExtend :: forall dx x' x. RunMW x x' -> Self dx x' -> Self dx x
+selfExtend fm (Self dxn xn) = Self dxn (runner'extend fm xn)
 
 selfExtendDom :: forall dx' dx x. RunMW dx dx' -> Self dx' x -> Self dx x
 selfExtendDom fm (Self drn r) = Self (runner'extend fm drn) r
@@ -156,102 +195,57 @@ type DomEffPermit x = (domEff :: X'Permit | x)
 
 type DomPermit x = (dom :: X'Permit | x)
 
-type MDom dx x a = Run (Wa' D.ReactEl (SELF dx x)) a
+type MDom dx x a = Run (DomW' (SELF dx x)) a
 
-type ATTR x = (attr :: X'W $ Array D.PropWF | x)
-type EL x = Wa' D.ReactEl x
-type ATTREL x = ATTR (EL x)
+type MDomEl'g t dx x a = Run (AttrW' t (SELF dx x)) a
+
+type MDomEl dx x a = MDomEl'g (Array ReactEl) dx x a
+
+type MDomEl'Childless dx x a = MDomEl'g Void dx x a
+
 type MDOMEFF x = (self :: R'Self () (DomEffPermit x) | DomEffPermit x)
+
 type MDOMEFF'delta x' x = (self :: R'Self () (DomEffPermit x) | DomEffPermit x')
 
 type MDomEff x a = Run (MDOMEFF x) a
+
 type MDomEff'delta x' x a = Run (MDOMEFF'delta x' x) a
+
 type MDomEff'a x a = Run (A' (MDOMEFF x)) a
-
-type MDOMEL dx x = ATTR $ Wa' D.ReactEl (self :: R'Self dx x | x)
-type MDomEl dx x a = Run (MDOMEL dx x) a
-type MDomEl2 dx x a = Run (Wa' D.ReactEl $ MDOMEL dx x) a
-
-foreign import data DomETag :: Type
-foreign import data DomATag :: Type
-
-type DomE e = X'R $ Proxy $ DomETag /\ e
-type DomA = X'R $ Proxy DomATag
 
 --------------------------------------------------------------------------------
 
 renderM
-  :: forall dr x. Self dr x -> MDom dr x Unit -> Array D.ReactEl
-renderM self m = eval'self self $ w'exec m
+  :: forall dx x. Self dx x -> MDom dx x Unit -> Array ReactEl
+renderM self m = eval'self self $ domW'exec m
 
-renderMEl :: forall dr x. Self dr x -> MDom dr x Unit -> D.ReactEl
-renderMEl self = D.js_renderFragment <<< renderM self
+renderMEl :: forall dx x. Self dx x -> MDom dx x Unit -> ReactEl
+renderMEl self = js_renderFragment <<< renderM self
 
-domRenderM :: forall dr x. MDom dr x Unit -> MDom dr x (Array D.ReactEl)
+domRenderM :: forall dx x. MDom dx x Unit -> MDom dx x (Array ReactEl)
 domRenderM m = x'extract @"self" <#> flip renderM m
 
-domRenderMEl :: forall dr x. MDom dr x Unit -> MDom dr x D.ReactEl
-domRenderMEl m = domRenderM m <#> D.js_renderFragment
+domRenderMEl :: forall dx x. MDom dx x Unit -> MDom dx x ReactEl
+domRenderMEl m = domRenderM m <#> js_renderFragment
 
 --------------------------------------------------------------------------------
-
-dom'withKey :: forall dr x. String -> MDom dr x Unit -> MDom dr x Unit
-dom'withKey k m = domRenderMEl m >>= w'say <<< D.js_withKey k
-
-dom'withNewRef
-  :: forall sx de s
-   . s
-  -> (Eff'At "dom" s -> (s -> Eff'At "dom" Unit) -> MDom sx de Unit)
-  -> MDom sx de Unit
-dom'withNewRef initalState fm = do
-  self <- x'extract @"self"
-  w'say $ D.js_withRef (renderFn self) initalState
-  where
-  renderFn self s ss = renderM self $ fm (eff'tag @"dom" s) (w ss)
-  w ss s = eff'tag @"dom" $ ss s
-
-dom'withNewState
-  :: forall sx de s
-   . s
-  -> (s -> (s -> Eff'At "domEff" Unit) -> MDom sx de Unit)
-  -> MDom sx de Unit
-dom'withNewState initalState fm = do
-  self <- x'extract @"self"
-  w'say $ D.js_withState (renderFn self) initalState
-  where
-  renderFn self s ss = renderM self $ fm s (w ss)
-  w ss s = eff'tag @"domEff" $ ss s
-
-dom'withAdapter
-  :: forall dr x' x ret
-   . (forall a. Run x a -> Run x' a)
-  -> MDom dr x ret
-  -> MDom dr x' ret
-dom'withAdapter fm m = do
-  self <- x'extract @"self" <#> selfExtend fm
-  let res /\ els = eval'self self $ w'run m
-  w'tell els
-  pure res
-
-domEff'getSelf :: forall x. MDomEff x (Self () (DomEffPermit x))
-domEff'getSelf = x'extract @"self"
-
-domEff'getRunner :: forall x. MDomEff x (Runner (MDOMEFF x))
-domEff'getRunner = domEff'getSelf <#> \s -> runner'mk (pure <<< eval'self s)
 
 domEff'do :: forall x a. Eff'At "domEff" a -> Run (DomEffPermit x) a
 domEff'do = x'do
 
-dom'do :: forall dx x a. Eff'At "dom" a -> Run (SELF dx x) a
-dom'do = x'permit @"dom" <<< x'do
+dom'do :: forall x a. Eff'At "dom" a -> Run (DomPermit x) a
+dom'do = x'do
 
-dom'getEffSelf :: forall dr x. MDom dr x (Self () (DomEffPermit x))
+dom'getSelf :: forall dx x x'. Run (SELF'x dx x x') (Self dx x)
+dom'getSelf = x'extract @"self"
+
+dom'getRunner :: forall dx x x'. Run (SELF'x dx x x') (Runner (SELF dx x))
+dom'getRunner = x'extract @"self" <#> \s -> runner'mk (pure <<< eval'self s)
+
+dom'getEffSelf
+  :: forall dx x x'. Run (SELF'x dx x x') (Self () (DomEffPermit x))
 dom'getEffSelf =
-  x'extract @"self" <#> selfDomless <#> selfExtend (x'permit @"domEff")
-
-el'getEffSelf :: forall dr x. MDomEl dr x (Self () (DomEffPermit x))
-el'getEffSelf =
-  x'extract @"self" <#> selfDomless <#> selfExtend (x'permit @"domEff")
+  dom'getSelf <#> selfDomless <#> selfExtend (x'permit @"domEff")
 
 --------------------------------------------------------------------------------
 
@@ -271,38 +265,100 @@ instance
 
 --------------------------------------------------------------------------------
 
-type T'domR'run p =
-  forall r x' x dr ret
-   . ConsSymbol p (X'R r) x' x
-  => r
-  -> MDom dr x ret
-  -> MDom dr x' ret
+dom'withKey :: forall dx x. String -> MDom dx x Unit -> MDom dx x Unit
+dom'withKey k m = domRenderMEl m >>= domW'push <<< js_withKey k
 
-domR'run'' :: forall @p. T'domR'run p
-domR'run'' env m = dom'withAdapter (r'run'' @p env) m
+dom'withNewRef
+  :: forall dx x s
+   . s
+  -> (Eff'At "dom" s -> (s -> Eff'At "dom" Unit) -> MDom dx x Unit)
+  -> MDom dx x Unit
+dom'withNewRef initalState fm = do
+  self <- x'extract @"self"
+  domW'push $ js_withRef (renderFn self) initalState
+  where
+  renderFn self s ss = renderM self $ fm (eff'tag @"dom" s) (w ss)
+  w ss s = eff'tag @"dom" $ ss s
 
-domR'run :: forall p. T'use'r'AsSym p T'domR'run
-domR'run = domR'run'' @p
+dom'withNewState
+  :: forall dx x s
+   . s
+  -> (s -> (s -> Eff'At "domEff" Unit) -> MDom dx x Unit)
+  -> MDom dx x Unit
+dom'withNewState initalState fm = do
+  self <- x'extract @"self"
+  domW'push $ js_withState (renderFn self) initalState
+  where
+  renderFn self s ss = renderM self $ fm s (w ss)
+  w ss s = eff'tag @"domEff" $ ss s
+
+dom'withAdapter
+  :: forall dx x' x ret
+   . (forall a. Run x a -> Run x' a)
+  -> MDom dx x ret
+  -> MDom dx x' ret
+dom'withAdapter fm m = do
+  self <- x'extract @"self" <#> selfExtend fm
+  let res /\ els = eval'self self $ domW'run m
+  domW'concat els
+  pure res
 
 domx'eval
-  :: forall @p @m dr x' x param a
+  :: forall @p @m dx x' x param a
    . ConsSymbol p m x' x
   => X'Consable m param Identity
   => param
-  -> MDom dr x a
-  -> MDom dr x' a
+  -> MDom dx x a
+  -> MDom dx x' a
 domx'eval init m = dom'withAdapter (x'eval @p init) m
 
 domx'eval_
-  :: forall @p @m dr x' x param a
+  :: forall @p @m dx x' x param a
    . ConsSymbol p m x' x
   => X'Consable m param Identity
   => Generable param GDefault param
-  => MDom dr x a
-  -> MDom dr x' a
+  => MDom dx x a
+  -> MDom dx x' a
 domx'eval_ m = dom'withAdapter (x'eval @p default) m
 
+type T'dom'runReader p =
+  forall r x' x dx ret
+   . ConsSymbol p (X'R r) x' x
+  => r
+  -> MDom dx x ret
+  -> MDom dx x' ret
+
+dom'runReader :: forall @p. T'dom'runReader p
+dom'runReader env m = dom'withAdapter (r'run'' @p env) m
+
+type ATTRW x = AttrW' (Array ReactEl) x
+
+type MDom_domElement = forall dx x. MDomEl dx x Unit -> MDom dx x Unit
+
+dom'element :: String -> MDom_domElement
+dom'element s mattr = do
+  self <- x'extract @"self"
+  let { attrs, children } = eval'self self $ attrW'exec identity mattr
+  domW'push $ js_renderEl s attrs children
+
+type ATTRW'Childless x = AttrW' Void x
+
+type MDom_domElement'Childless =
+  forall dx x. MDomEl'Childless dx x Unit -> MDom dx x Unit
+
+dom'element'Childless :: String -> MDom_domElement'Childless
+dom'element'Childless s mattr = do
+  self <- x'extract @"self"
+  let { attrs, children } = eval'self self $ attrW'exec (\_ -> []) mattr
+  domW'push $ js_renderEl s attrs children
+
 --------------------------------------------------------------------------------
+
+foreign import data DomETag :: Type
+foreign import data DomATag :: Type
+
+type DomE e = X'R $ Proxy $ DomETag /\ e
+type DomA = X'R $ Proxy DomATag
 
 type T'domError'bind e p =
   forall dx' dx x
@@ -315,7 +371,7 @@ domError'bind'' :: forall @p e. T'domError'bind e p
 domError'bind'' em m = do
   oldSelf <- x'extract @"self"
   let self = selfExtendDom (r'run'' @p (Proxy @(DomETag /\ e))) oldSelf
-  w'say $ D.js_withBoundedError (reflectSymbol $ p @p)
+  domW'push $ js_withBoundedError (reflectSymbol $ p @p)
     (\e -> eff'defer \_ -> renderMEl oldSelf $ em e)
     (eff'defer \_ -> renderMEl self m)
 
@@ -330,7 +386,7 @@ type T'domError'fail p =
 
 domError'fail'' :: forall @p. T'domError'fail p
 domError'fail'' e = x'extract @"self" <#> \_ ->
-  D.js_throwBoundedError (reflectSymbol $ Proxy @p) e
+  js_throwBoundedError (reflectSymbol $ Proxy @p) e
 
 domError'fail :: forall p. T'use'e'AsSym p $ T'domError'fail
 domError'fail = domError'fail'' @p
@@ -341,9 +397,9 @@ type StateReducerR s a r =
   (get :: s, update :: a -> Eff'At "domEff" Unit | r)
 
 type T'domState'runable s a tf p =
-  forall dr x' x
+  forall dx x' x
    . ConsSymbol p (X'R $ Record $ StateReducerR s a ()) x' x
-  => (tf (MDom dr x Unit -> MDom dr x' Unit))
+  => (tf (MDom dx x Unit -> MDom dx x' Unit))
 
 type Tf'reducer s a res = s -> (s -> a -> s) -> res
 type T'domState'runReducer p =
@@ -351,7 +407,7 @@ type T'domState'runReducer p =
 
 domState'runReducer'' :: forall @p. T'domState'runReducer p
 domState'runReducer'' inits ups m = dom'withNewState inits \s sets -> do
-  domR'run'' @p { get: s, update: sets <<< ups s } m
+  dom'runReader @p { get: s, update: sets <<< ups s } m
 
 domState'runReducer :: forall @p. T'useAsSym "state" p T'domState'runReducer
 domState'runReducer = domState'runReducer'' @p
@@ -361,7 +417,7 @@ type T'domState'run p = forall s. T'domState'runable s s (Tf'state s) p
 
 domState'run'' :: forall @p. T'domState'run p
 domState'run'' inits m = dom'withNewState inits \s sets -> do
-  domR'run'' @p { get: s, update: sets } m
+  dom'runReader @p { get: s, update: sets } m
 
 domState'run :: forall @p. T'use's'AsSym p T'domState'run
 domState'run = domState'run'' @p
@@ -418,16 +474,16 @@ type RefReducerR s a r =
   (get :: Eff'At "dom" s, update :: a -> Eff'At "dom" Unit | r)
 
 type T'domRef'runable s a tf p =
-  forall dr x' x
+  forall dx x' x
    . ConsSymbol p (X'R $ Record $ RefReducerR s a ()) x' x
-  => (tf (MDom dr x Unit -> MDom dr x' Unit))
+  => (tf (MDom dx x Unit -> MDom dx x' Unit))
 
 type T'domRef'runReducer p =
   forall s a. T'domRef'runable s a (Tf'reducer s a) p
 
 domRef'runReducer'' :: forall @p. T'domRef'runReducer p
 domRef'runReducer'' inits ups m = dom'withNewRef inits \get sets -> do
-  domR'run'' @p { get, update: domUpdateRefState get sets ups } m
+  dom'runReader @p { get, update: domUpdateRefState get sets ups } m
 
 domRef'runReducer :: forall @p. T'useAsSym "state" p T'domRef'runReducer
 domRef'runReducer = domRef'runReducer'' @p
@@ -436,7 +492,7 @@ type T'domRef'run p = forall s. T'domRef'runable s s (Tf'state s) p
 
 domRef'run'' :: forall @p. T'domRef'run p
 domRef'run'' inits m = dom'withNewRef inits \s sets -> do
-  domR'run'' @p { get: s, update: sets } m
+  dom'runReader @p { get: s, update: sets } m
 
 domRef'run :: forall @p. T'use's'AsSym p T'domRef'run
 domRef'run = domRef'run'' @p
@@ -487,7 +543,7 @@ type MDomEffA_D x = MDomEff'a x (MDomEff'a x Unit)
 domEff'onNew :: forall a dx x. Eq a => a -> MDomEff_D x -> MDom dx x Unit
 domEff'onNew comp on = do
   self <- dom'getEffSelf
-  w'say $ D.js_effComponent eq comp do
+  domW'push $ js_effComponent eq comp do
     r' <- eff'defer \_ -> eval'self self on
     pure $ eff'defer \_ -> eval'self self r'
 
@@ -520,180 +576,198 @@ domEff'every'lag m = domEff'onNew antiUnit $ pure m
 
 domEff'async :: forall x. MDomEff'a x Unit -> MDomEff x Unit
 domEff'async m = do
-  self <- domEff'getSelf
+  self <- dom'getSelf
   pure $ unsafePerformEffect $ future'run_ $ evalA'self self m
 
-------------------------------------------------------------------------
+-------------------------------------------------------------------
 
-dom'text :: forall t dr x. SText t => t -> MDom dr x Unit
-dom'text = w'say <<< D.js_textEl <<< stext
-
-el'key :: forall dr x. String -> MDomEl dr x Unit
-el'key = w'tell'' @"attr" <<< pure <<< D.PKey
-
-el'id :: forall dr x. String -> MDomEl dr x Unit
-el'id = w'tell'' @"attr" <<< pure <<< D.Id
-
-el'type :: forall dr x. String -> MDomEl dr x Unit
-el'type = w'tell'' @"attr" <<< pure <<< D.Type
-
-el'checked :: forall dr x. Boolean -> MDomEl dr x Unit
-el'checked = w'tell'' @"attr" <<< pure <<< D.Checked
-
-el'tabIndex :: forall dr x. Int -> MDomEl dr x Unit
-el'tabIndex = w'tell'' @"attr" <<< pure <<< D.TabIndex
-
-el'tabIndex0 :: forall dr x. MDomEl dr x Unit
-el'tabIndex0 = el'tabIndex 0
-
-el'role :: forall dr x. String -> MDomEl dr x Unit
-el'role = w'tell'' @"attr" <<< pure <<< D.Role
-
-el'roleButton :: forall dr x. MDomEl dr x Unit
-el'roleButton = el'role "button"
-
-el'target :: forall dr x. String -> MDomEl dr x Unit
-el'target = w'tell'' @"attr" <<< pure <<< D.Target
-
-el'targetBlank :: forall dr x. MDomEl dr x Unit
-el'targetBlank = el'target "_blank"
-
-el'href :: forall dr x. String -> MDomEl dr x Unit
-el'href = w'tell'' @"attr" <<< pure <<< D.Href
-
-el'src :: forall dr x. String -> MDomEl dr x Unit
-el'src = w'tell'' @"attr" <<< pure <<< D.Src
-
-el'xmlns :: forall dr x. String -> MDomEl dr x Unit
-el'xmlns = w'tell'' @"attr" <<< pure <<< D.XmlNS
-
-el'viewBox :: forall dr x. String -> MDomEl dr x Unit
-el'viewBox = w'tell'' @"attr" <<< pure <<< D.ViewBox
-
-el'fill :: forall dr x. String -> MDomEl dr x Unit
-el'fill = w'tell'' @"attr" <<< pure <<< D.Fill
-
-el'd :: forall dr x. String -> MDomEl dr x Unit
-el'd = w'tell'' @"attr" <<< pure <<< D.D
-
-el'cn :: forall dr x. String -> MDomEl dr x Unit
-el'cn = w'tell'' @"attr" <<< pure <<< D.ClassName
-
-el'data :: forall dr x. String -> String -> MDomEl dr x Unit
-el'data k = w'tell'' @"attr" <<< pure <<< D.Data k
-
-el'style :: forall dx x. D.ElStyles -> MDomEl dx x Unit
-el'style = w'tell'' @"attr" <<< pure <<< D.Style
-
-el'cnW :: forall dr x. ((String -> StrW) -> StrW) -> MDomEl dr x Unit
-el'cnW fm = el'cn $ w'str'sp fm
-
-el'onClick :: forall dr x. (WET.Event -> MDomEff x Unit) -> MDomEl dr x Unit
-el'onClick f = do
-  self <- el'getEffSelf
-  w'tell'' @"attr" $ pure $ D.OnClick $ \e -> eval'self self $ f e
-
-type XDom_domElement_ =
-  forall dr x. Run (Wa' D.ReactEl (MDOMEL dr x)) Unit -> MDom dr x Unit
-
-dom'element :: String -> XDom_domElement_
-dom'element s m = do
-  (elBuild /\ propWFs) <- x'run_ @"attr" $ w'exec m
-  let props = D.js_propsFromPropWs D.propWFKey D.propWFVal propWFs
-  w'say $ D.js_renderEl s (encodeOpts props) elBuild
-
-type XDom_domElement_NoCh = forall dr x. ATTR () @@> Unit -> MDom dr x Unit
-
-dom'element_noCh :: String -> XDom_domElement_NoCh
-dom'element_noCh s m = do
-  let propWFs = sync'x $ x'exec_ @"attr" m
-  let props = D.js_propsFromPropWs D.propWFKey D.propWFVal propWFs
-  w'say $ D.js_renderEl s (encodeOpts props) []
-
-type XDom dr x a = MDom dr (X'Base x) a
-type XDomA dx x a = XDom (_'x'async :: DomA | dx) x a
+type XDom dx x a = MDom dx (X'Base $ DomPermit x) a
 type XDomE e dx x a = XDom (_'x'except :: (DomE e) | dx) x a
+type XDomA dx x a = XDom (_'x'async :: DomA | dx) x a
 type XDomEA e dx x a = XDom (_'x'except :: (DomE e), _'x'async :: DomA | dx) x a
-
-type XDom_ dr x = T'_ $ XDom dr x
-type XDomA_ dr x = T'_ $ XDom dr x
-type XDomE_ e dr x = T'_ $ XDomE e dr x
-type XDomEA_ e dr x = T'_ $ XDomEA e dr x
 
 baseSelf :: Self () ()
 baseSelf = Self runner'_ runner'_
 
-exec'xdom :: XDom_ () () -> D.ReactEl
-exec'xdom = renderMEl $ selfDomless $ selfExtend (x'eval_ @"_'x'base") baseSelf
+exec'xdom :: XDom () () Unit -> ReactEl
+exec'xdom = renderMEl $ selfDomless $
+  selfExtend (x'permit @"dom" <<< x'eval_ @"_'x'base") baseSelf
 
-el'renderToString :: D.ReactEl -> String
+el'renderToString :: ReactEl -> String
 el'renderToString = js_renderToString
 
-x'renderToStringAsync :: forall x. D.ReactEl -> Run (EA' JsError x) String
+x'renderToStringAsync :: forall x. ReactEl -> Run (EA' JsError x) String
 x'renderToStringAsync = e'runEffPromise <<< js_renderToStringAsync
 
-dom'div :: XDom_domElement_
+---------------------------------------------------------------------
+
+dom'text :: forall t dx x. SText t => t -> MDom dx x Unit
+dom'text = domW'push <<< js_textEl <<< stext
+
+el'key :: forall t dx x. String -> MDomEl'g t dx x Unit
+el'key = attrW'addAttr <<< PKey
+
+el'id :: forall t dx x. String -> MDomEl'g t dx x Unit
+el'id = attrW'addAttr <<< Id
+
+el'type :: forall t dx x. String -> MDomEl'g t dx x Unit
+el'type = attrW'addAttr <<< Type
+
+el'checked :: forall t dx x. Boolean -> MDomEl'g t dx x Unit
+el'checked = attrW'addAttr <<< Checked
+
+el'tabIndex :: forall t dx x. Int -> MDomEl'g t dx x Unit
+el'tabIndex = attrW'addAttr <<< TabIndex
+
+el'tabIndex0 :: forall t dx x. MDomEl'g t dx x Unit
+el'tabIndex0 = el'tabIndex 0
+
+el'role :: forall t dx x. String -> MDomEl'g t dx x Unit
+el'role = attrW'addAttr <<< Role
+
+el'roleButton :: forall t dx x. MDomEl'g t dx x Unit
+el'roleButton = el'role "button"
+
+el'target :: forall t dx x. String -> MDomEl'g t dx x Unit
+el'target = attrW'addAttr <<< Target
+
+el'targetBlank :: forall t dx x. MDomEl'g t dx x Unit
+el'targetBlank = el'target "_blank"
+
+el'href :: forall t dx x. String -> MDomEl'g t dx x Unit
+el'href = attrW'addAttr <<< Href
+
+el'src :: forall t dx x. String -> MDomEl'g t dx x Unit
+el'src = attrW'addAttr <<< Src
+
+el'xmlns :: forall t dx x. String -> MDomEl'g t dx x Unit
+el'xmlns = attrW'addAttr <<< XmlNS
+
+el'viewBox :: forall t dx x. String -> MDomEl'g t dx x Unit
+el'viewBox = attrW'addAttr <<< ViewBox
+
+el'fill :: forall t dx x. String -> MDomEl'g t dx x Unit
+el'fill = attrW'addAttr <<< Fill
+
+el'd :: forall t dx x. String -> MDomEl'g t dx x Unit
+el'd = attrW'addAttr <<< D
+
+el'data :: forall t dx x. String -> String -> MDomEl'g t dx x Unit
+el'data k = attrW'addAttr <<< Data k
+
+el'onClick
+  :: forall t dx x. (DomEvent -> MDomEff x Unit) -> MDomEl'g t dx x Unit
+el'onClick f = do
+  self <- dom'getEffSelf
+  attrW'addAttr $ OnClick $ \e -> eval'self self $ f e
+
+---------------------
+
+el'resetStyles :: forall t dx x. MDomEl'g t dx x Unit
+el'resetStyles = attrW'resetStyles
+
+el'addStyle :: forall t dx x. String -> String -> MDomEl'g t dx x Unit
+el'addStyle = attrW'addStyle
+
+el'addStyles
+  :: forall t m dx x
+   . Traversable m
+  => m (String /\ String)
+  -> MDomEl'g t dx x Unit
+el'addStyles pairs = forM_ pairs \(k /\ v) -> el'addStyle k v
+
+el'setStyles
+  :: forall t m dx x
+   . Traversable m
+  => m (String /\ String)
+  -> MDomEl'g t dx x Unit
+el'setStyles pairs = el'resetStyles *> el'addStyles pairs
+
+---------------------
+
+el'resetCn :: forall t dx x. MDomEl'g t dx x Unit
+el'resetCn = attrW'resetClassnames
+
+el'addCn :: forall t dx x. String -> MDomEl'g t dx x Unit
+el'addCn = attrW'addClassname
+
+el'cn :: forall t dx x. String -> MDomEl'g t dx x Unit
+el'cn cn = el'resetCn *> el'addCn cn
+
+---------------------
+
+el'resetChildren :: forall dx x. MDomEl dx x Unit
+el'resetChildren = attrW'resetChildren
+
+el'addChildren :: forall dx x. MDom dx x Unit -> MDomEl dx x Unit
+el'addChildren m = do
+  self <- x'extract @"self"
+  let els = renderM self m
+  attrW'addChildren els
+
+el'setChildren :: forall dx x. MDom dx x Unit -> MDomEl dx x Unit
+el'setChildren m = el'resetChildren *> el'addChildren m
+
+------------------------------
+
+dom'div :: MDom_domElement
 dom'div = dom'element "div"
 
-dom'a :: XDom_domElement_
+dom'a :: MDom_domElement
 dom'a = dom'element "a"
 
-dom'button :: XDom_domElement_
+dom'button :: MDom_domElement
 dom'button = dom'element "button"
 
-dom'label :: XDom_domElement_
+dom'label :: MDom_domElement
 dom'label = dom'element "label"
 
-dom'input :: XDom_domElement_
+dom'input :: MDom_domElement
 dom'input = dom'element "input"
 
-dom'pre :: XDom_domElement_
+dom'pre :: MDom_domElement
 dom'pre = dom'element "pre"
 
-dom'span :: XDom_domElement_
+dom'span :: MDom_domElement
 dom'span = dom'element "span"
 
-dom'article :: XDom_domElement_
+dom'article :: MDom_domElement
 dom'article = dom'element "article"
 
-dom'iframe :: XDom_domElement_
+dom'iframe :: MDom_domElement
 dom'iframe = dom'element "iframe"
 
-dom'img :: XDom_domElement_
+dom'img :: MDom_domElement
 dom'img = dom'element "img"
 
-dom'svg :: XDom_domElement_
+dom'svg :: MDom_domElement
 dom'svg = dom'element "svg"
 
-dom'ul :: XDom_domElement_
+dom'ul :: MDom_domElement
 dom'ul = dom'element "ul"
 
-dom'li :: XDom_domElement_
+dom'li :: MDom_domElement
 dom'li = dom'element "li"
 
-{-
-------------------------------------------------------------------
-TODO all below here should be NoCh
-TODO allow NoCh to have element properties
--}
+dom'br :: MDom_domElement'Childless
+dom'br = dom'element'Childless "br"
 
-dom'br :: XDom_domElement_NoCh
-dom'br = dom'element_noCh "br"
-
-dom'path :: XDom_domElement_
-dom'path = dom'element "path"
+dom'path :: MDom_domElement'Childless
+dom'path = dom'element'Childless "path"
 
 ------------------------------------------------------------------
 
-op'el'text :: forall t dr x. SText t => XDom_domElement_ -> t -> MDom dr x Unit
-op'el'text el t = el $ dom'text t
+op'el'text :: forall t dr x. SText t => MDom_domElement -> t -> MDom dr x Unit
+op'el'text el t = el $ el'addChildren $ dom'text t
 
 op'mdom'andText
   :: forall t dr x. SText t => MDomEl dr x Unit -> t -> MDomEl dr x Unit
-op'mdom'andText m t = m *> dom'text t
+op'mdom'andText m t = m *> el'addChildren (dom'text t)
 
 infixr 0 op'el'text as %%
 infixr 0 op'mdom'andText as *%%
+
+------------------------------------------------------------------
 
 type XDom'StateReducer a s =
   X'R { get :: s, update :: a -> Eff'At "domEff" Unit }

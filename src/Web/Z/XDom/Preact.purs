@@ -37,7 +37,7 @@ provideHistory locUrl toTitleOr_ urlStateToDom = do
       let mkUrlState = UrlSt.mk toTitleOr_ <$> DOM.xLocationUrl
       let xUpUrl = XD.domEff'do <<< setUrlState =<< mkUrlState
       let { pushState, popState, click } = eventType
-      runner <- XD.domEff'getRunner
+      runner <- XD.dom'getRunner
       let deferring = runner'mkDeferred runner
       d'pop <- DOM.xAddEventListener popState win pass \_ -> deferring xUpUrl
       d'push <- DOM.xAddEventListener pushState win pass \_ -> deferring xUpUrl

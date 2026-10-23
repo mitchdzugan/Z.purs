@@ -60,7 +60,7 @@ type ElStyles = Object String
 data PropWF
   = Href String
   | ClassName String
-  | OnClick (WET.Event -> Unit)
+  | OnClick (DomEvent -> Unit)
   | Id String
   | PKey String
   | Role String

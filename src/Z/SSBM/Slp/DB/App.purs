@@ -15,35 +15,35 @@ type COUNT x = (count :: XDom'StateReducer CountAction Int | x)
 
 app'onE :: forall dr x. String -> XDom dr (COUNT x) Unit
 app'onE message = do
-  dom'div do
+  dom'div $ el'addChildren do
     dom'text message
     dom'button do
       el'cn "btn btn-soft"
       el'onClick $ \_ -> domState'dispatch'' @"count" Reset
-      dom'text "reset"
+      el'addChildren $ dom'text "reset"
 
 app'body :: forall dr x. XDomE String dr (COUNT x) Unit
 app'body = do
   count <- domState'get'' @"count"
-  dom'div $ dom'text "Hellllooooooo"
+  dom'div $ el'addChildren $ dom'text "Hellllooooooo"
+
   dom'div do
     el'key "asdfasdfasdfasdf..."
-    when (count < 0) do domError'fail "negative number invalid"
-    dom'span %% w'str \t -> t "div with stuff" *> t (stext unit) *> t "!"
-    dom'br $ pass
-    dom'button do
-      el'cnW \w -> do
-        w "btn btn-soft" *> when (count > 5) do w "btn-accent"
-      el'onClick $ (\_ -> domState'dispatch'' @"count" Dec)
-      dom'text "dec"
-    dom'div $ dom'text ("Count:" <+> count)
-    dom'withKey "asdfasdf" $ dom'button do
-      el'cnW \w -> do
-        w "btn btn-soft" *> when (count > 5) do w "btn-accent"
-      el'onClick \e -> do
-        x'out e
-        domState'dispatch'' @"count" Inc
-      dom'text "inc"
+    el'addChildren do
+      when (count < 0) do domError'fail "negative number invalid"
+      dom'span %% w'str \t -> t "div with stuff" *> t (stext unit) *> t "!"
+      dom'br $ pass
+      dom'button do
+        el'addCn "btn btn-soft" *> when (count > 5) do el'addCn "btn-accent"
+        el'onClick $ (\_ -> domState'dispatch'' @"count" Dec)
+        el'addChildren $ dom'text "dec"
+      dom'div $ el'addChildren $ dom'text ("Count:" <+> count)
+      dom'withKey "asdfasdf" $ dom'button do
+        el'addCn "btn btn-soft" *> when (count > 5) do el'addCn "btn-accent"
+        el'onClick \e -> do
+          x'out e
+          domState'dispatch'' @"count" Inc
+        el'addChildren $ dom'text "inc"
 
 app'mk :: forall dr x. UrlSt.XProvider dr x -> XDom dr x Unit
 app'mk = router'run'' @"router" urlEdits parseUrl mkTitleOr_ do
@@ -51,12 +51,13 @@ app'mk = router'run'' @"router" urlEdits parseUrl mkTitleOr_ do
   x'out $ show r
   dom'div do
     el'cn "flex flex-col gap-4"
-    dom'iframe $ pure unit
-    dom'div $ dom'a do
-      router'setHref $ Profile "Jimmy"
-      el'cn "btn link btn-primary"
-      dom'text "profile link"
-    domState'runReducer'' @"count" 3 countAct $ domError'bind app'onE app'body
+    el'addChildren do
+      dom'iframe $ pure unit
+      dom'div $ el'addChildren $ dom'a do
+        router'setHref $ Profile "Jimmy"
+        el'cn "btn link btn-primary"
+        el'addChildren $ dom'text "profile link"
+      domState'runReducer'' @"count" 3 countAct $ domError'bind app'onE app'body
   where
   mkTitleOr_ = Just <<< url'toString <<< _.url
   parseRouteL Nil = pure Home

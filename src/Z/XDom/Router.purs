@@ -19,9 +19,10 @@ module Z.XDom.Router
 import Z.Prelude hiding (Run)
 
 import Z.Prelude as Z
-import Z.XDom.Core as XDom
+import Z.XDom.Core3 as XDom
 import Z.XDom.Preact (PropWF(..))
 import Z.XDom.UrlState as UrlSt
+import Z.XDom.X (AttrW', attrW'addAttr)
 
 type T e r =
   { baseUrl :: URL
@@ -48,7 +49,7 @@ router'run'' :: forall @p. T'router'run p
 router'run'' urlEdits parse mkTitle m provider = do
   UrlSt.useProvider provider toTitleOr_ \baseUrl urlState -> do
     let routeOrE = parse urlState.url
-    XDom.domR'run'' @p { routeOrE, urlEdits, baseUrl, urlState } m
+    XDom.dom'runReader @p { routeOrE, urlEdits, baseUrl, urlState } m
   where
   toTitleOr_ url = finTitle url $ parse url
   finTitle url routeOrE = mkTitle { url, routeOrE }
@@ -94,18 +95,18 @@ router'mkRel :: forall @p. T'useAsSym "router" p T'router'mkRel
 router'mkRel = router'mkRel'' @p
 
 type T'router'setHref p =
-  forall e r x' x
+  forall t e r x' x
    . IsSymbol p
   => Cons p (R e r)
-       (attr :: X'W (Array PropWF) | x')
-       (attr :: X'W (Array PropWF) | x)
+       (AttrW' t x')
+       (AttrW' t x)
   => r
-  -> Z.Run (attr :: X'W (Array PropWF) | x) Unit
+  -> Z.Run (AttrW' t x) Unit
 
 router'setHref'' :: forall @p. T'router'setHref p
 router'setHref'' route = do
   href <- router'mkUrl'' @p route <#> url'relative
-  w'tell'' @"attr" $ pure $ Href href
+  attrW'addAttr $ Href href
 
 {-
   TODO
@@ -117,7 +118,5 @@ router'setHref = router'setHref'' @p
 ```
 -}
 router'setHref
-  :: forall e r x
-   . r
-  -> Z.Run (attr :: X'W (Array PropWF), router :: R e r | x) Unit
+  :: forall t e r x. r -> Z.Run (AttrW' t (router :: R e r | x)) Unit
 router'setHref = router'setHref'' @"router"
