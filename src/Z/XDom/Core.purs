@@ -56,6 +56,7 @@ module Z.XDom.Core
   , dom'Svg_
   , dom'Ul
   , dom'Ul_
+  , dom'array
   , dom'do
   , dom'getRunner
   , dom'getSelf
@@ -119,7 +120,9 @@ module Z.XDom.Core
   , el'Fill
   , el'Href
   , el'Id
+  , el'JustRef
   , el'Key
+  , el'OnAnimationEnd
   , el'OnClick
   , el'Ref
   , el'Role
@@ -152,6 +155,7 @@ import Z.XDom.Preact
   , PropWF(..)
   , ReactEl
   , js_effComponent
+  , js_renderArray
   , js_renderEl
   , js_renderFragment
   , js_renderToString
@@ -256,6 +260,9 @@ dom'getEffSelf
 dom'getEffSelf =
   dom'getSelf <#> selfDomless <#> selfExtend (x'permit @"domEff")
 
+dom'getDomSelf :: forall dx x x'. Run (SELF'x dx x x') (Self () x)
+dom'getDomSelf = dom'getSelf <#> selfDomless
+
 --------------------------------------------------------------------------------
 
 class
@@ -280,6 +287,13 @@ dom'withKey k m = do
   m
   children <- domW'finish parentId
   domW'push $ js_withKey k (js_renderFragment children)
+
+dom'array :: forall dx x. MDom dx x Unit -> MDom dx x Unit
+dom'array m = do
+  parentId <- domW'start
+  m
+  children <- domW'finish parentId
+  domW'push $ js_renderArray children
 
 dom'withNewRef
   :: forall dx x s
@@ -744,9 +758,19 @@ el'OnClick f = do
   self <- dom'getEffSelf
   attrW'addAttr $ OnClick $ \e -> eval'self self $ f e
 
-el'Ref
-  :: forall dx x. (Maybe DomEl -> Eff'At "dom" Unit) -> MDomEl dx x Unit
+el'OnAnimationEnd
+  :: forall dx x. (DomEvent -> MDomEff x Unit) -> MDomEl dx x Unit
+el'OnAnimationEnd f = do
+  self <- dom'getEffSelf
+  attrW'addAttr $ OnAnimationEnd $ \e -> eval'self self $ f e
+
+el'Ref :: forall dx x. (DomEl -> Run (SELF () x) Unit) -> MDomEl dx x Unit
 el'Ref f =
+  dom'getDomSelf >>= \self -> attrW'addAttr $ Ref $ eval'self self <<< f
+
+el'JustRef
+  :: forall dx x. (Maybe DomEl -> Eff'At "dom" Unit) -> MDomEl dx x Unit
+el'JustRef f =
   attrW'addAttr $ Ref $ unsafePerformEffect <<< eff'untag @"dom" <<< f <<< Just
 
 ---------------------

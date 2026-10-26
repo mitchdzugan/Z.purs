@@ -29,6 +29,7 @@ import Z.CLM.Stats.Route
   , RoutePage(..)
   , Sort
   , SortBy(..)
+  , filters'pairs
   , route'gotoPlayer
   , route'gotoStats
   , route'isH2hPage
@@ -74,6 +75,15 @@ type Or'ClmSeason'Error t = Either ClmSeason'Error t
 
 type ClmSeason'Players'Full = Array ClmSeason'Player'Full
 
+data SandF = SandF SortBy PairKey Filters
+
+instance Identable SandF where
+  ident'get (SandF by dir filters) = id'of
+    [ ident'key by
+    , ident'key dir
+    , ident'key $ filters'pairs filters
+    ]
+
 type ClmSeason'Responds = VariantF
   ( events :: Responds'Const (HashMap SorN ClmSeason'Event)
   , players :: Responds'Const (HashMap Int ClmPlayer)
@@ -82,8 +92,10 @@ type ClmSeason'Responds = VariantF
   , getIsInUse :: Responds Int (Filters -> Boolean)
   , ranksOrE ::
       Responds'Const (Or'ClmSeason'Error ClmSeason'Players'Full)
-  , ranksOrESortedBy ::
-      Responds SortBy (Or'ClmSeason'Error ClmSeason'Players'Full)
+  , ranksOrESortedByDesc ::
+      Responds SandF (Or'ClmSeason'Error ClmSeason'Players'Full)
+  , ranksOrESorted ::
+      Responds SandF (Or'ClmSeason'Error ClmSeason'Players'Full)
   )
 
 instance Boxable ClmSeason'Tag ClmSeason'Json ClmSeason'Responds where
@@ -96,11 +108,9 @@ instance Boxable ClmSeason'Tag ClmSeason'Json ClmSeason'Responds where
     , getIsInUse: responds'run \clmId -> \filters ->
         case (hm'lookup clmId $ boxed'call_ @"fullPlayers" b) of
           Nothing -> false
-          Just p ->
-            p.hasReq'prEvents || not filters.req'prEvents
+          Just p -> p.hasReq'prEvents || not filters.req'prEvents
     , playerRanks: responds'run \_ -> keyBy _.clmId $ (boxed'v b).ranks
     , ranksOrE: responds'run \_ -> sync'x do
-        x'out "calculating ranks"
         let eventsById = boxed'call_ @"events" b
         let playersById = boxed'call_ @"players" b
         e'try $ forM (boxed'v b).ranks \rank -> do
@@ -116,18 +126,37 @@ instance Boxable ClmSeason'Tag ClmSeason'Json ClmSeason'Responds where
             $ rec'insert @"player" player
             $ rec'insert @"sets" sets
             $ rec'insert @"winrate" winrate
+            $ rec'insert @"sortAndFilteredRank" 0
             $ rec'insert @"hasReq'prEvents" (clm'hasReq'prEvents rank)
             $ rec'insert @"hasRatingConfidence" (clm'hasRatingConfidence rank)
             $ rec'modify @"lastEvent" (\ev -> rec'insert @"data" evData ev)
             $ rank
-    , ranksOrESortedBy: responds'run \sortBy -> do
-        ranks <- boxed'call_ @"ranksOrE" b
-        pure $ flip multisort ranks $ case sortBy of
-          SortBy'Name -> [ sorter _.player.gamerTag ]
-          SortBy'Qual -> []
-          SortBy'Acc -> [ sorter _.winrate, sorter _.sets ]
-          SortBy'Att -> [ sorter _.prEvents, sorter _.sets ]
-          SortBy'Mru -> [ sorter _.lastEvent.data.date ]
+    , ranksOrESortedByDesc: responds'run \(SandF sortBy sortDir filters) -> do
+        boxed'call_ @"ranksOrE" b
+          <#> withMultisortInd
+            ( arr'concat
+                [ [ sorter'rev (clm'isInUse filters) ]
+                , case sortBy of
+                    SortBy'Name -> [ sorter _.player.gamerTag ]
+                    SortBy'Qual -> []
+                    SortBy'Acc -> [ sorter'rev _.winrate, sorter'rev _.sets ]
+                    SortBy'Att -> [ sorter'rev _.prEvents, sorter'rev _.sets ]
+                    SortBy'Mru ->
+                      [ sorter'rev _.lastEvent.data.date
+                      , sorter'rev _.prEvents
+                      ]
+                ]
+            )
+          <#> map (\(ind /\ r) -> rec'set @"sortAndFilteredRank" ind r)
+    , ranksOrESorted: responds'run \(SandF sortBy sortDir filters) -> do
+        boxed'call @"ranksOrESortedByDesc" b (SandF sortBy sortDir filters)
+    {-
+          <#> pair'get sortDir (arr'reverse ~ id)
+          <#> arrangeRanks filters
+          <#> arr'withInd
+          <#> map (\(ind /\ r) -> rec'set @"sortAndFilteredRank" (ind + 1) r)
+          <#> arr'sortWith _.clmId
+-}
     }
 
 type ClmSeason'Boxed = Boxed ClmSeason'Tag
@@ -445,12 +474,12 @@ eventUrl { source: { site, slug } } = case site of
   H2h.Startgg -> "https://start.gg/" <> slug
   H2h.Challonge -> "https://challonge.com/" <> slug
 
-tablePlayerRow :: forall dx x. ClmSeason'Player'Full -> ClmDom dx x Unit
-tablePlayerRow p = do
+tablePlayerRow :: forall dx x. Int -> ClmSeason'Player'Full -> ClmDom dx x Unit
+tablePlayerRow sortedInd p = do
   tableContentRow (Just p.clmId)
     { key: "player." <:> p.clmId
     , cn: ""
-    , ord: dom'text $ may'or "-" $ p.clmRank <#> show
+    , ord: dom'text $ sortedInd
     , profileImage: dom'Div_ $ el'Cn "h-full w-full"
     , name: dom'text $ p.player.gamerTag
     , pronouns: Just $ dom'text $ "xD"
@@ -478,6 +507,15 @@ tablePlayerRow p = do
     , mruDate: dom'text $ "xD"
     }
 
+clm'isInUse :: Filters -> ClmSeason'Player'Full -> Boolean
+clm'isInUse f p = p.hasReq'prEvents || not f.req'prEvents
+
+arrangeRanks :: Filters -> ClmSeason'Players'Full -> ClmSeason'Players'Full
+arrangeRanks f ranks = arr'concat
+  [ arr'filter (clm'isInUse f) ranks
+  , arr'remove (clm'isInUse f) ranks
+  ]
+
 page'stats :: forall dx x. Sort -> Filters -> ClmDomE dx x Unit
 page'stats sort filters = do
   seasonId <- x'extract @"route" <#> g_ @"!.seasonId"
@@ -496,7 +534,7 @@ page'stats sort filters = do
       , tableHead SortBy'Mru
       ]
   let mkRankKey s rank = s <> "." <:> rank.clmId
-  dom'Div do
+  dom'withKey "statsPage" $ dom'Div do
     el'Cn "relative"
     pure case seasonOr_ of
       FetchCache'ValState'Loading _ -> do
@@ -504,31 +542,75 @@ page'stats sort filters = do
       FetchCache'ValState'Error err _ -> do
         domError'fail $ ClmDom'Err'LoadSeason seasonId err
       FetchCache'ValState'Val season -> do
-        let ranksOrE = boxed'call @"ranksOrESortedBy" season sort.by
+        let sAndF = SandF sort.by sort.dir filters
+        x'out { sAndF'key: ident'key sAndF }
+        let ranksOrE = boxed'call @"ranksOrESorted" season sAndF
         ranks <- domError'ok $ mapL (ClmDom'Err'FullSeason seasonId) ranksOrE
-        forM_ ranks \rank -> dom'Div_ do
+        let filtRanks = arr'filter (clm'isInUse filters) ranks
+        forM_ filtRanks \rank -> dom'Div_ do
           el'Key $ mkRankKey "rel" rank
           el'Cn "h-25 w-[100%] min-w-240 border-b-1 rounded-none" *> w'BorderG3
-        forM_ (arr'withInd ranks) \(rankInd /\ rank) -> do
-          let isInUse = boxed'call @"getIsInUse" season rank.clmId filters
+        let numShown = arr'size filtRanks
+        let isDefaultDir = sort.dir == sortBy'defaultDir sort.by
+        forM_ ranks \(rank) -> do
+          let rankInd = rank.sortAndFilteredRank
+          let sortedInd = isDefaultDir ? rankInd $ numShown - rankInd - 1
+          let isInUse = clm'isInUse filters rank
           dom'withKey (mkRankKey "abs" rank) do
             dom'withNewRef Nothing \getRef setRef -> do
               domEff'every'lead do
-                x'do getRef >>= flip whenJust \ref -> do
-                  domEff'el'classList'rm ref "hidden"
-                  domEff'el'classList'rm ref "animate-jump-out"
-                  pure unit
+                x'do getRef >>= flip whenJust \(el /\ hasRendered) -> do
+                  if isInUse then do
+                    domEff'el'classList'rm el "hidden"
+                    domEff'el'classList'rm el "animate-jump-out"
+                    if hasRendered then do
+                      domEff'el'classList'rm el "animate-once"
+                    else do
+                      domEff'el'classList'add el "animate-jump-in"
+                      domEff'el'classList'add el "animate-once"
+                    domEff'async do
+                      domEffA'animationFrame
+                      domEffA'sync do
+                        domEff'el'parentElement el >>= flip whenJust \pEl -> do
+                          when isInUse do
+                            domEff'el'classList'add pEl "transition"
+                            domEff'el'classList'add pEl "transition-transform"
+                            domEff'el'classList'add pEl "duration-300"
+                            domEff'el'classList'add pEl "ease-in-out"
+                            pure unit
+                  else do
+                    domEff'el'classList'rm el "animate-jump-in"
+                    if hasRendered then do
+                      domEff'el'classList'add el "animate-jump-out"
+                      domEff'el'classList'add el "animate-once"
+                    else do
+                      domEff'el'classList'add el "hidden"
+                    domEff'el'parentElement el >>= flip whenJust \pEl -> do
+                      domEff'el'classList'rm pEl "transition"
+                      domEff'el'classList'rm pEl "transition-transform"
+                      domEff'el'classList'rm pEl "duration-300"
+                      domEff'el'classList'rm pEl "ease-in-out"
+                  x'do $ setRef $ Just $ el /\ isInUse
               dom'Div do
-                let offset = 6.25 * toNumber rankInd
+                let offset = (*) 6.25 $ toNumber $ min sortedInd $ dec numShown
                 el'AddCn "w-[100%] h-[calc(6.25rem_-_1px)]"
                 el'AddCn "min-w-240 absolute top-0 left-0"
                 whenNot isInUse $ el'AddCn "pointer-events-none"
                 el'AddStyle "transform" $ "translateY(" <:> offset <:> "rem)"
                 pure $ dom'Div do
-                  el'Ref setRef
+                  el'Ref \el -> do
+                    hasRendered <- x'do getRef <#> map snd <#> may'or false
+                    x'do $ setRef $ Just $ el /\ hasRendered
+                  el'OnAnimationEnd \_ -> do
+                    x'do getRef >>= flip whenJust \(el /\ _) -> do
+                      whenNot isInUse do
+                        domEff'el'classList'add el "hidden"
+                      domEff'el'classList'rm el "animate-jump-in"
+                      domEff'el'classList'rm el "animate-jump-out"
+                      domEff'el'classList'rm el "animate-once"
                   el'AddCn "w-[100%] h-[100%] absolute top-0 left-0"
                   whenNot isInUse $ el'AddCn "pointer-events-none"
-                  pure $ tablePlayerRow rank
+                  pure $ tablePlayerRow (rankInd + 1) rank
 
   where
   tableHead sortBy = do
@@ -721,6 +803,10 @@ app'mk :: forall dx x. ClmBuildOutputs -> UrlSt.XProvider dx x -> XDom dx x Unit
 app'mk buildOutputs = router'run urlEdits parseUrl mkTitleOr_ do
   route <- router'routeOrE <#> hush <#> may'or defaultRoute
   routeErr <- router'routeOrE <#> blush
+  x'out $ "ROUTE-INFO"
+  x'out $ show route
+  x'out $ may'or "NO ERROR" $ routeErr <#> (<>) "ERROR: "
+  x'out "----"
   let
     editRoute = edit route
     isPlayerPage = route'isPlayerPage route

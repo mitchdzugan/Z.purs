@@ -6,6 +6,7 @@ module Z.XDom.Preact
   , ReactEl
   , js_effComponent
   , js_propsFromPropWs
+  , js_renderArray
   , js_renderEl
   , js_renderFragment
   , js_renderToString
@@ -28,6 +29,7 @@ foreign import data ReactEl :: Type
 
 foreign import js_textEl :: String -> ReactEl
 foreign import js_renderFragment :: Array ReactEl -> ReactEl
+foreign import js_renderArray :: Array ReactEl -> ReactEl
 foreign import js_renderEl :: String -> Json -> Array ReactEl -> ReactEl
 foreign import js_propsFromPropWs
   :: (PropWF -> String) -> (PropWF -> JsAny) -> Array PropWF -> Json
@@ -64,6 +66,7 @@ data PropWF
   = Href String
   | Ref (DomEl -> Unit)
   | OnClick (DomEvent -> Unit)
+  | OnAnimationEnd (DomEvent -> Unit)
   | Id String
   | PKey String
   | Role String
@@ -82,6 +85,7 @@ propWFKey :: PropWF -> String
 propWFKey (Href _) = "href"
 propWFKey (Ref _) = "ref"
 propWFKey (OnClick _) = "onClick"
+propWFKey (OnAnimationEnd _) = "onAnimationEnd"
 propWFKey (Id _) = "id"
 propWFKey (PKey _) = "key"
 propWFKey (Role _) = "role"
@@ -99,7 +103,8 @@ propWFKey (Checked _) = "checked"
 propWFVal :: PropWF -> JsAny
 propWFVal (Href s) = jsAny s
 propWFVal (Ref f) = jsAny f
-propWFVal (OnClick s) = jsAny s
+propWFVal (OnClick f) = jsAny f
+propWFVal (OnAnimationEnd f) = jsAny f
 propWFVal (Id s) = jsAny s
 propWFVal (PKey s) = jsAny s
 propWFVal (Role s) = jsAny s

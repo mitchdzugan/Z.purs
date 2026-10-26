@@ -45,6 +45,7 @@
     "serve": "^14.2.6",
     "spago": "^1.0.4",
     "tailwindcss": "^4.3.3",
+    "tailwindcss-animated": "^2.1.0",
     "terser": "^5.51.2",
     "tsdown": "^0.21.10",
     "vite": "^8.1.5"

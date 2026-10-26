@@ -7,11 +7,19 @@ module Web.Z.XDom.Preact
 
 import Web.Z.Prelude
 
+import Web.DOM.DOMTokenList as CL
+import Web.DOM.Element (classList, toNode)
+import Web.DOM.Node (parentElement)
 import Web.Z.Web.DOM as DOM
+import Z.XDom.Preact (DomEl)
 import Z.XDom.Prelude as XD
 import Z.XDom.UrlState as UrlSt
 
 foreign import js_renderIn :: XD.ReactEl -> Element -> Effect (Promise Unit)
+
+foreign import js_webToG :: Element -> DomEl
+foreign import js_gToWeb :: DomEl -> Element
+foreign import js_animationFramePromise :: Effect (Promise Unit)
 
 xPreactHydrate :: forall x. Element -> XD.ReactEl -> EA' JsError x @@> Unit
 xPreactHydrate d r = e'runEffPromise $ js_renderIn r d
@@ -60,8 +68,14 @@ provideHistory locUrl toTitleOr_ urlStateToDom = do
 
 exec'xdom'web :: XD.XDom () () Unit -> XD.ReactEl
 exec'xdom'web = XD.exec'xdom
-  { el'classList'rm: \el cn -> pure unit
-  , el'classList'add: \el cn -> pure unit
-  , el'parentElement: \el -> pure Nothing
-  , future'animationFrame: pure $ future'of unit
+  { el'classList'add: \el cn -> do
+      cl <- classList $ js_gToWeb el
+      CL.add cl cn
+  , el'classList'rm: \el cn -> do
+      cl <- classList $ js_gToWeb el
+      CL.remove cl cn
+  , el'parentElement: \el ->
+      js_gToWeb el # toNode # parentElement <#> map js_webToG
+  , future'animationFrame:
+      eff'defer \_ -> future'fromEffPromise js_animationFramePromise
   }

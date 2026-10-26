@@ -10,6 +10,7 @@ module Z.Z.Foldable
   , multisort
   , ordinal
   , sorter
+  , sorter'adapt
   , sorter'rev
   , stats
   , stats'percentile
@@ -17,6 +18,7 @@ module Z.Z.Foldable
   , statsBy
   , stddev
   , stddevBy
+  , withMultisortInd
   ) where
 
 import Prelude
@@ -27,7 +29,7 @@ import Data.Maybe (Maybe(..))
 import Data.Number (pow, sqrt)
 import Data.Traversable (class Traversable, sum)
 import Data.Tuple (snd, uncurry)
-import Data.Tuple.Nested ((/\))
+import Data.Tuple.Nested (type (/\), (/\))
 import Z.Z.Core
   ( class Numberable
   , arr'concat
@@ -116,6 +118,16 @@ sorter'rev toS = mkExists $ SorterF
   , idS: ident'get
   }
 
+sorter'adapt :: forall a1 a2. (a2 -> a1) -> Sorter a1 -> Sorter a2
+sorter'adapt f s = runExists useSorter s
+  where
+  useSorter :: forall s. SorterF a1 s -> Sorter a2
+  useSorter (SorterF { toS, compareS, idS }) = mkExists $ SorterF
+    { toS: toS <<< f
+    , compareS
+    , idS
+    }
+
 sorter'groups :: forall a. Sorter a -> Array a -> Array (Array a)
 sorter'groups = runExists useSorter
   where
@@ -136,6 +148,14 @@ multisort'impl (Cons s s'rest) arr = arr'concat
 multisort :: forall f v. Traversable f => Array (Sorter v) -> f v -> Array v
 multisort sorters coll =
   multisort'impl (fromFoldable sorters) $ arr'fromTraversable coll
+
+withMultisortInd
+  :: forall f v. Traversable f => Array (Sorter v) -> f v -> Array (Int /\ v)
+withMultisortInd sorters coll =
+  let
+    arr = arr'fromTraversable coll
+  in
+    js_withNewInds (/\) arr (multisort $ sorters <#> sorter'adapt _.el)
 
 average :: forall f n. Traversable f => Numberable n => f n -> Number
 average = averageBy identity
@@ -187,3 +207,10 @@ ordinalSuffix n =
 
 ordinal :: Int -> String
 ordinal n = show n <> ordinalSuffix n
+
+foreign import js_withNewInds
+  :: forall a
+   . (Int -> a -> Int /\ a)
+  -> Array a
+  -> (Array { el :: a } -> Array { el :: a })
+  -> Array (Int /\ a)

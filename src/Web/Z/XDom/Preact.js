@@ -8,3 +8,9 @@ export const js_renderIn = (reactEl) => (domEl) => () =>
       reject(error);
     }
   });
+
+export const js_gToWeb = (g) => g
+export const js_webToG = (g) => g
+export const js_animationFramePromise = () => new Promise(
+  (resolve) => window.requestAnimationFrame(() => resolve())
+);

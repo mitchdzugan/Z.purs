@@ -80,6 +80,7 @@ type ClmSeason'Player'Full = ClmSeason'Player'G
   , player :: ClmPlayer
   , sets :: Int
   , winrate :: Maybe Number
+  , sortAndFilteredRank :: Int
   )
   (data :: ClmSeason'Event)
 

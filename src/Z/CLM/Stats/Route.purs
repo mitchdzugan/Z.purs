@@ -7,6 +7,7 @@ module Z.CLM.Stats.Route
   , RoutePage(..)
   , Sort
   , SortBy(..)
+  , filters'pairs
   , page'key
   , page'sort
   , route'gotoPlayer
@@ -101,6 +102,9 @@ data Filters'Key = Filters'att
 
 instance Show Filters'Key where
   show Filters'att = "att"
+
+instance Identable Filters'Key where
+  ident'get = id'of <<< show
 
 filters'keys :: Array Filters'Key
 filters'keys = [ Filters'att ]
@@ -235,6 +239,9 @@ urlParse'impl defaultSeasonId seasonIdBySlug u =
     case (hm'lookup slug seasonIdBySlug) of
       Just seasonId -> do
         s'set'b @"!.seasonId" seasonId
+        defaultFilters <- x'defaultFilters seasonId
+        x'out { seasonId, defaultFilters }
+        route'setFilters defaultFilters
         processRouteList true rest
       _ -> e'fail $ "Unknown Slug: " <> slug
   processRouteList _ _ = e'fail "Invalid Route"
@@ -311,6 +318,12 @@ route'setFilter :: forall x. Filters'Key -> Boolean -> Run (S' Route x) Unit
 route'setFilter filtersKey filtersVal = s'view'b @"!.page" >>= case _ of
   Stats sort filters ->
     s'set'b @"!.page" $ Stats sort $ filters'set filters filtersKey filtersVal
+  _ -> pure unit
+
+route'setFilters :: forall x. Filters -> Run (S' Route x) Unit
+route'setFilters filters = s'view'b @"!.page" >>= case _ of
+  Stats sort _ ->
+    s'set'b @"!.page" $ Stats sort filters
   _ -> pure unit
 
 route'setSort :: forall x. Sort -> Run (S' Route x) Unit

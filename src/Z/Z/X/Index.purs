@@ -335,7 +335,7 @@ x'permit :: forall @p x' x a. ConsSymbol p X'Permit x' x => Run x a -> Run x' a
 x'permit = x'eval_ @p
 
 x'do :: forall @p x' x a. ConsSymbol p X'Permit x' x => Eff'At p a -> Run x a
-x'do (Eff'At eff) = pure $ unsafePerformEffect eff
+x'do (Eff'At eff) = pure unit <#> \_ -> unsafePerformEffect eff
 
 s'put :: forall x s. s -> Run (S' s x) Unit
 s'put = Methods.x'assign @"_'x'state"

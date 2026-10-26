@@ -155,8 +155,10 @@ setQuery qs'hm u =
     querySetAllImpl asRecord u
 
 pathSegmentsFromPathname :: String -> Array String
-pathSegmentsFromPathname pname = String.split (wrap "/") cleanPname
+pathSegmentsFromPathname pname = splitCleaned cleanPname
   where
+  splitCleaned "" = []
+  splitCleaned cleaned = String.split (wrap "/") cleaned
   cleanPname = if str'startsWith "/" pname then str'drop 1 pname else pname
 
 path :: URL -> Array String
