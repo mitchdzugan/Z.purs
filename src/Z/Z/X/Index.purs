@@ -37,6 +37,7 @@ module Z.Z.X.Index
   , X'W
   , X'Wa
   , X'flipped
+  , a'attempt
   , async'_
   , async'run
   , async'x

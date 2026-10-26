@@ -19,6 +19,7 @@ import Data.Enum (fromEnum)
 import Data.Maybe as May
 import Data.Time.Duration as TimeDuration
 import Z.Z.Ext as Z
+import Z.Z.Id (class Identable, id'of)
 
 data DateTime = DateTime DateTime.Date DateTime.Time
 
@@ -48,6 +49,9 @@ derive instance Eq DateTime
 
 instance Ord DateTime where
   compare d1 d2 = compare (dateTime'toMS d1) (dateTime'toMS d2)
+
+instance Identable DateTime where
+  ident'get = id'of <<< dateTime'toMS
 
 instance Z.DecodeJson DateTime where
   decodeJson x = Dec.decodeJson x <#> Z.Milliseconds <#> DateTimeInst.instant

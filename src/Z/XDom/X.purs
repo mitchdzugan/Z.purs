@@ -20,12 +20,15 @@ module Z.XDom.X
   , attrW'run
   , domW'concat
   , domW'exec
+  , domW'extract
   , domW'extractAndResume
+  , domW'finish
   , domW'pause
   , domW'push
   , domW'resume
   , domW'run
   , domW'runWithCompleted
+  , domW'start
   ) where
 
 import Z.Prelude
@@ -47,10 +50,10 @@ foreign import data R'DomW :: Type
 ------------------------------------------------------------
 
 instance X'Readable'rw R'DomW ReactEls2d where
-  x'readable'rw'mk = js_domwNew
+  x'readable'rw'mk _ = js2_domwNew
 
 instance X'Results'R'rw R'DomW ReactEls where
-  x'results'r'rw'impl = js_domwResults
+  x'results'r'rw'impl = js2_domwCurrEls
 
 instance
   X'R'RespondsTo'rw R'DomW
@@ -60,22 +63,26 @@ instance
     )
     ( VariantF
         ( resume :: Responds ReactEls2d Unit
+        , pause :: Responds'Const ReactEls2d
         , push :: Responds ReactEl Unit
         , concat :: Responds ReactEls Unit
-        , pause :: Responds'Const ReactEls2d
+        , start :: Responds'Const Int
+        , finish :: Responds Int ReactEls
         )
     )
     ( self :: t
     ) where
   x'r'mkResponds'rw'types = Proxy
   x'r'mkResponds'r domx = match
-    { extract: responds'const'eff $ js_domwResults domx
+    { extract: responds'run'eff \_ -> js2_domwCurrEls domx
     }
   x'r'mkResponds'w domx = match
     { resume: responds'run'eff \v -> js_domwResume v domx
-    , push: responds'run'eff \v -> js_domwPush v domx
-    , concat: responds'run'eff \v -> js_domwConcat v domx
-    , pause: responds'const'eff $ js_domwPause domx
+    , pause: responds'run'eff \_ -> js_domwPause domx
+    , push: responds'run'eff \v -> js2_domwPush v domx
+    , concat: responds'run'eff \v -> js2_domwConcat v domx
+    , start: responds'run'eff \_ -> js2_domwStart domx
+    , finish: responds'run'eff \prevId -> js2_domwFinish prevId domx
     }
 
 type X'DomW = Reader (RW'Tagged R'DomW)
@@ -104,6 +111,12 @@ domW'pause = x'respondTo_ @"domW" @"pause"
 domW'resume :: forall x. ReactEls2d -> Run (DomW' x) Unit
 domW'resume = x'respondTo @"domW" @"resume"
 
+domW'start :: forall x. Run (DomW' x) Int
+domW'start = x'respondTo_ @"domW" @"start"
+
+domW'finish :: forall x. Int -> Run (DomW' x) ReactEls
+domW'finish = x'respondTo @"domW" @"finish"
+
 domW'extract :: forall x. Run (DomW' x) ReactEls
 domW'extract = x'respondTo_ @"domW" @"extract"
 
@@ -126,6 +139,20 @@ foreign import js_domwResume :: ReactEls2d -> R'DomW -> Effect Unit
 foreign import js_domwPush :: ReactEl -> R'DomW -> Effect Unit
 
 foreign import js_domwConcat :: ReactEls -> R'DomW -> Effect Unit
+
+-------------------------------------------------------------------------
+
+foreign import js2_domwNew :: Effect R'DomW
+
+foreign import js2_domwCurrEls :: R'DomW -> Effect ReactEls
+
+foreign import js2_domwStart :: R'DomW -> Effect Int
+
+foreign import js2_domwFinish :: Int -> R'DomW -> Effect ReactEls
+
+foreign import js2_domwPush :: ReactEl -> R'DomW -> Effect Unit
+
+foreign import js2_domwConcat :: ReactEls -> R'DomW -> Effect Unit
 
 -------------------------------------------------------------------------
 

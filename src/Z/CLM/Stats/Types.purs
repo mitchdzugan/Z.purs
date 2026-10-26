@@ -15,7 +15,10 @@ module Z.CLM.Stats.Types
   , ClmSeason'Player
   , ClmSeason'Player'Char
   , ClmSeason'Player'Full
+  , ClmSeason'Player'G
   , ClmTimeline
+  , clm'hasRatingConfidence
+  , clm'hasReq'prEvents
   , clmBuildMeta
   ) where
 
@@ -51,28 +54,34 @@ type ClmPlayer =
   , clmId :: Int
   }
 
-type ClmSeason'Player =
+type ClmSeason'Player'G plusPlayer plusEvent =
   { clmId :: Int
-  , rating :: Maybe Int
+  , rating :: Int
   , clmRank :: Maybe Int
   , wins :: Int
   , losses :: Int
   , prEvents :: Int
-  , lastEvent :: { id :: SorN, placing :: Int }
+  , lastEvent :: { id :: SorN, placing :: Int | plusEvent }
   , chars :: Array ClmSeason'Player'Char
+  | plusPlayer
   }
 
-type ClmSeason'Player'Full =
-  { clmId :: Int
+type ClmSeason'Player = ClmSeason'Player'G () ()
+
+clm'hasReq'prEvents :: forall r. Record (prEvents :: Int | r) -> Boolean
+clm'hasReq'prEvents { prEvents } = prEvents >= 8
+
+clm'hasRatingConfidence :: forall r. Record (prEvents :: Int | r) -> Boolean
+clm'hasRatingConfidence { prEvents } = prEvents >= 3
+
+type ClmSeason'Player'Full = ClmSeason'Player'G
+  ( hasReq'prEvents :: Boolean
+  , hasRatingConfidence :: Boolean
   , player :: ClmPlayer
-  , rating :: Maybe Int
-  , clmRank :: Maybe Int
-  , wins :: Int
-  , losses :: Int
-  , prEvents :: Int
-  , lastEvent :: { id :: SorN, placing :: Int, data :: ClmSeason'Event }
-  , chars :: Array ClmSeason'Player'Char
-  }
+  , sets :: Int
+  , winrate :: Maybe Number
+  )
+  (data :: ClmSeason'Event)
 
 type ClmSeason =
   { seasonId :: Int

@@ -15,48 +15,48 @@ type COUNT x = (count :: XDom'StateReducer CountAction Int | x)
 
 app'onE :: forall dr x. String -> XDom dr (COUNT x) Unit
 app'onE message = do
-  dom'div $ el'addM do
+  dom'Div $ pure do
     dom'text message
-    dom'button do
-      el'cn "btn btn-soft"
-      el'onClick $ \_ -> domState'dispatch'' @"count" Reset
-      el'addM $ dom'text "reset"
+    dom'Button do
+      el'Cn "btn btn-soft"
+      el'OnClick $ \_ -> domState'dispatch'' @"count" Reset
+      pure $ dom'text "reset"
 
 app'body :: forall dr x. XDomE String dr (COUNT x) Unit
 app'body = do
   count <- domState'get'' @"count"
-  dom'div $ el'addM $ dom'text "Hellllooooooo"
-
-  dom'div do
-    el'key "asdfasdfasdfasdf..."
-    el'addM do
+  dom'Div $ pure $ dom'text "Hellllooooooo"
+  dom'Div do
+    el'Key "asdfasdfasdfasdf..."
+    pure do
       when (count < 0) do domError'fail "negative number invalid"
-      dom'span %% w'str \t -> t "div with stuff" *> t (stext unit) *> t "!"
-      dom'br $ pass
-      dom'button do
-        el'addCn "btn btn-soft" *> when (count > 5) do el'addCn "btn-accent"
-        el'onClick $ (\_ -> domState'dispatch'' @"count" Dec)
-        el'addM $ dom'text "dec"
-      dom'div $ el'addM $ dom'text ("Count:" <+> count)
-      dom'withKey "asdfasdf" $ dom'button do
-        el'addCn "btn btn-soft" *> when (count > 5) do el'addCn "btn-accent"
-        el'onClick \e -> do
+      dom'Span $ pure $ dom'text $
+        w'str \t -> t "div with stuff" *> t (stext unit) *> t "!"
+      dom'Br $ pass
+      dom'Button do
+        el'AddCn "btn btn-soft" *> when (count > 5) do el'AddCn "btn-accent"
+        el'OnClick $ (\_ -> domState'dispatch'' @"count" Dec)
+        pure $ dom'text "dec"
+      dom'Div $ pure $ dom'text ("Count:" <+> count)
+      dom'withKey "asdfasdf" $ dom'Button do
+        el'AddCn "btn btn-soft" *> when (count > 5) do el'AddCn "btn-accent"
+        el'OnClick \e -> do
           x'out e
           domState'dispatch'' @"count" Inc
-        el'addM $ dom'text "inc"
+        pure $ dom'text "inc"
 
 app'mk :: forall dr x. UrlSt.XProvider dr x -> XDom dr x Unit
 app'mk = router'run'' @"router" urlEdits parseUrl mkTitleOr_ do
   r <- router'routeOrE'' @"router"
   x'out $ show r
-  dom'div do
-    el'cn "flex flex-col gap-4"
-    el'addM do
-      dom'iframe $ pure unit
-      dom'div $ el'addM $ dom'a do
+  dom'Div do
+    el'Cn "flex flex-col gap-4"
+    pure do
+      dom'Iframe_ $ pure unit
+      dom'Div $ pure $ dom'A do
         router'setHref $ Profile "Jimmy"
-        el'cn "btn link btn-primary"
-        el'addM $ dom'text "profile link"
+        el'Cn "btn link btn-primary"
+        pure $ dom'text "profile link"
       domState'runReducer'' @"count" 3 countAct $ domError'bind app'onE app'body
   where
   mkTitleOr_ = Just <<< url'toString <<< _.url

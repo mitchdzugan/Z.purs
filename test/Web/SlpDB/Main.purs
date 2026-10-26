@@ -9,5 +9,5 @@ main :: Effect Unit
 main = runXAThenExit do
   let notFoundError = jsError "element not found!" "#root"
   domEl <- xGetElementById "root" <#> jOrE notFoundError >>= e'ok
-  XDom.xPreactHydrate domEl $ XDom.exec'xdom do
+  XDom.xPreactHydrate domEl $ XDom.exec'xdom'web do
     XDom.xDomRunWeb $ app'mk XDom.xweb'historyProvider

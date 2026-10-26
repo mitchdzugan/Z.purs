@@ -48,6 +48,8 @@ import Z.CLM.Stats.Types
   , ClmSeason'Json
   , ClmSeason'Player
   , ClmSeason'Player'Char
+  , clm'hasRatingConfidence
+  , clm'hasReq'prEvents
   , clmBuildMeta
   )
 
@@ -411,15 +413,14 @@ addRanks :: forall x. Int -> Array RatingData -> ClmV () x @@> Unit
 addRanks seasonId ratingData = do
   { activeSeasonId } <- r'ask
   let
-    p'hasConfidence = \d -> d.prEvents > 2
     isActiveSeason = seasonId == activeSeasonId
     sortedRatingData = flip multisort ratingData
       [ sorter'rev \d -> d.prEvents > 0
-      , sorter'rev p'hasConfidence
+      , sorter'rev clm'hasRatingConfidence
       , sorter'rev _.raw
       , sorter'rev _.prEvents
       ]
-    rated = arr'filter p'hasConfidence sortedRatingData
+    rated = arr'filter clm'hasRatingConfidence sortedRatingData
     rated'stats = statsBy _.raw rated
     getPercentile = \r -> stats'percentile r.raw rated'stats
     getRating = \r -> floor $ 10.0 * (getPercentile r)
@@ -428,10 +429,9 @@ addRanks seasonId ratingData = do
       s'eval 0 $ forM_ (arr'withInd sortedRatingData) \pair -> do
         let seasonOrd /\ ratingData = pair
         let { clmId, prEvents, lastEvent, chars, wins, losses } = ratingData
-        let hasRequirements = prEvents > 7
-        let hasConfidence = prEvents > 2
-        let ratingVal = getRating ratingData
-        let rating = if hasConfidence then Just ratingVal else Nothing
+        let hasRequirements = clm'hasReq'prEvents ratingData
+        let hasConfidence = clm'hasRatingConfidence ratingData
+        let rating = getRating ratingData
         let hasRank = if isActiveSeason then hasConfidence else hasRequirements
         x'insert @"orderByClmIdAndSeasonId" (seasonId /\ clmId) seasonOrd
         clmRank <- case hasRank of

@@ -15,7 +15,7 @@ module Z.XDom.UrlState
 
 import Z.Prelude
 
-import Z.XDom.Core (DomPermit)
+import Z.XDom.Core (DomPermit, XDomR')
 import Z.XDom.Core as XD
 
 type HrefSpec = Either { actual :: String, parsed :: String } String
@@ -77,7 +77,7 @@ useProvider (RProvider { getBaseUrl, provide }) toTitleOr_ render = do
   baseUrl <- getBaseUrl
   provide toTitleOr_ (render baseUrl)
 
-type XProvider dr x = RProvider dr (X'Base (DomPermit x))
+type XProvider dr x = RProvider dr (XDomR' $ X'Base $ DomPermit x)
 
 mkStaticHistoryProvider :: forall dr x. URL -> Edit UrlParts -> RProvider dr x
 mkStaticHistoryProvider baseUrl toStaticUrl =

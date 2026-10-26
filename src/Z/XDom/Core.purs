@@ -1,8 +1,6 @@
 module Z.XDom.Core
   ( (%%)
   , (*%%)
-  , ATTRW
-  , ATTRW'Childless
   , DomA
   , DomATag
   , DomE
@@ -14,12 +12,12 @@ module Z.XDom.Core
   , MDom
   , MDomEff
   , MDomEl
-  , MDomEl'g
   , R'Self
   , SELF
   , SELF'x
   , Self(..)
   , XDom
+  , XDom'Reader
   , XDom'Ref
   , XDom'RefReducer
   , XDom'State
@@ -27,35 +25,51 @@ module Z.XDom.Core
   , XDomA
   , XDomE
   , XDomEA
+  , XDomR'
   , class Dom'ConsSymbol
-  , dom'a
-  , dom'article
-  , dom'br
-  , dom'button
-  , dom'div
+  , dom'A
+  , dom'A_
+  , dom'Article
+  , dom'Article_
+  , dom'Br
+  , dom'Button
+  , dom'Button_
+  , dom'Div
+  , dom'Div_
+  , dom'Element
+  , dom'Iframe
+  , dom'Iframe_
+  , dom'Img
+  , dom'Img_
+  , dom'Input
+  , dom'Input_
+  , dom'Label
+  , dom'Label_
+  , dom'Li
+  , dom'Li_
+  , dom'Path
+  , dom'Pre
+  , dom'Pre_
+  , dom'Span
+  , dom'Span_
+  , dom'Svg
+  , dom'Svg_
+  , dom'Ul
+  , dom'Ul_
   , dom'do
-  , dom'element
-  , dom'element'Childless
   , dom'getRunner
   , dom'getSelf
-  , dom'iframe
-  , dom'img
-  , dom'input
-  , dom'label
-  , dom'li
-  , dom'path
-  , dom'pre
   , dom'runReader
-  , dom'span
-  , dom'svg
   , dom'text
-  , dom'ul
   , dom'withAdapter
   , dom'withKey
   , dom'withNewRef
   , dom'withNewState
   , domEff'async
   , domEff'do
+  , domEff'el'classList'add
+  , domEff'el'classList'rm
+  , domEff'el'parentElement
   , domEff'every
   , domEff'every'lag
   , domEff'every'lead
@@ -65,6 +79,8 @@ module Z.XDom.Core
   , domEff'once
   , domEff'once'lag
   , domEff'once'lead
+  , domEffA'animationFrame
+  , domEffA'sync
   , domError'bind
   , domError'bind''
   , domError'fail
@@ -93,40 +109,37 @@ module Z.XDom.Core
   , domState'set''
   , domx'eval
   , domx'eval_
-  , el'addCn
-  , el'addM
-  , el'addStyle
-  , el'addStyles
-  , el'checked
-  , el'cn
-  , el'd
-  , el'data
-  , el'fill
-  , el'href
-  , el'id
-  , el'key
-  , el'onClick
-  , el'ref
+  , el'AddCn
+  , el'AddStyle
+  , el'AddStyles
+  , el'Checked
+  , el'Cn
+  , el'D
+  , el'Data
+  , el'Fill
+  , el'Href
+  , el'Id
+  , el'Key
+  , el'OnClick
+  , el'Ref
+  , el'Role
+  , el'RoleButton
+  , el'SetStyles
+  , el'Src
+  , el'TabIndex
+  , el'TabIndex0
+  , el'Target
+  , el'TargetBlank
+  , el'Type
+  , el'ViewBox
+  , el'Xmlns
   , el'renderToString
-  , el'resetCn
-  , el'resetM
-  , el'resetStyles
-  , el'role
-  , el'roleButton
-  , el'setM
-  , el'setStyles
-  , el'src
-  , el'tabIndex
-  , el'tabIndex0
-  , el'target
-  , el'targetBlank
-  , el'type
-  , el'viewBox
-  , el'xmlns
   , exec'xdom
+  , exec'xdom'static
   , op'el'text
   , op'mdom'andText
   , x'renderToStringAsync
+  , xdom'renderToString
   ) where
 
 import Z.Prelude
@@ -154,18 +167,19 @@ import Z.XDom.X
   ( AttrW'
   , DomW'
   , attrW'addAttr
-  , attrW'addChildren
   , attrW'addClassname
   , attrW'addStyle
-  , attrW'exec
-  , attrW'resetChildren
   , attrW'resetClassnames
   , attrW'resetStyles
+  , attrW'run
   , domW'concat
   , domW'exec
+  , domW'finish
   , domW'push
   , domW'run
+  , domW'start
   )
+import Z.Z.X.Index (a'attempt)
 
 data Self dx x = Self (Runner dx) (Runner x)
 
@@ -202,11 +216,7 @@ type DomPermit x = (dom :: X'Permit | x)
 
 type MDom dx x a = Run (DomW' (SELF dx x)) a
 
-type MDomEl'g t dx x a = Run (AttrW' t (SELF dx x)) a
-
-type MDomEl dx x a = MDomEl'g (Array ReactEl) dx x a
-
-type MDomEl'Childless dx x a = MDomEl'g Void dx x a
+type MDomEl dx x a = Run (domW :: X'R Unit | AttrW' Void (DomW' (SELF dx x))) a
 
 type MDOMEFF x = (self :: R'Self () (DomEffPermit x) | DomEffPermit x)
 
@@ -226,12 +236,6 @@ renderM self m = eval'self self $ domW'exec m
 
 renderMEl :: forall dx x. Self dx x -> MDom dx x Unit -> ReactEl
 renderMEl self = js_renderFragment <<< renderM self
-
-domRenderM :: forall dx x. MDom dx x Unit -> MDom dx x (Array ReactEl)
-domRenderM m = x'extract @"self" <#> flip renderM m
-
-domRenderMEl :: forall dx x. MDom dx x Unit -> MDom dx x ReactEl
-domRenderMEl m = domRenderM m <#> js_renderFragment
 
 --------------------------------------------------------------------------------
 
@@ -271,7 +275,11 @@ instance
 --------------------------------------------------------------------------------
 
 dom'withKey :: forall dx x. String -> MDom dx x Unit -> MDom dx x Unit
-dom'withKey k m = domRenderMEl m >>= domW'push <<< js_withKey k
+dom'withKey k m = do
+  parentId <- domW'start
+  m
+  children <- domW'finish parentId
+  domW'push $ js_withKey k (js_renderFragment children)
 
 dom'withNewRef
   :: forall dx x s
@@ -336,26 +344,22 @@ type T'dom'runReader p =
 dom'runReader :: forall @p. T'dom'runReader p
 dom'runReader env m = dom'withAdapter (r'run'' @p env) m
 
-type ATTRW x = AttrW' (Array ReactEl) x
-
-type MDom_domElement = forall dx x. MDomEl dx x Unit -> MDom dx x Unit
-
-dom'element :: String -> MDom_domElement
-dom'element s mattr = do
-  self <- x'extract @"self"
-  let { attrs, children } = eval'self self $ attrW'exec identity mattr
-  domW'push $ js_renderEl s attrs children
-
-type ATTRW'Childless x = AttrW' Void x
+type MDom_domElement =
+  forall dx x. MDomEl dx x (MDom dx x Unit) -> MDom dx x Unit
 
 type MDom_domElement'Childless =
-  forall dx x. MDomEl'Childless dx x Unit -> MDom dx x Unit
+  forall dx x. MDomEl dx x Unit -> MDom dx x Unit
 
-dom'element'Childless :: String -> MDom_domElement'Childless
-dom'element'Childless s mattr = do
-  self <- x'extract @"self"
-  let { attrs, children } = eval'self self $ attrW'exec (\_ -> []) mattr
+dom'Element :: String -> MDom_domElement
+dom'Element s mattr = do
+  parentId <- domW'start
+  mdom /\ { attrs } <- x'eval_ @"domW" $ attrW'run (const []) mattr
+  mdom
+  children <- domW'finish parentId
   domW'push $ js_renderEl s attrs children
+
+dom'Element_ :: String -> MDom_domElement'Childless
+dom'Element_ s mattr = dom'Element s $ mattr <#> pure
 
 --------------------------------------------------------------------------------
 
@@ -597,24 +601,84 @@ domEff'async m = do
   self <- dom'getSelf
   pure $ unsafePerformEffect $ future'run_ $ evalA'self self m
 
+domEffA'sync :: forall x. MDomEff x Unit -> MDomEff'a x Unit
+domEffA'sync m = dom'getSelf <#> flip eval'self m
+
+domEff'el'classList'rm
+  :: forall x. DomEl -> String -> MDomEff (XDomR' x) Unit
+domEff'el'classList'rm el cn = do
+  x'extract @"_'xdom'reader" >>= \r -> x'do $ r.el'classList'rm el cn
+
+domEff'el'classList'add
+  :: forall x. DomEl -> String -> MDomEff (XDomR' x) Unit
+domEff'el'classList'add el cn = do
+  x'extract @"_'xdom'reader" >>= \r -> x'do $ r.el'classList'add el cn
+
+domEff'el'parentElement
+  :: forall x. DomEl -> MDomEff (XDomR' x) (Maybe DomEl)
+domEff'el'parentElement el = do
+  x'extract @"_'xdom'reader" >>= \r -> x'do $ r.el'parentElement el
+
+domEffA'animationFrame :: forall x. MDomEff'a (XDomR' x) Unit
+domEffA'animationFrame = do
+  f <- x'extract @"_'xdom'reader" >>= \r -> x'do $ r.future'animationFrame
+  a'attempt f <#> const unit
+
 -------------------------------------------------------------------
 
-type XDom dx x a = MDom dx (X'Base $ DomPermit x) a
+type XDom'Reader =
+  { el'classList'rm :: DomEl -> String -> Eff'At "domEff" Unit
+  , el'classList'add :: DomEl -> String -> Eff'At "domEff" Unit
+  , el'parentElement :: DomEl -> Eff'At "domEff" (Maybe DomEl)
+  , future'animationFrame :: Eff'At "domEff" (Future Unit)
+  }
+
+type XDom'Eff'Reader =
+  { el'classList'rm :: DomEl -> String -> Effect Unit
+  , el'classList'add :: DomEl -> String -> Effect Unit
+  , el'parentElement :: DomEl -> Effect (Maybe DomEl)
+  , future'animationFrame :: Effect (Future Unit)
+  }
+
+type XDom dx x a = MDom dx (XDomR' $ X'Base $ DomPermit x) a
 type XDomE e dx x a = XDom (_'x'except :: (DomE e) | dx) x a
 type XDomA dx x a = XDom (_'x'async :: DomA | dx) x a
 type XDomEA e dx x a = XDom (_'x'except :: (DomE e), _'x'async :: DomA | dx) x a
 
 type DomE' e dx = (_'x'except :: DomE e | dx)
+type XDomR' x = (_'xdom'reader :: X'R XDom'Reader | x)
 
 baseSelf :: Self () ()
 baseSelf = Self runner'_ runner'_
 
-exec'xdom :: XDom () () Unit -> ReactEl
-exec'xdom = renderMEl $ selfDomless $
-  selfExtend (x'permit @"dom" <<< x'eval_ @"_'x'base") baseSelf
+xdom'reader'run :: forall x a. XDom'Eff'Reader -> Run (XDomR' x) a -> Run x a
+xdom'reader'run = r'run'' @"_'xdom'reader" <<< adapt'eff'reader
+  where
+  adapt'eff'reader r =
+    { el'classList'rm: \el cn -> eff'tag @"domEff" $ r.el'classList'rm el cn
+    , el'classList'add: \el cn -> eff'tag @"domEff" $ r.el'classList'add el cn
+    , el'parentElement: \el -> eff'tag @"domEff" $ r.el'parentElement el
+    , future'animationFrame: eff'tag @"domEff" r.future'animationFrame
+    }
+
+exec'xdom :: XDom'Eff'Reader -> XDom () () Unit -> ReactEl
+exec'xdom r = renderMEl $ selfDomless $ selfExtend
+  (x'permit @"dom" <<< x'eval_ @"_'x'base" <<< xdom'reader'run r)
+  baseSelf
+
+exec'xdom'static :: XDom () () Unit -> ReactEl
+exec'xdom'static = exec'xdom
+  { el'classList'rm: \_ _ -> pure unit
+  , el'classList'add: \_ _ -> pure unit
+  , el'parentElement: \_ -> pure Nothing
+  , future'animationFrame: pure $ future'of unit
+  }
 
 el'renderToString :: ReactEl -> String
 el'renderToString = js_renderToString
+
+xdom'renderToString :: XDom () () Unit -> String
+xdom'renderToString = js_renderToString <<< exec'xdom'static
 
 x'renderToStringAsync :: forall x. ReactEl -> Run (EA' JsError x) String
 x'renderToStringAsync = e'runEffPromise <<< js_renderToStringAsync
@@ -624,170 +688,192 @@ x'renderToStringAsync = e'runEffPromise <<< js_renderToStringAsync
 dom'text :: forall t dx x. SText t => t -> MDom dx x Unit
 dom'text = domW'push <<< js_textEl <<< stext
 
-el'key :: forall t dx x. String -> MDomEl'g t dx x Unit
-el'key = attrW'addAttr <<< PKey
+el'Key :: forall dx x. String -> MDomEl dx x Unit
+el'Key = attrW'addAttr <<< PKey
 
-el'id :: forall t dx x. String -> MDomEl'g t dx x Unit
-el'id = attrW'addAttr <<< Id
+el'Id :: forall dx x. String -> MDomEl dx x Unit
+el'Id = attrW'addAttr <<< Id
 
-el'type :: forall t dx x. String -> MDomEl'g t dx x Unit
-el'type = attrW'addAttr <<< Type
+el'Type :: forall dx x. String -> MDomEl dx x Unit
+el'Type = attrW'addAttr <<< Type
 
-el'checked :: forall t dx x. Boolean -> MDomEl'g t dx x Unit
-el'checked = attrW'addAttr <<< Checked
+el'Checked :: forall dx x. Boolean -> MDomEl dx x Unit
+el'Checked = attrW'addAttr <<< Checked
 
-el'tabIndex :: forall t dx x. Int -> MDomEl'g t dx x Unit
-el'tabIndex = attrW'addAttr <<< TabIndex
+el'TabIndex :: forall dx x. Int -> MDomEl dx x Unit
+el'TabIndex = attrW'addAttr <<< TabIndex
 
-el'tabIndex0 :: forall t dx x. MDomEl'g t dx x Unit
-el'tabIndex0 = el'tabIndex 0
+el'TabIndex0 :: forall dx x. MDomEl dx x Unit
+el'TabIndex0 = el'TabIndex 0
 
-el'role :: forall t dx x. String -> MDomEl'g t dx x Unit
-el'role = attrW'addAttr <<< Role
+el'Role :: forall dx x. String -> MDomEl dx x Unit
+el'Role = attrW'addAttr <<< Role
 
-el'roleButton :: forall t dx x. MDomEl'g t dx x Unit
-el'roleButton = el'role "button"
+el'RoleButton :: forall dx x. MDomEl dx x Unit
+el'RoleButton = el'Role "button"
 
-el'target :: forall t dx x. String -> MDomEl'g t dx x Unit
-el'target = attrW'addAttr <<< Target
+el'Target :: forall dx x. String -> MDomEl dx x Unit
+el'Target = attrW'addAttr <<< Target
 
-el'targetBlank :: forall t dx x. MDomEl'g t dx x Unit
-el'targetBlank = el'target "_blank"
+el'TargetBlank :: forall dx x. MDomEl dx x Unit
+el'TargetBlank = el'Target "_blank"
 
-el'href :: forall t dx x. String -> MDomEl'g t dx x Unit
-el'href = attrW'addAttr <<< Href
+el'Href :: forall dx x. String -> MDomEl dx x Unit
+el'Href = attrW'addAttr <<< Href
 
-el'src :: forall t dx x. String -> MDomEl'g t dx x Unit
-el'src = attrW'addAttr <<< Src
+el'Src :: forall dx x. String -> MDomEl dx x Unit
+el'Src = attrW'addAttr <<< Src
 
-el'xmlns :: forall t dx x. String -> MDomEl'g t dx x Unit
-el'xmlns = attrW'addAttr <<< XmlNS
+el'Xmlns :: forall dx x. String -> MDomEl dx x Unit
+el'Xmlns = attrW'addAttr <<< XmlNS
 
-el'viewBox :: forall t dx x. String -> MDomEl'g t dx x Unit
-el'viewBox = attrW'addAttr <<< ViewBox
+el'ViewBox :: forall dx x. String -> MDomEl dx x Unit
+el'ViewBox = attrW'addAttr <<< ViewBox
 
-el'fill :: forall t dx x. String -> MDomEl'g t dx x Unit
-el'fill = attrW'addAttr <<< Fill
+el'Fill :: forall dx x. String -> MDomEl dx x Unit
+el'Fill = attrW'addAttr <<< Fill
 
-el'd :: forall t dx x. String -> MDomEl'g t dx x Unit
-el'd = attrW'addAttr <<< D
+el'D :: forall dx x. String -> MDomEl dx x Unit
+el'D = attrW'addAttr <<< D
 
-el'data :: forall t dx x. String -> String -> MDomEl'g t dx x Unit
-el'data k = attrW'addAttr <<< Data k
+el'Data :: forall dx x. String -> String -> MDomEl dx x Unit
+el'Data k = attrW'addAttr <<< Data k
 
-el'onClick
-  :: forall t dx x. (DomEvent -> MDomEff x Unit) -> MDomEl'g t dx x Unit
-el'onClick f = do
+el'OnClick :: forall dx x. (DomEvent -> MDomEff x Unit) -> MDomEl dx x Unit
+el'OnClick f = do
   self <- dom'getEffSelf
   attrW'addAttr $ OnClick $ \e -> eval'self self $ f e
 
-el'ref
-  :: forall t dx x. (Maybe DomEl -> Eff'At "dom" Unit) -> MDomEl'g t dx x Unit
-el'ref f =
+el'Ref
+  :: forall dx x. (Maybe DomEl -> Eff'At "dom" Unit) -> MDomEl dx x Unit
+el'Ref f =
   attrW'addAttr $ Ref $ unsafePerformEffect <<< eff'untag @"dom" <<< f <<< Just
 
 ---------------------
 
-el'resetStyles :: forall t dx x. MDomEl'g t dx x Unit
-el'resetStyles = attrW'resetStyles
+el'AddStyle :: forall dx x. String -> String -> MDomEl dx x Unit
+el'AddStyle = attrW'addStyle
 
-el'addStyle :: forall t dx x. String -> String -> MDomEl'g t dx x Unit
-el'addStyle = attrW'addStyle
-
-el'addStyles
-  :: forall t m dx x
+el'AddStyles
+  :: forall m dx x
    . Traversable m
   => m (String /\ String)
-  -> MDomEl'g t dx x Unit
-el'addStyles pairs = forM_ pairs \(k /\ v) -> el'addStyle k v
+  -> MDomEl dx x Unit
+el'AddStyles pairs = forM_ pairs \(k /\ v) -> el'AddStyle k v
 
-el'setStyles
-  :: forall t m dx x
+el'SetStyles
+  :: forall m dx x
    . Traversable m
   => m (String /\ String)
-  -> MDomEl'g t dx x Unit
-el'setStyles pairs = el'resetStyles *> el'addStyles pairs
+  -> MDomEl dx x Unit
+el'SetStyles pairs = attrW'resetStyles *> el'AddStyles pairs
 
 ---------------------
 
-el'resetCn :: forall t dx x. MDomEl'g t dx x Unit
-el'resetCn = attrW'resetClassnames
+el'AddCn :: forall dx x. String -> MDomEl dx x Unit
+el'AddCn = attrW'addClassname
 
-el'addCn :: forall t dx x. String -> MDomEl'g t dx x Unit
-el'addCn = attrW'addClassname
-
-el'cn :: forall t dx x. String -> MDomEl'g t dx x Unit
-el'cn cn = el'resetCn *> el'addCn cn
-
----------------------
-
-el'resetM :: forall dx x. MDomEl dx x Unit
-el'resetM = attrW'resetChildren
-
-el'addM :: forall dx x. MDom dx x Unit -> MDomEl dx x Unit
-el'addM m = do
-  self <- x'extract @"self"
-  let els = renderM self m
-  attrW'addChildren els
-
-el'setM :: forall dx x. MDom dx x Unit -> MDomEl dx x Unit
-el'setM m = el'resetM *> el'addM m
+el'Cn :: forall dx x. String -> MDomEl dx x Unit
+el'Cn cn = attrW'resetClassnames *> el'AddCn cn
 
 ------------------------------
 
-dom'div :: MDom_domElement
-dom'div = dom'element "div"
+dom'Div :: MDom_domElement
+dom'Div = dom'Element "div"
 
-dom'a :: MDom_domElement
-dom'a = dom'element "a"
+dom'Div_ :: MDom_domElement'Childless
+dom'Div_ = dom'Element_ "div"
 
-dom'button :: MDom_domElement
-dom'button = dom'element "button"
+dom'A :: MDom_domElement
+dom'A = dom'Element "a"
 
-dom'label :: MDom_domElement
-dom'label = dom'element "label"
+dom'A_ :: MDom_domElement'Childless
+dom'A_ = dom'Element_ "a"
 
-dom'input :: MDom_domElement
-dom'input = dom'element "input"
+dom'Button :: MDom_domElement
+dom'Button = dom'Element "button"
 
-dom'pre :: MDom_domElement
-dom'pre = dom'element "pre"
+dom'Button_ :: MDom_domElement'Childless
+dom'Button_ = dom'Element_ "button"
 
-dom'span :: MDom_domElement
-dom'span = dom'element "span"
+dom'Label :: MDom_domElement
+dom'Label = dom'Element "label"
 
-dom'article :: MDom_domElement
-dom'article = dom'element "article"
+dom'Label_ :: MDom_domElement'Childless
+dom'Label_ = dom'Element_ "label"
 
-dom'iframe :: MDom_domElement
-dom'iframe = dom'element "iframe"
+dom'Input :: MDom_domElement
+dom'Input = dom'Element "input"
 
-dom'img :: MDom_domElement
-dom'img = dom'element "img"
+dom'Input_ :: MDom_domElement'Childless
+dom'Input_ = dom'Element_ "input"
 
-dom'svg :: MDom_domElement
-dom'svg = dom'element "svg"
+dom'Pre :: MDom_domElement
+dom'Pre = dom'Element "pre"
 
-dom'ul :: MDom_domElement
-dom'ul = dom'element "ul"
+dom'Pre_ :: MDom_domElement'Childless
+dom'Pre_ = dom'Element_ "pre"
 
-dom'li :: MDom_domElement
-dom'li = dom'element "li"
+dom'Span :: MDom_domElement
+dom'Span = dom'Element "span"
 
-dom'br :: MDom_domElement'Childless
-dom'br = dom'element'Childless "br"
+dom'Span_ :: MDom_domElement'Childless
+dom'Span_ = dom'Element_ "span"
 
-dom'path :: MDom_domElement'Childless
-dom'path = dom'element'Childless "path"
+dom'Article :: MDom_domElement
+dom'Article = dom'Element "article"
+
+dom'Article_ :: MDom_domElement'Childless
+dom'Article_ = dom'Element_ "article"
+
+dom'Iframe :: MDom_domElement
+dom'Iframe = dom'Element "iframe"
+
+dom'Iframe_ :: MDom_domElement'Childless
+dom'Iframe_ = dom'Element_ "iframe"
+
+dom'Img :: MDom_domElement
+dom'Img = dom'Element "img"
+
+dom'Img_ :: MDom_domElement'Childless
+dom'Img_ = dom'Element_ "img"
+
+dom'Svg :: MDom_domElement
+dom'Svg = dom'Element "svg"
+
+dom'Svg_ :: MDom_domElement'Childless
+dom'Svg_ = dom'Element_ "svg"
+
+dom'Ul :: MDom_domElement
+dom'Ul = dom'Element "ul"
+
+dom'Ul_ :: MDom_domElement'Childless
+dom'Ul_ = dom'Element_ "ul"
+
+dom'Li :: MDom_domElement
+dom'Li = dom'Element "li"
+
+dom'Li_ :: MDom_domElement'Childless
+dom'Li_ = dom'Element_ "li"
+
+dom'Br :: MDom_domElement'Childless
+dom'Br = dom'Element_ "br"
+
+dom'Path :: MDom_domElement'Childless
+dom'Path = dom'Element_ "path"
 
 ------------------------------------------------------------------
 
 op'el'text :: forall t dx x. SText t => MDom_domElement -> t -> MDom dx x Unit
-op'el'text el t = el $ el'addM $ dom'text t
+op'el'text el t = el $ pure $ dom'text t
 
 op'mdom'andText
-  :: forall t dx x. SText t => MDomEl dx x Unit -> t -> MDomEl dx x Unit
-op'mdom'andText m t = m *> el'addM (dom'text t)
+  :: forall t dx x
+   . SText t
+  => MDomEl dx x Unit
+  -> t
+  -> MDomEl dx x (MDom dx x Unit)
+op'mdom'andText m t = m *> pure (dom'text t)
 
 infixr 0 op'el'text as %%
 infixr 0 op'mdom'andText as *%%

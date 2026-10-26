@@ -5,7 +5,8 @@ module Z.CLM.Stats.App
 import Z.XDom.Prelude
 
 import Z.CLM.Stats.Icon
-  ( icon'bars
+  ( IconSize(..)
+  , icon'bars
   , icon'calendar
   , icon'chartColumn
   , icon'magnifyingGlass
@@ -18,9 +19,11 @@ import Z.CLM.Stats.Icon
   , icon'user
   , icon'userGroup
   , icon'xmark
+  , iconBadge'activity
   )
 import Z.CLM.Stats.Route
   ( Filters
+  , Filters'Key(..)
   , PlayerTab
   , Route
   , RoutePage(..)
@@ -32,13 +35,11 @@ import Z.CLM.Stats.Route
   , route'isPlayerPage
   , route'isSamePage
   , route'isStatsPage
-  , route'mk
   , route'mkDefault
   , route'pageKey
   , route'playerPageId
   , route'playerPageTab
   , route'setSort
-  , route'sort
   , route'toggleFilter
   , route'urlEdits
   , route'urlParse
@@ -52,10 +53,14 @@ import Z.CLM.Stats.Types
   , ClmPlayerSeason'Json
   , ClmSeason'Event
   , ClmSeason'Json
+  , ClmSeason'Player
   , ClmSeason'Player'Full
+  , clm'hasRatingConfidence
+  , clm'hasReq'prEvents
   )
+import Z.H2h.Module as H2h
 import Z.XDom.UrlState as UrlSt
-import Z.Z.X.Responds (Responds'Const, responds'run)
+import Z.Z.X.Responds (Responds, Responds'Const, responds'run)
 
 -----------------------------------------------------------------------
 
@@ -65,29 +70,64 @@ data ClmSeason'Error
   = ClmSeason'Error'MissingPlayer Int
   | ClmSeason'Error'MissingEvent SorN
 
+type Or'ClmSeason'Error t = Either ClmSeason'Error t
+
+type ClmSeason'Players'Full = Array ClmSeason'Player'Full
+
 type ClmSeason'Responds = VariantF
   ( events :: Responds'Const (HashMap SorN ClmSeason'Event)
   , players :: Responds'Const (HashMap Int ClmPlayer)
+  , fullPlayers :: Responds'Const (HashMap Int ClmSeason'Player'Full)
+  , playerRanks :: Responds'Const (HashMap Int ClmSeason'Player)
+  , getIsInUse :: Responds Int (Filters -> Boolean)
   , ranksOrE ::
-      Responds'Const (Either ClmSeason'Error (Array ClmSeason'Player'Full))
+      Responds'Const (Or'ClmSeason'Error ClmSeason'Players'Full)
+  , ranksOrESortedBy ::
+      Responds SortBy (Or'ClmSeason'Error ClmSeason'Players'Full)
   )
 
 instance Boxable ClmSeason'Tag ClmSeason'Json ClmSeason'Responds where
   boxable'mkResponds b = varf'match
     { events: responds'run \_ -> keyBy _.eventId $ (boxed'v b).events
     , players: responds'run \_ -> keyBy _.clmId $ (boxed'v b).players
+    , fullPlayers: responds'run \_ -> case (boxed'call_ @"ranksOrE" b) of
+        Left _ -> hm'empty
+        Right ranks -> keyBy _.clmId ranks
+    , getIsInUse: responds'run \clmId -> \filters ->
+        case (hm'lookup clmId $ boxed'call_ @"fullPlayers" b) of
+          Nothing -> false
+          Just p ->
+            p.hasReq'prEvents || not filters.req'prEvents
+    , playerRanks: responds'run \_ -> keyBy _.clmId $ (boxed'v b).ranks
     , ranksOrE: responds'run \_ -> sync'x do
+        x'out "calculating ranks"
         let eventsById = boxed'call_ @"events" b
         let playersById = boxed'call_ @"players" b
-        e'try $ forM ((boxed'v b).ranks) \rank -> do
+        e'try $ forM (boxed'v b).ranks \rank -> do
           let playerErr = ClmSeason'Error'MissingPlayer rank.clmId
           let eventErr = ClmSeason'Error'MissingEvent rank.lastEvent.id
           player <- e'unwrap playerErr $ hm'lookup rank.clmId playersById
           evData <- e'unwrap eventErr $ hm'lookup rank.lastEvent.id eventsById
+          let sets = rank.wins + rank.losses
+          let numWs = toNumber rank.wins
+          let numTot = toNumber sets
+          let winrate = if (sets == 0) then Nothing else Just (numWs / numTot)
           pure
             $ rec'insert @"player" player
+            $ rec'insert @"sets" sets
+            $ rec'insert @"winrate" winrate
+            $ rec'insert @"hasReq'prEvents" (clm'hasReq'prEvents rank)
+            $ rec'insert @"hasRatingConfidence" (clm'hasRatingConfidence rank)
             $ rec'modify @"lastEvent" (\ev -> rec'insert @"data" evData ev)
             $ rank
+    , ranksOrESortedBy: responds'run \sortBy -> do
+        ranks <- boxed'call_ @"ranksOrE" b
+        pure $ flip multisort ranks $ case sortBy of
+          SortBy'Name -> [ sorter _.player.gamerTag ]
+          SortBy'Qual -> []
+          SortBy'Acc -> [ sorter _.winrate, sorter _.sets ]
+          SortBy'Att -> [ sorter _.prEvents, sorter _.sets ]
+          SortBy'Mru -> [ sorter _.lastEvent.data.date ]
     }
 
 type ClmSeason'Boxed = Boxed ClmSeason'Tag
@@ -150,95 +190,97 @@ getAnimateInCn_ = getAnimateInCn false "animate-jump-in"
 borderG3 :: String
 borderG3 = "border-gray-300 dark:border-gray-700"
 
-w'borderG3 :: forall dx x. MDomEl dx x Unit
-w'borderG3 = el'addCn borderG3
+w'BorderG3 :: forall dx x. MDomEl dx x Unit
+w'BorderG3 = el'AddCn borderG3
 
 borderG1 :: String
 borderG1 = "border-gray-100 dark:border-gray-900"
 
-w'borderG1 :: forall dx x. MDomEl dx x Unit
-w'borderG1 = el'addCn borderG1
+w'BorderG1 :: forall dx x. MDomEl dx x Unit
+w'BorderG1 = el'AddCn borderG1
 
 menuCn :: Boolean -> String
 menuCn isActive = w'str'sp \w -> do
   w "active:bg-primary/25 active:dark:bg-primary-content/25"
   w "active:text-base-content"
-  when isActive do
-    w "active bg-primary/25 dark:bg-primary-content/25"
+  when isActive do w "active bg-primary/25 dark:bg-primary-content/25"
 
 nbsp :: String
 nbsp = "\x00A0"
 
 periodMenu :: forall dx x. String -> ClmDom dx x Unit
 periodMenu ulCn = do
-  dom'ul do
-    el'tabIndex (-1)
-    el'addCn "menu"
-    el'addCn ulCn
-    liEl route'gotoStats icon'chartColumn "Stats"
-    liEl route'gotoPlayer icon'user "Players"
-    liEl (s'set'b @"!.page" Compare) icon'userGroup "Compare"
-    liEl (s'set'b @"!.page" H2hGrid) icon'tableCells "H2h"
+  dom'Ul do
+    el'TabIndex (-1)
+    el'AddCn "menu"
+    el'AddCn ulCn
+    pure do
+      liEl route'gotoStats icon'chartColumn "Stats"
+      liEl route'gotoPlayer icon'user "Players"
+      liEl (s'set'b @"!.page" Compare) icon'userGroup "Compare"
+      liEl (s'set'b @"!.page" H2hGrid) icon'tableCells "H2h"
   where
   liEl edits icon text = do
     currRoute <- x'extract @"route"
     editRoute <- x'extract @"editRoute"
     let linkedRoute = editRoute edits
     let isActive = route'isSamePage currRoute linkedRoute
-    el'addM $ dom'li do
-      el'key text
-      el'addM $ dom'a do
-        el'cn $ menuCn isActive
+    dom'Li do
+      el'Key text
+      pure $ dom'A do
+        el'Cn $ menuCn isActive
         router'setHref linkedRoute
-        el'addM $ icon pass
-        el'addM $ dom'text $ nbsp <> text
+        pure do icon pass *> do dom'text $ nbsp <> text
 
 playerSearch :: forall dx x. ClmDom dx x Unit
 playerSearch = do
   route <- x'extract @"route"
   let isStatsPage = route'isStatsPage route
-  dom'div do
-    el'addCn "dropdown"
-    el'addM $ dom'label do
-      el'addCn "group input h-9 border-0 px-2 rounded-none"
-      el'addCn "transition transition-transform duration-300 shadow-none"
-      el'addCn "relative outline-hidden focus-within:outline-solid"
-      el'addCn $ if isStatsPage then "translate-x-8" else "translate-x-0"
-      el'setStyles
-        [ "outlineOffset" /\ "-6px"
-        , "outlineWidth" /\ "2px"
-        ]
-      el'addM $ icon'magnifyingGlass $ el'cn "size-4"
-      el'addM $ dom'input do
-        el'tabIndex0
-        el'type "text"
-      el'addM $ dom'div do
-        el'key "outline-spacer"
-        el'addCn "hidden absolute top-[5px] right-[calc(2rem_-_1px)]"
-        el'addCn "w-[5px] h-[calc(100%_-_10px)]"
-        when isStatsPage $ el'addCn "group-focus-within:block"
-        el'setStyles
-          [ "outlineStyle" /\ "inherit"
-          , "outlineOffset" /\ "0px"
-          , "outlineWidth" /\ "0px"
+  dom'Div do
+    el'AddCn "dropdown"
+    pure do
+      dom'Label do
+        el'AddCn "group input h-9 border-0 px-2 rounded-none"
+        el'AddCn "transition transition-transform duration-300 shadow-none"
+        el'AddCn "relative outline-hidden focus-within:outline-solid"
+        el'AddCn $ if isStatsPage then "translate-x-8" else "translate-x-0"
+        el'SetStyles
+          [ "outlineOffset" /\ "-6px"
+          , "outlineWidth" /\ "2px"
           ]
-        el'addM $ dom'div do
-          el'addCn "absolute w-0 h-full top-0 -right-px"
-          el'addCn "outline-white dark:outline-black"
-          el'setStyles
-            [ "outlineStyle" /\ "inherit"
-            , "outlineOffset" /\ "0px"
-            , "outlineWidth" /\ "5px"
-            ]
-        el'addM $ dom'div do
-          el'addCn "absolute w-0 h-full top-0 left-px"
-          el'addCn "outline-black dark:outline-white"
-          el'setStyles
-            [ "outlineStyle" /\ "inherit"
-            , "outlineOffset" /\ "0px"
-            , "outlineWidth" /\ "1px"
-            ]
-    el'addM $ dom'div do pure unit
+        pure do
+          icon'magnifyingGlass $ s'put Size4
+          dom'Input_ do
+            el'TabIndex0
+            el'Type "text"
+          dom'Div do
+            el'Key "outline-spacer"
+            el'AddCn "hidden absolute top-[5px] right-[calc(2rem_-_1px)]"
+            el'AddCn "w-[5px] h-[calc(100%_-_10px)]"
+            when isStatsPage $ el'AddCn "group-focus-within:block"
+            el'SetStyles
+              [ "outlineStyle" /\ "inherit"
+              , "outlineOffset" /\ "0px"
+              , "outlineWidth" /\ "0px"
+              ]
+            pure do
+              dom'Div_ do
+                el'AddCn "absolute w-0 h-full top-0 -right-px"
+                el'AddCn "outline-white dark:outline-black"
+                el'SetStyles
+                  [ "outlineStyle" /\ "inherit"
+                  , "outlineOffset" /\ "0px"
+                  , "outlineWidth" /\ "5px"
+                  ]
+              dom'Div_ do
+                el'AddCn "absolute w-0 h-full top-0 left-px"
+                el'AddCn "outline-black dark:outline-white"
+                el'SetStyles
+                  [ "outlineStyle" /\ "inherit"
+                  , "outlineOffset" /\ "0px"
+                  , "outlineWidth" /\ "1px"
+                  ]
+      dom'Div_ do pure unit
 
 type TableCell dx x = MDom dx x Unit
 
@@ -247,30 +289,30 @@ type TableCells dx x = Array (TableCell dx x)
 pageTableRow
   :: forall dx x. String -> String -> TableCells dx x -> MDom dx x Unit
 pageTableRow rowKey rowCn cells = do
-  dom'div do
-    el'key rowKey
-    el'cn $ "table text-base w-[100%] min-w-240 " <> rowCn
-    el'addM $ dom'div do
-      el'cn "table-row"
-      el'addM do
-        dom'div $ el'cn "relative table-cell w-22" *> cell 0
-        dom'div $ el'cn "relative table-cell min-w-80 w-auto" *> cell 1
-        dom'div $ el'cn "relative table-cell w-28" *> cell 2
-        dom'div $ el'cn "relative table-cell w-28" *> cell 3
-        dom'div $ el'cn "relative table-cell w-28" *> cell 4
-        dom'div do
-          el'setStyles [ "width" /\ "max(16rem, 18vw)" ]
-          el'cn "relative table-cell"
+  dom'Div do
+    el'Key rowKey
+    el'Cn $ "table text-base w-[100%] min-w-240 " <> rowCn
+    pure $ dom'Div do
+      el'Cn "table-row"
+      pure do
+        dom'Div $ el'Cn "relative table-cell w-22" *> cell 0
+        dom'Div $ el'Cn "relative table-cell min-w-80 w-auto" *> cell 1
+        dom'Div $ el'Cn "relative table-cell w-28" *> cell 2
+        dom'Div $ el'Cn "relative table-cell w-28" *> cell 3
+        dom'Div $ el'Cn "relative table-cell w-28" *> cell 4
+        dom'Div do
+          el'SetStyles [ "width" /\ "max(16rem, 18vw)" ]
+          el'Cn "relative table-cell"
           cell 5
   where
   cell i = do
     let isStart = i == 1 || i == 5
     let mcell = may'or pass $ nth cells i
-    el'addM $ dom'div do
-      el'addCn "left-0 top-0 absolute h-full w-full flex items-center"
-      el'addCn $ if isStart then "justify-start" else "justify-center"
-      when (i == 5) do el'addCn "px-1"
-      el'addM $ mcell
+    pure $ dom'Div do
+      el'AddCn "left-0 top-0 absolute h-full w-full flex items-center"
+      el'AddCn $ if isStart then "justify-start" else "justify-center"
+      when (i == 5) do el'AddCn "px-1"
+      pure mcell
 
 type TableRowProps dx x =
   { key :: String
@@ -283,6 +325,7 @@ type TableRowProps dx x =
   , qual :: ClmDom dx x Unit
   , acc :: ClmDom dx x Unit
   , att :: ClmDom dx x Unit
+  , attTooltip :: Maybe $ ClmDom dx x Unit
   , mruLink :: ClmDom dx x Unit
   , mruPlacing :: ClmDom dx x Unit
   , mruDate :: ClmDom dx x Unit
@@ -291,60 +334,70 @@ type TableRowProps dx x =
 tableContentRow
   :: forall dx x. Maybe Int -> TableRowProps dx x -> ClmDom dx x Unit
 tableContentRow clmIdOr_ props = do
-  let baseCn = "h-25 border-gray-300 dark:border-gray-700 rounded-none"
+  let baseCn = "h-25 rounded-none" <+> borderG3
   let fullCn = baseCn <+> props.cn
   pageTableRow props.key fullCn
-    [ dom'div do
-        el'cn "font-extrabold text-4xl"
-        el'addM props.ord
+    [ dom'Div do
+        el'Cn "font-extrabold text-4xl"
+        pure props.ord
     , do
         editRoute <- x'extract @"editRoute"
         let
           topCn = w'str'sp \w -> do
             w "flex items-center justify-start flex-1"
             when (isJust clmIdOr_) $ w "group"
-          body = do
-            dom'div $ el'cn "w-2"
-            dom'div do
-              el'addCn "h-13 w-13 rounded-full overflow-hidden shadow-md"
-              el'addCn "transition transition-shadow transition-colors"
-              el'addCn "duration-300 group-hover:shadow-primary/33"
-              el'addM props.profileImage
-            dom'div $ el'cn "w-4"
-            dom'div do
-              el'cn
+          useBody tag m = tag $ el'Cn topCn *> m *> pure do
+            dom'Div_ $ el'Cn "w-2"
+            dom'Div do
+              el'AddCn "h-13 w-13 rounded-full overflow-hidden shadow-md"
+              el'AddCn "transition transition-shadow transition-colors"
+              el'AddCn "duration-300 group-hover:shadow-primary/33"
+              pure props.profileImage
+            dom'Div_ $ el'Cn "w-4"
+            dom'Div do
+              el'Cn
                 "flex flex-col justify-center flex-1 relative overflow-hidden"
-              el'addM $ dom'div do
-                el'addCn "whitespace-nowrap text-xl font-bold"
-                el'addCn "text-primary group-hover:underline"
-                el'addM props.name
-              whenJust props.pronouns \pronouns -> el'addM $ dom'div do
-                el'cn "text-sm"
-                el'addM pronouns
-              whenJust props.characters \characters -> el'addM $ dom'div do
-                el'addM characters
-          useBody tag m = tag $ el'cn topCn *> m *> el'addM body
+              pure do
+                dom'Div do
+                  el'AddCn "whitespace-nowrap text-xl font-bold"
+                  el'AddCn "text-primary group-hover:underline"
+                  pure props.name
+                whenJust props.pronouns \pronouns -> dom'Div do
+                  el'Cn "text-sm"
+                  pure pronouns
+                whenJust props.characters \characters -> dom'Div do
+                  pure characters
         case clmIdOr_ of
           Just clmId -> do
-            useBody dom'a $ router'setHref
+            useBody dom'A $ router'setHref
               (editRoute $ route'gotoPlayer *> s'setPure'b @"!.clmIds" clmId)
-          _ -> useBody dom'div $ pure unit
-    , dom'div $ el'addM props.qual
-    , dom'div $ el'addM props.acc
-    , dom'div $ el'addM props.att
-    , dom'div do
-        el'cn "flex flex-col overflow-hidden"
-        el'addM do
-          dom'div do
-            el'cn "overflow-hidden whitespace-nowrap text-ellipsis"
-            el'addM props.mruLink
-          dom'div do
-            el'cn "overflow-hidden whitespace-nowrap text-sm text-ellipsis"
-            el'addM props.mruPlacing
-          dom'div do
-            el'cn "overflow-hidden whitespace-nowrap text-sm text-ellipsis"
-            el'addCn "opacity-75"
-            el'addM props.mruDate
+          _ -> useBody dom'Div $ pure unit
+    , dom'Div $ pure props.qual
+    , dom'Div $ pure props.acc
+    , dom'Div do
+        el'Cn "h-full w-full flex justify-center items-center"
+        when (isJust props.attTooltip) do
+          el'Cn "dropdown dropdown-hover dropdown-bottom dropdown-end"
+        pure do
+          props.att
+          whenJust props.attTooltip \attTooltip -> do
+            dom'Div do
+              el'AddCn "dropdown-content rounded shadow-sm"
+              el'AddCn "p-2 w-76 bg-base-200 z-50"
+              pure attTooltip
+    , dom'Div do
+        el'Cn "flex flex-col overflow-hidden"
+        pure do
+          dom'Div do
+            el'Cn "overflow-hidden whitespace-nowrap text-ellipsis"
+            pure props.mruLink
+          dom'Div do
+            el'Cn "overflow-hidden whitespace-nowrap text-sm text-ellipsis"
+            pure props.mruPlacing
+          dom'Div do
+            el'Cn "overflow-hidden whitespace-nowrap text-sm text-ellipsis"
+            el'AddCn "opacity-75"
+            pure props.mruDate
     ]
 
 getClmRng :: forall dx x. String -> ClmDom dx x (Array String -> Number)
@@ -361,7 +414,7 @@ rngSkel key cn l h = do
   let skelSize = show $ trunc3 $ l + ((h - l) * skelRng)
   let skelWidth = skelSize <> "rem"
   let skelStyle = [ "width" /\ skelWidth ]
-  dom'div $ el'addCn "skeleton" *> el'addCn cn *> el'setStyles skelStyle
+  dom'Div_ $ el'AddCn "skeleton" *> el'AddCn cn *> el'SetStyles skelStyle
 
 tableSkelRow :: forall dx x. Int -> ClmDom dx x Unit
 tableSkelRow id = do
@@ -370,21 +423,27 @@ tableSkelRow id = do
   let rngGate s lim m = if clmRng [ s ] > lim then Nothing else Just m
   tableContentRow Nothing
     { key
-    , cn: "h-25 border-gray-300 dark:border-gray-700 rounded-none "
-    , ord: dom'div $ el'cn "skeleton h-6 w-10"
-    , profileImage: dom'div $ el'cn "skeleton h-full w-full"
+    , cn: "h-25 rounded-none" <+> borderG3
+    , ord: dom'Div_ $ el'Cn "skeleton h-6 w-10"
+    , profileImage: dom'Div_ $ el'Cn "skeleton h-full w-full"
     , name: rngSkel key "h-4" 5.0 7.5
     , pronouns: rngGate "pronouns" 0.7 $ rngSkel key "h-3" 2.0 2.5
-    , characters: rngGate "char" 0.8 $ dom'div $ el'cn "skeleton h-3 w-3"
+    , characters: rngGate "char" 0.8 $ dom'Div_ $ el'Cn "skeleton h-3 w-3"
     , qual: rngSkel key "h-4" 2.75 3.25
-    , acc: dom'div $ el'cn "flex gap-1" *> el'addM do
+    , acc: dom'Div $ el'Cn "flex gap-1" *> pure do
         rngSkel key "h-4" 1.201 1.799
         rngSkel key "h-4" 1.199 1.801
     , att: rngSkel key "h-4" 2.0 2.55
+    , attTooltip: Nothing
     , mruLink: rngSkel key "h-4" 4.25 7.25
     , mruPlacing: rngSkel key "h-3" 1.85 2.15
     , mruDate: rngSkel key "h-3" 1.35 1.65
     }
+
+eventUrl :: ClmSeason'Event -> String
+eventUrl { source: { site, slug } } = case site of
+  H2h.Startgg -> "https://start.gg/" <> slug
+  H2h.Challonge -> "https://challonge.com/" <> slug
 
 tablePlayerRow :: forall dx x. ClmSeason'Player'Full -> ClmDom dx x Unit
 tablePlayerRow p = do
@@ -392,15 +451,30 @@ tablePlayerRow p = do
     { key: "player." <:> p.clmId
     , cn: ""
     , ord: dom'text $ may'or "-" $ p.clmRank <#> show
-    , profileImage: dom'div $ el'cn "h-full w-full"
+    , profileImage: dom'Div_ $ el'Cn "h-full w-full"
     , name: dom'text $ p.player.gamerTag
     , pronouns: Just $ dom'text $ "xD"
     , characters: Just $ dom'text $ "xD"
-    , qual: dom'text $ "877"
-    , acc: dom'text $ "1 - 2"
-    , att: dom'text $ "xD"
-    , mruLink: dom'text $ "xD"
-    , mruPlacing: dom'text $ "xD"
+    , qual: dom'text $ p.rating
+    , acc: dom'text $ p.wins <+> "-" <+> p.losses
+    , att: dom'Div do
+        el'Cn "flex items-center"
+        pure do
+          dom'text $ p.prEvents
+          dom'Div $ (*>) (el'Cn "relative") $ pure $ dom'Div do
+            el'Cn "absolute top-0 left-0 flex items-center"
+            pure $ whenNot p.hasReq'prEvents do
+              dom'Span do
+                el'Cn "flex items-center relative bottom-4"
+                pure $ dom'text nbsp *> iconBadge'activity (s'put Size4)
+    , attTooltip: Nothing
+    , mruLink: dom'A do
+        el'Cn "nowrap text-primary hover:underline"
+        el'TargetBlank
+        el'Href $ eventUrl p.lastEvent.data
+        pure $ dom'text p.lastEvent.data.tournamentName
+    , mruPlacing: dom'text $
+        (ordinal p.lastEvent.placing <+> "of" <+> p.lastEvent.data.numEntrants)
     , mruDate: dom'text $ "xD"
     }
 
@@ -409,12 +483,12 @@ page'stats sort filters = do
   seasonId <- x'extract @"route" <#> g_ @"!.seasonId"
   seasonOr_ <- domFetchCache'lookup @"clmSeasons" seasonId
   animateInCn <- getAnimateInCn false "animate-flip-down"
-  dom'div do
-    el'cn "sticky z-30 top-16"
-    el'addM $ pageTableRow
+  dom'Div do
+    el'Cn "sticky z-30 top-16"
+    pure $ pageTableRow
       "headers"
       ("h-10 rounded-none border-b-2 bg-base-300" <+> borderG3 <+> animateInCn)
-      [ dom'span $ el'cn "font-bold" *%% "#"
+      [ dom'Span $ el'Cn "font-bold" *> do pure $ dom'text "#"
       , tableHead SortBy'Name
       , tableHead SortBy'Qual
       , tableHead SortBy'Acc
@@ -422,64 +496,67 @@ page'stats sort filters = do
       , tableHead SortBy'Mru
       ]
   let mkRankKey s rank = s <> "." <:> rank.clmId
-  dom'div do
-    el'cn "relative"
-    el'addM $ case seasonOr_ of
+  dom'Div do
+    el'Cn "relative"
+    pure case seasonOr_ of
       FetchCache'ValState'Loading _ -> do
         forM_ (arr'range 1 17) \id -> tableSkelRow id
       FetchCache'ValState'Error err _ -> do
         domError'fail $ ClmDom'Err'LoadSeason seasonId err
       FetchCache'ValState'Val season -> do
-        let ranksOrE = boxed'call_ @"ranksOrE" season
+        let ranksOrE = boxed'call @"ranksOrESortedBy" season sort.by
         ranks <- domError'ok $ mapL (ClmDom'Err'FullSeason seasonId) ranksOrE
-        forM_ ranks \rank -> dom'div do
-          el'key $ mkRankKey "rel" rank
-          el'addCn "h-25 w-[100%] min-w-240 border-b-1"
-          el'addCn "border-gray-300 dark:border-gray-700 rounded-none"
+        forM_ ranks \rank -> dom'Div_ do
+          el'Key $ mkRankKey "rel" rank
+          el'Cn "h-25 w-[100%] min-w-240 border-b-1 rounded-none" *> w'BorderG3
         forM_ (arr'withInd ranks) \(rankInd /\ rank) -> do
-          let isInUse = true
+          let isInUse = boxed'call @"getIsInUse" season rank.clmId filters
           dom'withKey (mkRankKey "abs" rank) do
             dom'withNewRef Nothing \getRef setRef -> do
-              dom'div do
+              domEff'every'lead do
+                x'do getRef >>= flip whenJust \ref -> do
+                  domEff'el'classList'rm ref "hidden"
+                  domEff'el'classList'rm ref "animate-jump-out"
+                  pure unit
+              dom'Div do
                 let offset = 6.25 * toNumber rankInd
-                el'addCn "w-[100%] h-[calc(6.25rem_-_1px)]"
-                el'addCn "min-w-240 absolute top-0 left-0"
-                whenNot isInUse $ el'addCn "pointer-events-none"
-                el'addStyle "transform" $ "translateY(" <:> offset <:> "rem)"
-                el'addM $ dom'div do
-                  el'ref setRef
-                  el'addCn "w-[100%] h-[100%] absolute top-0 left-0"
-                  whenNot isInUse $ el'addCn "pointer-events-none"
-                  el'addM $ tablePlayerRow rank
+                el'AddCn "w-[100%] h-[calc(6.25rem_-_1px)]"
+                el'AddCn "min-w-240 absolute top-0 left-0"
+                whenNot isInUse $ el'AddCn "pointer-events-none"
+                el'AddStyle "transform" $ "translateY(" <:> offset <:> "rem)"
+                pure $ dom'Div do
+                  el'Ref setRef
+                  el'AddCn "w-[100%] h-[100%] absolute top-0 left-0"
+                  whenNot isInUse $ el'AddCn "pointer-events-none"
+                  pure $ tablePlayerRow rank
 
   where
   tableHead sortBy = do
     editRoute <- x'extract @"editRoute"
-    let s4 = "size-4"
+    let s4 = s'put Size4
     let isCurr = sort.by == sortBy
     let isPos = sort.dir == Pos
     let dir = if isCurr then pairKey'inv sort.dir else sortBy'defaultDir sortBy
     let targetSort = { dir, by: sortBy }
-    dom'a do
+    dom'A do
       router'setHref $ editRoute $ route'setSort targetSort
-      el'addCn "group transition ease-in-out duration-300 whitespace-nowrap"
-      el'addCn "flex font-bold hover:underline hover:text-primary items-center"
-      when isCurr $ el'addCn "text-primary underline"
-      el'addM $ dom'text $ sortBy'title sortBy <> nbsp
-      el'addM $ dom'span do
-        el'cn "relative"
-        el'addM $ dom'span do
-          el'cn $ isCurr ? "group-hover:opacity-25" $ "group-hover:opacity-0"
-          el'addM do
-            if isCurr then
-              isPos ? icon'sortUp (el'cn s4) $ icon'sortDown (el'cn s4)
-            else icon'sort (el'cn s4)
-        el'addM $ dom'div do
-          el'addCn "absolute top-0 left-0 w-full h-full"
-          el'addCn "flex justify-center items-center"
-          el'addCn "hidden group-hover:block"
-          el'addM do
-            dir == Pos ? icon'sortUp (el'cn s4) $ icon'sortDown (el'cn s4)
+      el'AddCn "group transition ease-in-out duration-300 whitespace-nowrap"
+      el'AddCn "flex font-bold hover:underline hover:text-primary items-center"
+      when isCurr $ el'AddCn "text-primary underline"
+      pure do
+        dom'text $ sortBy'title sortBy <> nbsp
+        dom'Span $ el'Cn "relative" *> pure do
+          dom'Span do
+            el'Cn $ isCurr ? "group-hover:opacity-25" $ "group-hover:opacity-0"
+            pure do
+              if isCurr then isPos ? icon'sortUp s4 $ icon'sortDown s4
+              else icon'sort s4
+          dom'Div do
+            el'AddCn "absolute top-0 left-0 w-full h-full"
+            el'AddCn "flex justify-center items-center"
+            el'AddCn "hidden group-hover:block"
+            pure do
+              dir == Pos ? icon'sortUp s4 $ icon'sortDown s4
 
 page'player :: forall dx x. PlayerTab -> ClmDom dx x Unit
 page'player tab = do
@@ -502,127 +579,143 @@ app'body = do
   let isH2hPage = route'isH2hPage route
   let isStatsPage = route'isStatsPage route
   animateInCn <- getAnimateInCn_
-  dom'div do
-    el'addCn "container overflow-hidden max-w-290 rounded-none min-h-screen"
-    el'addCn "mx-auto px-0 card bg-base-100 shadow-xl m-4 my-0"
-    el'addM $ dom'div do
-      el'addCn "w-auto max-w-screen min-h-screen max-h-screen"
-      whenNot isH2hPage $ el'addCn "overflow-scroll"
-      el'addM $ dom'div do
-        el'addCn
-          "flex max-w-screen flex-col self-stretch sticky z-750 left-0 top-0"
-        el'addM $ dom'div do
-          el'id "navbar"
-          el'addCn "navbar h-15 border-b-2" *> w'borderG3
-          el'addCn "relative z-50 p-2 py-0 bg-base-200 shadow-sm"
-          el'addM $ dom'div do
-            el'cn "navbar-start relative w-auto gap-1 lg:gap-2"
-            el'addM $ dom'div do
-              el'addCn "lg:hidden rounded-md" *> w'borderG1
-              el'addCn "absolute -top-px left-0 w-27"
-              el'addCn $ if isStatsPage then "border-0" else "border-1"
-              whenNot isStatsPage do
-                el'addM $ dom'a do
-                  router'setHref $ editRoute route'gotoStats
-                  el'roleButton
-                  el'targetBlank
-                  el'tabIndex0
-                  el'addCn $ "btn btn-soft btn-outline" <> animateInCn
-                  el'addCn "px-0 w-full whitespace-nowrap" *> w'borderG3
-                  el'addM $ dom'pre %% "⬑"
-                  el'addM $ dom'span $ el'cn "text-xs" *%% title
-            el'addM $ dom'a do
-              el'href "https://chicagomelee.com/"
-              el'targetBlank
-              el'roleButton
-              el'addCn "btn btn-ghost px-1 transition transition-transform"
-              el'addCn if isStatsPage then "translate-x-0" else "translate-x-29"
-              el'addCn "lg:translate-x-0"
-              el'addM do
-                dom'img $ el'cn "w-8 h-8" *> el'src "/favicon.ico"
-                dom'span $ el'cn "hidden lg:inline" *%% "CLM"
-            el'addM do
-              dom'span do
-                el'addCn "w-27 lg:hidden"
-                el'addCn if isStatsPage then "hidden" else "inline"
-              periodMenu "menu-horizontal hidden lg:flex px-1 gap-2"
-              dom'div $ el'cn "w-1"
-          el'addM $ dom'div do
-            el'addCn "navbar-end flex-1 gap-4 overflow-hidden rounded-r-md"
-            el'addCn "hover:overflow-visible focus-within:overflow-visible"
-            el'addM $ dom'div do
-              el'addCn "rounded-md flex items-stretch border-1 border-white"
-              el'addCn "bg-gray-300 dark:bg-gray-700 dark:border-black"
-              el'addM $ dom'div do
-                el'addCn "group overflow-hidden relative rounded-l-sm border-1"
-                el'addCn "border-r-transparent focus-within:overflow-visible"
-                el'addCn "border-gray-300 dark:border-gray-700 bg-base-300"
-                when isStatsPage $ el'addCn "hover:overflow-visible"
-                el'addM $ dom'div do
-                  el'addCn "absolute top-0 left-0 h-full w-full"
-                  whenNot isStatsPage $
-                    el'addCn "group-focus-within:overflow-hidden"
-                  el'addM $ dom'div do
-                    el'cn "absolute z-15 right-[-2px] top-0 h-full"
-                  -- TODO ActivePlayerIcons
-                  el'addM $ dom'a do
-                    router'setHref $ editRoute $
-                      route'toggleFilter @"insufficientAttendance"
-                    el'data "tip" "test tooltip" -- TODO tooltip
-                    el'addM $ dom'button do
-                      el'tabIndex0
-                      el'roleButton
-                      el'addCn "relative btn-sm border-0 btn-soft duration-500"
-                      el'addCn "rounded-l-xs p-px w-8 h-full hover:bg-base-200"
-                      el'addCn "transition transition-colors rounded-r-none btn"
-                      el'addM $ dom'div do
-                        el'cn "relative"
-                        el'addM $ dom'div do
-                          el'addCn "absolute -bottom-3 left-0 w-full h-full"
-                          el'addCn "flex justify-center align-center"
-                          el'addM $ dom'label do
-                            el'cn "swap swap-rotate h-3 w-3"
-                            el'addM $ dom'input do
-                              el'type "checkbox"
-                            el'addM $ dom'div do
-                              el'cn "swap-on text-accent"
-                              el'addM do
-                                icon'minus $ el'cn "h-3 w-3 opacity-50"
-                            el'addM $ dom'div do
-                              el'cn "swap-off text-secondary"
-                              el'addM do
-                                icon'xmark $ el'cn "h-3 w-3"
-                        el'addM $ icon'turnDown do
-                          el'cn
-                            "w-4 h-4 relative -top-1 border-b-0 text-warning"
-                el'addM $ playerSearch
-              el'addM $ dom'div do
-                el'key $ route'pageKey route
-                el'addCn "lg:hidden dropdown dropdown-hover dropdown-end"
-                el'addCn "join-item border" *> w'borderG3
-                el'addM $ dom'button do
-                  el'tabIndex0
-                  el'roleButton
-                  el'cn "btn px-1 btn-sm h-full btn-soft rounded-none border-0"
-                  el'addM $ icon'bars pass
-                pure unit -- TODO periodMenu
-              el'addM $ dom'div do
-                el'key $ show $ g_ @"!.seasonId" route
-                el'addCn "dropdown dropdown-hover dropdown-end"
-                el'addCn "join-item border rounded-r-md" *> w'borderG3
-                el'addM $ dom'button do
-                  el'tabIndex0
-                  el'roleButton
-                  el'addCn "btn px-1 btn-sm h-full btn-soft"
-                  el'addCn "rounded-none border-0 rounded-r-sm"
-                  el'addM $ icon'calendar pass
-                pure unit -- TODO periodMenu
-      el'addM $ domError'bind (const $ pure unit) do
-        case g_ @"!.page" route of
-          Stats sort filters -> page'stats sort filters
-          Player tab -> page'player tab
-          Compare -> page'compare
-          H2hGrid -> page'h2h
+  dom'Div do
+    el'AddCn "container overflow-hidden max-w-290 rounded-none min-h-screen"
+    el'AddCn "mx-auto px-0 card bg-base-100 shadow-xl m-4 my-0"
+    pure $ dom'Div do
+      el'AddCn "w-auto max-w-screen min-h-screen max-h-screen"
+      whenNot isH2hPage $ el'AddCn "overflow-scroll"
+      pure do
+        dom'Div do
+          el'AddCn "flex flex-col self-stretch"
+          el'AddCn "max-w-screen sticky z-750 left-0 top-0"
+          pure $ dom'Div do
+            el'Id "navbar"
+            el'AddCn "navbar h-15 border-b-2" *> w'BorderG3
+            el'AddCn "relative z-50 p-2 py-0 bg-base-200 shadow-sm"
+            pure do
+              dom'Div do
+                el'Cn "navbar-start relative w-auto gap-1 lg:gap-2"
+                pure do
+                  dom'Div do
+                    el'AddCn "lg:hidden rounded-md" *> w'BorderG1
+                    el'AddCn "absolute -top-px left-0 w-27"
+                    el'AddCn $ if isStatsPage then "border-0" else "border-1"
+                    pure $ whenNot isStatsPage $ dom'A do
+                      router'setHref $ editRoute route'gotoStats
+                      el'RoleButton
+                      el'TargetBlank
+                      el'TabIndex0
+                      el'AddCn $ "btn btn-soft btn-outline" <> animateInCn
+                      el'AddCn "px-0 w-full whitespace-nowrap" *> w'BorderG3
+                      pure do
+                        dom'Pre do pure (dom'text "⬑")
+                        dom'Span do el'Cn "text-xs" *> pure (dom'text title)
+                  dom'A do
+                    el'Href "https://chicagomelee.com/"
+                    el'TargetBlank
+                    el'RoleButton
+                    el'AddCn
+                      "btn btn-ghost px-1 transition transition-transform"
+                    el'AddCn
+                      if isStatsPage then "translate-x-0" else "translate-x-29"
+                    el'AddCn "lg:translate-x-0"
+                    pure do
+                      dom'Img_ $ el'Cn "w-8 h-8" *> el'Src "/favicon.ico"
+                      dom'Span do
+                        el'Cn "hidden lg:inline" *> pure (dom'text "CLM")
+                  dom'Span_ do
+                    el'AddCn "w-27 lg:hidden"
+                    el'AddCn if isStatsPage then "hidden" else "inline"
+                  periodMenu "menu-horizontal hidden lg:flex px-1 gap-2"
+                  dom'Div_ $ el'Cn "w-1"
+              dom'Div do
+                el'AddCn "navbar-end flex-1 gap-4 overflow-hidden rounded-r-md"
+                el'AddCn "hover:overflow-visible focus-within:overflow-visible"
+                pure $ dom'Div do
+                  el'AddCn "rounded-md flex items-stretch border-1 border-white"
+                  el'AddCn "bg-gray-300 dark:bg-gray-700 dark:border-black"
+                  pure do
+                    dom'Div do
+                      el'AddCn "group overflow-hidden relative rounded-l-sm"
+                      el'AddCn "focus-within:overflow-visible bg-base-300"
+                      el'AddCn "border-1 border-r-transparent" *> w'BorderG3
+                      when isStatsPage $ el'AddCn "hover:overflow-visible"
+                      pure do
+                        dom'Div do
+                          el'AddCn "absolute top-0 left-0 h-full w-full"
+                          whenNot isStatsPage $
+                            el'AddCn "group-focus-within:overflow-hidden"
+                          pure do
+                            dom'Div do
+                              el'Cn "absolute z-15 right-[-2px] top-0 h-full"
+                              -- TODO ActivePlayerIcons
+                              pure $ pure unit
+                            dom'A do
+                              router'setHref $ editRoute $
+                                route'toggleFilter Filters'att
+                              el'Data "tip" "test tooltip" -- TODO tooltip
+                              pure $ dom'Button do
+                                el'TabIndex0
+                                el'RoleButton
+                                el'AddCn "relative btn-sm border-0 btn-soft"
+                                el'AddCn "duration-500 h-full transition"
+                                el'AddCn
+                                  "rounded-l-xs p-px w-8 hover:bg-base-200"
+                                el'AddCn "transition-colors rounded-r-none btn"
+                                pure $ dom'Div do
+                                  el'Cn "relative"
+                                  pure do
+                                    dom'Div do
+                                      el'AddCn "absolute -bottom-3 left-0"
+                                      el'AddCn "w-full h-full"
+                                      el'AddCn
+                                        "flex justify-center align-center"
+                                      pure $ dom'Label do
+                                        el'Cn "swap swap-rotate h-3 w-3"
+                                        pure do
+                                          dom'Input_ do el'Type "checkbox"
+                                          dom'Div do
+                                            el'Cn "swap-on text-accent"
+                                            pure $ icon'minus do
+                                              w'say "h-3 w-3 opacity-50"
+                                          dom'Div do
+                                            el'Cn "swap-off text-secondary"
+                                            pure do icon'xmark $ w'say "h-3 w-3"
+                                    icon'turnDown do
+                                      w'say "w-4 h-4 relative -top-1"
+                                      w'say "border-b-0 text-warning"
+                        playerSearch
+                    dom'Div do
+                      el'Key $ route'pageKey route
+                      el'AddCn "lg:hidden dropdown dropdown-hover dropdown-end"
+                      el'AddCn "join-item border" *> w'BorderG3
+                      pure $ do
+                        dom'Button do
+                          el'TabIndex0
+                          el'RoleButton
+                          el'AddCn "btn px-1 btn-sm h-full"
+                          el'AddCn "btn-soft rounded-none border-0"
+                          pure $ icon'bars pass
+                        pure unit -- TODO periodMenu
+                    dom'Div do
+                      el'Key $ show $ g_ @"!.seasonId" route
+                      el'AddCn "dropdown dropdown-hover dropdown-end"
+                      el'AddCn "join-item border rounded-r-md" *> w'BorderG3
+                      pure do
+                        dom'Button do
+                          el'TabIndex0
+                          el'RoleButton
+                          el'AddCn "btn px-1 btn-sm h-full btn-soft"
+                          el'AddCn "rounded-none border-0 rounded-r-sm"
+                          pure $ icon'calendar pass
+                        pure unit -- TODO periodMenu
+        domError'bind (const $ pure unit) do
+          case g_ @"!.page" route of
+            Stats sort filters -> page'stats sort filters
+            Player tab -> page'player tab
+            Compare -> page'compare
+            H2hGrid -> page'h2h
 
 app'mk :: forall dx x. ClmBuildOutputs -> UrlSt.XProvider dx x -> XDom dx x Unit
 app'mk buildOutputs = router'run urlEdits parseUrl mkTitleOr_ do

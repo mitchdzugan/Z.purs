@@ -1,5 +1,6 @@
 module Web.Z.XDom.Preact
-  ( xDomRunWeb
+  ( exec'xdom'web
+  , xDomRunWeb
   , xPreactHydrate
   , xweb'historyProvider
   ) where
@@ -56,3 +57,11 @@ provideHistory locUrl toTitleOr_ urlStateToDom = do
                   XD.domEff'do $ setUrlState newUrl
       pure $ d'pop *> d'push *> d'click
     urlStateToDom urlState
+
+exec'xdom'web :: XD.XDom () () Unit -> XD.ReactEl
+exec'xdom'web = XD.exec'xdom
+  { el'classList'rm: \el cn -> pure unit
+  , el'classList'add: \el cn -> pure unit
+  , el'parentElement: \el -> pure Nothing
+  , future'animationFrame: pure $ future'of unit
+  }
