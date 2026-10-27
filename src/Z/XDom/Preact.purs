@@ -66,6 +66,7 @@ data PropWF
   = Href String
   | Ref (DomEl -> Unit)
   | OnClick (DomEvent -> Unit)
+  | OnError (DomEvent -> Unit)
   | OnAnimationEnd (DomEvent -> Unit)
   | Id String
   | PKey String
@@ -80,11 +81,14 @@ data PropWF
   | Data String String
   | Type String
   | Checked Boolean
+  | Loading String
+  | Alt String
 
 propWFKey :: PropWF -> String
 propWFKey (Href _) = "href"
 propWFKey (Ref _) = "ref"
 propWFKey (OnClick _) = "onClick"
+propWFKey (OnError _) = "onError"
 propWFKey (OnAnimationEnd _) = "onAnimationEnd"
 propWFKey (Id _) = "id"
 propWFKey (PKey _) = "key"
@@ -99,11 +103,14 @@ propWFKey (D _) = "d"
 propWFKey (Data k _) = "data-" <> k
 propWFKey (Type _) = "type"
 propWFKey (Checked _) = "checked"
+propWFKey (Alt _) = "alt"
+propWFKey (Loading _) = "loading"
 
 propWFVal :: PropWF -> JsAny
 propWFVal (Href s) = jsAny s
 propWFVal (Ref f) = jsAny f
 propWFVal (OnClick f) = jsAny f
+propWFVal (OnError f) = jsAny f
 propWFVal (OnAnimationEnd f) = jsAny f
 propWFVal (Id s) = jsAny s
 propWFVal (PKey s) = jsAny s
@@ -118,3 +125,5 @@ propWFVal (D s) = jsAny s
 propWFVal (Data _ v) = jsAny v
 propWFVal (Type s) = jsAny s
 propWFVal (Checked b) = jsAny b
+propWFVal (Alt s) = jsAny s
+propWFVal (Loading s) = jsAny s

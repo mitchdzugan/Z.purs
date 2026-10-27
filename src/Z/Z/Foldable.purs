@@ -1,5 +1,6 @@
 module Z.Z.Foldable
-  ( SorterF
+  ( Sorter
+  , SorterF
   , arr'fromTraversable
   , arr'idented
   , average

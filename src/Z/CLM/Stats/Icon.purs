@@ -26,19 +26,19 @@ type RunIconProps = Unit <@@ Wa' String $ S' IconSize ()
 
 defIcon :: forall dx x. String -> RunIconProps -> MDom dx x Unit
 defIcon d iconProps = do
-  dom'Svg do
+  dom'svg do
     let cnSize /\ cnExtra = sync'x $ w'run $ s'exec Size6 iconProps
-    el'AddCn $ case cnSize of
+    el'addCn $ case cnSize of
       Size2 -> "size-2"
       Size3 -> "size-3"
       Size4 -> "size-4"
       Size6 -> "size-6"
-    el'AddCn $ str'joinWith " " cnExtra
-    el'Xmlns "http://www.w3.org/2000/svg"
-    el'ViewBox "0 0 640 640"
-    pure $ dom'Path do
-      el'Fill "currentColor"
-      el'D d
+    el'addCn $ str'joinWith " " cnExtra
+    el'xmlns "http://www.w3.org/2000/svg"
+    el'viewBox "0 0 640 640"
+    pure $ dom'path_ do
+      el'fill "currentColor"
+      el'd d
 
 icon'badged
   :: forall dx x
@@ -48,9 +48,9 @@ icon'badged
   -> MDom dx x Unit
 icon'badged badgeCn icon iconProps = do
   let cnSize /\ cnExtra = sync'x $ w'run $ s'exec Size3 iconProps
-  dom'Span do
-    el'AddCn $ str'joinWith " " cnExtra
-    el'AddCn "badge badge-soft px-[2px]" *> el'AddCn badgeCn
+  dom'span do
+    el'addCn $ str'joinWith " " cnExtra
+    el'addCn "badge badge-soft px-[2px]" *> el'addCn badgeCn
     pure $ icon do s'put cnSize
 
 iconBadge'activity :: forall dx x. RunIconProps -> MDom dx x Unit

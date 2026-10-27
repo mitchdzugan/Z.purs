@@ -15,32 +15,32 @@ type COUNT x = (count :: XDom'StateReducer CountAction Int | x)
 
 app'onE :: forall dr x. String -> XDom dr (COUNT x) Unit
 app'onE message = do
-  dom'Div $ pure do
+  dom'div $ pure do
     dom'text message
-    dom'Button do
-      el'Cn "btn btn-soft"
-      el'OnClick $ \_ -> domState'dispatch'' @"count" Reset
+    dom'button do
+      el'cn "btn btn-soft"
+      el'onClick $ \_ -> domState'dispatch'' @"count" Reset
       pure $ dom'text "reset"
 
 app'body :: forall dr x. XDomE String dr (COUNT x) Unit
 app'body = do
   count <- domState'get'' @"count"
-  dom'Div $ pure $ dom'text "Hellllooooooo"
-  dom'Div do
-    el'Key "asdfasdfasdfasdf..."
+  dom'div $ pure $ dom'text "Hellllooooooo"
+  dom'div do
+    el'key "asdfasdfasdfasdf..."
     pure do
       when (count < 0) do domError'fail "negative number invalid"
-      dom'Span $ pure $ dom'text $
+      dom'span $ pure $ dom'text $
         w'str \t -> t "div with stuff" *> t (stext unit) *> t "!"
-      dom'Br $ pass
-      dom'Button do
-        el'AddCn "btn btn-soft" *> when (count > 5) do el'AddCn "btn-accent"
-        el'OnClick $ (\_ -> domState'dispatch'' @"count" Dec)
+      dom'br_ $ pass
+      dom'button do
+        el'addCn "btn btn-soft" *> when (count > 5) do el'addCn "btn-accent"
+        el'onClick $ (\_ -> domState'dispatch'' @"count" Dec)
         pure $ dom'text "dec"
-      dom'Div $ pure $ dom'text ("Count:" <+> count)
-      dom'withKey "asdfasdf" $ dom'Button do
-        el'AddCn "btn btn-soft" *> when (count > 5) do el'AddCn "btn-accent"
-        el'OnClick \e -> do
+      dom'div $ pure $ dom'text ("Count:" <+> count)
+      dom'withKey "asdfasdf" $ dom'button do
+        el'addCn "btn btn-soft" *> when (count > 5) do el'addCn "btn-accent"
+        el'onClick \e -> do
           x'out e
           domState'dispatch'' @"count" Inc
         pure $ dom'text "inc"
@@ -49,13 +49,13 @@ app'mk :: forall dr x. UrlSt.XProvider dr x -> XDom dr x Unit
 app'mk = router'run'' @"router" urlEdits parseUrl mkTitleOr_ do
   r <- router'routeOrE'' @"router"
   x'out $ show r
-  dom'Div do
-    el'Cn "flex flex-col gap-4"
+  dom'div do
+    el'cn "flex flex-col gap-4"
     pure do
-      dom'Iframe_ $ pure unit
-      dom'Div $ pure $ dom'A do
+      dom'iframe_ $ pure unit
+      dom'div $ pure $ dom'a do
         router'setHref $ Profile "Jimmy"
-        el'Cn "btn link btn-primary"
+        el'cn "btn link btn-primary"
         pure $ dom'text "profile link"
       domState'runReducer'' @"count" 3 countAct $ domError'bind app'onE app'body
   where

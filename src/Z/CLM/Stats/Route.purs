@@ -11,6 +11,7 @@ module Z.CLM.Stats.Route
   , page'key
   , page'sort
   , route'gotoPlayer
+  , route'gotoSeason
   , route'gotoStats
   , route'isH2hPage
   , route'isPlayerPage
@@ -305,8 +306,22 @@ route'gotoPlayer = do
     s'set'b @"!.page" $ Player PlayerTab'H2hs
   s'over'b @"!.clmIds" $ arr'take 1
 
+route'gotoSeason :: Int -> Edit Route
+route'gotoSeason seasonId = do
+  currSeasonId <- s'view'b @"!.seasonId"
+  s'view'b @"!.page" >>= case _ of
+    Stats _ filters -> do
+      currDefaultFilters <- x'defaultFilters currSeasonId
+      let isChanged (fk /\ fv) = fv /= filters'get currDefaultFilters fk
+      let changed = arr'filter isChanged $ filters'pairs filters
+      defaultFilters <- x'defaultFilters seasonId
+      route'setFilters defaultFilters
+      forM_ changed \(fk /\ fv) -> route'setFilter fk fv
+    _ -> pure unit
+  s'set'b @"!.seasonId" seasonId
+
 route'isSamePage :: Route -> Route -> Boolean
-route'isSamePage r1 r2 = g_ @"!.page" r1 == g_ @"!.page" r2
+route'isSamePage r1 r2 = route'pageKey r1 == route'pageKey r2
 
 route'toggleFilter :: Filters'Key -> Edit Route
 route'toggleFilter filtersKey = s'view'b @"!.page" >>= case _ of

@@ -27,41 +27,41 @@ module Z.XDom.Core
   , XDomEA
   , XDomR'
   , class Dom'ConsSymbol
-  , dom'A
-  , dom'A_
-  , dom'Article
-  , dom'Article_
-  , dom'Br
-  , dom'Button
-  , dom'Button_
-  , dom'Div
-  , dom'Div_
-  , dom'Element
-  , dom'Iframe
-  , dom'Iframe_
-  , dom'Img
-  , dom'Img_
-  , dom'Input
-  , dom'Input_
-  , dom'Label
-  , dom'Label_
-  , dom'Li
-  , dom'Li_
-  , dom'Path
-  , dom'Pre
-  , dom'Pre_
-  , dom'Span
-  , dom'Span_
-  , dom'Svg
-  , dom'Svg_
-  , dom'Ul
-  , dom'Ul_
+  , dom'a
+  , dom'a_
   , dom'array
+  , dom'article
+  , dom'article_
+  , dom'br_
+  , dom'button
+  , dom'button_
+  , dom'div
+  , dom'div_
   , dom'do
+  , dom'element
   , dom'getRunner
   , dom'getSelf
+  , dom'iframe
+  , dom'iframe_
+  , dom'img
+  , dom'img_
+  , dom'input
+  , dom'input_
+  , dom'label
+  , dom'label_
+  , dom'li
+  , dom'li_
+  , dom'path_
+  , dom'pre
+  , dom'pre_
   , dom'runReader
+  , dom'span
+  , dom'span_
+  , dom'svg
+  , dom'svg_
   , dom'text
+  , dom'ul
+  , dom'ul_
   , dom'withAdapter
   , dom'withKey
   , dom'withNewRef
@@ -110,33 +110,36 @@ module Z.XDom.Core
   , domState'set''
   , domx'eval
   , domx'eval_
-  , el'AddCn
-  , el'AddStyle
-  , el'AddStyles
-  , el'Checked
-  , el'Cn
-  , el'D
-  , el'Data
-  , el'Fill
-  , el'Href
-  , el'Id
-  , el'JustRef
-  , el'Key
-  , el'OnAnimationEnd
-  , el'OnClick
-  , el'Ref
-  , el'Role
-  , el'RoleButton
-  , el'SetStyles
-  , el'Src
-  , el'TabIndex
-  , el'TabIndex0
-  , el'Target
-  , el'TargetBlank
-  , el'Type
-  , el'ViewBox
-  , el'Xmlns
+  , el'addCn
+  , el'addStyle
+  , el'addStyles
+  , el'alt
+  , el'checked
+  , el'cn
+  , el'd
+  , el'data
+  , el'fill
+  , el'href
+  , el'id
+  , el'justRef
+  , el'key
+  , el'loading
+  , el'onAnimationEnd
+  , el'onClick
+  , el'onError
+  , el'ref
   , el'renderToString
+  , el'role
+  , el'roleButton
+  , el'setStyles
+  , el'src
+  , el'tabIndex
+  , el'tabIndex0
+  , el'target
+  , el'targetBlank
+  , el'type
+  , el'viewBox
+  , el'xmlns
   , exec'xdom
   , exec'xdom'static
   , op'el'text
@@ -364,16 +367,16 @@ type MDom_domElement =
 type MDom_domElement'Childless =
   forall dx x. MDomEl dx x Unit -> MDom dx x Unit
 
-dom'Element :: String -> MDom_domElement
-dom'Element s mattr = do
+dom'element :: String -> MDom_domElement
+dom'element s mattr = do
   parentId <- domW'start
   mdom /\ { attrs } <- x'eval_ @"domW" $ attrW'run (const []) mattr
   mdom
   children <- domW'finish parentId
   domW'push $ js_renderEl s attrs children
 
-dom'Element_ :: String -> MDom_domElement'Childless
-dom'Element_ s mattr = dom'Element s $ mattr <#> pure
+dom'element_ :: String -> MDom_domElement'Childless
+dom'element_ s mattr = dom'element s $ mattr <#> pure
 
 --------------------------------------------------------------------------------
 
@@ -702,189 +705,200 @@ x'renderToStringAsync = e'runEffPromise <<< js_renderToStringAsync
 dom'text :: forall t dx x. SText t => t -> MDom dx x Unit
 dom'text = domW'push <<< js_textEl <<< stext
 
-el'Key :: forall dx x. String -> MDomEl dx x Unit
-el'Key = attrW'addAttr <<< PKey
+el'key :: forall dx x. String -> MDomEl dx x Unit
+el'key = attrW'addAttr <<< PKey
 
-el'Id :: forall dx x. String -> MDomEl dx x Unit
-el'Id = attrW'addAttr <<< Id
+el'id :: forall dx x. String -> MDomEl dx x Unit
+el'id = attrW'addAttr <<< Id
 
-el'Type :: forall dx x. String -> MDomEl dx x Unit
-el'Type = attrW'addAttr <<< Type
+el'type :: forall dx x. String -> MDomEl dx x Unit
+el'type = attrW'addAttr <<< Type
 
-el'Checked :: forall dx x. Boolean -> MDomEl dx x Unit
-el'Checked = attrW'addAttr <<< Checked
+el'checked :: forall dx x. Boolean -> MDomEl dx x Unit
+el'checked = attrW'addAttr <<< Checked
 
-el'TabIndex :: forall dx x. Int -> MDomEl dx x Unit
-el'TabIndex = attrW'addAttr <<< TabIndex
+el'tabIndex :: forall dx x. Int -> MDomEl dx x Unit
+el'tabIndex = attrW'addAttr <<< TabIndex
 
-el'TabIndex0 :: forall dx x. MDomEl dx x Unit
-el'TabIndex0 = el'TabIndex 0
+el'tabIndex0 :: forall dx x. MDomEl dx x Unit
+el'tabIndex0 = el'tabIndex 0
 
-el'Role :: forall dx x. String -> MDomEl dx x Unit
-el'Role = attrW'addAttr <<< Role
+el'role :: forall dx x. String -> MDomEl dx x Unit
+el'role = attrW'addAttr <<< Role
 
-el'RoleButton :: forall dx x. MDomEl dx x Unit
-el'RoleButton = el'Role "button"
+el'roleButton :: forall dx x. MDomEl dx x Unit
+el'roleButton = el'role "button"
 
-el'Target :: forall dx x. String -> MDomEl dx x Unit
-el'Target = attrW'addAttr <<< Target
+el'target :: forall dx x. String -> MDomEl dx x Unit
+el'target = attrW'addAttr <<< Target
 
-el'TargetBlank :: forall dx x. MDomEl dx x Unit
-el'TargetBlank = el'Target "_blank"
+el'targetBlank :: forall dx x. MDomEl dx x Unit
+el'targetBlank = el'target "_blank"
 
-el'Href :: forall dx x. String -> MDomEl dx x Unit
-el'Href = attrW'addAttr <<< Href
+el'href :: forall dx x. String -> MDomEl dx x Unit
+el'href = attrW'addAttr <<< Href
 
-el'Src :: forall dx x. String -> MDomEl dx x Unit
-el'Src = attrW'addAttr <<< Src
+el'src :: forall dx x. String -> MDomEl dx x Unit
+el'src = attrW'addAttr <<< Src
 
-el'Xmlns :: forall dx x. String -> MDomEl dx x Unit
-el'Xmlns = attrW'addAttr <<< XmlNS
+el'xmlns :: forall dx x. String -> MDomEl dx x Unit
+el'xmlns = attrW'addAttr <<< XmlNS
 
-el'ViewBox :: forall dx x. String -> MDomEl dx x Unit
-el'ViewBox = attrW'addAttr <<< ViewBox
+el'viewBox :: forall dx x. String -> MDomEl dx x Unit
+el'viewBox = attrW'addAttr <<< ViewBox
 
-el'Fill :: forall dx x. String -> MDomEl dx x Unit
-el'Fill = attrW'addAttr <<< Fill
+el'alt :: forall dx x. String -> MDomEl dx x Unit
+el'alt = attrW'addAttr <<< Alt
 
-el'D :: forall dx x. String -> MDomEl dx x Unit
-el'D = attrW'addAttr <<< D
+el'loading :: forall dx x. String -> MDomEl dx x Unit
+el'loading = attrW'addAttr <<< Loading
 
-el'Data :: forall dx x. String -> String -> MDomEl dx x Unit
-el'Data k = attrW'addAttr <<< Data k
+el'fill :: forall dx x. String -> MDomEl dx x Unit
+el'fill = attrW'addAttr <<< Fill
 
-el'OnClick :: forall dx x. (DomEvent -> MDomEff x Unit) -> MDomEl dx x Unit
-el'OnClick f = do
+el'd :: forall dx x. String -> MDomEl dx x Unit
+el'd = attrW'addAttr <<< D
+
+el'data :: forall dx x. String -> String -> MDomEl dx x Unit
+el'data k = attrW'addAttr <<< Data k
+
+el'onClick :: forall dx x. (DomEvent -> MDomEff x Unit) -> MDomEl dx x Unit
+el'onClick f = do
   self <- dom'getEffSelf
   attrW'addAttr $ OnClick $ \e -> eval'self self $ f e
 
-el'OnAnimationEnd
+el'onError :: forall dx x. (DomEvent -> MDomEff x Unit) -> MDomEl dx x Unit
+el'onError f = do
+  self <- dom'getEffSelf
+  attrW'addAttr $ OnError $ \e -> eval'self self $ f e
+
+el'onAnimationEnd
   :: forall dx x. (DomEvent -> MDomEff x Unit) -> MDomEl dx x Unit
-el'OnAnimationEnd f = do
+el'onAnimationEnd f = do
   self <- dom'getEffSelf
   attrW'addAttr $ OnAnimationEnd $ \e -> eval'self self $ f e
 
-el'Ref :: forall dx x. (DomEl -> Run (SELF () x) Unit) -> MDomEl dx x Unit
-el'Ref f =
+el'ref :: forall dx x. (DomEl -> Run (SELF () x) Unit) -> MDomEl dx x Unit
+el'ref f =
   dom'getDomSelf >>= \self -> attrW'addAttr $ Ref $ eval'self self <<< f
 
-el'JustRef
+el'justRef
   :: forall dx x. (Maybe DomEl -> Eff'At "dom" Unit) -> MDomEl dx x Unit
-el'JustRef f =
+el'justRef f =
   attrW'addAttr $ Ref $ unsafePerformEffect <<< eff'untag @"dom" <<< f <<< Just
 
 ---------------------
 
-el'AddStyle :: forall dx x. String -> String -> MDomEl dx x Unit
-el'AddStyle = attrW'addStyle
+el'addStyle :: forall dx x. String -> String -> MDomEl dx x Unit
+el'addStyle = attrW'addStyle
 
-el'AddStyles
+el'addStyles
   :: forall m dx x
    . Traversable m
   => m (String /\ String)
   -> MDomEl dx x Unit
-el'AddStyles pairs = forM_ pairs \(k /\ v) -> el'AddStyle k v
+el'addStyles pairs = forM_ pairs \(k /\ v) -> el'addStyle k v
 
-el'SetStyles
+el'setStyles
   :: forall m dx x
    . Traversable m
   => m (String /\ String)
   -> MDomEl dx x Unit
-el'SetStyles pairs = attrW'resetStyles *> el'AddStyles pairs
+el'setStyles pairs = attrW'resetStyles *> el'addStyles pairs
 
 ---------------------
 
-el'AddCn :: forall dx x. String -> MDomEl dx x Unit
-el'AddCn = attrW'addClassname
+el'addCn :: forall dx x. String -> MDomEl dx x Unit
+el'addCn = attrW'addClassname
 
-el'Cn :: forall dx x. String -> MDomEl dx x Unit
-el'Cn cn = attrW'resetClassnames *> el'AddCn cn
+el'cn :: forall dx x. String -> MDomEl dx x Unit
+el'cn cn = attrW'resetClassnames *> el'addCn cn
 
 ------------------------------
 
-dom'Div :: MDom_domElement
-dom'Div = dom'Element "div"
+dom'div :: MDom_domElement
+dom'div = dom'element "div"
 
-dom'Div_ :: MDom_domElement'Childless
-dom'Div_ = dom'Element_ "div"
+dom'div_ :: MDom_domElement'Childless
+dom'div_ = dom'element_ "div"
 
-dom'A :: MDom_domElement
-dom'A = dom'Element "a"
+dom'a :: MDom_domElement
+dom'a = dom'element "a"
 
-dom'A_ :: MDom_domElement'Childless
-dom'A_ = dom'Element_ "a"
+dom'a_ :: MDom_domElement'Childless
+dom'a_ = dom'element_ "a"
 
-dom'Button :: MDom_domElement
-dom'Button = dom'Element "button"
+dom'button :: MDom_domElement
+dom'button = dom'element "button"
 
-dom'Button_ :: MDom_domElement'Childless
-dom'Button_ = dom'Element_ "button"
+dom'button_ :: MDom_domElement'Childless
+dom'button_ = dom'element_ "button"
 
-dom'Label :: MDom_domElement
-dom'Label = dom'Element "label"
+dom'label :: MDom_domElement
+dom'label = dom'element "label"
 
-dom'Label_ :: MDom_domElement'Childless
-dom'Label_ = dom'Element_ "label"
+dom'label_ :: MDom_domElement'Childless
+dom'label_ = dom'element_ "label"
 
-dom'Input :: MDom_domElement
-dom'Input = dom'Element "input"
+dom'input :: MDom_domElement
+dom'input = dom'element "input"
 
-dom'Input_ :: MDom_domElement'Childless
-dom'Input_ = dom'Element_ "input"
+dom'input_ :: MDom_domElement'Childless
+dom'input_ = dom'element_ "input"
 
-dom'Pre :: MDom_domElement
-dom'Pre = dom'Element "pre"
+dom'pre :: MDom_domElement
+dom'pre = dom'element "pre"
 
-dom'Pre_ :: MDom_domElement'Childless
-dom'Pre_ = dom'Element_ "pre"
+dom'pre_ :: MDom_domElement'Childless
+dom'pre_ = dom'element_ "pre"
 
-dom'Span :: MDom_domElement
-dom'Span = dom'Element "span"
+dom'span :: MDom_domElement
+dom'span = dom'element "span"
 
-dom'Span_ :: MDom_domElement'Childless
-dom'Span_ = dom'Element_ "span"
+dom'span_ :: MDom_domElement'Childless
+dom'span_ = dom'element_ "span"
 
-dom'Article :: MDom_domElement
-dom'Article = dom'Element "article"
+dom'article :: MDom_domElement
+dom'article = dom'element "article"
 
-dom'Article_ :: MDom_domElement'Childless
-dom'Article_ = dom'Element_ "article"
+dom'article_ :: MDom_domElement'Childless
+dom'article_ = dom'element_ "article"
 
-dom'Iframe :: MDom_domElement
-dom'Iframe = dom'Element "iframe"
+dom'iframe :: MDom_domElement
+dom'iframe = dom'element "iframe"
 
-dom'Iframe_ :: MDom_domElement'Childless
-dom'Iframe_ = dom'Element_ "iframe"
+dom'iframe_ :: MDom_domElement'Childless
+dom'iframe_ = dom'element_ "iframe"
 
-dom'Img :: MDom_domElement
-dom'Img = dom'Element "img"
+dom'img :: MDom_domElement
+dom'img = dom'element "img"
 
-dom'Img_ :: MDom_domElement'Childless
-dom'Img_ = dom'Element_ "img"
+dom'img_ :: MDom_domElement'Childless
+dom'img_ = dom'element_ "img"
 
-dom'Svg :: MDom_domElement
-dom'Svg = dom'Element "svg"
+dom'svg :: MDom_domElement
+dom'svg = dom'element "svg"
 
-dom'Svg_ :: MDom_domElement'Childless
-dom'Svg_ = dom'Element_ "svg"
+dom'svg_ :: MDom_domElement'Childless
+dom'svg_ = dom'element_ "svg"
 
-dom'Ul :: MDom_domElement
-dom'Ul = dom'Element "ul"
+dom'ul :: MDom_domElement
+dom'ul = dom'element "ul"
 
-dom'Ul_ :: MDom_domElement'Childless
-dom'Ul_ = dom'Element_ "ul"
+dom'ul_ :: MDom_domElement'Childless
+dom'ul_ = dom'element_ "ul"
 
-dom'Li :: MDom_domElement
-dom'Li = dom'Element "li"
+dom'li :: MDom_domElement
+dom'li = dom'element "li"
 
-dom'Li_ :: MDom_domElement'Childless
-dom'Li_ = dom'Element_ "li"
+dom'li_ :: MDom_domElement'Childless
+dom'li_ = dom'element_ "li"
 
-dom'Br :: MDom_domElement'Childless
-dom'Br = dom'Element_ "br"
+dom'br_ :: MDom_domElement'Childless
+dom'br_ = dom'element_ "br"
 
-dom'Path :: MDom_domElement'Childless
-dom'Path = dom'Element_ "path"
+dom'path_ :: MDom_domElement'Childless
+dom'path_ = dom'element_ "path"
 
 ------------------------------------------------------------------
 
