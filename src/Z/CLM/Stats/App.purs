@@ -252,22 +252,40 @@ periodMenu ulCn = do
         router'setHref linkedRoute
         pure do icon pass *> do dom'text $ nbsp <> text
 
-playerSearch :: forall dx x. ClmDom dx x Unit
-playerSearch = do
+type PlayerSearchProps =
+  { dropdownStart :: Boolean
+  , dropdownTop :: Boolean
+  , outsideNav :: Boolean
+  }
+
+defaultPlayerSearchProps :: PlayerSearchProps
+defaultPlayerSearchProps =
+  { dropdownStart: false, dropdownTop: false, outsideNav: false }
+
+playerSearch :: forall dx x. Edit PlayerSearchProps -> ClmDom dx x Unit
+playerSearch edits = do
+  let props = edit defaultPlayerSearchProps edits
+  let { dropdownStart, dropdownTop, outsideNav } = props
   route <- x'extract @"route"
   let isStatsPage = route'isStatsPage route
   dom'div do
     el'addCn "dropdown"
+    whenNot dropdownStart $ el'addCn "dropdown-end"
+    when dropdownTop $ el'addCn "dropdown-top"
     pure do
       dom'label do
+        let outlineO o = (/\) "outlineOffset" $ o <:> "px"
+        let outlineW w = (/\) "outlineWidth" $ w <:> "px"
+        let outlineOW o w = [ outlineO o, outlineW w ]
+        let outlineOWInh o w = [ "outlineStyle" /\ "inherit" ] <> outlineOW o w
+        let mkSetOutline f o w = el'setStyles $ f o w
+        let setOutlineStylesOW = mkSetOutline outlineOW
+        let setOutlineStylesOWInh = mkSetOutline outlineOWInh
         el'addCn "group input h-9 border-0 px-2 rounded-none"
         el'addCn "transition transition-transform duration-300 shadow-none"
         el'addCn "relative outline-hidden focus-within:outline-solid"
         el'addCn $ if isStatsPage then "translate-x-8" else "translate-x-0"
-        el'setStyles
-          [ "outlineOffset" /\ "-6px"
-          , "outlineWidth" /\ "2px"
-          ]
+        setOutlineStylesOW (-6) 2
         pure do
           icon'magnifyingGlass $ s'put Size4
           dom'input_ do
@@ -280,29 +298,27 @@ playerSearch = do
             el'addCn "hidden absolute top-[5px] right-[calc(2rem_-_1px)]"
             el'addCn "w-[5px] h-[calc(100%_-_10px)]"
             when isStatsPage $ el'addCn "group-focus-within:block"
-            el'setStyles
-              [ "outlineStyle" /\ "inherit"
-              , "outlineOffset" /\ "0px"
-              , "outlineWidth" /\ "0px"
-              ]
+            setOutlineStylesOWInh 0 0
             pure do
               dom'div_ do
                 el'addCn "absolute w-0 h-full top-0 -right-px"
                 el'addCn "outline-white dark:outline-black"
-                el'setStyles
-                  [ "outlineStyle" /\ "inherit"
-                  , "outlineOffset" /\ "0px"
-                  , "outlineWidth" /\ "5px"
-                  ]
+                setOutlineStylesOWInh 0 5
               dom'div_ do
                 el'addCn "absolute w-0 h-full top-0 left-px"
                 el'addCn "outline-black dark:outline-white"
-                el'setStyles
-                  [ "outlineStyle" /\ "inherit"
-                  , "outlineOffset" /\ "0px"
-                  , "outlineWidth" /\ "1px"
-                  ]
-      dom'div_ do pure unit
+                setOutlineStylesOWInh 0 1
+      dom'div do
+        el'cn "dropdown-content max-h-80 overflow-y-scroll"
+        el'addCn $ dropdownStart
+          ? (outsideNav ? "left-2" $ "-left-12")
+          $ (outsideNav ? "right-2" $ "-right-12")
+        el'addCn $ outsideNav ? "z-800" $ "z-1"
+        el'addCn "w-full shadow-sm bg-base-200 rounded-box p-0 min-w-70"
+        pure $ dom'ul do
+          el'tabIndex (-1)
+          el'cn "relative w-full menu"
+          pure $ dom'text "Test Search Dropdown"
 
 type TableCell dx x = MDom dx x Unit
 
@@ -892,7 +908,7 @@ app'body = do
                               -- TODO ActivePlayerIcons
                               pure $ pure unit
                             filterButton
-                        playerSearch
+                        playerSearch pass
                     dom'div do
                       el'key $ route'pageKey route
                       el'addCn "lg:hidden dropdown dropdown-hover dropdown-end"
