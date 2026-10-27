@@ -924,12 +924,19 @@ buildSeasonJson allSeasonIds allPlayerSeasons otherPlayerTags seasonId = do
       whenJust (hm'lookup clmId luckyStatsIdByClmId) \luckyStatsId ->
         _'insert H2h.LuckyStats luckyStatsId
     pure $ rec'set @"socials" socials player
+  let playersById = keyBy _.clmId players
+  allOtherPlayerTags <- forM otherPlayerTags \(clmId /\ playerTags) -> do
+    mainGamerTagOr_ <- x'lookup @"clmPlayers" clmId <#> map _.gamerTag
+    let seasonPlayer = hm'lookup clmId playersById
+    case mainGamerTagOr_ /\ seasonPlayer of
+      (Just tag) /\ Nothing -> pure $ (/\) clmId $ [ tag ] <> playerTags
+      _ -> pure $ clmId /\ playerTags
   let removeCurrSeasonId = arr'remove ((==) seasonId)
   pure
     { ranks
     , events
     , players
-    , otherPlayerTags
+    , otherPlayerTags: allOtherPlayerTags
     , otherPlayerSeasons: hm'entries $ allPlayerSeasons <#> removeCurrSeasonId
     , otherSeasons: removeCurrSeasonId allSeasonIds
     }

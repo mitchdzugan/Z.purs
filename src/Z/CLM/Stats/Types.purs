@@ -81,6 +81,8 @@ type ClmSeason'Player'Full = ClmSeason'Player'G
   , sets :: Int
   , winrate :: Maybe Number
   , sortAndFilteredRank :: Int
+  , otherSeasons :: Array Int
+  , otherTags :: Array String
   )
   (data :: ClmSeason'Event)
 
