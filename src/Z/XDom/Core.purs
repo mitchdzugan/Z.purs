@@ -71,6 +71,7 @@ module Z.XDom.Core
   , domEff'el'classList'add
   , domEff'el'classList'rm
   , domEff'el'parentElement
+  , domEff'event'preventDefault
   , domEff'every
   , domEff'every'lag
   , domEff'every'lead
@@ -121,23 +122,28 @@ module Z.XDom.Core
   , el'fill
   , el'href
   , el'id
-  , el'justRef
   , el'key
   , el'loading
   , el'onAnimationEnd
   , el'onClick
   , el'onError
+  , el'onInput
+  , el'onKeyDown
+  , el'placeholder
   , el'ref
   , el'renderToString
   , el'role
   , el'roleButton
+  , el'setElRef
   , el'setStyles
   , el'src
   , el'tabIndex
   , el'tabIndex0
   , el'target
   , el'targetBlank
+  , el'title
   , el'type
+  , el'value
   , el'viewBox
   , el'xmlns
   , exec'xdom
@@ -631,6 +637,10 @@ domEff'el'classList'add
 domEff'el'classList'add el cn = do
   x'extract @"_'xdom'reader" >>= \r -> x'do $ r.el'classList'add el cn
 
+domEff'event'preventDefault :: forall x. DomEvent -> MDomEff (XDomR' x) Unit
+domEff'event'preventDefault event = do
+  x'extract @"_'xdom'reader" >>= \r -> x'do $ r.event'preventDefault event
+
 domEff'el'parentElement
   :: forall x. DomEl -> MDomEff (XDomR' x) (Maybe DomEl)
 domEff'el'parentElement el = do
@@ -647,6 +657,7 @@ type XDom'Reader =
   { el'classList'rm :: DomEl -> String -> Eff'At "domEff" Unit
   , el'classList'add :: DomEl -> String -> Eff'At "domEff" Unit
   , el'parentElement :: DomEl -> Eff'At "domEff" (Maybe DomEl)
+  , event'preventDefault :: DomEvent -> Eff'At "domEff" Unit
   , future'animationFrame :: Eff'At "domEff" (Future Unit)
   }
 
@@ -654,6 +665,7 @@ type XDom'Eff'Reader =
   { el'classList'rm :: DomEl -> String -> Effect Unit
   , el'classList'add :: DomEl -> String -> Effect Unit
   , el'parentElement :: DomEl -> Effect (Maybe DomEl)
+  , event'preventDefault :: DomEvent -> Effect Unit
   , future'animationFrame :: Effect (Future Unit)
   }
 
@@ -675,6 +687,7 @@ xdom'reader'run = r'run'' @"_'xdom'reader" <<< adapt'eff'reader
     { el'classList'rm: \el cn -> eff'tag @"domEff" $ r.el'classList'rm el cn
     , el'classList'add: \el cn -> eff'tag @"domEff" $ r.el'classList'add el cn
     , el'parentElement: \el -> eff'tag @"domEff" $ r.el'parentElement el
+    , event'preventDefault: \e -> eff'tag @"domEff" $ r.event'preventDefault e
     , future'animationFrame: eff'tag @"domEff" r.future'animationFrame
     }
 
@@ -688,6 +701,7 @@ exec'xdom'static = exec'xdom
   { el'classList'rm: \_ _ -> pure unit
   , el'classList'add: \_ _ -> pure unit
   , el'parentElement: \_ -> pure Nothing
+  , event'preventDefault: \_ -> pure unit
   , future'animationFrame: pure $ future'of unit
   }
 
@@ -750,6 +764,15 @@ el'viewBox = attrW'addAttr <<< ViewBox
 el'alt :: forall dx x. String -> MDomEl dx x Unit
 el'alt = attrW'addAttr <<< Alt
 
+el'title :: forall dx x. String -> MDomEl dx x Unit
+el'title = attrW'addAttr <<< Title
+
+el'placeholder :: forall dx x. String -> MDomEl dx x Unit
+el'placeholder = attrW'addAttr <<< Placeholder
+
+el'value :: forall dx x a. a -> MDomEl dx x Unit
+el'value = attrW'addAttr <<< Value <<< jsAny
+
 el'loading :: forall dx x. String -> MDomEl dx x Unit
 el'loading = attrW'addAttr <<< Loading
 
@@ -762,30 +785,37 @@ el'd = attrW'addAttr <<< D
 el'data :: forall dx x. String -> String -> MDomEl dx x Unit
 el'data k = attrW'addAttr <<< Data k
 
-el'onClick :: forall dx x. (DomEvent -> MDomEff x Unit) -> MDomEl dx x Unit
-el'onClick f = do
-  self <- dom'getEffSelf
-  attrW'addAttr $ OnClick $ \e -> eval'self self $ f e
+type El'On dx x = (DomEvent -> MDomEff x Unit) -> MDomEl dx x Unit
 
-el'onError :: forall dx x. (DomEvent -> MDomEff x Unit) -> MDomEl dx x Unit
-el'onError f = do
+el'on' :: forall dx x. ((DomEvent -> Unit) -> PropWF) -> El'On dx x
+el'on' mkPropWF f = do
   self <- dom'getEffSelf
-  attrW'addAttr $ OnError $ \e -> eval'self self $ f e
+  attrW'addAttr $ mkPropWF $ \e -> eval'self self $ f e
 
-el'onAnimationEnd
-  :: forall dx x. (DomEvent -> MDomEff x Unit) -> MDomEl dx x Unit
-el'onAnimationEnd f = do
-  self <- dom'getEffSelf
-  attrW'addAttr $ OnAnimationEnd $ \e -> eval'self self $ f e
+el'onClick :: forall dx x. El'On dx x
+el'onClick = el'on' OnClick
+
+el'onError :: forall dx x. El'On dx x
+el'onError = el'on' OnError
+
+el'onAnimationEnd :: forall dx x. El'On dx x
+el'onAnimationEnd = el'on' OnAnimationEnd
+
+el'onInput :: forall dx x. El'On dx x
+el'onInput = el'on' OnInput
+
+el'onKeyDown :: forall dx x. El'On dx x
+el'onKeyDown = el'on' OnKeyDown
 
 el'ref :: forall dx x. (DomEl -> Run (SELF () x) Unit) -> MDomEl dx x Unit
 el'ref f =
   dom'getDomSelf >>= \self -> attrW'addAttr $ Ref $ eval'self self <<< f
 
-el'justRef
-  :: forall dx x. (Maybe DomEl -> Eff'At "dom" Unit) -> MDomEl dx x Unit
-el'justRef f =
-  attrW'addAttr $ Ref $ unsafePerformEffect <<< eff'untag @"dom" <<< f <<< Just
+el'setElRef
+  :: forall dx x
+   . (Maybe DomEl -> Eff'At "dom" Unit)
+  -> MDomEl dx (DomPermit x) Unit
+el'setElRef f = el'ref $ x'do <<< f <<< Just
 
 ---------------------
 

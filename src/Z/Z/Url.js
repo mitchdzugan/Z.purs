@@ -46,6 +46,12 @@ export const querySetAllImpl = (qs) => (u) => {
   return u_;
 };
 
+export const querySetRawImpl = (qstr) => (u) => {
+  const u_ = clone(u);
+  u_.search = qstr;
+  return u_;
+};
+
 const setOnCloned = (k) => (s) => (u) => {
   const u_ = clone(u);
   u_[k] = s;

@@ -2,8 +2,10 @@ module Z.Z.Future
   ( EffPromise
   , Future
   , Promise
+  , future'defer
   , future'fromEff
   , future'fromEffPromise
+  , future'never
   , future'of
   , future'parallel
   , future'run
@@ -17,7 +19,7 @@ import Control.Monad.Rec.Class (class MonadRec, Step(..))
 import Data.Either (Either(..))
 import Effect (Effect)
 import Effect.Exception (Error)
-import Z.Z.Core (JsError(..))
+import Z.Z.Core (JsError(..), eff'defer)
 import Z.Z.Passable (pass)
 
 foreign import data Promise :: Type -> Type
@@ -45,6 +47,12 @@ instance MonadRec Future where
 
 future'of :: forall a. a -> Future a
 future'of = js_futurePure
+
+future'defer :: forall a. (Unit -> a) -> Future a
+future'defer = future'fromEff <<< eff'defer
+
+future'never :: forall a. Future a
+future'never = js_futureNever
 
 future'try :: forall a. Future a -> Future (Either JsError a)
 future'try = js_futureTry (Left <<< JsError) Right
@@ -110,3 +118,5 @@ useStep _ useDone (Done b) = useDone b
 
 foreign import js_futureParallel
   :: forall a. Array (Future a) -> Future (Array a)
+
+foreign import js_futureNever :: forall a. Future a

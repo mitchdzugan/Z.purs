@@ -149,17 +149,7 @@ import Z.Z.Barlow
 import Z.Z.Boxed as ZBoxed
 import Z.Z.Buffer (Buffer, ofArrayBuffer, sha256BytesOfBuffer, sha256OfBuffer) as ZBuffer
 import Z.Z.Core as ZCore
-import Z.Z.DateTime
-  ( DateTime(..)
-  , adjustDateTime
-  , dateTime'fromMS
-  , dateTime'fromMS'Int
-  , dateTime'month'i0
-  , dateTime'toMS
-  , dateTime'year
-  , fromRawDateTime
-  , toDateTime
-  ) as ZDateTime
+import Z.Z.DateTime as ZDateTime
 import Z.Z.Defaultable
   ( class DefaultValueRecord
   , class G2OrDefault

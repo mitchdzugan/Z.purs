@@ -7,18 +7,25 @@ module Web.Z.XDom.Preact
 
 import Web.Z.Prelude
 
+import Debug (traceM)
 import Web.DOM.DOMTokenList as CL
 import Web.DOM.Element (classList, toNode)
 import Web.DOM.Node (parentElement)
+import Web.Event.Event (preventDefault)
+import Web.Event.Internal.Types as WET
 import Web.Z.Web.DOM as DOM
-import Z.XDom.Preact (DomEl)
+import Z.XDom.Preact (DomEl, DomEvent)
 import Z.XDom.Prelude as XD
 import Z.XDom.UrlState as UrlSt
 
 foreign import js_renderIn :: XD.ReactEl -> Element -> Effect (Promise Unit)
 
-foreign import js_webToG :: Element -> DomEl
-foreign import js_gToWeb :: DomEl -> Element
+foreign import js_el_webToG :: Element -> DomEl
+foreign import js_el_gToWeb :: DomEl -> Element
+
+foreign import js_event_webToG :: WET.Event -> DomEvent
+foreign import js_event_gToWeb :: DomEvent -> WET.Event
+
 foreign import js_animationFramePromise :: Effect (Promise Unit)
 
 xPreactHydrate :: forall x. Element -> XD.ReactEl -> EA' JsError x @@> Unit
@@ -37,6 +44,7 @@ provideHistory
   -> (UrlSt.T -> XD.MDom dr (X'Web x) Unit)
   -> XD.MDom dr (X'Web x) Unit
 provideHistory locUrl toTitleOr_ urlStateToDom = do
+  traceM { locUrl }
   let baseUrlState = UrlSt.mk toTitleOr_ locUrl
   let origin = url'origin locUrl
   XD.dom'withNewState baseUrlState \urlState setUrlState -> do
@@ -68,14 +76,11 @@ provideHistory locUrl toTitleOr_ urlStateToDom = do
 
 exec'xdom'web :: XD.XDom () () Unit -> XD.ReactEl
 exec'xdom'web = XD.exec'xdom
-  { el'classList'add: \el cn -> do
-      cl <- classList $ js_gToWeb el
-      CL.add cl cn
-  , el'classList'rm: \el cn -> do
-      cl <- classList $ js_gToWeb el
-      CL.remove cl cn
+  { el'classList'add: \el cn -> classList (js_el_gToWeb el) >>= flip CL.add cn
+  , el'classList'rm: \el cn -> classList (js_el_gToWeb el) >>= flip CL.remove cn
   , el'parentElement: \el ->
-      js_gToWeb el # toNode # parentElement <#> map js_webToG
+      js_el_gToWeb el # toNode # parentElement <#> map js_el_webToG
+  , event'preventDefault: \event -> preventDefault $ js_event_gToWeb event
   , future'animationFrame:
       eff'defer \_ -> future'fromEffPromise js_animationFramePromise
   }

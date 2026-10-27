@@ -144,7 +144,7 @@ import Data.Show.Generic (genericShow) as ShowGeneric
 import Data.String (Pattern(..)) as Str
 import Data.Symbol (class IsSymbol, reflectSymbol, reifySymbol) as Symbol
 import Data.Time.Duration (Hours(..), Milliseconds(..)) as DateTimeDuration
-import Data.Tuple (Tuple(..), fst, snd) as Tup
+import Data.Tuple (Tuple(..), curry, fst, snd, uncurry) as Tup
 import Data.Tuple.Nested (type (/\), (/\)) as TupNested
 import Effect (Effect) as Effect
 import Effect.Class (liftEffect) as EffectClass

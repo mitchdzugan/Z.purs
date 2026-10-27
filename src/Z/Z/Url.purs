@@ -1,5 +1,7 @@
 module Z.Z.Url
   ( Parts
+  , Parts'from
+  , Parts'g
   , URL
   , class QueryParam
   , fromParts
@@ -23,6 +25,7 @@ module Z.Z.Url
 
 import Prelude
 
+import Data.Either (Either(..))
 import Data.Filterable (filter)
 import Data.Foldable (foldl, intercalate)
 import Data.Int as Int
@@ -62,9 +65,9 @@ instance Ord URL where
 instance Generable URL GDefault URL where
   mkGenerable = fromParts default
 
-type Parts =
+type Parts'g q =
   { path :: Array String
-  , query :: HashMap String (Array String)
+  , query :: q
   , hash :: Maybe String
   , host :: String
   , port :: Maybe Int
@@ -73,8 +76,13 @@ type Parts =
   , password :: Maybe String
   }
 
-foreign import fromStringImpl :: String -> Nullable URL
+type Parts = Parts'g (HashMap String (Array String))
 
+type Parts'from = Parts'g (Either String (HashMap String (Array String)))
+
+type JS_QueryParams = Array { k :: String, vs :: Array String }
+
+foreign import fromStringImpl :: String -> Nullable URL
 foreign import hashImpl :: URL -> String
 foreign import searchImpl :: URL -> String
 foreign import hrefImpl :: URL -> String
@@ -86,9 +94,8 @@ foreign import protocolImpl :: URL -> String
 foreign import usernameImpl :: URL -> String
 foreign import queryKeysImpl :: URL -> Array String
 foreign import queryLookupImpl :: String -> URL -> Array String
-foreign import querySetAllImpl
-  :: Array { k :: String, vs :: Array String } -> URL -> URL
-
+foreign import querySetAllImpl :: JS_QueryParams -> URL -> URL
+foreign import querySetRawImpl :: String -> URL -> URL
 foreign import setHashImpl :: String -> URL -> URL
 foreign import setHostImpl :: String -> URL -> URL
 foreign import setPasswordImpl :: String -> URL -> URL
@@ -107,7 +114,7 @@ fromString = Nullable.toMaybe <<< fromStringImpl
 toString :: URL -> String
 toString = hrefImpl
 
-fromParts :: Parts -> URL
+fromParts :: Parts'from -> URL
 fromParts u =
   let
     empty = unsafePartial fromJust $ fromString "http://0.0.0.0"
@@ -146,8 +153,9 @@ query u =
   in
     hm'fromFoldable $ map (\k -> k /\ vals k) ks
 
-setQuery :: HashMap String (Array String) -> URL -> URL
-setQuery qs'hm u =
+setQuery :: Either String (HashMap String (Array String)) -> URL -> URL
+setQuery (Left qs'str) u = querySetRawImpl qs'str u
+setQuery (Right qs'hm) u =
   let
     qs = hm'entries qs'hm
     asRecord = foldl (\a (k /\ vs) -> a <> [ { k, vs } ]) [] qs

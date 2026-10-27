@@ -181,6 +181,7 @@ import Z.Z.Core
   , forM_
   , invert
   , mapL
+  , rec'modify
   , reduceM
   , resultVal
   , runParser
@@ -1027,7 +1028,8 @@ x'decodeFetched res = decodeJson @t <$> e'runEffPromise (fetchRes'json res)
 ----------------------------------------------------------------
 
 url'mk :: Edit UrlParts -> URL
-url'mk edits = url'fromParts $ edit default edits
+url'mk edits = url'fromParts $ rec'modify @"query" Right $ edit default edits
 
 url'edit :: URL -> Edit UrlParts -> URL
-url'edit url edits = url'fromParts $ edit (url'parts url) edits
+url'edit url edits =
+  url'fromParts $ rec'modify @"query" Right $ edit (url'parts url) edits

@@ -87,7 +87,7 @@ import Z.Z.Url as Url
 
 type UrlParts = Url.Parts
 
-url'fromParts :: Url.Parts -> Url.URL
+url'fromParts :: Url.Parts'from -> Url.URL
 url'fromParts = Url.fromParts
 
 url'fromString :: String -> Maybe.Maybe Url.URL

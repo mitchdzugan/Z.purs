@@ -1,9 +1,13 @@
 module Z.Z.DateTime
   ( DateTime(..)
   , adjustDateTime
+  , dateTime'day
+  , dateTime'day'2dig
   , dateTime'fromMS
   , dateTime'fromMS'Int
+  , dateTime'month'2dig
   , dateTime'month'i0
+  , dateTime'month'i1
   , dateTime'toMS
   , dateTime'year
   , fromRawDateTime
@@ -97,5 +101,20 @@ dateTime'month'i0 (DateTime date _) =
     DateTime.November -> 10
     DateTime.December -> 11
 
+dateTime'month'i1 :: DateTime -> Int
+dateTime'month'i1 = (+) 1 <<< dateTime'month'i0
+
 dateTime'year :: DateTime -> Int
 dateTime'year (DateTime date _) = fromEnum $ DateTime.year date
+
+dateTime'day :: DateTime -> Int
+dateTime'day (DateTime date _) = fromEnum $ DateTime.day date
+
+mk'2dig :: Int -> String
+mk'2dig i = (if i < 10 then "0" else "") <> show i
+
+dateTime'day'2dig :: DateTime -> String
+dateTime'day'2dig = mk'2dig <<< dateTime'day
+
+dateTime'month'2dig :: DateTime -> String
+dateTime'month'2dig = mk'2dig <<< dateTime'month'i1

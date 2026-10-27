@@ -229,6 +229,7 @@ xWebR =
       loc <- Window.location win
       hashs <- Loc.hash loc
       pathname <- Loc.pathname loc
+      search <- Loc.search loc
       host <- Loc.hostname loc
       protocol <- Loc.protocol loc
       ports <- Loc.port loc
@@ -240,7 +241,7 @@ xWebR =
         , password: Nothing
         , protocol
         , host
-        , query: hm'empty
+        , query: Left search
         , path: url'pathSegmentsFromPathname pathname
         }
   , getElementById: \id -> tagEffWebX $ HTML.window >>= Window.document >>=

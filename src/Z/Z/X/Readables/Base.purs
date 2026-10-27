@@ -55,7 +55,7 @@ instance
   X'R'RespondsTo R'X'Base R'X'Base'RespondsTo'R () where
   x'r'mkResponds'types = Proxy
   x'r'mkResponds (R'X'Base _) = match
-    { now: responds'const'eff $ fromRawDateTime <$> nowDateTime
+    { now: responds'run'eff \_ -> fromRawDateTime <$> nowDateTime
     , out: responds'run'eff \(ll /\ v) ->
         js_consoleOut unit (logLevel'consoleKey ll) v
     }

@@ -10,12 +10,16 @@ module Z.CLM.Stats.Route
   , filters'pairs
   , page'key
   , page'sort
+  , route'anyChangedFilters
+  , route'changedFilters
+  , route'getFilter
   , route'gotoPlayer
   , route'gotoSeason
   , route'gotoStats
   , route'isH2hPage
   , route'isPlayerPage
   , route'isSamePage
+  , route'isSortByQual
   , route'isStatsPage
   , route'mk
   , route'mkDefault
@@ -101,6 +105,8 @@ type Filters = Record Filters'rt
 
 data Filters'Key = Filters'att
 
+type Filters'KV = Filters'Key /\ Boolean
+
 instance Show Filters'Key where
   show Filters'att = "att"
 
@@ -110,7 +116,7 @@ instance Identable Filters'Key where
 filters'keys :: Array Filters'Key
 filters'keys = [ Filters'att ]
 
-filters'pairs :: Filters -> Array (Filters'Key /\ Boolean)
+filters'pairs :: Filters -> Array Filters'KV
 filters'pairs f = filters'keys <#> \k -> k /\ filters'get f k
 
 filters'get :: Filters -> Filters'Key -> Boolean
@@ -122,10 +128,14 @@ filters'set f Filters'att v = rec'set @"req'prEvents" v f
 filters'toggle :: Filters -> Filters'Key -> Filters
 filters'toggle f k = filters'set f k $ not $ filters'get f k
 
-x'defaultFilters :: forall x. Int -> x @@> Filters
-x'defaultFilters seasonId = do
-  activeSeasonId <- seasonId'active
-  pure { req'prEvents: activeSeasonId /= seasonId }
+filters'addPairs :: Filters -> Array Filters'KV -> Filters
+filters'addPairs = reduce \f -> uncurry $ filters'set f
+
+activeSeasonId'static :: Int
+activeSeasonId'static = sync'x seasonId'active
+
+getDefaultFilters :: Int -> Filters
+getDefaultFilters seasonId = { req'prEvents: activeSeasonId'static /= seasonId }
 
 data RoutePage = Stats Sort Filters | Player PlayerTab | Compare | H2hGrid
 
@@ -146,10 +156,14 @@ page'sort :: RoutePage -> Sort
 page'sort (Stats sort _) = sort
 page'sort _ = defaultSort
 
-x'defaultStatsPage :: forall x. Int -> x @@> RoutePage
-x'defaultStatsPage seasonId = do
-  defaultFilters <- x'defaultFilters seasonId
-  pure $ Stats defaultSort defaultFilters
+page'conformIds :: RoutePage -> Array Int -> Array Int
+page'conformIds (Stats _ _) = const []
+page'conformIds (Player _) = arr'take 1
+page'conformIds Compare = arr'take 2
+page'conformIds H2hGrid = id
+
+getDefaultStatsPage :: Int -> RoutePage
+getDefaultStatsPage = Stats defaultSort <<< getDefaultFilters
 
 newtype Route = Route
   { page :: RoutePage, seasonId :: Int, clmIds :: Array Int }
@@ -164,43 +178,47 @@ instance Show Route where
 route'mk :: Int -> RoutePage -> Array Int -> Route
 route'mk seasonId page clmIds = Route { page, seasonId, clmIds }
 
-getActualPage :: forall x. Route -> x @@> RoutePage
+getActualPage :: Route -> RoutePage
 getActualPage (Route { page, seasonId, clmIds }) =
-  if isValidPage then pure page else getDefaultPage
+  if isValidPage then page else getDefaultPage
   where
   idCount = arr'size clmIds
   getDefaultPage = case idCount of
-    0 -> x'defaultStatsPage seasonId
-    1 -> pure $ Player PlayerTab'H2hs
-    2 -> pure Compare
-    _ -> pure H2hGrid
+    0 -> getDefaultStatsPage seasonId
+    1 -> Player PlayerTab'H2hs
+    2 -> Compare
+    _ -> H2hGrid
   isValidPage = case page of
     Stats _ _ -> idCount == 0
     Player _ -> idCount < 2
     Compare -> idCount < 3
     _ -> true
 
+getActualClmIds :: Route -> Array Int
+getActualClmIds route@(Route { clmIds }) =
+  page'conformIds (getActualPage route) clmIds
+
 sortDir'param :: PairKey -> String
 sortDir'param Pos = "asc"
 sortDir'param Neg = "desc"
 
 route'urlEdits :: Int -> Route -> Edit UrlParts
-route'urlEdits defaultSeasonId route@(Route { seasonId, clmIds }) = do
-  s'set'b @"hash" (getHash clmIds)
+route'urlEdits defaultSeasonId route@(Route { seasonId }) = do
+  s'set'b @"hash" (getHash $ getActualClmIds route)
   s'set'b @"path" path
   s'set'b @"query" query
   where
   path = sync'x $ _'exec_ @(X'Vector String) do
     whenNot (seasonId == defaultSeasonId) do _'cons $ seasonId'slug seasonId
-    getActualPage route >>= case _ of
+    case getActualPage route of
       Player _ -> _'cons "-"
       Compare -> _'cons "compare"
       H2hGrid -> _'cons "h2h"
       _ -> pure unit
   query = sync'x $ _'exec_ @(X'HashMap String (Array String)) do
-    getActualPage route >>= case _ of
+    case getActualPage route of
       Stats sort filters -> do
-        defaultFilters <- x'defaultFilters seasonId
+        let defaultFilters = getDefaultFilters seasonId
         forM_ (filters'pairs filters) \(filterKey /\ filterVal) -> do
           when (filterVal /= filters'get defaultFilters filterKey) do
             _'insert (show filterKey) [ if filterVal then "y" else "n" ]
@@ -216,22 +234,25 @@ route'urlEdits defaultSeasonId route@(Route { seasonId, clmIds }) = do
 route'mkDefault :: Int -> Route
 route'mkDefault defaultSeasonId = route'mk defaultSeasonId defaultStatsPage []
   where
-  defaultStatsPage = sync'x $ x'defaultStatsPage defaultSeasonId
+  defaultStatsPage = getDefaultStatsPage defaultSeasonId
 
 urlParse'impl :: Int -> HashMap String Int -> URL -> Either String Route
 urlParse'impl defaultSeasonId seasonIdBySlug u =
   sync'x $ e'try $ s'exec (route'mkDefault defaultSeasonId) do
-    processClmIds $ url'hash u
     processRouteList false $ list'fromFoldable $ url'pathSegments u
     processQuery $ url'query u
+    processClmIds $ url'hash u
   where
-  processClmIds (Just hashStr) = do
+  readClmIds (Just hashStr) = do
     clmIds <- forM (str'split (Pattern "~") hashStr) \idStr -> do
       case (tryParseInt idStr) of
         Just clmId -> pure clmId
         _ -> e'fail $ "clmIds must be integers separated by `~`: " <> hashStr
-    s'set'b @"!.clmIds" clmIds
-  processClmIds _ = pure unit
+    pure clmIds
+  readClmIds _ = pure []
+  processClmIds hash = do
+    page <- s'view'b @"!.page"
+    (=<<) (s'set'b @"!.clmIds") $ readClmIds hash <#> page'conformIds page
   processRouteList _ Nil = pure unit
   processRouteList _ (Cons "-" Nil) = s'set'b @"!.page" $ Player PlayerTab'H2hs
   processRouteList _ (Cons "compare" Nil) = s'set'b @"!.page" Compare
@@ -240,7 +261,7 @@ urlParse'impl defaultSeasonId seasonIdBySlug u =
     case (hm'lookup slug seasonIdBySlug) of
       Just seasonId -> do
         s'set'b @"!.seasonId" seasonId
-        defaultFilters <- x'defaultFilters seasonId
+        let defaultFilters = getDefaultFilters seasonId
         x'out { seasonId, defaultFilters }
         route'setFilters defaultFilters
         processRouteList true rest
@@ -283,6 +304,10 @@ route'isPlayerPage :: Route -> Boolean
 route'isPlayerPage (Route { page: Player _ }) = true
 route'isPlayerPage _ = false
 
+route'isSortByQual :: Route -> Boolean
+route'isSortByQual (Route { page: Stats { by: SortBy'Qual } _ }) = true
+route'isSortByQual _ = false
+
 route'playerPageId :: Route -> Maybe (Maybe Int)
 route'playerPageId (Route { page: Player _, clmIds }) = Just $ arr'first clmIds
 route'playerPageId _ = Nothing
@@ -296,7 +321,7 @@ route'gotoStats = do
   seasonId <- s'view'b @"!.seasonId"
   isStatsPage <- s'get <#> route'isStatsPage
   whenNot isStatsPage do
-    s'set'b @"!.page" =<< x'defaultStatsPage seasonId
+    s'set'b @"!.page" $ getDefaultStatsPage seasonId
   s'set'b @"!.clmIds" []
 
 route'gotoPlayer :: Edit Route
@@ -306,18 +331,28 @@ route'gotoPlayer = do
     s'set'b @"!.page" $ Player PlayerTab'H2hs
   s'over'b @"!.clmIds" $ arr'take 1
 
+route'getFilters :: Route -> Filters
+route'getFilters (Route { seasonId, page }) = case page of
+  Stats _ filters -> filters
+  _ -> getDefaultFilters seasonId
+
+route'getFilter :: Filters'Key -> Route -> Boolean
+route'getFilter k r = filters'get (route'getFilters r) k
+
+route'changedFilters :: Route -> Array Filters'KV
+route'changedFilters route@(Route { seasonId }) = do
+  let defaultFilters = getDefaultFilters seasonId
+  let isChanged (filtK /\ filtV) = filtV /= filters'get defaultFilters filtK
+  arr'filter isChanged $ filters'pairs $ route'getFilters route
+
+route'anyChangedFilters :: Route -> Boolean
+route'anyChangedFilters = not <<< arr'isEmpty <<< route'changedFilters
+
 route'gotoSeason :: Int -> Edit Route
 route'gotoSeason seasonId = do
-  currSeasonId <- s'view'b @"!.seasonId"
-  s'view'b @"!.page" >>= case _ of
-    Stats _ filters -> do
-      currDefaultFilters <- x'defaultFilters currSeasonId
-      let isChanged (fk /\ fv) = fv /= filters'get currDefaultFilters fk
-      let changed = arr'filter isChanged $ filters'pairs filters
-      defaultFilters <- x'defaultFilters seasonId
-      route'setFilters defaultFilters
-      forM_ changed \(fk /\ fv) -> route'setFilter fk fv
-    _ -> pure unit
+  changedFilters <- s'get <#> route'changedFilters
+  let defaultFilters = getDefaultFilters seasonId
+  route'setFilters $ filters'addPairs defaultFilters changedFilters
   s'set'b @"!.seasonId" seasonId
 
 route'isSamePage :: Route -> Route -> Boolean

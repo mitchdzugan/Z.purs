@@ -20,6 +20,7 @@ module Z.Z.Defaultable.Generable
 
 import Prelude
 
+import Data.Either (Either(..))
 import Data.Identity (Identity(..))
 import Data.List (List(..))
 import Data.Maybe as May
@@ -88,6 +89,9 @@ instance Generable (Proxy a) _gdesc (Proxy a) where
 
 instance Generable a GDefault a => Generable (Identity a) _gdesc (Identity a) where
   mkGenerable = Identity $ mkGenerable @a @GDefault
+
+instance Generable r GDefault r => Generable (Either l r) _gdesc (Either l r) where
+  mkGenerable = Right $ mkGenerable @r @GDefault
 
 instance
   ( Generable l GDefault l

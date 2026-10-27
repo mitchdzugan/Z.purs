@@ -30,12 +30,15 @@ import Z.CLM.Stats.Route
   , Sort
   , SortBy(..)
   , filters'pairs
+  , route'anyChangedFilters
+  , route'getFilter
   , route'gotoPlayer
   , route'gotoSeason
   , route'gotoStats
   , route'isH2hPage
   , route'isPlayerPage
   , route'isSamePage
+  , route'isSortByQual
   , route'isStatsPage
   , route'mkDefault
   , route'pageKey
@@ -270,6 +273,8 @@ playerSearch = do
           dom'input_ do
             el'tabIndex0
             el'type "text"
+            el'placeholder "Search Players..."
+            el'value ""
           dom'div do
             el'key "outline-spacer"
             el'addCn "hidden absolute top-[5px] right-[calc(2rem_-_1px)]"
@@ -487,12 +492,65 @@ eventUrl { source: { site, slug } } = case site of
   H2h.Startgg -> "https://start.gg/" <> slug
   H2h.Challonge -> "https://challonge.com/" <> slug
 
+eventDateString :: ClmSeason'Event -> String
+eventDateString event = str'joinWith "/" $ (#) date <$>
+  [ dateTime'month'2dig, dateTime'day'2dig, show <<< dateTime'year ]
+  where
+  date = may'or event.date $ adjustDateTime (Hours (-5.5)) event.date
+
+getSocialHref :: H2h.SocialType -> String -> Maybe String
+getSocialHref H2h.Twitter s = Just $ "https://x.com/" <> s
+getSocialHref H2h.Twitch s = Just $ "https://www.twitch.tv/" <> s
+getSocialHref H2h.LuckyStats s = Just $ "https://luckystats.gg/player/" <> s
+getSocialHref _ _ = Nothing
+
+getSocialImgSrc :: H2h.SocialType -> Maybe String
+getSocialImgSrc H2h.Twitter = Just $ "/links/twitter.png"
+getSocialImgSrc H2h.Twitch = Just $ "/links/twitch.png"
+getSocialImgSrc H2h.LuckyStats = Just $ "/links/lucky_stats.png"
+getSocialImgSrc _ = Nothing
+
+type SocialProps = { imgSrc :: String, href :: String }
+
+getSocialProps :: H2h.SocialType /\ String -> Maybe SocialProps
+getSocialProps (socialType /\ socialVal) = do
+  imgSrc <- getSocialImgSrc socialType
+  href <- getSocialHref socialType socialVal
+  pure { imgSrc, href }
+
+getSocialsProps :: HashMap H2h.SocialType String -> Array SocialProps
+getSocialsProps = arr'concatMaybes <<< map getSocialProps <<< hm'entries
+
+socialIcons :: forall dx x. ClmPlayer -> ClmDom dx x Unit
+socialIcons { socials } = forM_ (getSocialsProps socials) \{ imgSrc, href } ->
+  dom'a do
+    el'cn "mr-1" *> el'targetBlank *> el'href href
+    pure $ dom'img_ $ el'cn "h-4 w-4" *> el'src imgSrc
+
+charImages :: forall dx x. ClmSeason'Player'Full -> String -> ClmDom dx x Unit
+charImages { chars: [] } _ = pure unit
+charImages { chars } cnExtra = do
+  dom'div do
+    el'cn "inline-flex flex-row items-center gap-1"
+    el'addCn cnExtra
+    pure $ forM_ chars \{ charId, color, usage } -> do
+      dom'img_ do
+        let mkUsageStr n i = if n < 0.01 then "<1" else show i
+        let usageStr = mkUsageStr usage $ round $ 100.0 * usage
+        x'out { usageStr }
+        el'cn "h-5 w-5"
+        el'title $ usageStr <> "% usage in sets with reported character data"
+        el'src $ "/chars/" <:> charId <:> "/" <:> color <:> "/stock.png"
+
 tablePlayerRow :: forall dx x. Int -> ClmSeason'Player'Full -> ClmDom dx x Unit
 tablePlayerRow sortedInd p = do
+  isSortByQual <- x'extract @"route" <#> route'isSortByQual
+  let canShowQual = p.hasRatingConfidence
+  let canShowOrd = canShowQual || not isSortByQual
   tableContentRow (Just p.clmId)
     { key: "player." <:> p.clmId
     , cn: ""
-    , ord: dom'text $ sortedInd
+    , ord: dom'text $ if canShowOrd then show sortedInd else "-"
     , profileImage: profileImage
         { alt: Just "start.gg profile image"
         , lazyLoad: true
@@ -500,9 +558,14 @@ tablePlayerRow sortedInd p = do
         , cn: "object-cover w-full h-full"
         }
     , name: dom'text $ p.player.gamerTag
-    , pronouns: Just $ dom'text $ "xD"
-    , characters: Just $ dom'text $ "xD"
-    , qual: dom'text $ p.rating
+    , pronouns: Just $ dom'span do
+        el'cn "inline-flex flex-row items-center"
+        pure do
+          whenJust p.player.pronouns \pronouns -> do
+            dom'span $ el'cn "mr-1" *> pure (dom'text pronouns)
+          socialIcons p.player
+    , characters: Just $ charImages p ""
+    , qual: dom'text $ if canShowQual then show p.rating else "-"
     , acc: dom'text $ p.wins <+> "-" <+> p.losses
     , att: dom'div do
         el'cn "flex items-center"
@@ -531,7 +594,7 @@ tablePlayerRow sortedInd p = do
         pure $ dom'text p.lastEvent.data.tournamentName
     , mruPlacing: dom'text $
         (ordinal p.lastEvent.placing <+> "of" <+> p.lastEvent.data.numEntrants)
-    , mruDate: dom'text $ "xD"
+    , mruDate: dom'text $ eventDateString p.lastEvent.data
     }
 
 clm'isInUse :: Filters -> ClmSeason'Player'Full -> Boolean
@@ -673,6 +736,74 @@ page'h2h :: forall dx x. ClmDom dx x Unit
 page'h2h = do
   pure unit
 
+filterButton :: forall dx x. ClmDom dx x Unit
+filterButton = do
+  route <- x'extract @"route"
+  editRoute <- x'extract @"editRoute"
+  let isStatsPage = route'isStatsPage route
+  let anyChangedFilters = route'anyChangedFilters route
+  let hasFilter'att = route'getFilter Filters'att route
+  let attTipPrefix = hasFilter'att ? "Show" $ "Hide"
+  let attTip = attTipPrefix <+> "Insufficient Attendance"
+  dom'withNewRef Nothing \getEl setEl -> do
+    dom'withNewRef false \getCanColor setCanColor -> do
+      domEff'once'lead $ domEff'async do
+        x'timeout 100
+        x'do $ setCanColor true
+        domEffA'sync $ updateColor anyChangedFilters getEl getCanColor
+      domEff'onNew'lead (anyChangedFilters /\ hasFilter'att) do
+        updateColor anyChangedFilters getEl getCanColor
+      dom'a do
+        router'setHref $ editRoute $
+          route'toggleFilter Filters'att
+        el'addCn "absolute z-10 top-0 left-px h-full"
+        el'addCn "tooltip tooltip-bottom overflow-visible"
+        el'addCn "border border-0" *> w'BorderG3
+        el'addCn "transition-transform transition-colors"
+        el'addCn "join-item duration-300 border-r-1"
+        let tx0 = "translate-x-0"
+        el'addCn $ isStatsPage ? tx0 $ "-translate-x-9"
+        el'data "tip" attTip
+        pure $ dom'button do
+          el'setElRef setEl
+          el'tabIndex0
+          el'roleButton
+          el'addCn "relative btn-sm border-0 btn-soft"
+          el'addCn "duration-500 h-full p-px transition"
+          el'addCn "rounded-l-xs w-8 hover:bg-base-200"
+          el'addCn "transition-colors rounded-r-none btn"
+          pure $ dom'div do
+            el'cn "relative"
+            pure do
+              dom'div do
+                el'addCn "absolute -bottom-3 left-0"
+                el'addCn "w-full h-full"
+                el'addCn
+                  "flex justify-center align-center"
+                pure $ dom'label do
+                  el'cn "swap swap-rotate h-3 w-3"
+                  pure do
+                    dom'input_ do
+                      el'type "checkbox"
+                      el'checked $ not hasFilter'att
+                      el'onClick domEff'event'preventDefault
+                    dom'div do
+                      el'cn "swap-on text-accent"
+                      pure $ icon'minus do
+                        w'say "h-3 w-3 opacity-50"
+                    dom'div do
+                      el'cn "swap-off text-secondary"
+                      pure do icon'xmark $ w'say "h-3 w-3"
+              icon'turnDown do
+                w'say "w-4 h-4 relative -top-1"
+                w'say "border-b-0 text-warning"
+  where
+  updateColor anyChanged getEl getCanColor = do
+    x'do getCanColor >>= flip when do
+      x'do getEl >>= flip whenJust \el -> do
+        let fn = anyChanged ? domEff'el'classList'add $ domEff'el'classList'rm
+        fn el "bg-info/20"
+
 app'body :: forall dx x. ClmDom dx x Unit
 app'body = do
   allSeasonIds <- x'extract @"buildOutputs"
@@ -760,40 +891,7 @@ app'body = do
                               el'cn "absolute z-15 right-[-2px] top-0 h-full"
                               -- TODO ActivePlayerIcons
                               pure $ pure unit
-                            dom'a do
-                              router'setHref $ editRoute $
-                                route'toggleFilter Filters'att
-                              el'data "tip" "test tooltip" -- TODO tooltip
-                              pure $ dom'button do
-                                el'tabIndex0
-                                el'roleButton
-                                el'addCn "relative btn-sm border-0 btn-soft"
-                                el'addCn "duration-500 h-full transition"
-                                el'addCn
-                                  "rounded-l-xs p-px w-8 hover:bg-base-200"
-                                el'addCn "transition-colors rounded-r-none btn"
-                                pure $ dom'div do
-                                  el'cn "relative"
-                                  pure do
-                                    dom'div do
-                                      el'addCn "absolute -bottom-3 left-0"
-                                      el'addCn "w-full h-full"
-                                      el'addCn
-                                        "flex justify-center align-center"
-                                      pure $ dom'label do
-                                        el'cn "swap swap-rotate h-3 w-3"
-                                        pure do
-                                          dom'input_ do el'type "checkbox"
-                                          dom'div do
-                                            el'cn "swap-on text-accent"
-                                            pure $ icon'minus do
-                                              w'say "h-3 w-3 opacity-50"
-                                          dom'div do
-                                            el'cn "swap-off text-secondary"
-                                            pure do icon'xmark $ w'say "h-3 w-3"
-                                    icon'turnDown do
-                                      w'say "w-4 h-4 relative -top-1"
-                                      w'say "border-b-0 text-warning"
+                            filterButton
                         playerSearch
                     dom'div do
                       el'key $ route'pageKey route
@@ -806,7 +904,9 @@ app'body = do
                           el'addCn "btn px-1 btn-sm h-full"
                           el'addCn "btn-soft rounded-none border-0"
                           pure $ icon'bars pass
-                        pure unit -- TODO periodMenu
+                        periodMenu $ w'str'sp \w -> do
+                          w "menu-sm dropdown-content bg-base-200 gap-1"
+                          w "rounded-box z-50 w-52 p-2 shadow"
                     dom'div do
                       el'key $ show $ g_ @"!.seasonId" route
                       el'addCn "dropdown dropdown-hover dropdown-end"

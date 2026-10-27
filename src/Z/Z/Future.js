@@ -60,3 +60,5 @@ export const js_futureTailRecM = (useStep) => (nextF) => (a1) => async () => {
 export const js_futureParallel = (pvs) => async () => {
   return await Promise.all(pvs.map((pv) => pv()));
 };
+
+export const js_futureNever = () => new Promise(() => {});
