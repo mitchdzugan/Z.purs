@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>clm stats dev</title>
+        <link href="./index.css" rel="stylesheet">
+        <link rel="preload" href="/db/4c7e91edb/seasons/15.json" as="fetch" crossorigin="anonymous">
+        <script type="module">
+            document.head.setAttribute(":clmBuildOutputs", JSON.stringify({"timeline":{"preDefault":[2,3,4,5,6,7,8,9,10,11,12,13,14],"postDefault":[16],"defaultSeasonId":15},"dbHash":"4c7e91edb"}));
+            import("../../../output/Test.Web.ClmStats.Main/index.js").then(m => m.main());
+        </script>
+        <script>
+            /*to prevent Firefox FOUC, this must be here*/
+            let FF_FOUC_FIX;
+        </script>
+        <link href="./static/animationConfig.css" rel="stylesheet">
+    </head>
+    <body class="min-h-screen bg-info dark:bg-info-content"></body>
+</html>
