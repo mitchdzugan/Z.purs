@@ -24,9 +24,9 @@ import Data.Foldable (class Foldable)
 import Data.Maybe (Maybe(..), isJust, isNothing)
 import Data.Tuple.Nested (type (/\), (/\))
 import Z.Z.Bin as Bin
-import Z.Z.Core (arr'concat, arr'fromFoldable, arr'remove, forM_)
+import Z.Z.Core (arr'concat, arr'fromFoldable, arr'remove)
 import Z.Z.Defaultable (class Generable)
-import Z.Z.Ext (class Newtype, Either(..))
+import Z.Z.Ext (class Newtype)
 import Z.Z.Ext as Z
 import Z.Z.Id (class Identable, ident'key)
 
@@ -34,18 +34,8 @@ newtype HashMap k v = HashMap (Bin.Bin { k :: k, v :: v })
 
 derive instance Newtype (HashMap k v) _
 
-instance (Identable k, Eq k, Eq v) => Eq (HashMap k v) where
-  eq hm1 hm2 = hm'size hm1 == hm'size hm2 && fin do
-    forM_ (hm'entries hm1) \(k /\ v) -> do
-      when (Just v /= hm'lookup k hm2) do
-        Left false
-    pure true
-    where
-    fin (Left v) = v
-    fin (Right v) = v
-
-instance (Identable k, Show k, Show v) => Show (HashMap k v) where
-  show = show <<< hm'entries
+instance Eq v => Eq (HashMap k v) where
+  eq hm1 hm2 = false
 
 instance Functor (HashMap k) where
   map f (HashMap hm) = HashMap $ hm <#> \d -> { k: d.k, v: f d.v }
