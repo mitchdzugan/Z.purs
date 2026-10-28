@@ -38,6 +38,8 @@ module Z.Z.Core
   , arr'slice
   , arr'take
   , arr'withInd
+  , boolType'bool
+  , class BoolType
   , class C'Relate
   , class ConsSymbol
   , class Numberable
@@ -831,7 +833,15 @@ eff'untag = unwrap
 int'romanNumeral :: Int -> String
 int'romanNumeral = js_toRomanNumeral
 
-tern :: forall a. Boolean -> a -> a -> a
-tern cond vthen velse = if cond then vthen else velse
+class BoolType a where
+  boolType'bool :: a -> Boolean
+
+instance BoolType Boolean where
+  boolType'bool = identity
+else instance (Newtype a Boolean) => BoolType a where
+  boolType'bool = unwrap
+
+tern :: forall a b. BoolType b => b -> a -> a -> a
+tern cond vthen velse = if boolType'bool cond then vthen else velse
 
 infixl 2 tern as ?

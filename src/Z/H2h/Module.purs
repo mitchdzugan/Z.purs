@@ -123,6 +123,8 @@ type PhaseGroup =
 
 data SocialType = Discord | Twitter | Twitch | XBox | LuckyStats
 
+derive instance Eq SocialType
+
 derive instance Generic SocialType _
 
 instance Identable SocialType where

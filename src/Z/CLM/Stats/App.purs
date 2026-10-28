@@ -21,15 +21,17 @@ import Z.CLM.Stats.Icon
   , icon'xmark
   , iconBadge'activity
   )
-import Z.CLM.Stats.Route
-  ( Filters
-  , Filters'Key(..)
-  , PlayerTab
+import Z.CLM.Stats.Route2
+  ( Filter(..)
+  , IsH2hTab(..)
   , Route
+  , Route'SortByAndFilters
   , RoutePage(..)
   , Sort
   , SortBy(..)
-  , filters'pairs
+  , filter'Pr
+  , page'Compare
+  , page'H2h
   , route'anyChangedFilters
   , route'getFilter
   , route'gotoPlayer
@@ -43,11 +45,17 @@ import Z.CLM.Stats.Route
   , route'mkDefault
   , route'pageKey
   , route'playerPageId
-  , route'playerPageTab
+  , route'playerTab
   , route'setSort
+  , route'sortByAndFilters
   , route'toggleFilter
   , route'urlEdits
   , route'urlParse
+  , sortBy'Acc
+  , sortBy'Att
+  , sortBy'Mru
+  , sortBy'Name
+  , sortBy'Qual
   , sortBy'defaultDir
   , sortBy'title
   )
@@ -78,15 +86,6 @@ data ClmSeason'Error
 type Or'ClmSeason'Error t = Either ClmSeason'Error t
 
 type ClmSeason'Players'Full = Array ClmSeason'Player'Full
-
-data SandF = SandF SortBy PairKey Filters
-
-instance Identable SandF where
-  ident'get (SandF by dir filters) = id'of
-    [ ident'key by
-    , ident'key dir
-    , ident'key $ filters'pairs filters
-    ]
 
 type OutOfSeasonPlayer =
   { clmId :: Int
@@ -119,23 +118,24 @@ type ClmSeason'Responds = VariantF
   , otherPlayerSeasons :: Responds'Const (HashMap Int (Array Int))
   , fullPlayers :: Responds'Const (HashMap Int ClmSeason'Player'Full)
   , playerRanks :: Responds'Const (HashMap Int ClmSeason'Player)
-  , getIsInUse :: Responds Int (Filters -> Boolean)
   , ranksOrE ::
       Responds'Const (Or'ClmSeason'Error ClmSeason'Players'Full)
   , allPlayers :: Responds'Const (Array AnyPlayer)
   , allPlayersSnapshot :: Responds'Const (FuzzySnapshot AnyPlayer)
   , searchedPlayers :: Responds String (Array AnyPlayer)
   , ranksOrESorted ::
-      Responds SandF (Or'ClmSeason'Error ClmSeason'Players'Full)
+      Responds Route'SortByAndFilters
+        (Or'ClmSeason'Error ClmSeason'Players'Full)
   )
 
 sortBy'sorters :: SortBy -> Array (Sorter ClmSeason'Player'Full)
-sortBy'sorters SortBy'Name = [ sorter _.player.gamerTag ]
-sortBy'sorters SortBy'Qual = []
-sortBy'sorters SortBy'Acc = [ sorter'rev _.winrate, sorter'rev _.sets ]
-sortBy'sorters SortBy'Att = [ sorter'rev _.prEvents, sorter'rev _.sets ]
-sortBy'sorters SortBy'Mru =
-  [ sorter'rev _.lastEvent.data.date, sorter'rev _.prEvents ]
+sortBy'sorters = unwrap >>> var'match
+  { name: const [ sorter _.player.gamerTag ]
+  , qual: const []
+  , acc: const [ sorter'rev _.winrate, sorter'rev _.sets ]
+  , att: const [ sorter'rev _.prEvents, sorter'rev _.sets ]
+  , mru: const [ sorter'rev _.lastEvent.data.date, sorter'rev _.prEvents ]
+  }
 
 instance Boxable ClmSeason'Tag ClmSeason'Json ClmSeason'Responds where
   boxable'mkResponds b = varf'match
@@ -144,10 +144,6 @@ instance Boxable ClmSeason'Tag ClmSeason'Json ClmSeason'Responds where
     , fullPlayers: responds'run \_ -> case (boxed'call_ @"ranksOrE" b) of
         Left _ -> hm'empty
         Right ranks -> keyBy _.clmId ranks
-    , getIsInUse: responds'run \clmId -> \filters ->
-        case (hm'lookup clmId $ boxed'call_ @"fullPlayers" b) of
-          Nothing -> false
-          Just p -> p.hasReq'prEvents || not filters.req'prEvents
     , playerRanks: responds'run \_ -> keyBy _.clmId $ (boxed'v b).ranks
     , otherPlayerTags: responds'run \_ ->
         hm'fromFoldable (boxed'v b).otherPlayerTags
@@ -202,8 +198,9 @@ instance Boxable ClmSeason'Tag ClmSeason'Json ClmSeason'Responds where
         if srch == "" then boxed'call_ @"allPlayers" b
         else _.obj <$>
           fuzzy'searchSnapshot (boxed'call_ @"allPlayersSnapshot" b) srch pass
-    , ranksOrESorted: responds'run \(SandF sortBy _ filters) -> do
-        let sorter'isInUse = sorter'rev (clm'isInUse filters)
+    , ranksOrESorted: responds'run \(sortBy /\ filters) -> do
+        let hs'filters = hs'fromFoldable filters
+        let sorter'isInUse = sorter'rev (clm'isInUse hs'filters)
         let sorters = arr'concat [ [ sorter'isInUse ], sortBy'sorters sortBy ]
         boxed'call_ @"ranksOrE" b
           <#> arr'filter (\r -> r.prEvents > 0)
@@ -315,8 +312,8 @@ periodMenu ulCn = do
     pure do
       liEl route'gotoStats icon'chartColumn "Stats"
       liEl route'gotoPlayer icon'user "Players"
-      liEl (s'set'b @"!.page" Compare) icon'userGroup "Compare"
-      liEl (s'set'b @"!.page" H2hGrid) icon'tableCells "H2h"
+      liEl (s'set'b @"page" page'Compare) icon'userGroup "Compare"
+      liEl (s'set'b @"page" page'H2h) icon'tableCells "H2h"
   where
   liEl edits icon text = do
     currRoute <- x'extract @"route"
@@ -342,7 +339,7 @@ defaultPlayerSearchProps =
 
 getSearchedPlayers :: forall dx x. String -> ClmDom dx x (Array AnyPlayer)
 getSearchedPlayers searchString = do
-  seasonId <- x'extract @"route" <#> g_ @"!.seasonId"
+  seasonId <- x'extract @"route" <#> g_ @"seasonId"
   domFetchCache'lookup @"clmSeasons" seasonId <#> case _ of
     FetchCache'ValState'Val season ->
       boxed'call @"searchedPlayers" season searchString
@@ -515,7 +512,7 @@ tableContentRow clmIdOr_ props = do
         case clmIdOr_ of
           Just clmId -> do
             useBody dom'a $ router'setHref
-              (editRoute $ route'gotoPlayer *> s'setPure'b @"!.clmIds" clmId)
+              (editRoute $ route'gotoPlayer *> s'setPure'b @"clmIds" clmId)
           _ -> useBody dom'div $ pure unit
     , dom'div $ pure props.qual
     , dom'div $ pure props.acc
@@ -548,7 +545,7 @@ tableContentRow clmIdOr_ props = do
 
 getClmRng :: forall dx x. String -> ClmDom dx x (Array String -> Number)
 getClmRng key = do
-  { clmIds, seasonId } <- x'extract @"route" <#> unwrap
+  { clmIds, seasonId } <- x'extract @"route"
   let rngEls a = arr'concat [ a, [ key, show seasonId ], map show clmIds ]
   pure $ pseudoRng <<< rngEls
 
@@ -720,12 +717,14 @@ tablePlayerRow sortedInd p = do
     , mruDate: dom'text $ eventDateString p.lastEvent.data
     }
 
-clm'isInUse :: Filters -> ClmSeason'Player'Full -> Boolean
-clm'isInUse f p = p.hasReq'prEvents || not f.req'prEvents
+clm'isInUse :: HashSet Filter -> ClmSeason'Player'Full -> Boolean
+clm'isInUse f p = p.hasReq'prEvents || not (hs'has filter'Pr f)
 
-page'stats :: forall dx x. Sort -> Filters -> ClmDomE dx x Unit
-page'stats sort filters = do
-  seasonId <- x'extract @"route" <#> g_ @"!.seasonId"
+page'stats :: forall dx x. Unit -> ClmDomE dx x Unit
+page'stats _ = do
+  route <- x'extract @"route"
+  sort <- x'extract @"route" <#> g_ @"sort"
+  seasonId <- x'extract @"route" <#> g_ @"seasonId"
   seasonOr_ <- domFetchCache'lookup @"clmSeasons" seasonId
   animateInCn <- getAnimateInCn false "animate-flip-down"
   dom'div do
@@ -734,11 +733,11 @@ page'stats sort filters = do
       "headers"
       ("h-10 rounded-none border-b-2 bg-base-300" <+> borderG3 <+> animateInCn)
       [ dom'span $ el'cn "font-bold" *> do pure $ dom'text "#"
-      , tableHead SortBy'Name
-      , tableHead SortBy'Qual
-      , tableHead SortBy'Acc
-      , tableHead SortBy'Att
-      , tableHead SortBy'Mru
+      , tableHead sortBy'Name
+      , tableHead sortBy'Qual
+      , tableHead sortBy'Acc
+      , tableHead sortBy'Att
+      , tableHead sortBy'Mru
       ]
   let mkRankKey s rank = s <> "." <:> seasonId <:> "." <:> rank.clmId
   dom'withKey "statsPage" $ dom'div do
@@ -749,7 +748,8 @@ page'stats sort filters = do
       FetchCache'ValState'Error err _ -> do
         domError'fail $ ClmDom'Err'LoadSeason seasonId err
       FetchCache'ValState'Val season -> do
-        let sAndF = SandF sort.by sort.dir filters
+        let sAndF = route'sortByAndFilters route
+        let filters = hs'fromFoldable $ snd sAndF
         let ranksOrE = boxed'call @"ranksOrESorted" season sAndF
         ranks <- domError'ok $ mapL (ClmDom'Err'FullSeason seasonId) ranksOrE
         let filtRanks = arr'filter (clm'isInUse filters) ranks
@@ -820,6 +820,7 @@ page'stats sort filters = do
 
   where
   tableHead sortBy = do
+    sort <- x'extract @"route" <#> g_ @"sort"
     editRoute <- x'extract @"editRoute"
     let s4 = s'put Size4
     let isCurr = sort.by == sortBy
@@ -846,7 +847,7 @@ page'stats sort filters = do
             pure do
               dir == pos ? icon'sortUp s4 $ icon'sortDown s4
 
-page'player :: forall dx x. PlayerTab -> ClmDom dx x Unit
+page'player :: forall dx x. IsH2hTab -> ClmDom dx x Unit
 page'player tab = do
   pure unit
 
@@ -864,7 +865,7 @@ filterButton = do
   editRoute <- x'extract @"editRoute"
   let isStatsPage = route'isStatsPage route
   let anyChangedFilters = route'anyChangedFilters route
-  let hasFilter'att = route'getFilter Filters'att route
+  let hasFilter'att = route'getFilter filter'Pr route
   let attTipPrefix = hasFilter'att ? "Show" $ "Hide"
   let attTip = attTipPrefix <+> "Insufficient Attendance"
   dom'withNewRef Nothing \getEl setEl -> do
@@ -877,7 +878,7 @@ filterButton = do
         updateColor anyChangedFilters getEl getCanColor
       dom'a do
         router'setHref $ editRoute $
-          route'toggleFilter Filters'att
+          route'toggleFilter filter'Pr
         el'addCn "absolute z-10 top-0 left-px h-full"
         el'addCn "tooltip tooltip-bottom overflow-visible"
         el'addCn "border border-0" *> w'BorderG3
@@ -935,7 +936,7 @@ app'body = do
     <#> arr'reverse
   route <- x'extract @"route"
   editRoute <- x'extract @"editRoute"
-  let seasonId = g_ @"!.seasonId" route
+  let seasonId = g_ @"seasonId" route
   let title = seasonId'title seasonId
   let isH2hPage = route'isH2hPage route
   let isStatsPage = route'isStatsPage route
@@ -1029,7 +1030,7 @@ app'body = do
                           w "menu-sm dropdown-content bg-base-200 gap-1"
                           w "rounded-box z-50 w-52 p-2 shadow"
                     dom'div do
-                      el'key $ show $ g_ @"!.seasonId" route
+                      el'key $ show $ g_ @"seasonId" route
                       el'addCn "dropdown dropdown-hover dropdown-end"
                       el'addCn "join-item border rounded-r-md" *> w'BorderG3
                       pure do
@@ -1060,11 +1061,12 @@ app'body = do
                                   dom'div $ pure $ dom'text $
                                     seasonId'title otherSeasonId
         domError'bind (const $ pure unit) do
-          case g_ @"!.page" route of
-            Stats sort filters -> page'stats sort filters
-            Player tab -> page'player tab
-            Compare -> page'compare
-            H2hGrid -> page'h2h
+          flip var'match (unwrap $ g_ @"page" route)
+            { stats: page'stats
+            , player: page'player
+            , compare: \_ -> page'compare
+            , h2hGrid: \_ -> page'h2h
+            }
 
 app'mk :: forall dx x. ClmBuildOutputs -> UrlSt.XProvider dx x -> XDom dx x Unit
 app'mk buildOutputs = router'run urlEdits parseUrl mkTitleOr_ do
@@ -1093,7 +1095,7 @@ app'mk buildOutputs = router'run urlEdits parseUrl mkTitleOr_ do
     } <- domRef'get'' @"isInitials"
     let
       isStillInitialSeason = isInitialSeason &&
-        (g_ @"!.seasonId" route == g_ @"!.seasonId" initialRoute)
+        (g_ @"seasonId" route == g_ @"seasonId" initialRoute)
       isStillInitialPage = isStillInitialSeason && isInitialPage &&
         (route'isSamePage route initialRoute)
     domRef'set'' @"isInitials"
@@ -1103,7 +1105,7 @@ app'mk buildOutputs = router'run urlEdits parseUrl mkTitleOr_ do
       , isInitialPlayer: isStillInitialSeason && isInitialPlayer &&
           (route'playerPageId route == route'playerPageId route)
       , isInitialTab: isStillInitialSeason && isInitialTab &&
-          (route'playerPageTab route == route'playerPageTab route)
+          (route'playerTab route == route'playerTab route)
       }
     dom'runReader @"buildOutputs" buildOutputs
       $ dom'runReader @"route" route
@@ -1119,9 +1121,9 @@ app'mk buildOutputs = router'run urlEdits parseUrl mkTitleOr_ do
   mkClmSeasonFetchUrl id = "/db/" <:> dbHash <:> "/seasons/" <:> id <:> ".json"
   mkClmPlayerSeasonFetchUrl (clmId /\ seasonId) =
     "/db/" <:> dbHash <:> "/players/" <:> clmId <:> "/" <:> seasonId <:> ".json"
-  getClmSeasonIds = x'extract @"route" <#> g_ @"!.seasonId" <#> pure
+  getClmSeasonIds = x'extract @"route" <#> g_ @"seasonId" <#> pure
   getClmPlayerSeasonIds = x'extract @"route" <#> \r ->
-    g_ @"!.clmIds" r <#> flip (/\) (g_ @"!.seasonId" r)
+    g_ @"clmIds" r <#> flip (/\) (g_ @"seasonId" r)
   mkTitleOr_ = Just <<< url'toString <<< _.url
   dbHash = buildOutputs.dbHash
   defaultSeasonId = buildOutputs.timeline.defaultSeasonId

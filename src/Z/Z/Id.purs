@@ -28,7 +28,7 @@ import Data.ByteString (fromByte)
 import Data.Char (toCharCode)
 import Data.String.CodeUnits (singleton)
 import Z.Z.Core (arr'concat)
-import Z.Z.Ext (Exists, mkExists, runExists)
+import Z.Z.Ext (class IsSymbol, Exists, mkExists, reflectSymbol, runExists)
 import Z.Z.Ext as Z
 import Z.Z.Pair as ZP
 import Z.Z.PairKey (PairKey(..), pos)
@@ -98,6 +98,11 @@ instance IsId String where
   id'keyImpl = identity
   id'bytesImpl = js_bytesOfString Z.byte
 
+instance (IsSymbol sym) => IsId (Z.Proxy sym) where
+  id'char _ = 'x'
+  id'keyImpl = reflectSymbol
+  id'bytesImpl = js_bytesOfString Z.byte <<< reflectSymbol
+
 instance IsId PairKey where
   id'char _ = 'P'
   id'keyImpl pk = if pk == pos then "+" else "-"
@@ -157,6 +162,9 @@ instance Identable Int where
   ident'get = id'of
 
 instance Identable String where
+  ident'get = id'of
+
+instance (IsSymbol sym) => Identable (Z.Proxy sym) where
   ident'get = id'of
 
 instance Identable PairKey where
