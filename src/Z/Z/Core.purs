@@ -376,6 +376,12 @@ foreign import js_zScoreToPercentile :: Number -> Number
 
 foreign import js_toRomanNumeral :: Int -> String
 
+foreign import js_tryParseFloat
+  :: Maybe Number -> (Number -> Maybe Number) -> String -> Maybe Number
+
+foreign import js_tryParseInt
+  :: Maybe Int -> (Int -> Maybe Int) -> String -> Maybe Int
+
 zScoreToPercentile :: Number -> Number
 zScoreToPercentile = js_zScoreToPercentile
 
@@ -801,10 +807,10 @@ parseInt = do
   pure i
 
 tryParseInt :: String -> May.Maybe Int
-tryParseInt s = Eor.hush $ runParser s parseInt
+tryParseInt = js_tryParseInt May.Nothing May.Just
 
 tryParseNum :: String -> May.Maybe Number
-tryParseNum s = Eor.hush $ runParser s parseNumber
+tryParseNum = js_tryParseFloat May.Nothing May.Just
 
 p2 :: Int -> Int
 p2 = Int.pow 2

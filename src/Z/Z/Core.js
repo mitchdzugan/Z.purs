@@ -60,20 +60,20 @@ export function js_zScoreToPercentile(z) {
   return (sum + 0.5) * 100;
 }
 const ROMAN_NUMERALS = [
-  {v: 1000, c: "M"},
-  {v: 900, c: "CM"},
-  {v: 500, c: "D"},
-  {v: 400, c: "CD"},
-  {v: 100, c: "C"},
-  {v: 90, c: "XC"},
-  {v: 50, c: "L"},
-  {v: 40, c: "XL"},
-  {v: 10, c: "X"},
-  {v: 9, c: "IX"},
-  {v: 5, c: "V"},
-  {v: 4, c: "IV"},
-  {v: 1, c: "I"},
-]
+  { v: 1000, c: "M" },
+  { v: 900, c: "CM" },
+  { v: 500, c: "D" },
+  { v: 400, c: "CD" },
+  { v: 100, c: "C" },
+  { v: 90, c: "XC" },
+  { v: 50, c: "L" },
+  { v: 40, c: "XL" },
+  { v: 10, c: "X" },
+  { v: 9, c: "IX" },
+  { v: 5, c: "V" },
+  { v: 4, c: "IV" },
+  { v: 1, c: "I" },
+];
 export function js_toRomanNumeral(rawInput) {
   function impl(input) {
     let v = input;
@@ -90,10 +90,29 @@ export function js_toRomanNumeral(rawInput) {
     return res;
   }
   if (rawInput == 0) {
-    return "_"
+    return "_";
   } else if (rawInput < 0) {
     return "-" + impl(rawInput * -1);
   } else {
-    return impl(rawInput)
+    return impl(rawInput);
   }
 }
+export const js_tryParseFloat = (Nothing) => (Just) => (s) => {
+  try {
+    const res = parseFloat(s);
+    const isValid = !Number.isNaN(res);
+    return isValid ? Just(res) : Nothing;
+  } catch (e) {
+    return Nothing;
+  }
+};
+export const js_tryParseInt = (Nothing) => (Just) => (s) => {
+  try {
+    const res = parseInt(s);
+    const floatRes = parseFloat(s);
+    const isValid = !Number.isNaN(res) && res == floatRes;
+    return isValid ? Just(res) : Nothing;
+  } catch (e) {
+    return Nothing;
+  }
+};

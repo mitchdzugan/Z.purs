@@ -22,11 +22,11 @@ class ResProxy {
 const mkResProxy = (res) => new ResProxy(res);
 
 export const js_snapshot = (elsIn) => (keyFns) => {
-  const keys = Array.from({ length: keyFns.length }, (_, ind) => `s${ind}`);
+  const keys = Array.from({ length: keyFns.length }, (_, ind) => ind);
   const els = elsIn.map((el) => {
     const res = { el };
     keyFns.forEach((keyFn, ind) => {
-      res[`s${ind}`] = prepare(keyFn(el));
+      res[ind] = prepare(keyFn(el));
     });
     return res;
   });
