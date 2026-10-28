@@ -12,6 +12,7 @@ module Z.Z.DateTime
   , dateTime'day'2dig
   , dateTime'eff'now
   , dateTime'fromMS
+  , dateTime'mkDate
   , dateTime'month
   , dateTime'month'2dig
   , dateTime'month'i0
@@ -46,6 +47,10 @@ derive newtype instance Enc.EncodeJson DateTime
 
 dateTime'fromMS :: forall num. Numberable num => num -> DateTime
 dateTime'fromMS num = wrap $ numberable'toNumber num
+
+dateTime'mkDate :: Int -> Int -> Int -> Maybe String -> DateTime
+dateTime'mkDate year month day timeZone = wrap $ js_makeDate year month day $
+  encodeOpts { timeZone }
 
 dateTime'eff'now :: Effect DateTime
 dateTime'eff'now = js_effNow <#> wrap
@@ -131,3 +136,4 @@ foreign import js_effNow :: Effect Number
 foreign import js_dateMonth :: Number -> Json -> Int
 foreign import js_dateYear :: Number -> Json -> Int
 foreign import js_dateDay :: Number -> Json -> Int
+foreign import js_makeDate :: Int -> Int -> Int -> Json -> Number

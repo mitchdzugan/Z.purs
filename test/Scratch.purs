@@ -3,7 +3,7 @@ module Test.Scratch where
 import Node.Z.Prelude
 
 import Effect.Class.Console (log)
-import Z.CLM.Stats.Season (seasonId'props)
+import Z.CLM.Stats.Season (seasonId'props, tz'chicago)
 import Z.SSBM.Slp.Read.Impl as SlpRead
 import Z.Z.Id as Id
 
@@ -123,3 +123,6 @@ main = log "Hello World" *> runXAThenExit @Void @Void do
   -- x'out $ ident'uuid parsed
   flip forM_ x'out $ arr'range (-2) 1234 <#> \i -> i /\ int'romanNumeral i
   x'out $ arr'range 0 20 <#> \i -> i /\ seasonId'props i
+  let dateChi = dateTime'mkDate 2026 5 22 tz'chicago
+  let dateUtc = dateTime'mkDate 2026 5 22 Nothing
+  x'out { dateUtc, dateChi }

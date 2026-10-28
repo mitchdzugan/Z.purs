@@ -8,6 +8,7 @@ import Node.Z.Gql as Gql
 import Node.Z.H2h.Builder as B
 import Node.Z.Puppeteer as P
 import Z.Bk.Elimination.Round as Round
+import Z.CLM.Stats.Season (tz'chicago)
 import Z.Gql.Error as GqlE
 import Z.Gql.Warning as GqlW
 import Z.H2h.Error as H2hE
@@ -331,22 +332,20 @@ userAgent :: String
 userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" <+>
   "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 
-{-
-parseMonth :: forall m. ParserT String m Month
-parseMonth = parseTry (parseStringAs "January" January)
-  <|> parseTry (parseStringAs "February" February)
-  <|> parseTry (parseStringAs "March" March)
-  <|> parseTry (parseStringAs "April" April)
-  <|> parseTry (parseStringAs "May" May)
-  <|> parseTry (parseStringAs "June" June)
-  <|> parseTry (parseStringAs "July" July)
-  <|> parseTry (parseStringAs "August" August)
-  <|> parseTry (parseStringAs "September" September)
-  <|> parseTry (parseStringAs "October" October)
-  <|> parseTry (parseStringAs "November" November)
-  <|> parseTry (parseStringAs "December" December)
+parseMonth :: forall m. ParserT String m Int
+parseMonth = parseTry (parseStringAs "January" 1)
+  <|> parseTry (parseStringAs "February" 2)
+  <|> parseTry (parseStringAs "March" 3)
+  <|> parseTry (parseStringAs "April" 4)
+  <|> parseTry (parseStringAs "May" 5)
+  <|> parseTry (parseStringAs "June" 6)
+  <|> parseTry (parseStringAs "July" 7)
+  <|> parseTry (parseStringAs "August" 8)
+  <|> parseTry (parseStringAs "September" 9)
+  <|> parseTry (parseStringAs "October" 10)
+  <|> parseTry (parseStringAs "November" 11)
+  <|> parseTry (parseStringAs "December" 12)
   <|> parseFail "Expected %Month%"
--}
 
 parseAMorPM :: forall m. ParserT String m Boolean
 parseAMorPM = parseTry (parseStringAs "AM" false)
@@ -355,33 +354,22 @@ parseAMorPM = parseTry (parseStringAs "AM" false)
 
 parseDate :: forall m. ParserT String m DateTime
 parseDate = do
-  {-
   month <- parseMonth
   parseString_ " "
-  day <- parseInt <#> toEnum @Day >>= mOr "invalid day"
+  day <- parseInt
   parseString_ ","
   parseString_ " "
-  year <- parseInt <#> toEnum @Year >>= mOr "invalid year"
+  year <- parseInt
   parseString_ " at "
-  hour <- parseInt <#> toEnum @Hour >>= mOr "invalid hour"
-  let date = canonicalDate year month day
+  hour <- parseInt
+  let baseDate = dateTime'mkDate year month day tz'chicago
   parseString_ ":"
-  m <- parseInt <#> toEnum @Minute >>= mOr "invalid minute"
-  s <- pure 0 <#> toEnum @Second >>= mOr "invalid second"
-  ms <- pure 0 <#> toEnum @Millisecond >>= mOr "invalid millisecond"
-  let time = Time hour m s ms
-  let rawDatetime = DateTime date time
+  minute <- parseInt
+  let timeSpan = TS'hours hour :+: TS'minutes minute
   parseString_ " "
   isPM <- parseAMorPM
-  let hOff = Hours $ toNumber $ if isPM then 12 else 0
-  dAdjust hOff rawDatetime
-  where
-  mOr :: forall mm a. String -> Maybe a -> ParserT String mm a
-  mOr s Nothing = parseFail s
-  mOr _ (Just y) = pure y
-  dAdjust d dt = mOr "invalid date adjustment" $ adjustDateTime d dt
-  -}
-  pure $ wrap 0.0
+  let pmTimeSpan = TS'hours $ toNumber $ if isPM then 12 else 0
+  pure $ baseDate :~: timeSpan :+: pmTimeSpan
 
 type BaseSet =
   { id :: Int
