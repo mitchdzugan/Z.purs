@@ -4,9 +4,6 @@ module Z.Z.Ext
   , module ByteString
   , module CA
   , module DC
-  , module DateTime
-  , module DateTimeDuration
-  , module DateTimeInst
   , module Dec
   , module DecodeGeneric
   , module Dup
@@ -69,19 +66,6 @@ import Data.Array (slice) as Array
 import Data.ByteString (Byte, byte, fromByte) as ByteString
 import Data.Codec (Codec, Codec') as DC
 import Data.Codec.Argonaut (JsonCodec) as CA
-import Data.DateTime
-  ( Date
-  , Day
-  , Hour
-  , Millisecond
-  , Minute
-  , Month(..)
-  , Second
-  , Time(..)
-  , Year
-  , canonicalDate
-  ) as DateTime
-import Data.DateTime.Instant (Instant, instant) as DateTimeInst
 import Data.Either (Either(..), blush, either, hush) as Either
 import Data.Enum
   ( class BoundedEnum
@@ -143,7 +127,6 @@ import Data.Newtype (class Newtype, unwrap, wrap) as Newtype
 import Data.Show.Generic (genericShow) as ShowGeneric
 import Data.String (Pattern(..)) as Str
 import Data.Symbol (class IsSymbol, reflectSymbol, reifySymbol) as Symbol
-import Data.Time.Duration (Hours(..), Milliseconds(..)) as DateTimeDuration
 import Data.Tuple (Tuple(..), curry, fst, snd, uncurry) as Tup
 import Data.Tuple.Nested (type (/\), (/\)) as TupNested
 import Effect (Effect) as Effect

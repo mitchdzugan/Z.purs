@@ -6,15 +6,19 @@ module Z.CLM.Stats.Season
   , seasonId'slug
   , seasonId'title
   , seasonId'year
+  , tz'chicago
   ) where
 
 import Z.Prelude
 
+tz'chicago :: Maybe String
+tz'chicago = Just "America/Chicago"
+
 seasonId'fromDateTime :: DateTime -> Int
 seasonId'fromDateTime dt = periodMonthContrib + periodYearContrib
   where
-  periodYearContrib = (((dateTime'year dt) - 2022) * 3) + 2
-  periodMonthContrib = floor $ toNumber (dateTime'month'i0 dt) / 4.0
+  periodYearContrib = (((dateTime'year dt tz'chicago) - 2022) * 3) + 2
+  periodMonthContrib = floor $ toNumber (dateTime'month'i0 dt tz'chicago) / 4.0
 
 seasonId'active :: forall x. x @@> Int
 seasonId'active = x'now <#> seasonId'fromDateTime

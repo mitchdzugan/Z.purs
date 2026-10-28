@@ -179,7 +179,7 @@ getEventData = B.adaptBuilder do
     entrants <- x'extract @"entrants"
     let { endAt } = event.tournament
     let endAtMS = (toNumber endAt) * 1000.0
-    date <- e'unwrap (H2hE.InvalidInstant endAt) $ dateTime'fromMS endAtMS
+    let date = dateTime'fromMS endAtMS
     pure
       { id: sOrN event.id
       , name: event.name

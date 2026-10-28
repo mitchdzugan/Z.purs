@@ -1,120 +1,133 @@
 module Z.Z.DateTime
-  ( DateTime(..)
-  , adjustDateTime
+  ( (:+:)
+  , (:~:)
+  , DateTime(..)
+  , TS'hours(..)
+  , TS'milliseconds(..)
+  , TS'minutes(..)
+  , TS'seconds(..)
+  , class TimeSpan
+  , dateTime'alter
   , dateTime'day
   , dateTime'day'2dig
+  , dateTime'eff'now
   , dateTime'fromMS
-  , dateTime'fromMS'Int
+  , dateTime'month
   , dateTime'month'2dig
   , dateTime'month'i0
-  , dateTime'month'i1
-  , dateTime'toMS
   , dateTime'year
-  , fromRawDateTime
-  , toDateTime
+  , ts'add
+  , ts'sub
+  , ts'toMS
   ) where
 
 import Prelude
 
-import Data.Argonaut.Decode (JsonDecodeError(..), decodeJson) as Dec
-import Data.DateTime as DateTime
-import Data.DateTime.Instant as DateTimeInst
-import Data.Enum (fromEnum)
-import Data.Maybe as May
-import Data.Time.Duration as TimeDuration
-import Z.Z.Ext as Z
-import Z.Z.Id (class Identable, id'of)
+import Data.Argonaut.Core (Json)
+import Data.Argonaut.Decode (class DecodeJson) as Dec
+import Data.Argonaut.Encode (class EncodeJson) as Enc
+import Data.Maybe (Maybe)
+import Data.Newtype (class Newtype, unwrap, wrap)
+import Effect (Effect)
+import Z.Z.Core (class Numberable, encodeOpts, numberable'toNumber)
+import Z.Z.Id (class Identable)
 
-data DateTime = DateTime DateTime.Date DateTime.Time
+newtype DateTime = DateTime Number
 
-fromRawDateTime :: DateTime.DateTime -> DateTime
-fromRawDateTime = data_to_impl
+derive instance Newtype DateTime _
+derive newtype instance Eq DateTime
+derive newtype instance Ord DateTime
+derive newtype instance Show DateTime
+derive newtype instance Semiring DateTime
+derive newtype instance Identable DateTime
+derive newtype instance Ring DateTime
+derive newtype instance Dec.DecodeJson DateTime
+derive newtype instance Enc.EncodeJson DateTime
 
-data_to_impl :: DateTime.DateTime -> DateTime
-data_to_impl dt = DateTime (DateTime.date dt) (DateTime.time dt)
+dateTime'fromMS :: forall num. Numberable num => num -> DateTime
+dateTime'fromMS num = wrap $ numberable'toNumber num
 
-impl_to_data :: DateTime -> DateTime.DateTime
-impl_to_data (DateTime date time) = DateTime.DateTime date time
+dateTime'eff'now :: Effect DateTime
+dateTime'eff'now = js_effNow <#> wrap
 
-toDateTime :: DateTimeInst.Instant -> DateTime
-toDateTime = data_to_impl <<< DateTimeInst.toDateTime
+dateTime'alter :: forall ts. TimeSpan ts => DateTime -> ts -> DateTime
+dateTime'alter dt ts = wrap $ (unwrap dt) + (ts'toMS ts)
 
-adjustDateTime
-  :: forall d
-   . TimeDuration.Duration d
-  => d
-  -> DateTime
-  -> May.Maybe DateTime
-adjustDateTime dur dt = impl_to_data dt # DateTime.adjust dur <#> data_to_impl
+infixl 5 dateTime'alter as :~:
 
-derive instance Z.Generic DateTime _
+dateTime'month :: DateTime -> Maybe String -> Int
+dateTime'month dt tz = js_dateMonth (unwrap dt) (encodeOpts { timeZone: tz })
 
-derive instance Eq DateTime
+dateTime'month'i0 :: DateTime -> Maybe String -> Int
+dateTime'month'i0 dt tz = dateTime'month dt tz - 1
 
-instance Ord DateTime where
-  compare d1 d2 = compare (dateTime'toMS d1) (dateTime'toMS d2)
+dateTime'year :: DateTime -> Maybe String -> Int
+dateTime'year dt tz = js_dateYear (unwrap dt) (encodeOpts { timeZone: tz })
 
-instance Identable DateTime where
-  ident'get = id'of <<< dateTime'toMS
+dateTime'day :: DateTime -> Maybe String -> Int
+dateTime'day dt tz = js_dateDay (unwrap dt) (encodeOpts { timeZone: tz })
 
-instance Z.DecodeJson DateTime where
-  decodeJson x = Dec.decodeJson x <#> Z.Milliseconds <#> DateTimeInst.instant
-    >>= fromInst
-    where
-    fromInst Z.Nothing = Z.Left $ Dec.TypeMismatch "Invalid date"
-    fromInst (Z.Just i) = Z.Right $ data_to_impl $ DateTimeInst.toDateTime i
+dateTime'day'2dig :: DateTime -> Maybe String -> String
+dateTime'day'2dig dt tz = mk'2dig (dateTime'day dt tz)
 
-instance Z.EncodeJson DateTime where
-  encodeJson = impl_to_data
-    >>> DateTimeInst.fromDateTime
-    >>> DateTimeInst.unInstant
-    >>> Z.unwrap
-    >>> Z.encodeJson
-
-dateTime'toMS :: DateTime -> Number
-dateTime'toMS = impl_to_data
-  >>> DateTimeInst.fromDateTime
-  >>> DateTimeInst.unInstant
-  >>> Z.unwrap
-
-dateTime'fromMS :: Number -> May.Maybe DateTime
-dateTime'fromMS n = Z.Milliseconds n # DateTimeInst.instant
-  <#> DateTimeInst.toDateTime
-  <#> data_to_impl
-
-dateTime'fromMS'Int :: Int -> May.Maybe DateTime
-dateTime'fromMS'Int = dateTime'fromMS <<< Z.toNumber
-
-dateTime'month'i0 :: DateTime -> Int
-dateTime'month'i0 (DateTime date _) =
-  case (DateTime.month date) of
-    DateTime.January -> 0
-    DateTime.February -> 1
-    DateTime.March -> 2
-    DateTime.April -> 3
-    DateTime.May -> 4
-    DateTime.June -> 5
-    DateTime.July -> 6
-    DateTime.August -> 7
-    DateTime.September -> 8
-    DateTime.October -> 9
-    DateTime.November -> 10
-    DateTime.December -> 11
-
-dateTime'month'i1 :: DateTime -> Int
-dateTime'month'i1 = (+) 1 <<< dateTime'month'i0
-
-dateTime'year :: DateTime -> Int
-dateTime'year (DateTime date _) = fromEnum $ DateTime.year date
-
-dateTime'day :: DateTime -> Int
-dateTime'day (DateTime date _) = fromEnum $ DateTime.day date
+dateTime'month'2dig :: DateTime -> Maybe String -> String
+dateTime'month'2dig dt tz = mk'2dig (dateTime'month dt tz)
 
 mk'2dig :: Int -> String
 mk'2dig i = (if i < 10 then "0" else "") <> show i
 
-dateTime'day'2dig :: DateTime -> String
-dateTime'day'2dig = mk'2dig <<< dateTime'day
+---------------------------------------------------------
 
-dateTime'month'2dig :: DateTime -> String
-dateTime'month'2dig = mk'2dig <<< dateTime'month'i1
+class TimeSpan ts where
+  ts'toMS :: ts -> Number
+
+instance TimeSpan DateTime where
+  ts'toMS = ts'helper 1.0
+
+type TS'op2'fn ts1 ts2 = ts1 -> ts2 -> TS'milliseconds Number
+type TS'op2 = forall ts1 ts2. TimeSpan ts1 => TimeSpan ts2 => TS'op2'fn ts1 ts2
+
+ts'add :: TS'op2
+ts'add ts1 ts2 = wrap $ (ts'toMS ts1) + (ts'toMS ts2)
+
+ts'sub :: TS'op2
+ts'sub ts1 ts2 = wrap $ (ts'toMS ts1) - (ts'toMS ts2)
+
+infixl 6 ts'add as :+:
+
+infixl 6 ts'sub as :-:
+
+ts'helper
+  :: forall num nt. Numberable num => Newtype nt num => Number -> nt -> Number
+ts'helper mult nt = mult * (numberable'toNumber $ unwrap nt)
+
+newtype TS'milliseconds num = TS'milliseconds num
+
+derive instance Newtype (TS'milliseconds num) _
+instance (Numberable num) => TimeSpan (TS'milliseconds num) where
+  ts'toMS = ts'helper 1.0
+
+newtype TS'seconds num = TS'seconds num
+
+derive instance Newtype (TS'seconds num) _
+instance (Numberable num) => TimeSpan (TS'seconds num) where
+  ts'toMS = ts'helper 1000.0
+
+newtype TS'minutes num = TS'minutes num
+
+derive instance Newtype (TS'minutes num) _
+instance (Numberable num) => TimeSpan (TS'minutes num) where
+  ts'toMS = ts'helper (1000.0 * 60.0)
+
+newtype TS'hours num = TS'hours num
+
+derive instance Newtype (TS'hours num) _
+instance (Numberable num) => TimeSpan (TS'hours num) where
+  ts'toMS = ts'helper (1000.0 * 60.0 * 60.0)
+
+---------------------------------------------------------
+
+foreign import js_effNow :: Effect Number
+foreign import js_dateMonth :: Number -> Json -> Int
+foreign import js_dateYear :: Number -> Json -> Int
+foreign import js_dateDay :: Number -> Json -> Int

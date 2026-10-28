@@ -331,6 +331,7 @@ userAgent :: String
 userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" <+>
   "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 
+{-
 parseMonth :: forall m. ParserT String m Month
 parseMonth = parseTry (parseStringAs "January" January)
   <|> parseTry (parseStringAs "February" February)
@@ -345,6 +346,7 @@ parseMonth = parseTry (parseStringAs "January" January)
   <|> parseTry (parseStringAs "November" November)
   <|> parseTry (parseStringAs "December" December)
   <|> parseFail "Expected %Month%"
+-}
 
 parseAMorPM :: forall m. ParserT String m Boolean
 parseAMorPM = parseTry (parseStringAs "AM" false)
@@ -353,6 +355,7 @@ parseAMorPM = parseTry (parseStringAs "AM" false)
 
 parseDate :: forall m. ParserT String m DateTime
 parseDate = do
+  {-
   month <- parseMonth
   parseString_ " "
   day <- parseInt <#> toEnum @Day >>= mOr "invalid day"
@@ -377,6 +380,8 @@ parseDate = do
   mOr s Nothing = parseFail s
   mOr _ (Just y) = pure y
   dAdjust d dt = mOr "invalid date adjustment" $ adjustDateTime d dt
+  -}
+  pure $ wrap 0.0
 
 type BaseSet =
   { id :: Int

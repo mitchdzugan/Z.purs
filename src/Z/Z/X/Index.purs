@@ -186,7 +186,7 @@ import Z.Z.Core
   , resultVal
   , runParser
   )
-import Z.Z.DateTime (DateTime, dateTime'toMS)
+import Z.Z.DateTime (DateTime)
 import Z.Z.Defaultable.Util as D
 import Z.Z.Fetch (Fetch'RequestOptions, Fetch'Response, fetch, fetchRes'json)
 import Z.Z.Future
@@ -270,7 +270,7 @@ x'now :: forall x. DateTime <@< x
 x'now = x'now'' @"_'x'base"
 
 x'nowMS'number :: forall x. Number <@< x
-x'nowMS'number = x'now <#> dateTime'toMS
+x'nowMS'number = x'now <#> unwrap
 
 x'nowMS :: forall x. Int <@< x
 x'nowMS = x'nowMS'number <#> floor

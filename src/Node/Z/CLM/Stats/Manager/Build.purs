@@ -34,7 +34,7 @@ import Node.Z.Git.Client
 import Node.Z.Gql as Gql
 import Node.Z.H2h as H2h
 import Node.Z.H2h.Startgg.All as All
-import Z.CLM.Stats.Season (seasonId'active, seasonId'fromDateTime)
+import Z.CLM.Stats.Season (seasonId'active, seasonId'fromDateTime, tz'chicago)
 import Z.CLM.Stats.Types
   ( ClmActionData
   , ClmBuildMeta(..)
@@ -224,8 +224,8 @@ getActions newActions usePrevAuto = do
 seasonIdByDate :: DateTime -> Int
 seasonIdByDate dt = seasonYearContrib + seasonMonthContrib
   where
-  seasonYearContrib = 2 + (3 * (dateTime'year dt - 2022))
-  seasonMonthContrib = dateTime'month'i0 dt / 4
+  seasonYearContrib = 2 + (3 * (dateTime'year dt tz'chicago - 2022))
+  seasonMonthContrib = dateTime'month'i0 dt tz'chicago / 4
 
 getH2hData
   :: forall r x
@@ -756,8 +756,7 @@ buildLegacySeasons = do
       let
         insertEvent = \event -> do
           let trueEventId = sOrN event.eventId
-          date <- e'unwrap (ClmStE.InvalidLegacyDate event.slug event.date)
-            $ dateTime'fromMS'Int (event.date * 1000)
+          let date = dateTime'fromMS (event.date * 1000)
           eventName <- (event.eventName >|> event.name) #
             e'unwrap (ClmStE.MissingLegacyEventName seasonId event.slug)
           _'insert trueEventId

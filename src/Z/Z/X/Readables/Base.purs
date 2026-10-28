@@ -9,9 +9,8 @@ module Z.Z.X.Readables.Base
 
 import Z.Z.X.UtilPrelude
 
-import Effect.Now (nowDateTime)
 import Unsafe.Coerce (unsafeCoerce)
-import Z.Z.DateTime (DateTime, fromRawDateTime)
+import Z.Z.DateTime (DateTime, dateTime'eff'now)
 import Z.Z.X.Core
   ( class X'R'RespondsTo
   , class X'Readable
@@ -55,7 +54,7 @@ instance
   X'R'RespondsTo R'X'Base R'X'Base'RespondsTo'R () where
   x'r'mkResponds'types = Proxy
   x'r'mkResponds (R'X'Base _) = match
-    { now: responds'run'eff \_ -> fromRawDateTime <$> nowDateTime
+    { now: responds'run'eff \_ -> dateTime'eff'now
     , out: responds'run'eff \(ll /\ v) ->
         js_consoleOut unit (logLevel'consoleKey ll) v
     }

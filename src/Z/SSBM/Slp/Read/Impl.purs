@@ -79,12 +79,10 @@ xParseData buffer = do
   rawSettings <- Err.DecodeSettings !$! e'ok $ slpSettings game
   rawMeta <- Err.DecodeMeta !$! e'ok $ slpMeta game
   rawStats <- Err.DecodeStats !$! e'ok $ slpStats game
-  let startAtNOr_ = js_startAt Nothing Just game
-  let startAtIOr_ = startAtNOr_ <#> toNumber <#> Milliseconds >>= instant
-  let startAtOr_ = startAtIOr_ <#> toDateTime
+  let startAtOr_ = js_startAt Nothing Just game <#> dateTime'fromMS
   keys <- x'withReturn \xReturn -> do
     whenJust startAtOr_ \startAt -> xReturn $
-      [ id'of "@", id'of $ dateTime'toMS startAt, id'of rawSettings.randomSeed ]
+      [ id'of "@", id'of $ unwrap startAt, id'of rawSettings.randomSeed ]
     whenJust rawSettings.matchInfo \mi -> xReturn $
       [ id'of "M"
       , id'of rawSettings.randomSeed

@@ -51,7 +51,7 @@ import Z.CLM.Stats.Route
   , sortBy'defaultDir
   , sortBy'title
   )
-import Z.CLM.Stats.Season (seasonId'title)
+import Z.CLM.Stats.Season (seasonId'title, tz'chicago)
 import Z.CLM.Stats.Types
   ( ClmBuildOutputs
   , ClmPlayer
@@ -616,10 +616,11 @@ eventUrl { source: { site, slug } } = case site of
   H2h.Challonge -> "https://challonge.com/" <> slug
 
 eventDateString :: ClmSeason'Event -> String
-eventDateString event = str'joinWith "/" $ (#) date <$>
-  [ dateTime'month'2dig, dateTime'day'2dig, show <<< dateTime'year ]
-  where
-  date = may'or event.date $ adjustDateTime (Hours (-5.5)) event.date
+eventDateString { date } = str'joinWith "/" $ (#) date <$>
+  [ flip dateTime'month'2dig tz'chicago
+  , flip dateTime'day'2dig tz'chicago
+  , show <<< flip dateTime'year tz'chicago
+  ]
 
 getSocialHref :: H2h.SocialType -> String -> Maybe String
 getSocialHref H2h.Twitter s = Just $ "https://x.com/" <> s
