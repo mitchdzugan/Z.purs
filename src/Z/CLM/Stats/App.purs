@@ -197,6 +197,7 @@ type ClmDom'X x = Router' String Route $ ClmBuildOutputs'X
   , route :: X'R Route
   , routeErr :: X'R (Maybe String)
   , editRoute :: X'R (Edit Route -> Route)
+  , pxPerRemOr_ :: XDom'Ref (Maybe Number)
   , isInitials ::
       XDom'Ref
         { isInitialPage :: Boolean
@@ -210,11 +211,21 @@ type ClmDom'X x = Router' String Route $ ClmBuildOutputs'X
 
 type ClmDom dx x a = XDom dx (ClmDom'X x) a
 
+type ClmDomEff x a = XDomEff (ClmDom'X x) a
+
 data ClmDom'Err
   = ClmDom'Err'LoadSeason Int JsError
   | ClmDom'Err'FullSeason Int ClmSeason'Error
 
 type ClmDomE dx x a = XDom (DomE' ClmDom'Err dx) (ClmDom'X x) a
+
+getPxPerRem :: forall x. ClmDomEff x Number
+getPxPerRem = domRef'get'' @"pxPerRemOr_" >>= case _ of
+  Just pxPerRem -> pure pxPerRem
+  Nothing -> do
+    pxPerRem <- domEff'doc'pxPerRem
+    domRef'set'' @"pxPerRemOr_" $ Just pxPerRem
+    pure pxPerRem
 
 getAnimateInCn :: forall dx x. Boolean -> String -> ClmDom dx x String
 getAnimateInCn shouldForce animationCn = do
@@ -1026,6 +1037,7 @@ app'mk buildOutputs = router'run urlEdits parseUrl mkTitleOr_ do
       $ dom'runReader @"route" route
       $ dom'runReader @"routeErr" routeErr
       $ dom'runReader @"editRoute" editRoute
+      $ domRef'run'' @"pxPerRemOr_" Nothing
       $ domFetchCache'run_ @"clmSeasons" mkClmSeasonFetchUrl getClmSeasonIds
       $ domFetchCache'run_ @"clmPlayerSeasons"
           mkClmPlayerSeasonFetchUrl

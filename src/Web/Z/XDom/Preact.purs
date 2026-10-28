@@ -9,8 +9,9 @@ import Web.Z.Prelude
 
 import Debug (traceM)
 import Web.DOM.DOMTokenList as CL
-import Web.DOM.Element (classList, toNode)
+import Web.DOM.Element (classList, toNode, toParentNode)
 import Web.DOM.Node (parentElement)
+import Web.DOM.ParentNode (QuerySelector(..), querySelector)
 import Web.Event.Event (preventDefault)
 import Web.Event.Internal.Types as WET
 import Web.Z.Web.DOM as DOM
@@ -80,7 +81,24 @@ exec'xdom'web = XD.exec'xdom
   , el'classList'rm: \el cn -> classList (js_el_gToWeb el) >>= flip CL.remove cn
   , el'parentElement: \el ->
       js_el_gToWeb el # toNode # parentElement <#> map js_el_webToG
+  , el'querySelector: \el s ->
+      js_el_gToWeb el # toParentNode # querySelector (QuerySelector s) <#>
+        map js_el_webToG
+  , el'blur: \_ -> pure unit
+  , el'boundingRect: \_ -> pure
+      { width: 0.0
+      , height: 0.0
+      , x: 0.0
+      , y: 0.0
+      , top: 0.0
+      , left: 0.0
+      , bottom: 0.0
+      , right: 0.0
+      }
+  , el'scrollTo: \_ _ -> pure unit
   , event'preventDefault: \event -> preventDefault $ js_event_gToWeb event
+  , event'currentTargetValue: \_ -> pure ""
   , future'animationFrame:
       eff'defer \_ -> future'fromEffPromise js_animationFramePromise
+  , doc'pxPerRem: pure 1.0
   }

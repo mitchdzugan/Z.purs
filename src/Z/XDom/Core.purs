@@ -1,6 +1,7 @@
 module Z.XDom.Core
   ( (%%)
   , (*%%)
+  , DOMRect
   , DomA
   , DomATag
   , DomE
@@ -15,6 +16,7 @@ module Z.XDom.Core
   , R'Self
   , SELF
   , SELF'x
+  , ScrollToProps
   , Self(..)
   , XDom
   , XDom'Reader
@@ -25,6 +27,8 @@ module Z.XDom.Core
   , XDomA
   , XDomE
   , XDomEA
+  , XDomEff
+  , XDomEl
   , XDomR'
   , class Dom'ConsSymbol
   , dom'a
@@ -68,9 +72,15 @@ module Z.XDom.Core
   , dom'withNewState
   , domEff'async
   , domEff'do
+  , domEff'doc'pxPerRem
+  , domEff'el'blur
+  , domEff'el'boundingRect
   , domEff'el'classList'add
   , domEff'el'classList'rm
   , domEff'el'parentElement
+  , domEff'el'querySelector
+  , domEff'el'scrollTo
+  , domEff'event'currentTargetValue
   , domEff'event'preventDefault
   , domEff'every
   , domEff'every'lag
@@ -641,35 +651,94 @@ domEff'event'preventDefault :: forall x. DomEvent -> MDomEff (XDomR' x) Unit
 domEff'event'preventDefault event = do
   x'extract @"_'xdom'reader" >>= \r -> x'do $ r.event'preventDefault event
 
+domEff'event'currentTargetValue
+  :: forall x. DomEvent -> MDomEff (XDomR' x) String
+domEff'event'currentTargetValue event = do
+  x'extract @"_'xdom'reader" >>= \r -> x'do $ r.event'currentTargetValue event
+
 domEff'el'parentElement
   :: forall x. DomEl -> MDomEff (XDomR' x) (Maybe DomEl)
 domEff'el'parentElement el = do
   x'extract @"_'xdom'reader" >>= \r -> x'do $ r.el'parentElement el
 
+domEff'el'querySelector
+  :: forall x. DomEl -> String -> MDomEff (XDomR' x) (Maybe DomEl)
+domEff'el'querySelector el s = do
+  x'extract @"_'xdom'reader" >>= \r -> x'do $ r.el'querySelector el s
+
+domEff'el'scrollTo
+  :: forall x. DomEl -> Edit ScrollToProps -> MDomEff (XDomR' x) Unit
+domEff'el'scrollTo el edits = do
+  let props = edit default edits
+  x'extract @"_'xdom'reader" >>= \r -> x'do $ r.el'scrollTo el props
+
+domEff'el'blur :: forall x. DomEl -> MDomEff (XDomR' x) Unit
+domEff'el'blur el = do
+  x'extract @"_'xdom'reader" >>= \r -> x'do $ r.el'blur el
+
+domEff'el'boundingRect :: forall x. DomEl -> MDomEff (XDomR' x) DOMRect
+domEff'el'boundingRect el = do
+  x'extract @"_'xdom'reader" >>= \r -> x'do $ r.el'boundingRect el
+
 domEffA'animationFrame :: forall x. MDomEff'a (XDomR' x) Unit
 domEffA'animationFrame = do
-  f <- x'extract @"_'xdom'reader" >>= \r -> x'do $ r.future'animationFrame
+  f <- x'extract @"_'xdom'reader" >>= \r -> x'do r.future'animationFrame
   a'attempt f <#> const unit
 
+domEff'doc'pxPerRem :: forall x. MDomEff (XDomR' x) Number
+domEff'doc'pxPerRem = do
+  x'extract @"_'xdom'reader" >>= \r -> x'do r.doc'pxPerRem
+
 -------------------------------------------------------------------
+
+type ScrollToProps =
+  { isSmoothOrAuto :: Maybe Boolean
+  , top :: Maybe Number
+  , left :: Maybe Number
+  }
+
+type DOMRect =
+  { left :: Number
+  , top :: Number
+  , right :: Number
+  , bottom :: Number
+  , x :: Number
+  , y :: Number
+  , width :: Number
+  , height :: Number
+  }
 
 type XDom'Reader =
   { el'classList'rm :: DomEl -> String -> Eff'At "domEff" Unit
   , el'classList'add :: DomEl -> String -> Eff'At "domEff" Unit
   , el'parentElement :: DomEl -> Eff'At "domEff" (Maybe DomEl)
+  , el'querySelector :: DomEl -> String -> Eff'At "domEff" (Maybe DomEl)
+  , el'scrollTo :: DomEl -> ScrollToProps -> Eff'At "domEff" Unit
+  , el'blur :: DomEl -> Eff'At "domEff" Unit
+  , el'boundingRect :: DomEl -> Eff'At "domEff" DOMRect
   , event'preventDefault :: DomEvent -> Eff'At "domEff" Unit
+  , event'currentTargetValue :: DomEvent -> Eff'At "domEff" String
   , future'animationFrame :: Eff'At "domEff" (Future Unit)
+  , doc'pxPerRem :: Eff'At "domEff" Number
   }
 
 type XDom'Eff'Reader =
   { el'classList'rm :: DomEl -> String -> Effect Unit
   , el'classList'add :: DomEl -> String -> Effect Unit
   , el'parentElement :: DomEl -> Effect (Maybe DomEl)
+  , el'querySelector :: DomEl -> String -> Effect (Maybe DomEl)
+  , el'scrollTo :: DomEl -> ScrollToProps -> Effect Unit
+  , el'blur :: DomEl -> Effect Unit
+  , el'boundingRect :: DomEl -> Effect DOMRect
   , event'preventDefault :: DomEvent -> Effect Unit
+  , event'currentTargetValue :: DomEvent -> Effect String
   , future'animationFrame :: Effect (Future Unit)
+  , doc'pxPerRem :: Effect Number
   }
 
 type XDom dx x a = MDom dx (XDomR' $ X'Base $ DomPermit x) a
+type XDomEl dx x a = MDomEl dx (XDomR' $ X'Base $ DomPermit x) a
+type XDomEff x a = MDomEff (XDomR' $ X'Base $ DomPermit x) a
 type XDomE e dx x a = XDom (_'x'except :: (DomE e) | dx) x a
 type XDomA dx x a = XDom (_'x'async :: DomA | dx) x a
 type XDomEA e dx x a = XDom (_'x'except :: (DomE e), _'x'async :: DomA | dx) x a
@@ -684,11 +753,17 @@ xdom'reader'run :: forall x a. XDom'Eff'Reader -> Run (XDomR' x) a -> Run x a
 xdom'reader'run = r'run'' @"_'xdom'reader" <<< adapt'eff'reader
   where
   adapt'eff'reader r =
-    { el'classList'rm: \el cn -> eff'tag @"domEff" $ r.el'classList'rm el cn
-    , el'classList'add: \el cn -> eff'tag @"domEff" $ r.el'classList'add el cn
-    , el'parentElement: \el -> eff'tag @"domEff" $ r.el'parentElement el
-    , event'preventDefault: \e -> eff'tag @"domEff" $ r.event'preventDefault e
+    { el'classList'rm: \el -> eff'tag @"domEff" <<< r.el'classList'rm el
+    , el'classList'add: \el -> eff'tag @"domEff" <<< r.el'classList'add el
+    , el'parentElement: eff'tag @"domEff" <<< r.el'parentElement
+    , el'querySelector: \el -> eff'tag @"domEff" <<< r.el'querySelector el
+    , el'blur: eff'tag @"domEff" <<< r.el'blur
+    , el'boundingRect: eff'tag @"domEff" <<< r.el'boundingRect
+    , el'scrollTo: \el -> eff'tag @"domEff" <<< r.el'scrollTo el
+    , event'preventDefault: eff'tag @"domEff" <<< r.event'preventDefault
+    , event'currentTargetValue: eff'tag @"domEff" <<< r.event'currentTargetValue
     , future'animationFrame: eff'tag @"domEff" r.future'animationFrame
+    , doc'pxPerRem: eff'tag @"domEff" r.doc'pxPerRem
     }
 
 exec'xdom :: XDom'Eff'Reader -> XDom () () Unit -> ReactEl
@@ -701,8 +776,23 @@ exec'xdom'static = exec'xdom
   { el'classList'rm: \_ _ -> pure unit
   , el'classList'add: \_ _ -> pure unit
   , el'parentElement: \_ -> pure Nothing
+  , el'querySelector: \_ _ -> pure Nothing
+  , el'blur: \_ -> pure unit
+  , el'boundingRect: \_ -> pure
+      { width: 0.0
+      , height: 0.0
+      , x: 0.0
+      , y: 0.0
+      , top: 0.0
+      , left: 0.0
+      , bottom: 0.0
+      , right: 0.0
+      }
+  , el'scrollTo: \_ _ -> pure unit
   , event'preventDefault: \_ -> pure unit
+  , event'currentTargetValue: \_ -> pure ""
   , future'animationFrame: pure $ future'of unit
+  , doc'pxPerRem: pure 1.0
   }
 
 el'renderToString :: ReactEl -> String
