@@ -128,8 +128,8 @@ getEventDataImpl = do
         let
           winner =
             if isNothing winnerId then Nothing
-            else if winnerId == slotA.entrantId then Just Pos
-            else Just Neg
+            else if winnerId == slotA.entrantId then Just pos
+            else Just neg
         let baseSet = { winner, id: setId, slots: slotA ~ slotB }
         x'insert @"baseSets" setId baseSet
     baseSetList <- x'extract @"baseSets"
@@ -182,7 +182,7 @@ getEventDataImpl = do
             let
               setFinStanding = \id placement -> x'modify @"entrants" id $
                 rec'set @"standing" { placement, isFinal: true }
-            let wId ~ lId = if w == Pos then eA ~ eB else eB ~ eA
+            let wId ~ lId = if w == pos then eA ~ eB else eB ~ eA
             if isGrands && not wasGrands then do
               setFinStanding wId 1
               setFinStanding lId 2

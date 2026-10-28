@@ -20,7 +20,6 @@ import Z.Prelude hiding (Run)
 
 import Z.Prelude as Z
 import Z.XDom.Core as XDom
-import Z.XDom.Preact (PropWF(..))
 import Z.XDom.UrlState as UrlSt
 import Z.XDom.X (AttrW', attrW'addAttr)
 
@@ -106,7 +105,7 @@ type T'router'setHref p =
 router'setHref'' :: forall @p. T'router'setHref p
 router'setHref'' route = do
   href <- router'mkUrl'' @p route <#> url'relative
-  attrW'addAttr $ Href href
+  attrW'addAttr "href" $ jsAny href
 
 router'setHref :: forall @p. T'useAsSym "router" p T'router'setHref
 router'setHref = router'setHref'' @p

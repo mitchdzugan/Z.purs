@@ -171,7 +171,6 @@ import Effect.Unsafe (unsafePerformEffect)
 import Z.XDom.Preact
   ( DomEl
   , DomEvent
-  , PropWF(..)
   , ReactEl
   , js_effComponent
   , js_renderArray
@@ -810,96 +809,96 @@ dom'text :: forall t dx x. SText t => t -> MDom dx x Unit
 dom'text = domW'push <<< js_textEl <<< stext
 
 el'key :: forall dx x. String -> MDomEl dx x Unit
-el'key = attrW'addAttr <<< PKey
+el'key = attrW'addAttr "key" <<< jsAny
 
 el'id :: forall dx x. String -> MDomEl dx x Unit
-el'id = attrW'addAttr <<< Id
+el'id = attrW'addAttr "id" <<< jsAny
 
 el'type :: forall dx x. String -> MDomEl dx x Unit
-el'type = attrW'addAttr <<< Type
+el'type = attrW'addAttr "type" <<< jsAny
 
 el'checked :: forall dx x. Boolean -> MDomEl dx x Unit
-el'checked = attrW'addAttr <<< Checked
+el'checked = attrW'addAttr "checked" <<< jsAny
 
 el'tabIndex :: forall dx x. Int -> MDomEl dx x Unit
-el'tabIndex = attrW'addAttr <<< TabIndex
+el'tabIndex = attrW'addAttr "tabIndex" <<< jsAny
 
 el'tabIndex0 :: forall dx x. MDomEl dx x Unit
 el'tabIndex0 = el'tabIndex 0
 
 el'role :: forall dx x. String -> MDomEl dx x Unit
-el'role = attrW'addAttr <<< Role
+el'role = attrW'addAttr "role" <<< jsAny
 
 el'roleButton :: forall dx x. MDomEl dx x Unit
 el'roleButton = el'role "button"
 
 el'target :: forall dx x. String -> MDomEl dx x Unit
-el'target = attrW'addAttr <<< Target
+el'target = attrW'addAttr "target" <<< jsAny
 
 el'targetBlank :: forall dx x. MDomEl dx x Unit
 el'targetBlank = el'target "_blank"
 
 el'href :: forall dx x. String -> MDomEl dx x Unit
-el'href = attrW'addAttr <<< Href
+el'href = attrW'addAttr "href" <<< jsAny
 
 el'src :: forall dx x. String -> MDomEl dx x Unit
-el'src = attrW'addAttr <<< Src
+el'src = attrW'addAttr "src" <<< jsAny
 
 el'xmlns :: forall dx x. String -> MDomEl dx x Unit
-el'xmlns = attrW'addAttr <<< XmlNS
+el'xmlns = attrW'addAttr "xmlns" <<< jsAny
 
 el'viewBox :: forall dx x. String -> MDomEl dx x Unit
-el'viewBox = attrW'addAttr <<< ViewBox
+el'viewBox = attrW'addAttr "viewBox" <<< jsAny
 
 el'alt :: forall dx x. String -> MDomEl dx x Unit
-el'alt = attrW'addAttr <<< Alt
+el'alt = attrW'addAttr "alt" <<< jsAny
 
 el'title :: forall dx x. String -> MDomEl dx x Unit
-el'title = attrW'addAttr <<< Title
+el'title = attrW'addAttr "title" <<< jsAny
 
 el'placeholder :: forall dx x. String -> MDomEl dx x Unit
-el'placeholder = attrW'addAttr <<< Placeholder
+el'placeholder = attrW'addAttr "placeholder" <<< jsAny
 
 el'value :: forall dx x a. a -> MDomEl dx x Unit
-el'value = attrW'addAttr <<< Value <<< jsAny
+el'value = attrW'addAttr "value" <<< jsAny
 
 el'loading :: forall dx x. String -> MDomEl dx x Unit
-el'loading = attrW'addAttr <<< Loading
+el'loading = attrW'addAttr "loading" <<< jsAny
 
 el'fill :: forall dx x. String -> MDomEl dx x Unit
-el'fill = attrW'addAttr <<< Fill
+el'fill = attrW'addAttr "fill" <<< jsAny
 
 el'd :: forall dx x. String -> MDomEl dx x Unit
-el'd = attrW'addAttr <<< D
+el'd = attrW'addAttr "d" <<< jsAny
 
 el'data :: forall dx x. String -> String -> MDomEl dx x Unit
-el'data k = attrW'addAttr <<< Data k
+el'data k = attrW'addAttr ("data-" <> k) <<< jsAny
 
 type El'On dx x = (DomEvent -> MDomEff x Unit) -> MDomEl dx x Unit
 
-el'on' :: forall dx x. ((DomEvent -> Unit) -> PropWF) -> El'On dx x
-el'on' mkPropWF f = do
+el'on' :: forall dx x. String -> El'On dx x
+el'on' k f = do
   self <- dom'getEffSelf
-  attrW'addAttr $ mkPropWF $ \e -> eval'self self $ f e
+  attrW'addAttr k $ jsAny \e -> eval'self self $ f e
 
 el'onClick :: forall dx x. El'On dx x
-el'onClick = el'on' OnClick
+el'onClick = el'on' "onClick"
 
 el'onError :: forall dx x. El'On dx x
-el'onError = el'on' OnError
+el'onError = el'on' "onError"
 
 el'onAnimationEnd :: forall dx x. El'On dx x
-el'onAnimationEnd = el'on' OnAnimationEnd
+el'onAnimationEnd = el'on' "onAnimationEnd"
 
 el'onInput :: forall dx x. El'On dx x
-el'onInput = el'on' OnInput
+el'onInput = el'on' "onInput"
 
 el'onKeyDown :: forall dx x. El'On dx x
-el'onKeyDown = el'on' OnKeyDown
+el'onKeyDown = el'on' "onKeyDown"
 
 el'ref :: forall dx x. (DomEl -> Run (SELF () x) Unit) -> MDomEl dx x Unit
 el'ref f =
-  dom'getDomSelf >>= \self -> attrW'addAttr $ Ref $ eval'self self <<< f
+  dom'getDomSelf >>= \self -> attrW'addAttr "ref" $ jsAny $ eval'self self <<< f
 
 el'setElRef
   :: forall dx x

@@ -2,10 +2,8 @@ module Z.XDom.Preact
   ( DomEl
   , DomEvent
   , ElStyles
-  , PropWF(..)
   , ReactEl
   , js_effComponent
-  , js_propsFromPropWs
   , js_renderArray
   , js_renderEl
   , js_renderFragment
@@ -17,13 +15,9 @@ module Z.XDom.Preact
   , js_withKey
   , js_withRef
   , js_withState
-  , propWFKey
-  , propWFVal
   ) where
 
 import Z.Prelude
-
-import Web.Event.Internal.Types as WET
 
 foreign import data ReactEl :: Type
 
@@ -31,8 +25,6 @@ foreign import js_textEl :: String -> ReactEl
 foreign import js_renderFragment :: Array ReactEl -> ReactEl
 foreign import js_renderArray :: Array ReactEl -> ReactEl
 foreign import js_renderEl :: String -> Json -> Array ReactEl -> ReactEl
-foreign import js_propsFromPropWs
-  :: (PropWF -> String) -> (PropWF -> JsAny) -> Array PropWF -> Json
 
 foreign import js_withRef
   :: forall s. (Effect s -> (s -> Effect Unit) -> Array ReactEl) -> s -> ReactEl
@@ -62,83 +54,3 @@ foreign import data DomEl :: Type
 
 type ElStyles = Object String
 
-data PropWF
-  = Href String
-  | Ref (DomEl -> Unit)
-  | OnClick (DomEvent -> Unit)
-  | OnError (DomEvent -> Unit)
-  | OnAnimationEnd (DomEvent -> Unit)
-  | OnInput (DomEvent -> Unit)
-  | OnKeyDown (DomEvent -> Unit)
-  | Id String
-  | PKey String
-  | Role String
-  | Target String
-  | TabIndex Int
-  | Src String
-  | XmlNS String
-  | ViewBox String
-  | Fill String
-  | D String
-  | Data String String
-  | Type String
-  | Checked Boolean
-  | Loading String
-  | Alt String
-  | Title String
-  | Placeholder String
-  | Value JsAny
-
-propWFKey :: PropWF -> String
-propWFKey (Href _) = "href"
-propWFKey (Ref _) = "ref"
-propWFKey (OnClick _) = "onClick"
-propWFKey (OnError _) = "onError"
-propWFKey (OnInput _) = "onInput"
-propWFKey (OnKeyDown _) = "onKeyDown"
-propWFKey (OnAnimationEnd _) = "onAnimationEnd"
-propWFKey (Id _) = "id"
-propWFKey (PKey _) = "key"
-propWFKey (Role _) = "role"
-propWFKey (Target _) = "target"
-propWFKey (TabIndex _) = "tabIndex"
-propWFKey (Src _) = "src"
-propWFKey (XmlNS _) = "xmlns"
-propWFKey (ViewBox _) = "viewBox"
-propWFKey (Fill _) = "fill"
-propWFKey (D _) = "d"
-propWFKey (Data k _) = "data-" <> k
-propWFKey (Type _) = "type"
-propWFKey (Checked _) = "checked"
-propWFKey (Alt _) = "alt"
-propWFKey (Title _) = "title"
-propWFKey (Loading _) = "loading"
-propWFKey (Placeholder _) = "placeholder"
-propWFKey (Value _) = "value"
-
-propWFVal :: PropWF -> JsAny
-propWFVal (Href s) = jsAny s
-propWFVal (Ref f) = jsAny f
-propWFVal (OnClick f) = jsAny f
-propWFVal (OnError f) = jsAny f
-propWFVal (OnAnimationEnd f) = jsAny f
-propWFVal (OnInput f) = jsAny f
-propWFVal (OnKeyDown f) = jsAny f
-propWFVal (Id s) = jsAny s
-propWFVal (PKey s) = jsAny s
-propWFVal (Role s) = jsAny s
-propWFVal (Target s) = jsAny s
-propWFVal (TabIndex i) = jsAny i
-propWFVal (Src s) = jsAny s
-propWFVal (XmlNS s) = jsAny s
-propWFVal (ViewBox s) = jsAny s
-propWFVal (Fill s) = jsAny s
-propWFVal (D s) = jsAny s
-propWFVal (Data _ v) = jsAny v
-propWFVal (Type s) = jsAny s
-propWFVal (Checked b) = jsAny b
-propWFVal (Alt s) = jsAny s
-propWFVal (Loading s) = jsAny s
-propWFVal (Title s) = jsAny s
-propWFVal (Placeholder s) = jsAny s
-propWFVal (Value a) = a

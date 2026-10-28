@@ -1,45 +1,30 @@
 module Z.Z.PairKey
   ( PairKey(..)
+  , neg
   , pairKey'inv
+  , pos
   ) where
 
 import Prelude
 
 import Data.Argonaut.Decode (class DecodeJson) as Dec
-import Data.Argonaut.Decode.Generic (genericDecodeJson) as DecodeGeneric
 import Data.Argonaut.Encode (class EncodeJson) as Enc
-import Data.Argonaut.Encode.Generic (genericEncodeJson) as EncodeGeneric
-import Data.Generic.Rep (class Generic) as Generic
--- import Data.Newtype (class Newtype)
-import Data.Show.Generic (genericShow)
+import Data.Newtype (class Newtype)
 
-data PairKey = Pos | Neg
+newtype PairKey = PairKey Boolean
 
-derive instance Eq PairKey
-derive instance Ord PairKey
-derive instance Generic.Generic PairKey _
-
-instance Show PairKey where
-  show = genericShow
-
-instance Dec.DecodeJson PairKey where
-  decodeJson x = DecodeGeneric.genericDecodeJson x
-
-instance Enc.EncodeJson PairKey where
-  encodeJson x = EncodeGeneric.genericEncodeJson x
+derive instance Newtype PairKey _
+derive newtype instance Eq PairKey
+derive newtype instance Ord PairKey
+derive newtype instance Show PairKey
+derive newtype instance Dec.DecodeJson PairKey
+derive newtype instance Enc.EncodeJson PairKey
 
 pairKey'inv :: PairKey -> PairKey
-pairKey'inv Pos = Neg
-pairKey'inv Neg = Pos
+pairKey'inv pk = if pk == pos then neg else pos
 
-{-
+pos :: PairKey
+pos = PairKey true
 
-newtype Pairkey = Pairkey Boolean
-
-derive instance Newtype Pairkey _
-derive newtype instance Eq Pairkey
-derive newtype instance Ord Pairkey
-derive newtype instance Dec.DecodeJson Pairkey
-derive newtype instance Enc.EncodeJson Pairkey
-
--}
+neg :: PairKey
+neg = PairKey false

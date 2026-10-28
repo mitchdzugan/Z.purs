@@ -104,8 +104,8 @@ getEventData = B.adaptBuilder do
           isWinA = eIdA == set.winnerId && isComplete
           winner =
             if isNothing set.winnerId then Nothing
-            else if isWinA then Just Pos
-            else Just Neg
+            else if isWinA then Just pos
+            else Just neg
         let games = orDefault set.games
         slotScoreA /\ slotScoreB <- x'withReturn \xReturn -> do
           let winnerIds = games <#> _.winnerId
@@ -143,8 +143,8 @@ getEventData = B.adaptBuilder do
                   forM_ (fromMaybe [] game.selections) \selection -> do
                     let
                       maybePairKey =
-                        if Just selection.entrant.id == eIdA then Just Pos
-                        else if Just selection.entrant.id == eIdB then Just Neg
+                        if Just selection.entrant.id == eIdA then Just pos
+                        else if Just selection.entrant.id == eIdB then Just neg
                         else Nothing
                     whenJust maybePairKey \pairKey -> do
                       _'insert pairKey

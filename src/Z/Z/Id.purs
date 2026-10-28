@@ -31,7 +31,7 @@ import Z.Z.Core (arr'concat)
 import Z.Z.Ext (Exists, mkExists, runExists)
 import Z.Z.Ext as Z
 import Z.Z.Pair as ZP
-import Z.Z.PairKey (PairKey(..))
+import Z.Z.PairKey (PairKey(..), pos)
 import Z.Z.String (str'joinWith)
 
 foreign import js_bytesOfInt :: (Int -> Z.Byte) -> Int -> Array Z.Byte
@@ -100,10 +100,8 @@ instance IsId String where
 
 instance IsId PairKey where
   id'char _ = 'P'
-  id'keyImpl Pos = "+"
-  id'keyImpl Neg = "-"
-  id'bytesImpl Pos = js_bytesOfInt Z.byte 1
-  id'bytesImpl Neg = js_bytesOfInt Z.byte 0
+  id'keyImpl pk = if pk == pos then "+" else "-"
+  id'bytesImpl pk = js_bytesOfInt Z.byte $ if pk == pos then 1 else 0
 
 instance IsId Number where
   id'char _ = 'n'

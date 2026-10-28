@@ -14,7 +14,7 @@ import Data.Distributive (class Distributive)
 import Data.Foldable (class Foldable)
 import Data.Traversable (class Traversable)
 import Z.Z.Ext as Z
-import Z.Z.PairKey (PairKey(..))
+import Z.Z.PairKey as PK
 
 data Pair p = Pair p p
 
@@ -39,13 +39,11 @@ pair'uncurry f (x ~ y) = f x y
 pair'swap ∷ ∀ a. Pair a -> Pair a
 pair'swap (x ~ y) = y ~ x
 
-pair'get ∷ ∀ a. PairKey -> Pair a -> a
-pair'get Pos (x ~ y) = x
-pair'get Neg (x ~ y) = y
+pair'get ∷ ∀ a. PK.PairKey -> Pair a -> a
+pair'get pk (x ~ y) = if pk == PK.pos then x else y
 
-pair'getOppo ∷ ∀ a. PairKey -> Pair a -> a
-pair'getOppo Neg (x ~ y) = x
-pair'getOppo Pos (x ~ y) = y
+pair'getOppo ∷ ∀ a. PK.PairKey -> Pair a -> a
+pair'getOppo pk p = pair'get (PK.pairKey'inv pk) p
 
 derive instance Z.Generic (Pair p) _
 derive instance Eq a => Eq (Pair a)

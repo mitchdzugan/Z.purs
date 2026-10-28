@@ -64,16 +64,9 @@ const KeyComponent = ({ el }) => {
 
 export const js_textEl = (s) => s;
 export const js_renderFragment = (children) => h(Fragment, {}, ...children);
-export const js_renderArray = (children) => js_renderFragment([children])
+export const js_renderArray = (children) => js_renderFragment([children]);
 export const js_renderEl = (el) => (props) => (children) =>
   h(el, props, ...children);
-export const js_propsFromPropWs = (getK) => (getV) => (kvs) => {
-  const res = {};
-  for (const kv of kvs) {
-    res[getK(kv)] = getV(kv);
-  }
-  return res;
-};
 export const js_withRef = (renderEls) => (initialVal) =>
   h(RefComponent, { renderEls, initialVal });
 export const js_withState = (renderEls) => (initialState) =>

@@ -822,7 +822,7 @@ page'stats sort filters = do
     editRoute <- x'extract @"editRoute"
     let s4 = s'put Size4
     let isCurr = sort.by == sortBy
-    let isPos = sort.dir == Pos
+    let isPos = sort.dir == pos
     let dir = if isCurr then pairKey'inv sort.dir else sortBy'defaultDir sortBy
     let targetSort = { dir, by: sortBy }
     dom'a do
@@ -843,7 +843,7 @@ page'stats sort filters = do
             el'addCn "flex justify-center items-center"
             el'addCn "hidden group-hover:block"
             pure do
-              dir == Pos ? icon'sortUp s4 $ icon'sortDown s4
+              dir == pos ? icon'sortUp s4 $ icon'sortDown s4
 
 page'player :: forall dx x. PlayerTab -> ClmDom dx x Unit
 page'player tab = do

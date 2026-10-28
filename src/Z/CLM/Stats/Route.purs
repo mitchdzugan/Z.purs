@@ -87,18 +87,18 @@ sortBy'parse :: String -> SortBy
 sortBy'parse key = may'or defaultSort.by $ hm'lookup key sortBy'byKey
 
 sortBy'defaultDir :: SortBy -> PairKey
-sortBy'defaultDir SortBy'Name = Pos
-sortBy'defaultDir _ = Neg
+sortBy'defaultDir SortBy'Name = pos
+sortBy'defaultDir _ = neg
 
 sortDir'parse :: SortBy -> String -> PairKey
-sortDir'parse _ "asc" = Pos
-sortDir'parse _ "desc" = Neg
+sortDir'parse _ "asc" = pos
+sortDir'parse _ "desc" = neg
 sortDir'parse by _ = sortBy'defaultDir by
 
 type Sort = { by :: SortBy, dir :: PairKey }
 
 defaultSort :: Sort
-defaultSort = { by: SortBy'Qual, dir: Neg }
+defaultSort = { by: SortBy'Qual, dir: neg }
 
 type Filters'rt = (req'prEvents :: Boolean)
 type Filters = Record Filters'rt
@@ -199,8 +199,7 @@ getActualClmIds route@(Route { clmIds }) =
   page'conformIds (getActualPage route) clmIds
 
 sortDir'param :: PairKey -> String
-sortDir'param Pos = "asc"
-sortDir'param Neg = "desc"
+sortDir'param pk = if pk == pos then "asc" else "desc"
 
 route'urlEdits :: Int -> Route -> Edit UrlParts
 route'urlEdits defaultSeasonId route@(Route { seasonId }) = do

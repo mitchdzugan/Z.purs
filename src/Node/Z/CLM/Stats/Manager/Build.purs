@@ -512,9 +512,8 @@ buildCurrentSeasons spec = do
             let slot1 ~ slot2 = set.slots
             clmId1 <- getSlotClmId slot1
             clmId2 <- getSlotClmId slot2
-            clmIdW /\ clmIdL <- sc'unwrap_ set.winner <#> case _ of
-              Pos -> clmId1 /\ clmId2
-              Neg -> clmId2 /\ clmId1
+            clmIdW /\ clmIdL <- sc'unwrap_ set.winner <#> \pk ->
+              if pk == pos then clmId1 /\ clmId2 else clmId2 /\ clmId1
             let incFrom0 = Just <<< inc <<< fromMaybe 0
             x'alter @"eventWins" (clmIdW /\ eventId) incFrom0
             x'alter @"eventLosses" (clmIdL /\ eventId) incFrom0
@@ -653,8 +652,8 @@ buildCurrentSeasons spec = do
               let
                 may'eIds = do
                   let eIdSlots = slots <#> _.entrantId
-                  eId1 <- pair'get Pos eIdSlots
-                  eId2 <- pair'get Neg eIdSlots
+                  eId1 <- pair'get pos eIdSlots
+                  eId2 <- pair'get neg eIdSlots
                   pure $ eId1 ~ eId2
               whenJust may'eIds \eIds -> do
                 let eIdW = pair'get winner eIds
@@ -665,8 +664,8 @@ buildCurrentSeasons spec = do
                 let eIdSelf = selfGetter winner eIds
                 let eIdOppo = oppoGetter winner eIds
                 let slotsPosSelf = if won then slots else pair'swap slots
-                let selfScore = (pair'get Pos slotsPosSelf).score
-                let oppoScore = (pair'get Neg slotsPosSelf).score
+                let selfScore = (pair'get pos slotsPosSelf).score
+                let oppoScore = (pair'get neg slotsPosSelf).score
                 may'clmIdOppo <- x'lookup @"clmIdByEntrantId" eIdOppo
                 whenJust may'clmIdOppo \clmIdOppo -> do
                   eventId <- x'lookup @"eventIdBySetId" id >>=
@@ -726,21 +725,21 @@ buildLegacySeasons = do
         let setSummaryGroups = [ eventSetSummaries, h2hSetSummaries ]
         let setSummaries = arr'concat $ arr'concat setSummaryGroups
         forM_ setSummaries \{ id, won } -> whenJust id \setId -> do
-          let pairKey = if won then Pos else Neg
+          let pairKey = if won then pos else neg
           _'insert (setId /\ pairKey) clmId
     forM_ allPlayerSeasons \(playerSeason) -> do
       forM_ playerSeason.h2hs \h2h -> do
         may'oppId <- x'withReturn \x'return -> do
           forM_ h2h.sets \{ setInfo } -> do
             whenJust setInfo.id \setId -> do
-              let oppResult = if setInfo.won then Neg else Pos
+              let oppResult = if setInfo.won then neg else pos
               may'may'oppId <- _'lookup (setId /\ oppResult) <#> Just
               whenJust may'may'oppId x'return
           pure Nothing
         whenJust may'oppId \oppId -> do
           forM_ h2h.sets \{ setInfo } -> do
             whenJust setInfo.id \setId -> do
-              let oppResult = if setInfo.won then Neg else Pos
+              let oppResult = if setInfo.won then neg else pos
               _'insert (setId /\ oppResult) oppId
   let allSeasons = obj'vals legacyBlob.seasons
   let usedSeasons = arr'remove ((==) 0 <<< _.seasonId) allSeasons
@@ -817,7 +816,7 @@ buildLegacySeasons = do
                 forM_ h2h.sets \setData -> do
                   let { setInfo } = setData
                   whenJust setInfo.id \setId -> do
-                    let oppResult = if setInfo.won then Neg else Pos
+                    let oppResult = if setInfo.won then neg else pos
                     let may'idByResult = hm'lookup setId clmIdBySetResult
                     let may'oppId = may'idByResult >>= hm'lookup oppResult
                     whenJust (may'oppId <#> Right) x'return

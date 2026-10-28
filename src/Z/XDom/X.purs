@@ -34,7 +34,7 @@ module Z.XDom.X
 import Z.Prelude
 
 import Data.Functor.Variant (match)
-import Z.XDom.Preact (PropWF, ReactEl, propWFKey, propWFVal)
+import Z.XDom.Preact (ReactEl)
 import Z.Z.X.Responds
   ( Responds
   , Responds'Const
@@ -182,7 +182,7 @@ instance
         ( resetClassnames :: Responds'Const Unit
         , resetChildren :: Responds'Const Unit
         , resetStyles :: Responds'Const Unit
-        , addAttr :: Responds PropWF Unit
+        , addAttr :: Responds (String /\ JsAny) Unit
         , addClassname :: Responds String Unit
         , addChildren :: Responds t Unit
         , addStyle :: Responds (String /\ String) Unit
@@ -198,8 +198,8 @@ instance
     { resetClassnames: responds'const'eff $ js_attrwResetClassnames attrx
     , resetChildren: responds'const'eff $ js_attrwResetChildren attrx
     , resetStyles: responds'const'eff $ js_attrwResetStyles attrx
-    , addAttr: responds'run'eff \p ->
-        js_attrwAddAttr (propWFKey p) (propWFVal p) attrx
+    , addAttr: responds'run'eff \(k /\ v) ->
+        js_attrwAddAttr k v attrx
     , addClassname: responds'run'eff \cn -> js_attrwAddClassname cn attrx
     , addChildren: responds'run'eff \els ->
         js_attrwAddChildren (toChildren els) attrx
@@ -230,8 +230,8 @@ attrW'resetChildren = x'respondTo_ @"attrW" @"resetChildren"
 attrW'resetStyles :: forall t x. Run (AttrW' t x) Unit
 attrW'resetStyles = x'respondTo_ @"attrW" @"resetStyles"
 
-attrW'addAttr :: forall t x. PropWF -> Run (AttrW' t x) Unit
-attrW'addAttr = x'respondTo @"attrW" @"addAttr"
+attrW'addAttr :: forall t x. String -> JsAny -> Run (AttrW' t x) Unit
+attrW'addAttr = curry $ x'respondTo @"attrW" @"addAttr"
 
 attrW'addClassname :: forall t x. String -> Run (AttrW' t x) Unit
 attrW'addClassname = x'respondTo @"attrW" @"addClassname"
@@ -240,7 +240,7 @@ attrW'addChildren :: forall t x. t -> Run (AttrW' t x) Unit
 attrW'addChildren = x'respondTo @"attrW" @"addChildren"
 
 attrW'addStyle :: forall t x. String -> String -> Run (AttrW' t x) Unit
-attrW'addStyle k v = x'respondTo @"attrW" @"addStyle" (k /\ v)
+attrW'addStyle = curry $ x'respondTo @"attrW" @"addStyle"
 
 attrW'extract :: forall t x. Run (AttrW' t x) DomElProps
 attrW'extract = x'respondTo_ @"attrW" @"extract"
