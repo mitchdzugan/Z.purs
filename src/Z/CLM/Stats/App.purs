@@ -185,7 +185,6 @@ instance Boxable ClmSeason'Tag ClmSeason'Json ClmSeason'Responds where
         let otherPlayerTags = boxed'call_ @"otherPlayerTags" b
         let otherPlayerSeasons = boxed'call_ @"otherPlayerSeasons" b
         outOfSeasonPlayers <- _'exec_ @(X'Vector OutOfSeasonPlayer) do
-          x'out { optSize: hm'size otherPlayerTags }
           forM_ (hm'entries otherPlayerTags) \(clmId /\ allOtherTags) -> do
             when (isNothing $ hm'lookup clmId ranksById) do
               whenJust (arr'splitHead allOtherTags) \splitHeadTags -> do
@@ -783,7 +782,6 @@ page'stats sort filters = do
                             domEff'el'classList'add pEl "transition-transform"
                             domEff'el'classList'add pEl "duration-300"
                             domEff'el'classList'add pEl "ease-in-out"
-                            pure unit
                   else do
                     domEff'el'classList'rm el "animate-jump-in"
                     if hasRendered then do
@@ -803,7 +801,7 @@ page'stats sort filters = do
                 el'addCn "min-w-240 absolute top-0 left-0"
                 whenNot isInUse $ el'addCn "pointer-events-none"
                 el'addStyle "transform" $ "translateY(" <:> offset <:> "rem)"
-                pure $ when isInUse $ dom'div do
+                pure $ dom'div do
                   el'ref \el -> do
                     hasRendered <- x'do getRef <#> map snd <#> may'or false
                     x'do $ setRef $ Just $ el /\ hasRendered
@@ -816,7 +814,7 @@ page'stats sort filters = do
                       domEff'el'classList'rm el "animate-once"
                   el'addCn "w-[100%] h-[100%] absolute top-0 left-0"
                   whenNot isInUse $ el'addCn "pointer-events-none"
-                  pure $ tablePlayerRow (rankInd + 1) rank
+                  pure $ when isInUse $ tablePlayerRow (rankInd + 1) rank
 
   where
   tableHead sortBy = do
