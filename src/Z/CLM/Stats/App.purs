@@ -92,7 +92,25 @@ type OutOfSeasonPlayer =
   { clmId :: Int
   , gamerTag :: String
   , otherTags :: Array String
+  , latestSeason :: Int
+  , otherSeasons :: Array Int
   }
+
+type AnyPlayer = Either OutOfSeasonPlayer ClmSeason'Player'Full
+
+anyPlayer'gamerTag :: AnyPlayer -> String
+anyPlayer'gamerTag (Left { gamerTag }) = gamerTag
+anyPlayer'gamerTag (Right { player }) = player.gamerTag
+
+anyPlayer'otherTags :: AnyPlayer -> Array String
+anyPlayer'otherTags (Left { otherTags }) = otherTags
+anyPlayer'otherTags (Right { otherTags }) = otherTags
+
+anyPlayer'otherTags'key :: AnyPlayer -> String
+anyPlayer'otherTags'key = str'joinWith " | " <<< anyPlayer'otherTags
+
+anyPlayer'tag'keys :: Array (AnyPlayer -> String)
+anyPlayer'tag'keys = [ anyPlayer'gamerTag, anyPlayer'otherTags'key ]
 
 type ClmSeason'Responds = VariantF
   ( events :: Responds'Const (HashMap SorN ClmSeason'Event)
@@ -104,6 +122,9 @@ type ClmSeason'Responds = VariantF
   , getIsInUse :: Responds Int (Filters -> Boolean)
   , ranksOrE ::
       Responds'Const (Or'ClmSeason'Error ClmSeason'Players'Full)
+  , allPlayers :: Responds'Const (Array AnyPlayer)
+  , allPlayersSnapshot :: Responds'Const (FuzzySnapshot AnyPlayer)
+  , searchedPlayers :: Responds String (Array AnyPlayer)
   , ranksOrESorted ::
       Responds SandF (Or'ClmSeason'Error ClmSeason'Players'Full)
   )
@@ -148,17 +169,38 @@ instance Boxable ClmSeason'Tag ClmSeason'Json ClmSeason'Responds where
           let otherTags = may'or [] $ hm'lookup rank.clmId otherPlayerTags
           let otherSeasons = may'or [] $ hm'lookup rank.clmId otherPlayerSeasons
           let winrate = if (sets == 0) then Nothing else Just (numWs / numTot)
-          pure
-            $ rec'insert @"player" player
-            $ rec'insert @"sets" sets
-            $ rec'insert @"winrate" winrate
-            $ rec'insert @"sortAndFilteredRank" 0
-            $ rec'insert @"otherTags" otherTags
-            $ rec'insert @"otherSeasons" otherSeasons
-            $ rec'insert @"hasReq'prEvents" (clm'hasReq'prEvents rank)
-            $ rec'insert @"hasRatingConfidence" (clm'hasRatingConfidence rank)
-            $ rec'modify @"lastEvent" (\ev -> rec'insert @"data" evData ev)
-            $ rank
+          pure $ rank
+            # rec'insert @"player" player
+            # rec'insert @"sets" sets
+            # rec'insert @"winrate" winrate
+            # rec'insert @"sortAndFilteredRank" 0
+            # rec'insert @"otherTags" otherTags
+            # rec'insert @"otherSeasons" otherSeasons
+            # rec'insert @"hasReq'prEvents" (clm'hasReq'prEvents rank)
+            # rec'insert @"hasRatingConfidence" (clm'hasRatingConfidence rank)
+            # rec'modify @"lastEvent" (\ev -> rec'insert @"data" evData ev)
+    , allPlayers: responds'run \_ -> sync'x do
+        let ranks = may'or [] $ hush $ boxed'call_ @"ranksOrE" b
+        let ranksById = keyBy _.clmId ranks
+        let otherPlayerTags = boxed'call_ @"otherPlayerTags" b
+        let otherPlayerSeasons = boxed'call_ @"otherPlayerSeasons" b
+        outOfSeasonPlayers <- _'exec_ @(X'Vector OutOfSeasonPlayer) do
+          forM_ (hm'entries otherPlayerTags) \(clmId /\ allOtherTags) -> do
+            when (isNothing $ hm'lookup clmId ranksById) do
+              whenJust (arr'splitHead allOtherTags) \splitHeadTags -> do
+                let (gamerTag /\ otherTags) = splitHeadTags
+                let allSeasons = may'or [] $ hm'lookup clmId otherPlayerSeasons
+                whenJust (arr'splitTail allSeasons) \splitHeadSeasons -> do
+                  let (latestSeason /\ otherSeasons) = splitHeadSeasons
+                  _'cons
+                    { clmId, gamerTag, otherTags, latestSeason, otherSeasons }
+        pure $ arr'concat [ ranks <#> Right, outOfSeasonPlayers <#> Left ]
+    , allPlayersSnapshot: responds'run \_ ->
+        fuzzy'mkSnapshot (boxed'call_ @"allPlayers" b) anyPlayer'tag'keys
+    , searchedPlayers: responds'run \srch ->
+        if srch == "" then boxed'call_ @"allPlayers" b
+        else _.obj <$>
+          fuzzy'searchSnapshot (boxed'call_ @"allPlayersSnapshot" b) srch pass
     , ranksOrESorted: responds'run \(SandF sortBy _ filters) -> do
         let sorter'isInUse = sorter'rev (clm'isInUse filters)
         let sorters = arr'concat [ [ sorter'isInUse ], sortBy'sorters sortBy ]
@@ -227,6 +269,12 @@ getPxPerRem = domRef'get'' @"pxPerRemOr_" >>= case _ of
     domRef'set'' @"pxPerRemOr_" $ Just pxPerRem
     pure pxPerRem
 
+getRemPx :: forall x. Number -> ClmDomEff x Number
+getRemPx rem = getPxPerRem <#> (*) rem
+
+getPxRem :: forall x. Number -> ClmDomEff x Number
+getPxRem px = getPxPerRem <#> (/) px
+
 getAnimateInCn :: forall dx x. Boolean -> String -> ClmDom dx x String
 getAnimateInCn shouldForce animationCn = do
   { isInitialPage } <- domRef'get'' @"isInitials"
@@ -291,6 +339,14 @@ defaultPlayerSearchProps :: PlayerSearchProps
 defaultPlayerSearchProps =
   { dropdownStart: false, dropdownTop: false, outsideNav: false }
 
+getSearchedPlayers :: forall dx x. String -> ClmDom dx x (Array AnyPlayer)
+getSearchedPlayers searchString = do
+  seasonId <- x'extract @"route" <#> g_ @"!.seasonId"
+  domFetchCache'lookup @"clmSeasons" seasonId <#> case _ of
+    FetchCache'ValState'Val season ->
+      boxed'call @"searchedPlayers" season searchString
+    _ -> []
+
 playerSearch :: forall dx x. Edit PlayerSearchProps -> ClmDom dx x Unit
 playerSearch edits = do
   let props = edit defaultPlayerSearchProps edits
@@ -299,59 +355,72 @@ playerSearch edits = do
   let isStatsPage = route'isStatsPage route
   let initialState = { input: "", highlightedInd: 0 }
   dom'withNewRef Nothing \getEl setEl -> do
-    dom'withNewState initialState \state setState -> dom'div do
-      el'setElRef setEl
-      el'addCn "dropdown"
-      whenNot dropdownStart $ el'addCn "dropdown-end"
-      when dropdownTop $ el'addCn "dropdown-top"
-      pure do
-        dom'label do
-          let outlineO o = (/\) "outlineOffset" $ o <:> "px"
-          let outlineW w = (/\) "outlineWidth" $ w <:> "px"
-          let outlineInh = "outlineStyle" /\ "inherit"
-          let outlineOW o w = [ outlineO o, outlineW w ]
-          let outlineOWInh o w = [ outlineInh ] <> outlineOW o w
-          let mkSetOutline f o w = el'setStyles $ f o w
-          let setOutlineStylesOW = mkSetOutline outlineOW
-          let setOutlineStylesOWInh = mkSetOutline outlineOWInh
-          el'addCn "group input h-9 border-0 px-2 rounded-none"
-          el'addCn "transition transition-transform duration-300 shadow-none"
-          el'addCn "relative outline-hidden focus-within:outline-solid"
-          el'addCn $ if isStatsPage then "translate-x-8" else "translate-x-0"
-          setOutlineStylesOW (-6) 2
-          pure do
-            icon'magnifyingGlass $ s'put Size4
-            dom'input_ do
-              el'tabIndex0
-              el'type "text"
-              el'placeholder "Search Players..."
-              el'value ""
-            dom'div do
-              el'key "outline-spacer"
-              el'addCn "hidden absolute top-[5px] right-[calc(2rem_-_1px)]"
-              el'addCn "w-[5px] h-[calc(100%_-_10px)]"
-              when isStatsPage $ el'addCn "group-focus-within:block"
-              setOutlineStylesOWInh 0 0
-              pure do
-                dom'div_ do
-                  el'addCn "absolute w-0 h-full top-0 -right-px"
-                  el'addCn "outline-white dark:outline-black"
-                  setOutlineStylesOWInh 0 5
-                dom'div_ do
-                  el'addCn "absolute w-0 h-full top-0 left-px"
-                  el'addCn "outline-black dark:outline-white"
-                  setOutlineStylesOWInh 0 1
-        dom'div do
-          el'cn "dropdown-content max-h-80 overflow-y-scroll"
-          el'addCn $ dropdownStart
-            ? (outsideNav ? "left-2" $ "-left-12")
-            $ (outsideNav ? "right-2" $ "-right-12")
-          el'addCn $ outsideNav ? "z-800" $ "z-1"
-          el'addCn "w-full shadow-sm bg-base-200 rounded-box p-0 min-w-70"
-          pure $ dom'ul do
-            el'tabIndex (-1)
-            el'cn "relative w-full menu"
-            pure $ dom'text "Test Search Dropdown"
+    dom'withNewState initialState \state setState -> do
+      searchedPlayers <- getSearchedPlayers state.input
+      domEff'every'lead do
+        x'do getEl >>= flip whenJust \el -> do
+          domEff'el'querySelector el "[data-is-highlighted=\"true\"]" >>=
+            flip whenJust \hlEl -> do
+              x'out { el, hlEl }
+              domEff'el'parentElement hlEl >>=
+                flip whenJust \hlElP1 -> domEff'el'parentElement hlElP1 >>=
+                  flip whenJust \hlElP2 -> domEff'el'parentElement hlElP2 >>=
+                    flip whenJust \hlElP3 -> do
+                      x'out { el, hlEl, hlElP1, hlElP2, hlElP3 }
+      x'out { searchedPlayers }
+      dom'div do
+        el'setElRef setEl
+        el'addCn "dropdown"
+        whenNot dropdownStart $ el'addCn "dropdown-end"
+        when dropdownTop $ el'addCn "dropdown-top"
+        pure do
+          dom'label do
+            let outlineO o = (/\) "outlineOffset" $ o <:> "px"
+            let outlineW w = (/\) "outlineWidth" $ w <:> "px"
+            let outlineInh = "outlineStyle" /\ "inherit"
+            let outlineOW o w = [ outlineO o, outlineW w ]
+            let outlineOWInh o w = [ outlineInh ] <> outlineOW o w
+            let mkSetOutline f o w = el'setStyles $ f o w
+            let setOutlineStylesOW = mkSetOutline outlineOW
+            let setOutlineStylesOWInh = mkSetOutline outlineOWInh
+            el'addCn "group input h-9 border-0 px-2 rounded-none"
+            el'addCn "transition transition-transform duration-300 shadow-none"
+            el'addCn "relative outline-hidden focus-within:outline-solid"
+            el'addCn $ if isStatsPage then "translate-x-8" else "translate-x-0"
+            setOutlineStylesOW (-6) 2
+            pure do
+              icon'magnifyingGlass $ s'put Size4
+              dom'input_ do
+                el'tabIndex0
+                el'type "text"
+                el'placeholder "Search Players..."
+                el'value ""
+              dom'div do
+                el'key "outline-spacer"
+                el'addCn "hidden absolute top-[5px] right-[calc(2rem_-_1px)]"
+                el'addCn "w-[5px] h-[calc(100%_-_10px)]"
+                when isStatsPage $ el'addCn "group-focus-within:block"
+                setOutlineStylesOWInh 0 0
+                pure do
+                  dom'div_ do
+                    el'addCn "absolute w-0 h-full top-0 -right-px"
+                    el'addCn "outline-white dark:outline-black"
+                    setOutlineStylesOWInh 0 5
+                  dom'div_ do
+                    el'addCn "absolute w-0 h-full top-0 left-px"
+                    el'addCn "outline-black dark:outline-white"
+                    setOutlineStylesOWInh 0 1
+          dom'div do
+            el'cn "dropdown-content max-h-80 overflow-y-scroll"
+            el'addCn $ dropdownStart
+              ? (outsideNav ? "left-2" $ "-left-12")
+              $ (outsideNav ? "right-2" $ "-right-12")
+            el'addCn $ outsideNav ? "z-800" $ "z-1"
+            el'addCn "w-full shadow-sm bg-base-200 rounded-box p-0 min-w-70"
+            pure $ dom'ul do
+              el'tabIndex (-1)
+              el'cn "relative w-full menu"
+              pure $ dom'text "Test Search Dropdown"
 
 type TableCell dx x = MDom dx x Unit
 
@@ -586,7 +655,6 @@ charImages { chars } cnExtra = do
       dom'img_ do
         let mkUsageStr n i = if n < 0.01 then "<1" else show i
         let usageStr = mkUsageStr usage $ round $ 100.0 * usage
-        x'out { usageStr }
         el'cn "h-5 w-5"
         el'title $ usageStr <> "% usage in sets with reported character data"
         el'src $ "/chars/" <:> charId <:> "/" <:> color <:> "/stock.png"
@@ -676,7 +744,6 @@ page'stats sort filters = do
         domError'fail $ ClmDom'Err'LoadSeason seasonId err
       FetchCache'ValState'Val season -> do
         let sAndF = SandF sort.by sort.dir filters
-        x'out { sAndF'key: ident'key sAndF }
         let ranksOrE = boxed'call @"ranksOrESorted" season sAndF
         ranks <- domError'ok $ mapL (ClmDom'Err'FullSeason seasonId) ranksOrE
         let filtRanks = arr'filter (clm'isInUse filters) ranks
@@ -860,7 +927,6 @@ app'body = do
     <#> (\tl -> [ tl.preDefault, [ tl.defaultSeasonId ], tl.postDefault ])
     <#> arr'concat
     <#> arr'reverse
-  x'out { allSeasonIds }
   route <- x'extract @"route"
   editRoute <- x'extract @"editRoute"
   let seasonId = g_ @"!.seasonId" route
@@ -1001,7 +1067,7 @@ app'mk buildOutputs = router'run urlEdits parseUrl mkTitleOr_ do
   x'out $ "ROUTE-INFO"
   x'out $ show route
   x'out $ may'or "NO ERROR" $ routeErr <#> (<>) "ERROR: "
-  x'out "----"
+  x'out ""
   let
     editRoute = edit route
     isPlayerPage = route'isPlayerPage route

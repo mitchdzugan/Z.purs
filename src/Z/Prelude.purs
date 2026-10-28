@@ -20,6 +20,7 @@ module Z.Prelude
   , module ZWraps
   , module ZPassable
   , module ZFuture
+  , module ZFuzzy
   , module ZX
   ) where
 
@@ -176,6 +177,7 @@ import Z.Z.Defaultable
 import Z.Z.Ext as ZExt
 import Z.Z.Foldable as ZFoldable
 import Z.Z.Future as ZFuture
+import Z.Z.Fuzzy as ZFuzzy
 import Z.Z.HashMap as ZMashMap
 import Z.Z.HashSet
   ( HashSet(..)

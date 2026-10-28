@@ -17,6 +17,8 @@ module Z.Z.Util
   , arr'sort
   , arr'sortBy
   , arr'sortWith
+  , arr'splitHead
+  , arr'splitTail
   , baseDecodeJson
   , class IsStringOrNum
   , class RevSym
@@ -76,10 +78,12 @@ import Data.Maybe as Maybe
 import Data.Ord as Ord
 import Data.Ordering as Ordering
 import Data.Tuple as Tup
+import Data.Tuple.Nested (type (/\), (/\))
 import Foreign as Foreign
 import Foreign.Object as FO
 import Prim.Symbol as Symbol
 import Type.Proxy as Proxy
+import Z.Z.Core (arr'drop, arr'size, arr'take)
 import Z.Z.Core as Z
 import Z.Z.HashMap (HashMap, hm'entries)
 import Z.Z.Id (class Identable, id'of)
@@ -128,6 +132,12 @@ nth = Array.index
 
 arr'first :: forall a. Array a -> Maybe.Maybe a
 arr'first a = nth a 0
+
+arr'splitHead :: forall a. Array a -> Maybe.Maybe (a /\ Array a)
+arr'splitHead a = arr'first a <#> flip (/\) (arr'drop 1 a)
+
+arr'splitTail :: forall a. Array a -> Maybe.Maybe (a /\ Array a)
+arr'splitTail a = arr'last a <#> flip (/\) (arr'take ((arr'size a) - 1) a)
 
 arr'last :: forall a. Array a -> Maybe.Maybe a
 arr'last a = nth a ((Array.length a) - 1)
