@@ -54,7 +54,7 @@ type FuzzyOpts a = FuzzyOpts'f Maybe a
 type FuzzyOpts'array a = FuzzyOpts'f Array a
 
 defaultFuzzyOpts :: forall a. FuzzyOpts a
-defaultFuzzyOpts = { limit: Nothing, threshold: Nothing, scoreFn: Nothing }
+defaultFuzzyOpts = { limit: Just 0, threshold: Just 0.0, scoreFn: Nothing }
 
 type FuzzyOptEdits a = Edit (FuzzyOpts a)
 

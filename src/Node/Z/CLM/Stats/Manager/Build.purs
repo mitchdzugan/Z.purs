@@ -911,7 +911,7 @@ buildSeasonJson
   :: forall x
    . Array Int
   -> HashMap Int (Array Int)
-  -> Array (Int /\ Array String)
+  -> HashMap Int (Array String)
   -> Int
   -> ClmV () x @@> ClmSeason'Json
 buildSeasonJson allSeasonIds allPlayerSeasons otherPlayerTags seasonId = do
@@ -925,12 +925,16 @@ buildSeasonJson allSeasonIds allPlayerSeasons otherPlayerTags seasonId = do
         _'insert H2h.LuckyStats luckyStatsId
     pure $ rec'set @"socials" socials player
   let playersById = keyBy _.clmId players
-  allOtherPlayerTags <- forM otherPlayerTags \(clmId /\ playerTags) -> do
-    mainGamerTagOr_ <- x'lookup @"clmPlayers" clmId <#> map _.gamerTag
-    let seasonPlayer = hm'lookup clmId playersById
-    case mainGamerTagOr_ /\ seasonPlayer of
-      (Just tag) /\ Nothing -> pure $ (/\) clmId $ [ tag ] <> playerTags
-      _ -> pure $ clmId /\ playerTags
+  allOtherPlayerTags <- _'exec_ @(X'Vector (Int /\ Array String)) do
+    forM_ (hm'keys allPlayerSeasons) \clmId -> do
+      mainGamerTagOr_ <- x'lookup @"clmPlayers" clmId <#> map _.gamerTag
+      let otherTags = may'or [] $ hm'lookup clmId otherPlayerTags
+      let seasonPlayer = hm'lookup clmId playersById
+      otherSeasonTags <- pure $ case mainGamerTagOr_ /\ seasonPlayer of
+        (Just tag) /\ Nothing -> [ tag ] <> otherTags
+        _ -> otherTags
+      whenNot (arr'isEmpty otherSeasonTags) do
+        _'cons $ clmId /\ otherSeasonTags
   let removeCurrSeasonId = arr'remove ((==) seasonId)
   pure
     { ranks
@@ -969,8 +973,7 @@ buildClm newActions = runClm do
   allPlayerSeasons <- map hs'vals <$> _'exec_ @(X'HashSet2D Int Int) do
     forM_ filtered \(seasonId /\ ranks) -> forM_ ranks \{ clmId } -> do
       _'consAt clmId seasonId
-  let arr'entries = hm'entries <<< map hs'vals
-  otherPlayerTags <- arr'entries <$> _'exec_ @(X'HashSet2D Int String) do
+  otherPlayerTags <- map hs'vals <$> _'exec_ @(X'HashSet2D Int String) do
     forM_ (hm'keys allPlayerSeasons) \clmId -> do
       mainTag <- x'lookup @"clmPlayers" clmId <#> map _.gamerTag
       usedTags <- x'extractAt @"usedTags" clmId <#> hs'vals

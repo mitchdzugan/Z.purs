@@ -107,7 +107,7 @@ anyPlayer'otherTags (Left { otherTags }) = otherTags
 anyPlayer'otherTags (Right { otherTags }) = otherTags
 
 anyPlayer'otherTags'key :: AnyPlayer -> String
-anyPlayer'otherTags'key = str'joinWith " | " <<< anyPlayer'otherTags
+anyPlayer'otherTags'key = str'joinWith " " <<< anyPlayer'otherTags
 
 anyPlayer'tag'keys :: Array (AnyPlayer -> String)
 anyPlayer'tag'keys = [ anyPlayer'gamerTag, anyPlayer'otherTags'key ]
@@ -185,6 +185,7 @@ instance Boxable ClmSeason'Tag ClmSeason'Json ClmSeason'Responds where
         let otherPlayerTags = boxed'call_ @"otherPlayerTags" b
         let otherPlayerSeasons = boxed'call_ @"otherPlayerSeasons" b
         outOfSeasonPlayers <- _'exec_ @(X'Vector OutOfSeasonPlayer) do
+          x'out { optSize: hm'size otherPlayerTags }
           forM_ (hm'entries otherPlayerTags) \(clmId /\ allOtherTags) -> do
             when (isNothing $ hm'lookup clmId ranksById) do
               whenJust (arr'splitHead allOtherTags) \splitHeadTags -> do
@@ -368,6 +369,7 @@ playerSearch edits = do
                     flip whenJust \hlElP3 -> do
                       x'out { el, hlEl, hlElP1, hlElP2, hlElP3 }
       x'out { searchedPlayers }
+      x'out state
       dom'div do
         el'setElRef setEl
         el'addCn "dropdown"
@@ -394,7 +396,10 @@ playerSearch edits = do
                 el'tabIndex0
                 el'type "text"
                 el'placeholder "Search Players..."
-                el'value ""
+                el'onInput \e -> do
+                  input <- domEff'event'currentTargetValue e
+                  x'do $ setState $ rec'set @"input" input state
+                el'value state.input
               dom'div do
                 el'key "outline-spacer"
                 el'addCn "hidden absolute top-[5px] right-[calc(2rem_-_1px)]"

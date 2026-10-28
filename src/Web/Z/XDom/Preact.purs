@@ -7,7 +7,6 @@ module Web.Z.XDom.Preact
 
 import Web.Z.Prelude
 
-import Debug (traceM)
 import Web.DOM.DOMTokenList as CL
 import Web.DOM.Element (classList, toNode, toParentNode)
 import Web.DOM.Node (parentElement)
@@ -29,6 +28,8 @@ foreign import js_event_gToWeb :: DomEvent -> WET.Event
 
 foreign import js_animationFramePromise :: Effect (Promise Unit)
 
+foreign import js_eventCurrentTargetValue :: DomEvent -> Effect String
+
 xPreactHydrate :: forall x. Element -> XD.ReactEl -> EA' JsError x @@> Unit
 xPreactHydrate d r = e'runEffPromise $ js_renderIn r d
 
@@ -45,7 +46,6 @@ provideHistory
   -> (UrlSt.T -> XD.MDom dr (X'Web x) Unit)
   -> XD.MDom dr (X'Web x) Unit
 provideHistory locUrl toTitleOr_ urlStateToDom = do
-  traceM { locUrl }
   let baseUrlState = UrlSt.mk toTitleOr_ locUrl
   let origin = url'origin locUrl
   XD.dom'withNewState baseUrlState \urlState setUrlState -> do
@@ -97,7 +97,7 @@ exec'xdom'web = XD.exec'xdom
       }
   , el'scrollTo: \_ _ -> pure unit
   , event'preventDefault: \event -> preventDefault $ js_event_gToWeb event
-  , event'currentTargetValue: \_ -> pure ""
+  , event'currentTargetValue: js_eventCurrentTargetValue
   , future'animationFrame:
       eff'defer \_ -> future'fromEffPromise js_animationFramePromise
   , doc'pxPerRem: pure 1.0
