@@ -4,8 +4,6 @@ module Z.Z.Method
   , method'id
   ) where
 
-import Prelude
-
 foreign import js_getMethodId :: forall param res. (param -> res) -> Int
 
 class Method :: forall k. k -> Type -> Type -> Type -> Constraint

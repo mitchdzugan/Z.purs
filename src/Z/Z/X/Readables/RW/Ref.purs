@@ -18,6 +18,7 @@ module Z.Z.X.Readables.RW.Ref
 import Z.Z.X.UtilPrelude
 
 import Z.Z.Eff.Ref (Eff'Ref, eff'ref'get, eff'ref'new, eff'ref'set)
+import Z.Z.Method (class Method)
 import Z.Z.X.Core
   ( class X'R'RespondsTo'rw
   , class X'Readable'rw
@@ -27,6 +28,7 @@ import Z.Z.X.Core
   , X'Evaluable
   , x'evaluable
   )
+import Z.Z.X.Method (XM'assign)
 import Z.Z.X.Responds
   ( Responds
   , Responds'Const
@@ -67,6 +69,9 @@ instance
     { assign: responds'run'eff \v -> eff'ref'set v ref
     , reset: responds'const'eff $ eff'ref'set init ref
     }
+
+instance Method XM'assign (R'Ref t) t Unit where
+  call (R'Ref (ref /\ _)) v = unsafePerformEffect $ eff'ref'set v ref
 
 type X'Ref t = Reader (RW'Tagged (R'Ref t))
 type X'Ref'w t = Reader (W'Tagged (R'Ref t))
