@@ -69,7 +69,14 @@ import Z.Z.X.Responds (Responds, Responds'Const, responds'run)
 
 -----------------------------------------------------------------------
 
-foreign import data ClmSeason'Tag :: Type
+newtype ClmSeason'Data = ClmSeason'Data ClmSeason'Json
+
+derive instance Newtype ClmSeason'Data _
+derive newtype instance Eq ClmSeason'Data
+derive newtype instance EncodeJson ClmSeason'Data
+derive newtype instance DecodeJson ClmSeason'Data
+
+type ClmSeason'Boxed = Boxed ClmSeason'Data
 
 data ClmSeason'Error
   = ClmSeason'Error'MissingPlayer Int
@@ -112,23 +119,6 @@ anyPlayer'otherTags'key = str'joinWith " " <<< anyPlayer'otherTags
 anyPlayer'tag'keys :: Array (AnyPlayer -> String)
 anyPlayer'tag'keys = [ anyPlayer'gamerTag, anyPlayer'otherTags'key ]
 
-type ClmSeason'Responds = VariantF
-  ( events :: Responds'Const (HashMap SorN ClmSeason'Event)
-  , players :: Responds'Const (HashMap Int ClmPlayer)
-  , otherPlayerTags :: Responds'Const (HashMap Int (Array String))
-  , otherPlayerSeasons :: Responds'Const (HashMap Int (Array Int))
-  , fullPlayers :: Responds'Const (HashMap Int ClmSeason'Player'Full)
-  , playerRanks :: Responds'Const (HashMap Int ClmSeason'Player)
-  , getIsInUse :: Responds Int (Filters -> Boolean)
-  , ranksOrE ::
-      Responds'Const (Or'ClmSeason'Error ClmSeason'Players'Full)
-  , allPlayers :: Responds'Const (Array AnyPlayer)
-  , allPlayersSnapshot :: Responds'Const (FuzzySnapshot AnyPlayer)
-  , searchedPlayers :: Responds String (Array AnyPlayer)
-  , ranksOrESorted ::
-      Responds SandF (Or'ClmSeason'Error ClmSeason'Players'Full)
-  )
-
 sortBy'sorters :: SortBy -> Array (Sorter ClmSeason'Player'Full)
 sortBy'sorters SortBy'Name = [ sorter _.player.gamerTag ]
 sortBy'sorters SortBy'Qual = []
@@ -137,97 +127,126 @@ sortBy'sorters SortBy'Att = [ sorter'rev _.prEvents, sorter'rev _.sets ]
 sortBy'sorters SortBy'Mru =
   [ sorter'rev _.lastEvent.data.date, sorter'rev _.prEvents ]
 
-instance Boxable ClmSeason'Tag ClmSeason'Json ClmSeason'Responds where
-  boxable'mkResponds b = varf'match
-    { events: responds'run \_ -> keyBy _.eventId $ (boxed'v b).events
-    , players: responds'run \_ -> keyBy _.clmId $ (boxed'v b).players
-    , fullPlayers: responds'run \_ -> case (boxed'call_ @"ranksOrE" b) of
-        Left _ -> hm'empty
-        Right ranks -> keyBy _.clmId ranks
-    , getIsInUse: responds'run \clmId -> \filters ->
-        case (hm'lookup clmId $ boxed'call_ @"fullPlayers" b) of
-          Nothing -> false
-          Just p -> p.hasReq'prEvents || not filters.req'prEvents
-    , playerRanks: responds'run \_ -> keyBy _.clmId $ (boxed'v b).ranks
-    , otherPlayerTags: responds'run \_ ->
-        hm'fromFoldable (boxed'v b).otherPlayerTags
-    , otherPlayerSeasons: responds'run \_ ->
-        hm'fromFoldable (boxed'v b).otherPlayerSeasons
-    , ranksOrE: responds'run \_ -> sync'x do
-        let otherPlayerTags = boxed'call_ @"otherPlayerTags" b
-        let otherPlayerSeasons = boxed'call_ @"otherPlayerSeasons" b
-        let eventsById = boxed'call_ @"events" b
-        let playersById = boxed'call_ @"players" b
-        e'try $ forM (boxed'v b).ranks \rank -> do
-          let playerErr = ClmSeason'Error'MissingPlayer rank.clmId
-          let eventErr = ClmSeason'Error'MissingEvent rank.lastEvent.id
-          player <- e'unwrap playerErr $ hm'lookup rank.clmId playersById
-          evData <- e'unwrap eventErr $ hm'lookup rank.lastEvent.id eventsById
-          let sets = rank.wins + rank.losses
-          let numWs = toNumber rank.wins
-          let numTot = toNumber sets
-          let otherTags = may'or [] $ hm'lookup rank.clmId otherPlayerTags
-          let otherSeasons = may'or [] $ hm'lookup rank.clmId otherPlayerSeasons
-          let winrate = if (sets == 0) then Nothing else Just (numWs / numTot)
-          pure $ rank
-            # rec'insert @"player" player
-            # rec'insert @"sets" sets
-            # rec'insert @"winrate" winrate
-            # rec'insert @"sortAndFilteredRank" 0
-            # rec'insert @"otherTags" otherTags
-            # rec'insert @"otherSeasons" otherSeasons
-            # rec'insert @"hasReq'prEvents" (clm'hasReq'prEvents rank)
-            # rec'insert @"hasRatingConfidence" (clm'hasRatingConfidence rank)
-            # rec'modify @"lastEvent" (\ev -> rec'insert @"data" evData ev)
-    , allPlayers: responds'run \_ -> sync'x do
-        let ranks = may'or [] $ hush $ boxed'call_ @"ranksOrE" b
-        let ranksById = keyBy _.clmId ranks
-        let otherPlayerTags = boxed'call_ @"otherPlayerTags" b
-        let otherPlayerSeasons = boxed'call_ @"otherPlayerSeasons" b
-        outOfSeasonPlayers <- _'exec_ @(X'Vector OutOfSeasonPlayer) do
-          forM_ (hm'entries otherPlayerTags) \(clmId /\ allOtherTags) -> do
-            when (isNothing $ hm'lookup clmId ranksById) do
-              whenJust (arr'splitHead allOtherTags) \splitHeadTags -> do
-                let (gamerTag /\ otherTags) = splitHeadTags
-                let allSeasons = may'or [] $ hm'lookup clmId otherPlayerSeasons
-                whenJust (arr'splitTail allSeasons) \splitHeadSeasons -> do
-                  let (latestSeason /\ otherSeasons) = splitHeadSeasons
-                  _'cons
-                    { clmId, gamerTag, otherTags, latestSeason, otherSeasons }
-        pure $ arr'concat [ ranks <#> Right, outOfSeasonPlayers <#> Left ]
-    , allPlayersSnapshot: responds'run \_ ->
-        fuzzy'mkSnapshot (boxed'call_ @"allPlayers" b) anyPlayer'tag'keys
-    , searchedPlayers: responds'run \srch ->
-        if srch == "" then boxed'call_ @"allPlayers" b
-        else _.obj <$>
-          fuzzy'searchSnapshot (boxed'call_ @"allPlayersSnapshot" b) srch pass
-    , ranksOrESorted: responds'run \(SandF sortBy _ filters) -> do
-        let sorter'isInUse = sorter'rev (clm'isInUse filters)
-        let sorters = arr'concat [ [ sorter'isInUse ], sortBy'sorters sortBy ]
-        boxed'call_ @"ranksOrE" b
-          <#> arr'filter (\r -> r.prEvents > 0)
-          <#> withMultisortInd sorters
-          <#> map (\(ind /\ r) -> rec'set @"sortAndFilteredRank" ind r)
-    }
+foreign import data M'events :: Type
+foreign import data M'players :: Type
+foreign import data M'otherPlayerTags :: Type
+foreign import data M'otherPlayerSeasons :: Type
+foreign import data M'ranksOrE :: Type
+foreign import data M'allPlayers :: Type
+foreign import data M'allPlayersSnapshot :: Type
+foreign import data M'searchedPlayers :: Type
+foreign import data M'ranksOrESorted :: Type
 
-type ClmSeason'Boxed = Boxed ClmSeason'Tag
+instance
+  Method M'events ClmSeason'Boxed Unit (HashMap SorN ClmSeason'Event) where
+  call b _ = keyBy _.eventId $ _.events $ unwrap $ boxed'v b
+
+instance Method M'players ClmSeason'Boxed Unit (HashMap Int ClmPlayer) where
+  call b _ = keyBy _.clmId $ _.players $ unwrap $ boxed'v b
+
+instance
+  Method
+    M'otherPlayerTags
+    ClmSeason'Boxed
+    Unit
+    (HashMap Int (Array String)) where
+  call b _ = hm'fromFoldable $ _.otherPlayerTags $ unwrap $ boxed'v b
+
+instance
+  Method
+    M'otherPlayerSeasons
+    ClmSeason'Boxed
+    Unit
+    (HashMap Int (Array Int)) where
+  call b _ = hm'fromFoldable $ _.otherPlayerSeasons $ unwrap $ boxed'v b
+
+instance
+  Method M'ranksOrE
+    ClmSeason'Boxed
+    Unit
+    (Or'ClmSeason'Error ClmSeason'Players'Full) where
+  call b _ = sync'x do
+    let otherPlayerTags = boxed'call_ @M'otherPlayerTags b
+    let otherPlayerSeasons = boxed'call_ @M'otherPlayerSeasons b
+    let eventsById = boxed'call_ @M'events b
+    let playersById = boxed'call_ @M'players b
+    e'try $ forM (unwrap $ boxed'v b).ranks \rank -> do
+      let playerErr = ClmSeason'Error'MissingPlayer rank.clmId
+      let eventErr = ClmSeason'Error'MissingEvent rank.lastEvent.id
+      player <- e'unwrap playerErr $ hm'lookup rank.clmId playersById
+      evData <- e'unwrap eventErr $ hm'lookup rank.lastEvent.id eventsById
+      let sets = rank.wins + rank.losses
+      let numWs = toNumber rank.wins
+      let numTot = toNumber sets
+      let otherTags = may'or [] $ hm'lookup rank.clmId otherPlayerTags
+      let otherSeasons = may'or [] $ hm'lookup rank.clmId otherPlayerSeasons
+      let winrate = if (sets == 0) then Nothing else Just (numWs / numTot)
+      pure $ rank
+        # rec'insert @"player" player
+        # rec'insert @"sets" sets
+        # rec'insert @"winrate" winrate
+        # rec'insert @"sortAndFilteredRank" 0
+        # rec'insert @"otherTags" otherTags
+        # rec'insert @"otherSeasons" otherSeasons
+        # rec'insert @"hasReq'prEvents" (clm'hasReq'prEvents rank)
+        # rec'insert @"hasRatingConfidence" (clm'hasRatingConfidence rank)
+        # rec'modify @"lastEvent" (\ev -> rec'insert @"data" evData ev)
+
+instance Method M'allPlayers ClmSeason'Boxed Unit (Array AnyPlayer) where
+  call b _ = sync'x do
+    let ranks = may'or [] $ hush $ boxed'call_ @M'ranksOrE b
+    let ranksById = keyBy _.clmId ranks
+    let otherPlayerTags = boxed'call_ @M'otherPlayerTags b
+    let otherPlayerSeasons = boxed'call_ @M'otherPlayerSeasons b
+    outOfSeasonPlayers <- _'exec_ @(X'Vector OutOfSeasonPlayer) do
+      forM_ (hm'entries otherPlayerTags) \(clmId /\ allOtherTags) -> do
+        when (isNothing $ hm'lookup clmId ranksById) do
+          whenJust (arr'splitHead allOtherTags) \splitHeadTags -> do
+            let (gamerTag /\ otherTags) = splitHeadTags
+            let allSeasons = may'or [] $ hm'lookup clmId otherPlayerSeasons
+            whenJust (arr'splitTail allSeasons) \splitHeadSeasons -> do
+              let (latestSeason /\ otherSeasons) = splitHeadSeasons
+              _'cons
+                { clmId, gamerTag, otherTags, latestSeason, otherSeasons }
+    pure $ arr'concat [ ranks <#> Right, outOfSeasonPlayers <#> Left ]
+
+instance
+  Method
+    M'allPlayersSnapshot
+    ClmSeason'Boxed
+    Unit
+    (FuzzySnapshot AnyPlayer) where
+  call b _ = fuzzy'mkSnapshot (boxed'call_ @M'allPlayers b) anyPlayer'tag'keys
+
+instance Method M'searchedPlayers ClmSeason'Boxed String (Array AnyPlayer) where
+  call b srch =
+    if srch == "" then boxed'call_ @M'allPlayers b
+    else _.obj <$>
+      fuzzy'searchSnapshot (boxed'call_ @M'allPlayersSnapshot b) srch pass
+
+instance
+  Method M'ranksOrESorted
+    ClmSeason'Boxed
+    SandF
+    (Or'ClmSeason'Error ClmSeason'Players'Full) where
+  call b (SandF sortBy _ filters) = do
+    let sorter'isInUse = sorter'rev (clm'isInUse filters)
+    let sorters = arr'concat [ [ sorter'isInUse ], sortBy'sorters sortBy ]
+    boxed'call_ @M'ranksOrE b
+      <#> arr'filter (\r -> r.prEvents > 0)
+      <#> withMultisortInd sorters
+      <#> map (\(ind /\ r) -> rec'set @"sortAndFilteredRank" ind r)
 
 -----------------------------------------------------------------------
 
-foreign import data ClmPlayerSeason'Tag :: Type
+newtype ClmPlayerSeason'Data = ClmPlayerSeason'Data ClmPlayerSeason'Json
 
-type ClmPlayerSeason'Responds = VariantF
-  ()
+derive instance Newtype ClmPlayerSeason'Data _
+derive newtype instance Eq ClmPlayerSeason'Data
+derive newtype instance EncodeJson ClmPlayerSeason'Data
+derive newtype instance DecodeJson ClmPlayerSeason'Data
 
-instance
-  Boxable
-    ClmPlayerSeason'Tag
-    ClmPlayerSeason'Json
-    ClmPlayerSeason'Responds where
-  boxable'mkResponds b = varf'match
-    {}
-
-type ClmPlayerSeason'Boxed = Boxed ClmPlayerSeason'Tag
+type ClmPlayerSeason'Boxed = Boxed ClmPlayerSeason'Data
 
 -----------------------------------------------------------------------
 
@@ -344,7 +363,7 @@ getSearchedPlayers searchString = do
   seasonId <- x'extract @"route" <#> g_ @"!.seasonId"
   domFetchCache'lookup @"clmSeasons" seasonId <#> case _ of
     FetchCache'ValState'Val season ->
-      boxed'call @"searchedPlayers" season searchString
+      boxed'call @M'searchedPlayers season searchString
     _ -> []
 
 playerSearch :: forall dx x. Edit PlayerSearchProps -> ClmDom dx x Unit
@@ -749,7 +768,7 @@ page'stats sort filters = do
         domError'fail $ ClmDom'Err'LoadSeason seasonId err
       FetchCache'ValState'Val season -> do
         let sAndF = SandF sort.by sort.dir filters
-        let ranksOrE = boxed'call @"ranksOrESorted" season sAndF
+        let ranksOrE = boxed'call @M'ranksOrESorted season sAndF
         ranks <- domError'ok $ mapL (ClmDom'Err'FullSeason seasonId) ranksOrE
         let filtRanks = arr'filter (clm'isInUse filters) ranks
         forM_ filtRanks \rank -> dom'div_ do

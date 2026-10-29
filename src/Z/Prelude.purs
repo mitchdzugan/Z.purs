@@ -11,6 +11,7 @@ module Z.Prelude
   , module ZMashMap
   , module ZMashSet
   , module ZId
+  , module ZMethod
   , module ZPair
   , module ZPairKey
   , module ZString
@@ -211,6 +212,7 @@ import Z.Z.Id
   , idented'mk
   , idented'v
   ) as ZId
+import Z.Z.Method as ZMethod
 import Z.Z.Pair (Pair(..), pair'get, pair'getOppo, pair'swap, (~)) as ZPair
 import Z.Z.PairKey as ZPairKey
 import Z.Z.Passable (pass) as ZPassable
