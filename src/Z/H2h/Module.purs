@@ -22,17 +22,6 @@ module Z.H2h.Module
   , mkScoreCount
   , mkScoreDQ
   , mkScoreWL
-  , p'baseSets
-  , p'depth
-  , p'entrants
-  , p'gfEIds
-  , p'hasReset
-  , p'isDropRound
-  , p'nonGfEIds
-  , p'prev
-  , p'roundInd
-  , p'sets
-  , p'winnerId
   , startggSource
   ) where
 
@@ -212,36 +201,3 @@ startggSource slug = { slug, site: Startgg }
 
 challongeSource :: String -> EventSource
 challongeSource slug = { slug, site: Challonge }
-
-p'roundInd :: Proxy "roundInd"
-p'roundInd = default
-
-p'prev :: Proxy "prev"
-p'prev = default
-
-p'depth :: Proxy "depth"
-p'depth = default
-
-p'isDropRound :: Proxy "isDropRound"
-p'isDropRound = default
-
-p'winnerId :: Proxy "winnerId"
-p'winnerId = default
-
-p'hasReset :: Proxy "hasReset"
-p'hasReset = default
-
-p'baseSets :: Proxy "baseSets"
-p'baseSets = default
-
-p'gfEIds :: Proxy "gfEIds"
-p'gfEIds = default
-
-p'nonGfEIds :: Proxy "nonGfEIds"
-p'nonGfEIds = default
-
-p'entrants :: Proxy "entrants"
-p'entrants = default
-
-p'sets :: Proxy "sets"
-p'sets = default

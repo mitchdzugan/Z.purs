@@ -6,7 +6,9 @@ module Z.Z.X.Method
   , T'xm'add
   , T'xm'addAt
   , T'xm'alter
+  , T'xm'assign
   , T'xm'assignAt
+  , T'xm'assignPure
   , T'xm'clear
   , T'xm'clearAt
   , T'xm'cons
@@ -46,6 +48,7 @@ module Z.Z.X.Method
   , T'xm'toArrayOf
   , T'xm'toArrayOf'b
   , T'xm'uncons
+  , T'xm'update
   , T'xm'vals
   , T'xm'valsAt
   , T'xm'view
@@ -270,13 +273,13 @@ class (X'Method XM'assign m t Unit, XM'type m XMt'self t) <= XC'assign m t
 
 instance (X'Method XM'assign m t Unit, XM'type m XMt'self t) => XC'assign m t
 
-xm'assign
-  :: forall p x' x m t
+type T'xm'assign use p =
+  forall x' x m t
    . XC'assign m t
   => ConsSymbol p m x' x
-  => Proxy p
-  -> t
-  -> Run x Unit
+  => use (t -> Run x Unit)
+
+xm'assign :: forall p. T'xm'assign ((->) (Proxy p)) p
 xm'assign = x'call @XM'assign
 
 infixl 6 xm'assign as @=
@@ -298,14 +301,14 @@ xm'assignAt p = curry (x'call @XM'assignAt p)
 
 -----------------------------------------
 
-xm'assignPure
-  :: forall p x' x m t a
+type T'xm'assignPure use p =
+  forall x' x m t a
    . XC'assign m (a t)
   => ConsSymbol p m x' x
   => Applicative a
-  => Proxy p
-  -> t
-  -> Run x Unit
+  => use (t -> Run x Unit)
+
+xm'assignPure :: forall p. T'xm'assignPure ((->) (Proxy p)) p
 xm'assignPure p v = x'call @XM'assign p (pure v)
 
 infixl 6 xm'assignPure as @<=>
@@ -811,14 +814,14 @@ xm'effGet px pm =
 
 -----------------------------------------
 
-xm'update
-  :: forall p x' x m t
+type T'xm'update use p =
+  forall x' x m t
    . XC'extract m t
   => XC'assign m t
   => ConsSymbol p m x' x
-  => Proxy p
-  -> (t -> t)
-  -> Run x Unit
+  => use ((t -> t) -> Run x Unit)
+
+xm'update :: forall p. T'xm'update ((->) (Proxy p)) p
 xm'update p f = f <$> xm'extract p >>= xm'assign p
 
 infixl 6 xm'update as @#

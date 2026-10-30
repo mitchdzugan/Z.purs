@@ -12,18 +12,6 @@ import Z.CLM.Stats.Season (tz'chicago)
 import Z.Gql.Error as GqlE
 import Z.Gql.Warning as GqlW
 import Z.H2h.Error as H2hE
-import Z.H2h.Module
-  ( p'baseSets
-  , p'depth
-  , p'entrants
-  , p'gfEIds
-  , p'hasReset
-  , p'isDropRound
-  , p'nonGfEIds
-  , p'prev
-  , p'roundInd
-  , p'winnerId
-  )
 import Z.H2h.Module as H2h
 import Z.H2h.Warning as H2hW
 
@@ -111,7 +99,7 @@ getEventDataImpl = do
           score <- H2hE.ParseScore !$! do
             e'runParser scoreS parseInt <#> H2h.mkScoreCount
           forM_ (str'split (Pattern " ") scoreClass) $ \cn -> do
-            when (cn == "-winner") $ p'winnerId @<=> entrantId
+            when (cn == "-winner") $ x'assignPure @"winnerId" entrantId
           let
             participant =
               { prefix: Nothing
@@ -137,7 +125,7 @@ getEventDataImpl = do
         let emptySlot = { entrantId: Nothing, score: H2h.NoScore }
         let slotA = jOr emptySlot (nth slots 0)
         let slotB = jOr emptySlot (nth slots 1)
-        winnerId <- (@.) p'winnerId
+        winnerId <- x'extract @"winnerId"
         let
           winner =
             if isNothing winnerId then Nothing
@@ -145,7 +133,7 @@ getEventDataImpl = do
             else Just neg
         let baseSet = { winner, id: setId, slots: slotA ~ slotB }
         x'insert @"baseSets" setId baseSet
-    baseSetList <- (@.) p'baseSets
+    baseSetList <- x'extract @"baseSets"
       <#> arr'reverse
       <<< arr'sortWith (g_ @"id")
       <<< hm'vals
@@ -164,21 +152,21 @@ getEventDataImpl = do
           <<< x'eval_ @"nonGfEIds" @(X'HashSet SorN)
     roundSets <- runSetsLoop do
       roundSets' <- forM baseSetList $ \baseSet -> do
-        prev <- (@.) p'prev
-        isDropRound <- (@.) p'isDropRound
+        prev <- x'extract @"prev"
+        isDropRound <- x'extract @"isDropRound"
         let prevSet = prev <#> \p -> p.base
         let prevRound = prev <#> \p -> p.round
         let wasGrands = jOrF $ prevRound <#> Round.isGrands
         let wasLosers = jOrF $ prevRound <#> Round.isLosers
         let sameSlots = (slotsKey baseSet) == mSlotsKey prevSet
         let isGrands = isNothing prev && isDE || (wasGrands && sameSlots)
-        when (isGrands && wasGrands) $ p'hasReset @= true
+        when (isGrands && wasGrands) $ x'assign @"hasReset" true
         forM_ (arr'fromFoldable baseSet.slots) $ \slot -> do
           whenJust slot.entrantId $ \entrantId -> do
             (if isGrands then x'cons @"gfEIds" else x'cons @"nonGfEIds")
               entrantId
-        gfEIds <- (@.) p'gfEIds
-        nonGfEIds <- (@.) p'nonGfEIds
+        gfEIds <- x'extract @"gfEIds"
+        nonGfEIds <- x'extract @"nonGfEIds"
         seenAllGFEntrants <- x'withReturn \xReturn -> do
           forM_ (hs'vals gfEIds) $ \id -> do
             when (not (hs'has id nonGfEIds)) (xReturn false)
@@ -186,8 +174,8 @@ getEventDataImpl = do
         let nowLosers = (not isGrands) && (wasGrands || wasLosers)
         let isLosers = nowLosers && not seenAllGFEntrants
         when ((not isLosers && wasLosers) || (not isGrands && wasGrands)) do
-          p'depth @= 0
-        setDepth <- (@.) p'depth
+          x'assign @"depth" 0
+        setDepth <- x'extract @"depth"
         let round = elimRound isDE setDepth isGrands isLosers isDropRound
         let slotA ~ slotB = baseSet.slots
         whenJust slotA.entrantId \eA -> whenJust slotB.entrantId \eB -> do
@@ -208,17 +196,17 @@ getEventDataImpl = do
             else if isDE then do
               setFinStanding lId $ inc $ p2 setDepth
             else pure unit
-        p'roundInd @# inc
-        depth <- (@.) p'depth
-        roundInd <- (@.) p'roundInd
+        x'update @"roundInd" inc
+        depth <- x'extract @"depth"
+        roundInd <- x'extract @"roundInd"
         when (p2 depth <= roundInd) do
-          p'roundInd @= 0
-          if (isDropRound && isLosers) then do p'isDropRound @= false
+          x'assign @"roundInd" 0
+          if (isDropRound && isLosers) then do x'assign @"isDropRound" false
           else do
-            p'isDropRound @= true
-            p'depth @# inc
-        p'prev @<=> { base: baseSet, round }
-        p'prev @<=> { base: baseSet, round }
+            x'assign @"isDropRound" true
+            x'update @"depth" inc
+        x'assignPure @"prev" { base: baseSet, round }
+        x'assignPure @"prev" { base: baseSet, round }
         pure $
           { round
           , set:
@@ -234,14 +222,14 @@ getEventDataImpl = do
               , games: []
               }
           }
-      hasReset <- (@.) p'hasReset
+      hasReset <- x'extract @"hasReset"
       if (not hasReset) then pure roundSets'
       else pure $ set (ix 0 # o_ @"round") (Round.Grands true) roundSets'
     let lSets = arr'filter (Round.isLosers <<< g_ @"round") roundSets
     let wSets = arr'filter (Round.isWinners <<< g_ @"round") roundSets
     let maxWR = jOr0 $ maximum $ wSets <#> Round.roundTypeInd <<< g_ @"round"
     let maxLR = jOr0 $ maximum $ lSets <#> Round.roundTypeInd <<< g_ @"round"
-    entrants <- (@.) p'entrants
+    entrants <- x'extract @"entrants"
     let profileImageUrl = "https://i.imgur.com/7MsdKge.jpeg"
     let
       mkSet = \rs -> rs.set `(~.) @"roundText"` roundLabel rs.round maxWR maxLR

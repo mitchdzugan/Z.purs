@@ -9,7 +9,9 @@ module Z.Z.X.Methods
   , x'add
   , x'addAt
   , x'alter
+  , x'assign
   , x'assignAt
+  , x'assignPure
   , x'clear
   , x'clearAt
   , x'cons
@@ -20,6 +22,7 @@ module Z.Z.X.Methods
   , x'd1keys
   , x'entries
   , x'entriesAt
+  , x'extract
   , x'extractAt
   , x'has
   , x'insert
@@ -36,6 +39,7 @@ module Z.Z.X.Methods
   , x'size
   , x'sizeAt
   , x'uncons
+  , x'update
   , x'vals
   , x'valsAt
   ) where
@@ -49,7 +53,9 @@ import Z.Z.X.Method
   ( T'xm'add
   , T'xm'addAt
   , T'xm'alter
+  , T'xm'assign
   , T'xm'assignAt
+  , T'xm'assignPure
   , T'xm'clear
   , T'xm'clearAt
   , T'xm'cons
@@ -60,6 +66,7 @@ import Z.Z.X.Method
   , T'xm'd1'keys
   , T'xm'entries
   , T'xm'entriesAt
+  , T'xm'extract
   , T'xm'extractAt
   , T'xm'has
   , T'xm'insert
@@ -75,12 +82,15 @@ import Z.Z.X.Method
   , T'xm'size
   , T'xm'sizeAt
   , T'xm'uncons
+  , T'xm'update
   , T'xm'vals
   , T'xm'valsAt
   , xm'add
   , xm'addAt
   , xm'alter
+  , xm'assign
   , xm'assignAt
+  , xm'assignPure
   , xm'clear
   , xm'clearAt
   , xm'cons
@@ -91,6 +101,7 @@ import Z.Z.X.Method
   , xm'd1'keys
   , xm'entries
   , xm'entriesAt
+  , xm'extract
   , xm'extractAt
   , xm'has
   , xm'insert
@@ -106,6 +117,7 @@ import Z.Z.X.Method
   , xm'size
   , xm'sizeAt
   , xm'uncons
+  , xm'update
   , xm'vals
   , xm'valsAt
   )
@@ -151,6 +163,26 @@ x'result
   => X'Results m result
   => Run x result
 x'result = x'results'impl @m $ Proxy @p
+
+---------------------------------------------------------------------
+
+x'assign :: forall @p. T'xm'assign T'id p
+x'assign = xm'assign (Proxy @p)
+
+---------------------------------------------------------------------
+
+x'assignPure :: forall @p. T'xm'assignPure T'id p
+x'assignPure = xm'assignPure (Proxy @p)
+
+---------------------------------------------------------------------
+
+x'update :: forall @p. T'xm'update T'id p
+x'update = xm'update (Proxy @p)
+
+---------------------------------------------------------------------
+
+x'extract :: forall @p. T'xm'extract T'id p
+x'extract = xm'extract (Proxy @p)
 
 ---------------------------------------------------------------------
 
