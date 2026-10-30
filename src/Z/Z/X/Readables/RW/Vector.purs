@@ -28,7 +28,8 @@ import Z.Z.Eff.Bin
   )
 import Z.Z.Eff.Ref (Eff'Ref, eff'ref'get, eff'ref'new, eff'ref'set)
 import Z.Z.X.Core
-  ( class X'R'RespondsTo'rw
+  ( class RW'Tag'CanRead
+  , class RW'Tag'CanWrite
   , class X'Readable'rw
   , class X'Results'R'rw
   , RW'Tagged
@@ -37,11 +38,28 @@ import Z.Z.X.Core
   , x'evaluable
   , x'evaluable_
   )
-import Z.Z.X.Responds
-  ( Responds
-  , Responds'Const
-  , responds'const'eff
-  , responds'run'eff
+import Z.Z.X.Method
+  ( class Eff'RW'Getter
+  , class Eff'RW'Method
+  , class XM'type
+  , XG'clear
+  , XG'entries
+  , XG'extract
+  , XG'keys
+  , XG'pop
+  , XG'reset
+  , XG'size
+  , XG'uncons
+  , XG'vals
+  , XM'add
+  , XM'assign
+  , XM'cons
+  , XM'insert
+  , XM'lookup
+  , XM'push
+  , XMt'key
+  , XMt'self
+  , XMt'value
   )
 
 ---------------------------------------------------------------------
@@ -57,60 +75,140 @@ type Eff'Vector a =
 
 newtype R'Vector a = R'Vector (Eff'Vector a)
 
+instance XM'type (R'Vector a) XMt'self (Array a)
+
+instance XM'type (R'Vector a) XMt'key Int
+
+instance XM'type (R'Vector a) XMt'value a
+
+----------------------------
+
+instance
+  ( RW'Tag'CanRead rwTag
+  ) =>
+  Eff'RW'Getter XG'extract (R'Vector a) rwTag (Array a) where
+  eff'rw'get (R'Vector st) = eff'vec'freeze st
+
+----------------------------
+
+instance
+  ( RW'Tag'CanRead rwTag
+  ) =>
+  Eff'RW'Getter XG'size (R'Vector a) rwTag Int where
+  eff'rw'get (R'Vector st) = eff'bin'size st.b'els
+
+----------------------------
+
+instance
+  ( RW'Tag'CanRead rwTag
+  ) =>
+  Eff'RW'Getter XG'vals (R'Vector a) rwTag (Array a) where
+  eff'rw'get (R'Vector st) = eff'vec'freeze st
+
+----------------------------
+
+instance
+  ( RW'Tag'CanRead rwTag
+  ) =>
+  Eff'RW'Getter XG'keys (R'Vector a) rwTag (Array Int) where
+  eff'rw'get (R'Vector st) = eff'vec'keys st
+
+----------------------------
+
+instance
+  ( RW'Tag'CanRead rwTag
+  ) =>
+  Eff'RW'Getter XG'entries (R'Vector a) rwTag (Array (Int /\ a)) where
+  eff'rw'get (R'Vector st) = eff'vec'freeze st <#> arr'withInd
+
+----------------------------
+
+instance
+  ( RW'Tag'CanRead rwTag
+  ) =>
+  Eff'RW'Method XM'lookup (R'Vector a) rwTag Int (Maybe a) where
+  eff'rw'call (R'Vector st) ind = eff'vec'lookup ind st
+
+-------------------------------------------
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  ) =>
+  Eff'RW'Method XM'assign (R'Vector a) rwTag (Array a) Unit where
+  eff'rw'call (R'Vector st) a = eff'vec'set a st
+
+----------------------------
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  ) =>
+  Eff'RW'Getter XG'reset (R'Vector a) rwTag Unit where
+  eff'rw'get (R'Vector st) = eff'vec'set st.init st
+
+----------------------------
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  ) =>
+  Eff'RW'Getter XG'clear (R'Vector a) rwTag Unit where
+  eff'rw'get (R'Vector st) = eff'vec'clear st
+
+----------------------------
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  ) =>
+  Eff'RW'Method XM'add (R'Vector a) rwTag (Array a) Unit where
+  eff'rw'call (R'Vector st) a = eff'vec'add a st
+
+----------------------------
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  ) =>
+  Eff'RW'Method XM'cons (R'Vector a) rwTag a Unit where
+  eff'rw'call (R'Vector st) el = eff'vec'cons el st
+
+----------------------------
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  ) =>
+  Eff'RW'Getter XG'uncons (R'Vector a) rwTag (Maybe a) where
+  eff'rw'get (R'Vector st) = eff'vec'uncons st
+
+----------------------------
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  ) =>
+  Eff'RW'Method XM'push (R'Vector a) rwTag a Unit where
+  eff'rw'call (R'Vector st) el = eff'vec'push el st
+
+----------------------------
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  ) =>
+  Eff'RW'Getter XG'pop (R'Vector a) rwTag (Maybe a) where
+  eff'rw'get (R'Vector st) = eff'vec'pop st
+
+----------------------------
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  ) =>
+  Eff'RW'Method XM'insert (R'Vector a) rwTag (Int /\ a) Unit where
+  eff'rw'call (R'Vector st) (ind /\ el) = eff'bin'lookup ind st.b'els >>=
+    \curr -> whenJust curr $ const $ eff'bin'insert ind { ind, el } st.b'els
+
+---------------------------------------------------------------------
+
 instance X'Readable'rw (R'Vector a) (Array a) where
   x'readable'rw'mk = map R'Vector <<< eff'vec'init
 
 instance X'Results'R'rw (R'Vector t) (Array t) where
   x'results'r'rw'impl (R'Vector st) = eff'vec'freeze st
-
-instance
-  X'R'RespondsTo'rw (R'Vector a)
-    ( VariantF
-        ( extract :: Responds'Const (Array a)
-        , size :: Responds'Const Int
-        , vals :: Responds'Const (Array a)
-        , keys :: Responds'Const (Array Int)
-        , entries :: Responds'Const (Array $ Int /\ a)
-        , lookup :: Responds Int (Maybe a)
-        )
-    )
-    ( VariantF
-        ( assign :: Responds (Array a) Unit
-        , reset :: Responds'Const Unit
-        , clear :: Responds'Const Unit
-        , add :: Responds (Array a) Unit
-        , cons :: Responds a Unit
-        , uncons :: Responds'Const (Maybe a)
-        , push :: Responds a Unit
-        , pop :: Responds'Const (Maybe a)
-        , replace :: Responds (Int /\ a) Unit
-        )
-    )
-    ( self :: (Array a)
-    , element :: a
-    , key :: Int
-    ) where
-  x'r'mkResponds'rw'types = Proxy
-  x'r'mkResponds'r (R'Vector st) = match
-    { extract: responds'const'eff $ eff'vec'freeze st
-    , size: responds'const'eff $ eff'bin'size st.b'els
-    , vals: responds'const'eff $ eff'vec'freeze st
-    , keys: responds'const'eff $ eff'vec'keys st
-    , entries: responds'const'eff $ eff'vec'freeze st <#> arr'withInd
-    , lookup: responds'run'eff \ind -> eff'vec'lookup ind st
-    }
-  x'r'mkResponds'w (R'Vector st) = match
-    { assign: responds'run'eff \a -> eff'vec'set a st
-    , reset: responds'const'eff $ eff'vec'set st.init st
-    , clear: responds'const'eff $ eff'vec'clear st
-    , add: responds'run'eff \a -> eff'vec'add a st
-    , cons: responds'run'eff \el -> eff'vec'cons el st
-    , uncons: responds'const'eff $ eff'vec'uncons st
-    , push: responds'run'eff \el -> eff'vec'push el st
-    , pop: responds'const'eff $ eff'vec'pop st
-    , replace: responds'run'eff \(ind /\ el) -> eff'bin'lookup ind st.b'els >>=
-        \curr -> whenJust curr $ const $ eff'bin'insert ind { ind, el } st.b'els
-    }
 
 ---------------------------------------------------------------------
 
@@ -140,15 +238,16 @@ instance Monoid monoid => X'Results'R'rw (R'Writer monoid) monoid where
   x'results'r'rw'impl (R'Writer st) = eff'vec'freeze st <#> arr'fold
 
 instance
-  Monoid monoid =>
-  X'R'RespondsTo'rw (R'Writer monoid)
-    (VariantF ())
-    (VariantF (cons :: Responds monoid Unit))
-    (element :: monoid) where
-  x'r'mkResponds'rw'types = Proxy
-  x'r'mkResponds'r _ = match {}
-  x'r'mkResponds'w (R'Writer st) = match
-    { cons: responds'run'eff \el -> eff'vec'cons el st }
+  ( RW'Tag'CanWrite rwTag
+  ) =>
+  Eff'RW'Method XM'cons (R'Writer a) rwTag a Unit where
+  eff'rw'call (R'Writer st) el = eff'vec'cons el st
+
+instance XM'type (R'Writer a) XMt'self (Array a)
+
+instance XM'type (R'Writer a) XMt'key Int
+
+instance XM'type (R'Writer a) XMt'value a
 
 ---------------------------------------------------------------------
 

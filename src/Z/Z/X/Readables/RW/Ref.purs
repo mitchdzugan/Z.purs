@@ -18,9 +18,9 @@ module Z.Z.X.Readables.RW.Ref
 import Z.Z.X.UtilPrelude
 
 import Z.Z.Eff.Ref (Eff'Ref, eff'ref'get, eff'ref'new, eff'ref'set)
-import Z.Z.Method (class Method)
 import Z.Z.X.Core
-  ( class X'R'RespondsTo'rw
+  ( class RW'Tag'CanRead
+  , class RW'Tag'CanWrite
   , class X'Readable'rw
   , class X'Results'R'rw
   , RW'Tagged
@@ -28,17 +28,21 @@ import Z.Z.X.Core
   , X'Evaluable
   , x'evaluable
   )
-import Z.Z.X.Method (XM'assign)
-import Z.Z.X.Responds
-  ( Responds
-  , Responds'Const
-  , responds'const'eff
-  , responds'run'eff
+import Z.Z.X.Method
+  ( class Eff'RW'Getter
+  , class Eff'RW'Method
+  , class XM'type
+  , XG'extract
+  , XG'reset
+  , XM'assign
+  , XMt'self
   )
 
 ---------------------------------------------------------------------
 
 newtype R'Ref t = R'Ref (Eff'Ref t /\ t)
+
+instance XM'type (R'Ref t) XMt'self t
 
 instance X'Readable'rw (R'Ref t) t where
   x'readable'rw'mk param = do
@@ -49,29 +53,22 @@ instance X'Results'R'rw (R'Ref t) t where
   x'results'r'rw'impl (R'Ref (ref /\ _)) = eff'ref'get ref
 
 instance
-  X'R'RespondsTo'rw (R'Ref t)
-    ( VariantF
-        ( extract :: Responds'Const t
-        )
-    )
-    ( VariantF
-        ( assign :: Responds t Unit
-        , reset :: Responds'Const Unit
-        )
-    )
-    ( self :: t
-    ) where
-  x'r'mkResponds'rw'types = Proxy
-  x'r'mkResponds'r (R'Ref (ref /\ _)) = match
-    { extract: responds'const'eff $ eff'ref'get ref
-    }
-  x'r'mkResponds'w (R'Ref (ref /\ init)) = match
-    { assign: responds'run'eff \v -> eff'ref'set v ref
-    , reset: responds'const'eff $ eff'ref'set init ref
-    }
+  ( RW'Tag'CanWrite rwTag
+  ) =>
+  Eff'RW'Method XM'assign (R'Ref t) rwTag t Unit where
+  eff'rw'call (R'Ref (ref /\ _)) v = eff'ref'set v ref
 
-instance Method XM'assign (R'Ref t) t Unit where
-  call (R'Ref (ref /\ _)) v = unsafePerformEffect $ eff'ref'set v ref
+instance
+  ( RW'Tag'CanWrite rwTag
+  ) =>
+  Eff'RW'Getter XG'reset (R'Ref t) rwTag Unit where
+  eff'rw'get (R'Ref (ref /\ v)) = eff'ref'set v ref
+
+instance
+  ( RW'Tag'CanRead rwTag
+  ) =>
+  Eff'RW'Getter XG'extract (R'Ref t) rwTag t where
+  eff'rw'get (R'Ref (ref /\ _)) = eff'ref'get ref
 
 type X'Ref t = Reader (RW'Tagged (R'Ref t))
 type X'Ref'w t = Reader (W'Tagged (R'Ref t))
@@ -92,6 +89,8 @@ x'ref_'w = x'evaluable @(X'Ref'w t) $ g @t
 
 newtype R'Ref'nt nt = R'Ref'nt (Eff'Ref nt /\ nt)
 
+instance Newtype nt t => XM'type (R'Ref'nt nt) XMt'self t
+
 instance
   ( Generable nt GDefault nt
   , Newtype nt t
@@ -108,32 +107,29 @@ instance
   X'Results'R'rw (R'Ref'nt nt) t where
   x'results'r'rw'impl (R'Ref'nt (ref /\ _)) = eff'ref'get ref <#> unwrap
 
-instance
-  ( Newtype nt t
-  ) =>
-  X'R'RespondsTo'rw (R'Ref'nt nt)
-    ( VariantF
-        ( extract :: Responds'Const t
-        )
-    )
-    ( VariantF
-        ( assign :: Responds t Unit
-        , reset :: Responds'Const Unit
-        )
-    )
-    ( self :: t
-    ) where
-  x'r'mkResponds'rw'types = Proxy
-  x'r'mkResponds'r (R'Ref'nt (ref /\ _)) = match
-    { extract: responds'const'eff $ eff'ref'get ref <#> unwrap
-    }
-  x'r'mkResponds'w (R'Ref'nt (ref /\ init)) = match
-    { assign: responds'run'eff \v -> eff'ref'set (wrap v) ref
-    , reset: responds'const'eff $ eff'ref'set init ref
-    }
-
 type X'Ref'nt nt = Reader (RW'Tagged (R'Ref'nt nt))
 type X'Ref'nt'w nt = Reader (W'Tagged (R'Ref'nt nt))
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  , Newtype nt t
+  ) =>
+  Eff'RW'Method XM'assign (R'Ref'nt nt) rwTag t Unit where
+  eff'rw'call (R'Ref'nt (ref /\ _)) v = eff'ref'set (wrap v) ref
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  , Newtype nt t
+  ) =>
+  Eff'RW'Getter XG'reset (R'Ref'nt nt) rwTag Unit where
+  eff'rw'get (R'Ref'nt (ref /\ v)) = eff'ref'set v ref
+
+instance
+  ( RW'Tag'CanRead rwTag
+  , Newtype nt t
+  ) =>
+  Eff'RW'Getter XG'extract (R'Ref'nt nt) rwTag t where
+  eff'rw'get (R'Ref'nt (ref /\ _)) = unwrap <$> eff'ref'get ref
 
 x'ref'nt
   :: forall @nt t

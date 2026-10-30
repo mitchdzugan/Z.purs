@@ -42,7 +42,7 @@ legacySeasonProps = hm'fromFoldable
 
 seasonId'props :: Int -> ClmSeason'Props
 seasonId'props seasonId =
-  may'or'lazy generateProps $ hm'lookup seasonId legacySeasonProps
+  may'or_ generateProps $ hm'lookup seasonId legacySeasonProps
   where
   generateProps _ =
     let

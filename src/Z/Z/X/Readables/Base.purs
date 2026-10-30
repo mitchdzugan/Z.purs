@@ -1,6 +1,7 @@
 module Z.Z.X.Readables.Base
   ( LogLevel(..)
-  , R'X'Base
+  , Loggable
+  , R'X'Base(..)
   , X'BaseM
   , x'base
   , x'now''
@@ -12,19 +13,11 @@ import Z.Z.X.UtilPrelude
 import Unsafe.Coerce (unsafeCoerce)
 import Z.Z.DateTime (DateTime, dateTime'eff'now)
 import Z.Z.X.Core
-  ( class X'R'RespondsTo
-  , class X'Readable
+  ( class X'Readable
   , X'Evaluable
   , x'evaluable_
-  , x'respondTo
-  , x'respondTo_
   )
-import Z.Z.X.Responds
-  ( Responds
-  , Responds'Const
-  , responds'const'eff
-  , responds'run'eff
-  )
+import Z.Z.X.Method (xm'effCall, xm'effGet)
 
 data LogLevel = LogLevel'Info | LogLevel'Warning | LogLevel'Error
 
@@ -40,23 +33,17 @@ foreign import data Loggable :: Type
 loggable :: forall a. a -> Loggable
 loggable = unsafeCoerce
 
-newtype R'X'Base = R'X'Base {}
+newtype R'X'Base = R'X'Base
+  { now :: Effect DateTime
+  , out :: LogLevel /\ Loggable -> Effect Unit
+  }
+
+derive instance Newtype R'X'Base _
 
 instance X'Readable R'X'Base Unit where
-  x'readable'mk _ = pure $ R'X'Base {}
-
-type R'X'Base'RespondsTo'R = VariantF
-  ( now :: Responds'Const DateTime
-  , out :: Responds (LogLevel /\ Loggable) Unit
-  )
-
-instance
-  X'R'RespondsTo R'X'Base R'X'Base'RespondsTo'R () where
-  x'r'mkResponds'types = Proxy
-  x'r'mkResponds (R'X'Base _) = match
-    { now: responds'run'eff \_ -> dateTime'eff'now
-    , out: responds'run'eff \(ll /\ v) ->
-        js_consoleOut unit (logLevel'consoleKey ll) v
+  x'readable'mk _ = pure $ R'X'Base
+    { now: dateTime'eff'now
+    , out: \(ll /\ v) -> js_consoleOut unit (logLevel'consoleKey ll) v
     }
 
 type X'BaseM = Reader R'X'Base
@@ -65,8 +52,8 @@ x'base :: X'Evaluable X'BaseM
 x'base = x'evaluable_ @X'BaseM
 
 x'now'' :: forall @p x' x. ConsSymbol p X'BaseM x' x => Run x DateTime
-x'now'' = x'respondTo_ @p @"now"
+x'now'' = xm'effGet (Proxy @p) (Proxy @"now")
 
 x'out''
   :: forall @p x' x a. ConsSymbol p X'BaseM x' x => LogLevel -> a -> Run x Unit
-x'out'' ll = x'respondTo @p @"out" <<< (/\) ll <<< loggable
+x'out'' ll = xm'effCall (Proxy @p) (Proxy @"out") <<< (/\) ll <<< loggable

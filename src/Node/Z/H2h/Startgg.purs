@@ -8,6 +8,7 @@ import Node.Z.H2h.Startgg.All as All
 import Node.Z.H2h.Startgg.Queries as Q
 import Z.Gql.Error as GqlE
 import Z.H2h.Error as H2hE
+import Z.H2h.Module (p'entrants, p'sets)
 import Z.H2h.Module as H2h
 
 mapOfJsonElsWithFieldsTypeAnd
@@ -165,7 +166,7 @@ getEventData = B.adaptBuilder do
           , eventOrder: setId
           , games: games <#> toH2hGame
           }
-      sets <- x'extract @"sets"
+      sets <- (@.) p'sets
       pure
         { id: sOrN pg.id
         , displayIdentifier: pg.displayIdentifier
@@ -176,7 +177,7 @@ getEventData = B.adaptBuilder do
             , phaseOrder: pg.phase.phaseOrder
             }
         }
-    entrants <- x'extract @"entrants"
+    entrants <- (@.) p'entrants
     let { endAt } = event.tournament
     let endAtMS = (toNumber endAt) * 1000.0
     let date = dateTime'fromMS endAtMS

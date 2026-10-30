@@ -20,7 +20,6 @@ import Web.Z.Web.DOM
   ( class IsEventTarget
   , EventListenerOpts
   , X'Web
-  , XEffWeb
   , XWebR
   , evTarget
   , eventType

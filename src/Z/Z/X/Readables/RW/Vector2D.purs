@@ -31,7 +31,8 @@ import Z.Z.Eff.Bin2D
   )
 import Z.Z.Eff.Ref (Eff'Ref, eff'ref'get, eff'ref'new, eff'ref'set)
 import Z.Z.X.Core
-  ( class X'R'RespondsTo'rw
+  ( class RW'Tag'CanRead
+  , class RW'Tag'CanWrite
   , class X'Readable'rw
   , class X'Results'R'rw
   , RW'Tagged
@@ -40,11 +41,28 @@ import Z.Z.X.Core
   , x'evaluable
   , x'evaluable_
   )
-import Z.Z.X.Responds
-  ( Responds
-  , Responds'Const
-  , responds'const'eff
-  , responds'run'eff
+import Z.Z.X.Method
+  ( class Eff'RW'Getter
+  , class Eff'RW'Method
+  , class XM'type
+  , XG'clear
+  , XG'extract
+  , XG'reset
+  , XG'size
+  , XG'vals
+  , XM'add
+  , XM'assign
+  , XM'consAt
+  , XM'consLast
+  , XM'd1'cons
+  , XM'sizeAt
+  , XM'valsAt
+  , XMt'd1'key
+  , XMt'd1'value
+  , XMt'd2'key
+  , XMt'key
+  , XMt'self
+  , XMt'value
   )
 
 ---------------------------------------------------------------------
@@ -64,72 +82,110 @@ type Array2D a = Array (Array a)
 
 newtype R'Vector2D a = R'Vector2D (Eff'Vector2D a)
 
+instance XM'type (R'Vector2D a) XMt'self (Array2D a)
+
+instance XM'type (R'Vector2D a) XMt'key (Int /\ Int)
+
+instance XM'type (R'Vector2D a) XMt'value a
+
+instance XM'type (R'Vector2D a) XMt'd1'key Int
+
+instance XM'type (R'Vector2D a) XMt'd1'value (Array a)
+
+instance XM'type (R'Vector2D a) XMt'd2'key Int
+
+---------------------------------------------------------------------
+
+instance
+  ( RW'Tag'CanRead rwTag
+  ) =>
+  Eff'RW'Getter XG'extract (R'Vector2D a) rwTag (Array2D a) where
+  eff'rw'get (R'Vector2D st) = eff'vec2D'freeze st
+
+--------------------
+
+instance
+  ( RW'Tag'CanRead rwTag
+  ) =>
+  Eff'RW'Getter XG'size (R'Vector2D a) rwTag Int where
+  eff'rw'get (R'Vector2D st) = eff'ref'get st.r'length
+
+--------------------
+
+instance
+  ( RW'Tag'CanRead rwTag
+  ) =>
+  Eff'RW'Method XM'sizeAt (R'Vector2D a) rwTag Int Int where
+  eff'rw'call (R'Vector2D st) ind =
+    eff'bin'lookup ind st.b'lengths <#> fromMaybe 0
+
+--------------------
+
+instance
+  ( RW'Tag'CanRead rwTag
+  ) =>
+  Eff'RW'Getter XG'vals (R'Vector2D a) rwTag (Array a) where
+  eff'rw'get (R'Vector2D st) = eff'vec2D'freeze st <#> arr'concat
+
+--------------------
+
+instance
+  ( RW'Tag'CanRead rwTag
+  ) =>
+  Eff'RW'Method XM'valsAt (R'Vector2D a) rwTag Int (Array a) where
+  eff'rw'call (R'Vector2D st) ind = eff'vec2D'freezeAt ind st
+
+-----------------------------------
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  ) =>
+  Eff'RW'Method XM'assign (R'Vector2D a) rwTag (Array2D a) Unit where
+  eff'rw'call (R'Vector2D st) a2d = eff'vec2D'set a2d st
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  ) =>
+  Eff'RW'Getter XG'reset (R'Vector2D a) rwTag Unit where
+  eff'rw'get (R'Vector2D st) = eff'vec2D'set st.init st
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  ) =>
+  Eff'RW'Getter XG'clear (R'Vector2D a) rwTag Unit where
+  eff'rw'get (R'Vector2D st) = eff'vec2D'clear st
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  ) =>
+  Eff'RW'Method XM'add (R'Vector2D a) rwTag (Array2D a) Unit where
+  eff'rw'call (R'Vector2D st) a2d = eff'vec2D'add a2d st
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  ) =>
+  Eff'RW'Method XM'd1'cons (R'Vector2D a) rwTag (Array a) Unit where
+  eff'rw'call (R'Vector2D st) a = eff'vec2D'd1cons a st
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  ) =>
+  Eff'RW'Method XM'consAt (R'Vector2D a) rwTag (Int /\ a) Unit where
+  eff'rw'call (R'Vector2D st) (ind /\ el) = eff'vec2D'consAt ind el st
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  ) =>
+  Eff'RW'Method XM'consLast (R'Vector2D a) rwTag a Unit where
+  eff'rw'call (R'Vector2D st) el = eff'vec2D'consLast el st
+
+---------------------------------------------------------------------
+
 instance X'Readable'rw (R'Vector2D a) (Array2D a) where
   x'readable'rw'mk = map R'Vector2D <<< eff'vec2D'init
 
 instance X'Results'R'rw (R'Vector2D t) (Array2D t) where
   x'results'r'rw'impl (R'Vector2D st) = eff'vec2D'freeze st
-
-instance
-  X'R'RespondsTo'rw (R'Vector2D a)
-    ( VariantF
-        ( extract :: Responds'Const (Array2D a)
-        , size :: Responds'Const Int
-        , sizeAt :: Responds Int Int
-        , vals :: Responds'Const (Array a)
-        , valsAt :: Responds Int (Array a)
-        --, keys :: Responds'Const (Array Int)
-        --, entries :: Responds'Const (Array $ Int /\ a)
-        --, lookup :: Responds Int (Maybe a)
-        )
-    )
-    ( VariantF
-        ( assign :: Responds (Array2D a) Unit
-        , reset :: Responds'Const Unit
-        , clear :: Responds'Const Unit
-        , add :: Responds (Array2D a) Unit
-        , d1cons :: Responds (Array a) Unit
-        , consAt :: Responds (Int /\ a) Unit
-        , consLast :: Responds a Unit
-        --, uncons :: Responds'Const (Maybe a)
-        --, push :: Responds a Unit
-        --, pop :: Responds'Const (Maybe a)
-        --, replace :: Responds (Int /\ a) Unit
-        )
-    )
-    ( self :: (Array2D a)
-    , element :: a
-    , key :: Int /\ Int
-    , d1key :: Int
-    , d2key :: Int
-    , d1element :: Array a
-    ) where
-  x'r'mkResponds'rw'types = Proxy
-  x'r'mkResponds'r (R'Vector2D st) = match
-    { extract: responds'const'eff $ eff'vec2D'freeze st
-    , size: responds'const'eff $ eff'ref'get st.r'length
-    , sizeAt: responds'run'eff \ind ->
-        eff'bin'lookup ind st.b'lengths <#> fromMaybe 0
-    , vals: responds'const'eff $ eff'vec2D'freeze st <#> arr'concat
-    , valsAt: responds'run'eff \ind -> eff'vec2D'freezeAt ind st
-    --, keys: responds'const'eff $ eff'vec'keys st
-    --, entries: responds'const'eff $ eff'vec'freeze st <#> arr'withInd
-    --, lookup: responds'run'eff \ind -> eff'vec'lookup ind st
-    }
-  x'r'mkResponds'w (R'Vector2D st) = match
-    { assign: responds'run'eff \a -> eff'vec2D'set a st
-    , reset: responds'const'eff $ eff'vec2D'set st.init st
-    , clear: responds'const'eff $ eff'vec2D'clear st
-    , add: responds'run'eff \a -> eff'vec2D'add a st
-    , d1cons: responds'run'eff \el -> eff'vec2D'd1cons el st
-    , consAt: responds'run'eff \(ind /\ el) -> eff'vec2D'consAt ind el st
-    , consLast: responds'run'eff \el -> eff'vec2D'consLast el st
-    --, uncons: responds'const'eff $ eff'vec'uncons st
-    --, push: responds'run'eff \el -> eff'vec'push el st
-    --, pop: responds'const'eff $ eff'vec'pop st
-    --, replace: responds'run'eff \(ind /\ el) -> eff'bin'lookup ind st.b'els >>=
-    --    \curr -> whenJust curr $ const $ eff'bin'insert ind { ind, el } st.b'els
-    }
 
 ---------------------------------------------------------------------
 

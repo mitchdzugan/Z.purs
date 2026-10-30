@@ -26,7 +26,8 @@ import Z.Z.Eff.Bin
 import Z.Z.HashSet (HashSet)
 import Z.Z.Id (class Identable)
 import Z.Z.X.Core
-  ( class X'R'RespondsTo'rw
+  ( class RW'Tag'CanRead
+  , class RW'Tag'CanWrite
   , class X'Readable'rw
   , class X'Results'R'rw
   , RW'Tagged
@@ -35,14 +36,109 @@ import Z.Z.X.Core
   , x'evaluable
   , x'evaluable_
   )
-import Z.Z.X.Responds
-  ( Responds
-  , Responds'Const
-  , responds'const'eff
-  , responds'run'eff
+import Z.Z.X.Method
+  ( class Eff'RW'Getter
+  , class Eff'RW'Method
+  , class XM'type
+  , XG'clear
+  , XG'entries
+  , XG'extract
+  , XG'keys
+  , XG'reset
+  , XG'size
+  , XG'vals
+  , XM'add
+  , XM'assign
+  , XM'cons
+  , XM'lookup
+  , XM'remove
+  , XMt'key
+  , XMt'self
+  , XMt'value
   )
 
 newtype R'HashSet a = R'HashSet (Eff'Bin a /\ HashSet a)
+
+instance XM'type (R'HashSet a) XMt'self (HashSet a)
+
+instance XM'type (R'HashSet a) XMt'key a
+
+instance XM'type (R'HashSet a) XMt'value a
+
+instance
+  ( RW'Tag'CanRead rwTag
+  ) =>
+  Eff'RW'Getter XG'extract (R'HashSet a) rwTag (HashSet a) where
+  eff'rw'get (R'HashSet (st /\ _)) = eff'hs'freeze st
+
+instance
+  ( RW'Tag'CanRead rwTag
+  ) =>
+  Eff'RW'Getter XG'size (R'HashSet a) rwTag Int where
+  eff'rw'get (R'HashSet (st /\ _)) = eff'bin'size st
+
+instance
+  ( RW'Tag'CanRead rwTag
+  ) =>
+  Eff'RW'Getter XG'vals (R'HashSet a) rwTag (Array a) where
+  eff'rw'get (R'HashSet (st /\ _)) = eff'bin'vals st
+
+instance
+  ( RW'Tag'CanRead rwTag
+  ) =>
+  Eff'RW'Getter XG'keys (R'HashSet a) rwTag (Array a) where
+  eff'rw'get (R'HashSet (st /\ _)) = eff'bin'vals st
+
+instance
+  ( RW'Tag'CanRead rwTag
+  ) =>
+  Eff'RW'Getter XG'entries (R'HashSet a) rwTag (Array (a /\ a)) where
+  eff'rw'get (R'HashSet (st /\ _)) = eff'bin'vals st <#> map \e -> e /\ e
+
+instance
+  ( RW'Tag'CanRead rwTag
+  , Identable k
+  ) =>
+  Eff'RW'Method XM'lookup (R'HashSet a) rwTag k (Maybe a) where
+  eff'rw'call (R'HashSet (st /\ _)) k = eff'bin'lookup k st
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  ) =>
+  Eff'RW'Method XM'assign (R'HashSet a) rwTag (HashSet a) Unit where
+  eff'rw'call (R'HashSet (st /\ _)) hs = eff'hs'set hs st
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  ) =>
+  Eff'RW'Getter XG'reset (R'HashSet a) rwTag Unit where
+  eff'rw'get (R'HashSet (st /\ init)) = eff'hs'set init st
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  ) =>
+  Eff'RW'Getter XG'clear (R'HashSet a) rwTag Unit where
+  eff'rw'get (R'HashSet (st /\ _)) = eff'bin'clear st
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  ) =>
+  Eff'RW'Method XM'add (R'HashSet a) rwTag (HashSet a) Unit where
+  eff'rw'call (R'HashSet (st /\ _)) hs = eff'bin'add (unwrap hs) st
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  , Identable a
+  ) =>
+  Eff'RW'Method XM'remove (R'HashSet a) rwTag a Unit where
+  eff'rw'call (R'HashSet (st /\ _)) k = eff'bin'delete k st
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  , Identable a
+  ) =>
+  Eff'RW'Method XM'cons (R'HashSet a) rwTag a Unit where
+  eff'rw'call (R'HashSet (st /\ _)) a = eff'bin'insert a a st
 
 instance
   Identable a =>
@@ -56,45 +152,6 @@ instance
   Identable a =>
   X'Results'R'rw (R'HashSet a) (HashSet a) where
   x'results'r'rw'impl (R'HashSet (st /\ _)) = eff'hs'freeze st
-
-instance
-  Identable a =>
-  X'R'RespondsTo'rw (R'HashSet a)
-    ( VariantF
-        ( extract :: Responds'Const (HashSet a)
-        , size :: Responds'Const Int
-        , vals :: Responds'Const (Array a)
-        , lookup :: Responds a (Maybe a)
-        )
-    )
-    ( VariantF
-        ( assign :: Responds (HashSet a) Unit
-        , reset :: Responds'Const Unit
-        , clear :: Responds'Const Unit
-        , add :: Responds (HashSet a) Unit
-        , cons :: Responds a Unit
-        , remove :: Responds a Unit
-        )
-    )
-    ( self :: (HashSet a)
-    , element :: a
-    , key :: a
-    ) where
-  x'r'mkResponds'rw'types = Proxy
-  x'r'mkResponds'r (R'HashSet (st /\ _)) = match
-    { extract: responds'const'eff $ eff'hs'freeze st
-    , size: responds'const'eff $ eff'bin'size st
-    , vals: responds'const'eff $ eff'bin'vals st
-    , lookup: responds'run'eff \a -> eff'bin'lookup a st
-    }
-  x'r'mkResponds'w (R'HashSet (st /\ init)) = match
-    { assign: responds'run'eff \hs -> eff'hs'set hs st
-    , reset: responds'const'eff $ eff'hs'set init st
-    , clear: responds'const'eff $ eff'bin'clear st
-    , add: responds'run'eff \hs -> eff'bin'add (unwrap hs) st
-    , cons: responds'run'eff \a -> eff'bin'insert a a st
-    , remove: responds'run'eff \a -> eff'bin'delete a st
-    }
 
 ---------------------------------------------------------------------
 

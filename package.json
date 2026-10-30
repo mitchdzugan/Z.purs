@@ -41,6 +41,7 @@
     "purescript": "^0.15.16",
     "purescript-language-server": "^0.18.5",
     "purescript-suggest": "^2.2.0",
+    "purs-backend-es": "^1.4.3",
     "purs-tidy": "^0.11.1",
     "rollup-plugin-visualizer": "^7.0.1",
     "serve": "^14.2.6",

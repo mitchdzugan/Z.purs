@@ -41,6 +41,7 @@ module Z.Z.Core
   , class C'Relate
   , class ConsSymbol
   , class Numberable
+  , class Proxyable
   , class Resulting
   , class RtError
   , class SText
@@ -74,9 +75,11 @@ module Z.Z.Core
   , mapL
   , mapM
   , maximumWith
+  , may'_
+  , may'__
   , may'filter
   , may'or
-  , may'or'lazy
+  , may'or_
   , may'remove
   , may'remove_
   , may'toArray
@@ -501,8 +504,12 @@ infixl 2 ffmapFlipped as <##>
 type P :: forall k. k -> Type
 type P a = Proxy.Proxy a
 
-p ∷ ∀ (@a ∷ Symbol). Proxy.Proxy a
-p = Proxy.Proxy
+class Proxyable :: forall k. k -> Constraint
+class Proxyable p where
+  p :: Proxy.Proxy p
+
+instance Proxyable p where
+  p = Proxy.Proxy
 
 pureF :: forall a x y. Applicative a => (x -> y) -> x -> a y
 pureF f = pure <<< f
@@ -564,8 +571,14 @@ objST'has k o = May.isJust <$> ObjSt.peek k o
 may'or :: forall a. a -> May.Maybe a -> a
 may'or = May.fromMaybe
 
-may'or'lazy :: forall a. (Unit -> a) -> May.Maybe a -> a
-may'or'lazy = May.fromMaybe'
+may'or_ :: forall a. (Unit -> a) -> May.Maybe a -> a
+may'or_ = May.fromMaybe'
+
+may'_ :: forall a b. b -> (a -> b) -> May.Maybe a -> b
+may'_ = May.maybe
+
+may'__ :: forall a b. (Unit -> b) -> (a -> b) -> May.Maybe a -> b
+may'__ = May.maybe'
 
 may'toArray :: forall a. May.Maybe a -> Array a
 may'toArray (May.Just a) = [ a ]

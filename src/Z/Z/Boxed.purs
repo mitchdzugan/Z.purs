@@ -4,16 +4,11 @@ import Prelude
 
 import Data.Argonaut.Decode (class DecodeJson, decodeJson)
 import Data.Argonaut.Encode (class EncodeJson, encodeJson)
-import Data.Functor.Variant (VariantF, inj)
-import Data.Symbol (reflectSymbol)
-import Data.Tuple.Nested ((/\))
 import Effect (Effect)
-import Type.Proxy (Proxy(..))
-import Z.Z.Core (class ConsSymbol, eff'defer)
+import Z.Z.Core (eff'defer)
 import Z.Z.Defaultable (class Generable, GDefault, default)
 import Z.Z.Id (class Identable, ident'key)
 import Z.Z.Method (class Method, call, method'id)
-import Z.Z.X.Responds (Responds, responds'id)
 
 foreign import data Boxed :: Type -> Type
 

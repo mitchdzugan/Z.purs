@@ -1,31 +1,26 @@
 module Z.XDom.X
   ( AttrW'
-  , DomElProps
   , DomW'
-  , R'AttrW
-  , R'DomW
+  , DomW'ParentId
+  , Eff'AttrW
+  , Eff'DomW
+  , R'AttrW(..)
+  , R'DomW(..)
   , ReactEls
   , ReactEls2d
   , X'AttrW
   , X'DomW
   , attrW'addAttr
-  , attrW'addChildren
   , attrW'addClassname
   , attrW'addStyle
   , attrW'exec
-  , attrW'extract
-  , attrW'resetChildren
   , attrW'resetClassnames
   , attrW'resetStyles
   , attrW'run
   , domW'concat
   , domW'exec
-  , domW'extract
-  , domW'extractAndResume
   , domW'finish
-  , domW'pause
   , domW'push
-  , domW'resume
   , domW'run
   , domW'runWithCompleted
   , domW'start
@@ -33,65 +28,50 @@ module Z.XDom.X
 
 import Z.Prelude
 
-import Data.Functor.Variant (match)
 import Z.XDom.Preact (ReactEl)
-import Z.Z.X.Responds
-  ( Responds
-  , Responds'Const
-  , responds'const'eff
-  , responds'run'eff
-  )
+import Z.Z.X.Core (class X'Results'R'Eff)
 
 type ReactEls = Array ReactEl
 type ReactEls2d = Array ReactEls
 
-foreign import data R'DomW :: Type
+foreign import data Eff'DomW :: Type
+
+foreign import data DomW'ParentId :: Type
+
+newtype R'DomW = R'DomW
+  { push :: ReactEl -> Effect Unit
+  , start :: Effect DomW'ParentId
+  , finish :: DomW'ParentId -> Effect ReactEls
+  , currentEls :: Effect ReactEls
+  }
+
+derive instance Newtype R'DomW _
 
 ------------------------------------------------------------
 
-instance X'Readable'rw R'DomW ReactEls2d where
-  x'readable'rw'mk _ = js2_domwNew
+instance X'Readable R'DomW ReactEls2d where
+  x'readable'mk _ = do
+    st <- js2_domwNew
+    pure $ R'DomW
+      { push: flip js2_domwPush st
+      , start: js2_domwStart st
+      , finish: flip js2_domwFinish st
+      , currentEls: js2_domwCurrEls st
+      }
 
-instance X'Results'R'rw R'DomW ReactEls where
-  x'results'r'rw'impl = js2_domwCurrEls
+instance X'Results'R'Eff R'DomW ReactEls where
+  x'results'r'eff'impl = _.currentEls <<< unwrap
 
-instance
-  X'R'RespondsTo'rw R'DomW
-    ( VariantF
-        ( extract :: Responds'Const ReactEls
-        )
-    )
-    ( VariantF
-        ( resume :: Responds ReactEls2d Unit
-        , pause :: Responds'Const ReactEls2d
-        , push :: Responds ReactEl Unit
-        , concat :: Responds ReactEls Unit
-        , start :: Responds'Const Int
-        , finish :: Responds Int ReactEls
-        )
-    )
-    ( self :: t
-    ) where
-  x'r'mkResponds'rw'types = Proxy
-  x'r'mkResponds'r domx = match
-    { extract: responds'run'eff \_ -> js2_domwCurrEls domx
-    }
-  x'r'mkResponds'w domx = match
-    { resume: responds'run'eff \v -> js_domwResume v domx
-    , pause: responds'run'eff \_ -> js_domwPause domx
-    , push: responds'run'eff \v -> js2_domwPush v domx
-    , concat: responds'run'eff \v -> js2_domwConcat v domx
-    , start: responds'run'eff \_ -> js2_domwStart domx
-    , finish: responds'run'eff \prevId -> js2_domwFinish prevId domx
-    }
+------------------------------------------------------------
 
-type X'DomW = Reader (RW'Tagged R'DomW)
+type X'DomW = Reader (R'DomW)
 
 type DomW' x = (domW :: X'DomW | x)
 
 domW'runWithCompleted
   :: forall x a. ReactEls2d -> Run (DomW' x) a -> Run x (a /\ ReactEls)
-domW'runWithCompleted completed m = x'run @"domW" @X'DomW completed m
+domW'runWithCompleted completed m =
+  x'run @"domW" @X'DomW completed m
 
 domW'run :: forall x a. Run (DomW' x) a -> Run x (a /\ ReactEls)
 domW'run = domW'runWithCompleted []
@@ -100,167 +80,101 @@ domW'exec :: forall x. Run (DomW' x) Unit -> Run x ReactEls
 domW'exec m = domW'runWithCompleted [] m <#> snd
 
 domW'push :: forall x. ReactEl -> Run (DomW' x) Unit
-domW'push = x'respondTo @"domW" @"push"
+domW'push = xm'effCall (Proxy @"domW") (Proxy @"push")
 
 domW'concat :: forall x. ReactEls -> Run (DomW' x) Unit
-domW'concat = x'respondTo @"domW" @"concat"
+domW'concat els = forM_ els domW'push
 
-domW'pause :: forall x. Run (DomW' x) ReactEls2d
-domW'pause = x'respondTo_ @"domW" @"pause"
+domW'start :: forall x. Run (DomW' x) DomW'ParentId
+domW'start = xm'effGet (Proxy @"domW") (Proxy @"start")
 
-domW'resume :: forall x. ReactEls2d -> Run (DomW' x) Unit
-domW'resume = x'respondTo @"domW" @"resume"
-
-domW'start :: forall x. Run (DomW' x) Int
-domW'start = x'respondTo_ @"domW" @"start"
-
-domW'finish :: forall x. Int -> Run (DomW' x) ReactEls
-domW'finish = x'respondTo @"domW" @"finish"
-
-domW'extract :: forall x. Run (DomW' x) ReactEls
-domW'extract = x'respondTo_ @"domW" @"extract"
-
-domW'extractAndResume :: forall x. ReactEls2d -> Run (DomW' x) ReactEls
-domW'extractAndResume paused = do
-  els <- domW'extract
-  domW'resume paused
-  pure els
-
-------------------------------------------------------------
-
-foreign import js_domwNew :: ReactEls2d -> Effect R'DomW
-
-foreign import js_domwResults :: R'DomW -> Effect ReactEls
-
-foreign import js_domwPause :: R'DomW -> Effect ReactEls2d
-
-foreign import js_domwResume :: ReactEls2d -> R'DomW -> Effect Unit
-
-foreign import js_domwPush :: ReactEl -> R'DomW -> Effect Unit
-
-foreign import js_domwConcat :: ReactEls -> R'DomW -> Effect Unit
+domW'finish :: forall x. DomW'ParentId -> Run (DomW' x) ReactEls
+domW'finish = xm'effCall (Proxy @"domW") (Proxy @"finish")
 
 -------------------------------------------------------------------------
 
-foreign import js2_domwNew :: Effect R'DomW
+foreign import js2_domwNew :: Effect Eff'DomW
 
-foreign import js2_domwCurrEls :: R'DomW -> Effect ReactEls
+foreign import js2_domwCurrEls :: Eff'DomW -> Effect ReactEls
 
-foreign import js2_domwStart :: R'DomW -> Effect Int
+foreign import js2_domwStart :: Eff'DomW -> Effect DomW'ParentId
 
-foreign import js2_domwFinish :: Int -> R'DomW -> Effect ReactEls
+foreign import js2_domwFinish :: DomW'ParentId -> Eff'DomW -> Effect ReactEls
 
-foreign import js2_domwPush :: ReactEl -> R'DomW -> Effect Unit
-
-foreign import js2_domwConcat :: ReactEls -> R'DomW -> Effect Unit
+foreign import js2_domwPush :: ReactEl -> Eff'DomW -> Effect Unit
 
 -------------------------------------------------------------------------
-
-type DomElProps = { children :: ReactEls, attrs :: Json }
 
 foreign import data Eff'AttrW :: Type
 
-newtype R'AttrW t = R'AttrW { attrx :: Eff'AttrW, toChildren :: t -> ReactEls }
+newtype R'AttrW = R'AttrW
+  { attrx :: Eff'AttrW
+  , resetClassnames :: Effect Unit
+  , resetStyles :: Effect Unit
+  , addAttr :: (String /\ JsAny) -> Effect Unit
+  , addClassname :: String -> Effect Unit
+  , addStyle :: (String /\ String) -> Effect Unit
+  }
+
+derive instance Newtype R'AttrW _
+
+instance X'Readable R'AttrW Unit where
+  x'readable'mk _ = do
+    attrx <- js_attrwNew
+    pure $ R'AttrW
+      { attrx
+      , resetClassnames: js_attrwResetClassnames attrx
+      , resetStyles: js_attrwResetStyles attrx
+      , addAttr: \(k /\ v) -> js_attrwAddAttr k v attrx
+      , addClassname: \cn -> js_attrwAddClassname cn attrx
+      , addStyle: \(k /\ v) -> js_attrwAddStyle k v attrx
+      }
+
+instance X'Results'R'Eff R'AttrW Json where
+  x'results'r'eff'impl (R'AttrW { attrx }) = js_attrwResults attrx
 
 ------------------------------------------------------------
 
-instance X'Readable'rw (R'AttrW t) (t -> ReactEls) where
-  x'readable'rw'mk toChildren = do
-    attrx <- js_attrwNew
-    pure $ R'AttrW { attrx, toChildren }
+type X'AttrW = Reader R'AttrW
 
-instance X'Results'R'rw (R'AttrW t) DomElProps where
-  x'results'r'rw'impl (R'AttrW { attrx }) = js_attrwResults attrx
-
-instance
-  X'R'RespondsTo'rw (R'AttrW t)
-    ( VariantF
-        ( extract :: Responds'Const DomElProps
-        )
-    )
-    ( VariantF
-        ( resetClassnames :: Responds'Const Unit
-        , resetChildren :: Responds'Const Unit
-        , resetStyles :: Responds'Const Unit
-        , addAttr :: Responds (String /\ JsAny) Unit
-        , addClassname :: Responds String Unit
-        , addChildren :: Responds t Unit
-        , addStyle :: Responds (String /\ String) Unit
-        )
-    )
-    ( self :: t
-    ) where
-  x'r'mkResponds'rw'types = Proxy
-  x'r'mkResponds'r (R'AttrW { attrx }) = match
-    { extract: responds'const'eff $ js_attrwResults attrx
-    }
-  x'r'mkResponds'w (R'AttrW { attrx, toChildren }) = match
-    { resetClassnames: responds'const'eff $ js_attrwResetClassnames attrx
-    , resetChildren: responds'const'eff $ js_attrwResetChildren attrx
-    , resetStyles: responds'const'eff $ js_attrwResetStyles attrx
-    , addAttr: responds'run'eff \(k /\ v) ->
-        js_attrwAddAttr k v attrx
-    , addClassname: responds'run'eff \cn -> js_attrwAddClassname cn attrx
-    , addChildren: responds'run'eff \els ->
-        js_attrwAddChildren (toChildren els) attrx
-    , addStyle: responds'run'eff \(k /\ v) -> js_attrwAddStyle k v attrx
-    }
-
-type X'AttrW t = Reader (RW'Tagged (R'AttrW t))
-
-type AttrW' t x = (attrW :: X'AttrW t | x)
+type AttrW' x = (attrW :: X'AttrW | x)
 
 attrW'run
-  :: forall @t x a
-   . (t -> ReactEls)
-  -> Run (AttrW' t x) a
-  -> Run x (a /\ DomElProps)
-attrW'run f m = x'run @"attrW" @(X'AttrW t) f m
+  :: forall x a
+   . Run (AttrW' x) a
+  -> Run x (a /\ Json)
+attrW'run m = x'run_ @"attrW" @(X'AttrW) m
 
-attrW'exec
-  :: forall @t x. (t -> ReactEls) -> Run (AttrW' t x) Unit -> Run x DomElProps
-attrW'exec f m = attrW'run @t f m <#> snd
+attrW'exec :: forall x. Run (AttrW' x) Unit -> Run x Json
+attrW'exec m = attrW'run m <#> snd
 
-attrW'resetClassnames :: forall t x. Run (AttrW' t x) Unit
-attrW'resetClassnames = x'respondTo_ @"attrW" @"resetClassnames"
+attrW'resetClassnames :: forall x. Run (AttrW' x) Unit
+attrW'resetClassnames = xm'effGet (Proxy @"attrW") (Proxy @"resetClassnames")
 
-attrW'resetChildren :: forall t x. Run (AttrW' t x) Unit
-attrW'resetChildren = x'respondTo_ @"attrW" @"resetChildren"
+attrW'resetStyles :: forall x. Run (AttrW' x) Unit
+attrW'resetStyles = xm'effGet (Proxy @"attrW") (Proxy @"resetStyles")
 
-attrW'resetStyles :: forall t x. Run (AttrW' t x) Unit
-attrW'resetStyles = x'respondTo_ @"attrW" @"resetStyles"
+attrW'addAttr :: forall x. String -> JsAny -> Run (AttrW' x) Unit
+attrW'addAttr = curry $ xm'effCall (Proxy @"attrW") (Proxy @"addAttr")
 
-attrW'addAttr :: forall t x. String -> JsAny -> Run (AttrW' t x) Unit
-attrW'addAttr = curry $ x'respondTo @"attrW" @"addAttr"
+attrW'addClassname :: forall x. String -> Run (AttrW' x) Unit
+attrW'addClassname = xm'effCall (Proxy @"attrW") (Proxy @"addClassname")
 
-attrW'addClassname :: forall t x. String -> Run (AttrW' t x) Unit
-attrW'addClassname = x'respondTo @"attrW" @"addClassname"
-
-attrW'addChildren :: forall t x. t -> Run (AttrW' t x) Unit
-attrW'addChildren = x'respondTo @"attrW" @"addChildren"
-
-attrW'addStyle :: forall t x. String -> String -> Run (AttrW' t x) Unit
-attrW'addStyle = curry $ x'respondTo @"attrW" @"addStyle"
-
-attrW'extract :: forall t x. Run (AttrW' t x) DomElProps
-attrW'extract = x'respondTo_ @"attrW" @"extract"
+attrW'addStyle :: forall x. String -> String -> Run (AttrW' x) Unit
+attrW'addStyle = curry $ xm'effCall (Proxy @"attrW") (Proxy @"addStyle")
 
 ------------------------------------------------------------
 
 foreign import js_attrwNew :: Effect Eff'AttrW
 
-foreign import js_attrwResults :: Eff'AttrW -> Effect DomElProps
+foreign import js_attrwResults :: Eff'AttrW -> Effect Json
 
 foreign import js_attrwResetClassnames :: Eff'AttrW -> Effect Unit
-
-foreign import js_attrwResetChildren :: Eff'AttrW -> Effect Unit
 
 foreign import js_attrwResetStyles :: Eff'AttrW -> Effect Unit
 
 foreign import js_attrwAddAttr :: String -> JsAny -> Eff'AttrW -> Effect Unit
 
 foreign import js_attrwAddClassname :: String -> Eff'AttrW -> Effect Unit
-
-foreign import js_attrwAddChildren :: ReactEls -> Eff'AttrW -> Effect Unit
 
 foreign import js_attrwAddStyle :: String -> String -> Eff'AttrW -> Effect Unit

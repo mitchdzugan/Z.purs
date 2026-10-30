@@ -3,6 +3,9 @@ module Node.Z.CLM.Stats.Manager.Action where
 import Z.Prelude
 
 import Node.Z.CLM.Stats.Manager.Spec (Spec, Spec'Evaluable, Spec'M)
+import Z.CLM.Stats.P
+  ( p'defaultSeasonId
+  )
 import Z.Z.X.Core (x'build)
 import Z.Z.X.Index (type (@@>), sync'x)
 
@@ -125,8 +128,7 @@ handleAction (SetIsPrEligible { slug, isEligible }) = slug #
   if isEligible then x'remove @"ineligibleSlugs" else x'cons @"ineligibleSlugs"
 handleAction (MarkDoneUpdating { slug }) = x'cons @"doneUpdating" slug
 handleAction (BustCache { slug }) = x'cons @"eventsToRefetch" slug
-handleAction (SetDefaultSeasonId { seasonId }) =
-  x'assign @"defaultSeasonId" seasonId
+handleAction (SetDefaultSeasonId { seasonId }) = p'defaultSeasonId @= seasonId
 handleAction (SetClmId { clmId, playerSorN }) =
   x'insert @"clmIdByPlayerId" (sOrN playerSorN) clmId
 handleAction (SetClmIdForEvent { slug, clmId, playerSorN }) =

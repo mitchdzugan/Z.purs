@@ -1,4 +1,4 @@
-export const js_binEff_new = () => ({ _: {}, size: 0, start: 0 });
+export const js_binEff_new = () => ({ _: {}, size: 0 });
 export const js_binEff_lookup = (Nothing) => (Just) => (key) => (st) => () => {
   const v = st._[key];
   return v ? Just(v[0]) : Nothing;
@@ -26,7 +26,6 @@ export const js_binEff_vals = (st) => () => {
 export const js_binEff_clear = (unit) => (st) => () => {
   st._ = {};
   st.size = 0;
-  st.start = 0;
   return unit;
 };
 export const js_binEff_toForeignObject = (st) => () => {

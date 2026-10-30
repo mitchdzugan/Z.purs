@@ -60,7 +60,7 @@ type T'router'routeOrE p =
   forall e r x x'. IsSymbol p => Cons p (R e r) x' x => Z.Run x (Either e r)
 
 router'routeOrE'' :: forall @p. T'router'routeOrE p
-router'routeOrE'' = x'extract @p <#> _.routeOrE
+router'routeOrE'' = (@.) (Proxy @p) <#> _.routeOrE
 
 router'routeOrE :: forall @p. T'useAsSym "router" p T'router'routeOrE
 router'routeOrE = router'routeOrE'' @p
@@ -69,7 +69,7 @@ type T'router'urlState p =
   forall e r x x'. IsSymbol p => Cons p (R e r) x' x => Z.Run x UrlSt.T
 
 router'urlState'' :: forall @p. T'router'urlState p
-router'urlState'' = x'extract @p <#> _.urlState
+router'urlState'' = (@.) (Proxy @p) <#> _.urlState
 
 router'urlState :: forall @p. T'useAsSym "router" p T'router'urlState
 router'urlState = router'urlState'' @p
@@ -79,7 +79,7 @@ type T'router'mkUrl p =
 
 router'mkUrl'' :: forall @p. T'router'mkUrl p
 router'mkUrl'' route =
-  x'extract @p <#> \r -> url'edit r.baseUrl $ r.urlEdits route
+  (@.) (Proxy @p) <#> \r -> url'edit r.baseUrl $ r.urlEdits route
 
 router'mkUrl :: forall @p. T'useAsSym "router" p T'router'mkUrl
 router'mkUrl = router'mkUrl'' @p
@@ -94,13 +94,13 @@ router'mkRel :: forall @p. T'useAsSym "router" p T'router'mkRel
 router'mkRel = router'mkRel'' @p
 
 type T'router'setHref p =
-  forall t e r x' x
+  forall e r x' x
    . IsSymbol p
   => Cons p (R e r)
-       (AttrW' t x')
-       (AttrW' t x)
+       (AttrW' x')
+       (AttrW' x)
   => r
-  -> Z.Run (AttrW' t x) Unit
+  -> Z.Run (AttrW' x) Unit
 
 router'setHref'' :: forall @p. T'router'setHref p
 router'setHref'' route = do

@@ -168,6 +168,7 @@ import Z.Prelude
 
 import Data.Traversable (class Traversable)
 import Effect.Unsafe (unsafePerformEffect)
+import Z.XDom.P (p'self, p'xdom'reader)
 import Z.XDom.Preact
   ( DomEl
   , DomEvent
@@ -238,7 +239,7 @@ type DomPermit x = (dom :: X'Permit | x)
 
 type MDom dx x a = Run (DomW' (SELF dx x)) a
 
-type MDomEl dx x a = Run (domW :: X'R Unit | AttrW' Void (DomW' (SELF dx x))) a
+type MDomEl dx x a = Run (domW :: X'R Unit | AttrW' (DomW' (SELF dx x))) a
 
 type MDOMEFF x = (self :: R'Self () (DomEffPermit x) | DomEffPermit x)
 
@@ -268,10 +269,10 @@ dom'do :: forall x a. Eff'At "dom" a -> Run (DomPermit x) a
 dom'do = x'do
 
 dom'getSelf :: forall dx x x'. Run (SELF'x dx x x') (Self dx x)
-dom'getSelf = x'extract @"self"
+dom'getSelf = (@.) p'self
 
 dom'getRunner :: forall dx x x'. Run (SELF'x dx x x') (Runner (SELF dx x))
-dom'getRunner = x'extract @"self" <#> \s -> runner'mk (pure <<< eval'self s)
+dom'getRunner = (@.) p'self <#> \s -> runner'mk (pure <<< eval'self s)
 
 dom'getEffSelf
   :: forall dx x x'. Run (SELF'x dx x x') (Self () (DomEffPermit x))
@@ -319,7 +320,7 @@ dom'withNewRef
   -> (Eff'At "dom" s -> (s -> Eff'At "dom" Unit) -> MDom dx x Unit)
   -> MDom dx x Unit
 dom'withNewRef initalState fm = do
-  self <- x'extract @"self"
+  self <- (@.) p'self
   domW'push $ js_withRef (renderFn self) initalState
   where
   renderFn self s ss = renderM self $ fm (eff'tag @"dom" s) (w ss)
@@ -331,7 +332,7 @@ dom'withNewState
   -> (s -> (s -> Eff'At "domEff" Unit) -> MDom dx x Unit)
   -> MDom dx x Unit
 dom'withNewState initalState fm = do
-  self <- x'extract @"self"
+  self <- (@.) p'self
   domW'push $ js_withState (renderFn self) initalState
   where
   renderFn self s ss = renderM self $ fm s (w ss)
@@ -343,7 +344,7 @@ dom'withAdapter
   -> MDom dx x ret
   -> MDom dx x' ret
 dom'withAdapter fm m = do
-  self <- x'extract @"self" <#> selfExtend fm
+  self <- (@.) p'self <#> selfExtend fm
   let res /\ els = eval'self self $ domW'run m
   domW'concat els
   pure res
@@ -385,7 +386,7 @@ type MDom_domElement'Childless =
 dom'element :: String -> MDom_domElement
 dom'element s mattr = do
   parentId <- domW'start
-  mdom /\ { attrs } <- x'eval_ @"domW" $ attrW'run (const []) mattr
+  mdom /\ attrs <- x'eval_ @"domW" $ attrW'run mattr
   mdom
   children <- domW'finish parentId
   domW'push $ js_renderEl s attrs children
@@ -410,7 +411,7 @@ type T'domError'bind e p =
 
 domError'bind'' :: forall @p e. T'domError'bind e p
 domError'bind'' em m = do
-  oldSelf <- x'extract @"self"
+  oldSelf <- (@.) p'self
   let self = selfExtendDom (r'run'' @p (Proxy @(DomETag /\ e))) oldSelf
   domW'push $ js_withBoundedError (reflectSymbol $ p @p)
     (\e -> eff'defer \_ -> renderMEl oldSelf $ em e)
@@ -426,7 +427,7 @@ type T'domError'fail p =
   -> Run (self :: R'Self dx x | xx) a
 
 domError'fail'' :: forall @p. T'domError'fail p
-domError'fail'' e = x'extract @"self" <#> \_ ->
+domError'fail'' e = (@.) p'self <#> \_ ->
   js_throwBoundedError (reflectSymbol $ Proxy @p) e
 
 domError'fail :: forall p. T'use'e'AsSym p $ T'domError'fail
@@ -483,7 +484,7 @@ type T'domState'get p =
   => Run x s
 
 domState'get'' :: forall @p. T'domState'get p
-domState'get'' = x'extract @p <#> _.get
+domState'get'' = (@.) (Proxy @p) <#> _.get
 
 domState'get :: forall p. T'use's'AsSym p T'domState'get
 domState'get = domState'get'' @p
@@ -498,7 +499,7 @@ type T'domState'setable s a p =
 type T'domState'dispatch p = forall s a. T'domState'setable s a p
 
 domState'dispatch'' :: forall @p. T'domState'dispatch p
-domState'dispatch'' a = x'extract @p >>= \r -> x'do (r.update a)
+domState'dispatch'' a = (@.) (Proxy @p) >>= \r -> x'do (r.update a)
 
 domState'dispatch :: forall p. T'use's'AsSym p T'domState'dispatch
 domState'dispatch = domState'dispatch'' @p
@@ -558,7 +559,7 @@ type T'domRef'get p =
   => Run x s
 
 domRef'get'' :: forall @p. T'domRef'get p
-domRef'get'' = (x'extract @p <#> _.get) >>= x'permit @"dom" <<< x'do
+domRef'get'' = ((@.) (Proxy @p) <#> _.get) >>= x'permit @"dom" <<< x'do
 
 domRef'get :: forall p. T'use's'AsSym p T'domRef'get
 domRef'get = domRef'get'' @p
@@ -572,7 +573,7 @@ type T'domRef'setable s a p =
 type T'domRef'dispatch p = forall s a. T'domRef'setable s a p
 
 domRef'dispatch'' :: forall @p. T'domRef'dispatch p
-domRef'dispatch'' a = x'extract @p >>= \r ->
+domRef'dispatch'' a = (@.) (Proxy @p) >>= \r ->
   x'permit @"dom" $ x'do (r.update a)
 
 domRef'dispatch :: forall p. T'use's'AsSym p T'domRef'dispatch
@@ -639,54 +640,54 @@ domEffA'sync m = dom'getSelf <#> flip eval'self m
 domEff'el'classList'rm
   :: forall x. DomEl -> String -> MDomEff (XDomR' x) Unit
 domEff'el'classList'rm el cn = do
-  x'extract @"_'xdom'reader" >>= \r -> x'do $ r.el'classList'rm el cn
+  (@.) p'xdom'reader >>= \r -> x'do $ r.el'classList'rm el cn
 
 domEff'el'classList'add
   :: forall x. DomEl -> String -> MDomEff (XDomR' x) Unit
 domEff'el'classList'add el cn = do
-  x'extract @"_'xdom'reader" >>= \r -> x'do $ r.el'classList'add el cn
+  (@.) p'xdom'reader >>= \r -> x'do $ r.el'classList'add el cn
 
 domEff'event'preventDefault :: forall x. DomEvent -> MDomEff (XDomR' x) Unit
 domEff'event'preventDefault event = do
-  x'extract @"_'xdom'reader" >>= \r -> x'do $ r.event'preventDefault event
+  (@.) p'xdom'reader >>= \r -> x'do $ r.event'preventDefault event
 
 domEff'event'currentTargetValue
   :: forall x. DomEvent -> MDomEff (XDomR' x) String
 domEff'event'currentTargetValue event = do
-  x'extract @"_'xdom'reader" >>= \r -> x'do $ r.event'currentTargetValue event
+  (@.) p'xdom'reader >>= \r -> x'do $ r.event'currentTargetValue event
 
 domEff'el'parentElement
   :: forall x. DomEl -> MDomEff (XDomR' x) (Maybe DomEl)
 domEff'el'parentElement el = do
-  x'extract @"_'xdom'reader" >>= \r -> x'do $ r.el'parentElement el
+  (@.) p'xdom'reader >>= \r -> x'do $ r.el'parentElement el
 
 domEff'el'querySelector
   :: forall x. DomEl -> String -> MDomEff (XDomR' x) (Maybe DomEl)
 domEff'el'querySelector el s = do
-  x'extract @"_'xdom'reader" >>= \r -> x'do $ r.el'querySelector el s
+  (@.) p'xdom'reader >>= \r -> x'do $ r.el'querySelector el s
 
 domEff'el'scrollTo
   :: forall x. DomEl -> Edit ScrollToProps -> MDomEff (XDomR' x) Unit
 domEff'el'scrollTo el edits = do
   let props = edit default edits
-  x'extract @"_'xdom'reader" >>= \r -> x'do $ r.el'scrollTo el props
+  (@.) p'xdom'reader >>= \r -> x'do $ r.el'scrollTo el props
 
 domEff'el'blur :: forall x. DomEl -> MDomEff (XDomR' x) Unit
 domEff'el'blur el = do
-  x'extract @"_'xdom'reader" >>= \r -> x'do $ r.el'blur el
+  (@.) p'xdom'reader >>= \r -> x'do $ r.el'blur el
 
 domEff'el'boundingRect :: forall x. DomEl -> MDomEff (XDomR' x) DOMRect
 domEff'el'boundingRect el = do
-  x'extract @"_'xdom'reader" >>= \r -> x'do $ r.el'boundingRect el
+  (@.) p'xdom'reader >>= \r -> x'do $ r.el'boundingRect el
 
 domEffA'animationFrame :: forall x. MDomEff'a (XDomR' x) Unit
 domEffA'animationFrame = do
-  f <- x'extract @"_'xdom'reader" >>= \r -> x'do r.future'animationFrame
+  f <- (@.) p'xdom'reader >>= \r -> x'do r.future'animationFrame
   a'attempt f <#> const unit
 
 domEff'doc'pxPerRem :: forall x. MDomEff (XDomR' x) Number
 domEff'doc'pxPerRem = do
-  x'extract @"_'xdom'reader" >>= \r -> x'do r.doc'pxPerRem
+  (@.) p'xdom'reader >>= \r -> x'do r.doc'pxPerRem
 
 -------------------------------------------------------------------
 

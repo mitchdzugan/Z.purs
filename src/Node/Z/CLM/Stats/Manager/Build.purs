@@ -34,6 +34,13 @@ import Node.Z.Git.Client
 import Node.Z.Gql as Gql
 import Node.Z.H2h as H2h
 import Node.Z.H2h.Startgg.All as All
+import Z.CLM.Stats.P
+  ( p'clmRanks
+  , p'nextClmId
+  , p'participants
+  , p'ratingData
+  , p'setGroups
+  )
 import Z.CLM.Stats.Season (seasonId'active, seasonId'fromDateTime, tz'chicago)
 import Z.CLM.Stats.Types
   ( ClmActionData
@@ -52,6 +59,7 @@ import Z.CLM.Stats.Types
   , clm'hasReq'prEvents
   , clmBuildMeta
   )
+import Z.H2h.Module (p'sets)
 
 wrapH2hWE
   :: forall x a
@@ -321,7 +329,7 @@ runSeason = id
 addPlayerIdToClmId :: forall x. SorN -> Int -> ClmV () x @@> Unit
 addPlayerIdToClmId playerId clmId = do
   x'consAt @"playerIdsByClmId" clmId playerId
-  x'insert @"clmIdByPlayerId" playerId clmId
+  xm'insert (p @"clmIdByPlayerId") playerId clmId
 
 runClm
   :: forall x a
@@ -401,11 +409,11 @@ getClmId :: forall x. SorN -> ClmV () x @@> Int
 getClmId playerId = x'withReturn \x'return -> do
   knownClmId <- x'lookup @"clmIdByPlayerId" playerId
   whenJust knownClmId x'return
-  nextClmId <- x'extract @"nextClmId"
+  nextClmId <- (@.) p'nextClmId
   clmId <- flip tailRecM nextClmId \tryId -> do
     exitingsPlayers <- x'sizeAt @"playerIdsByClmId" tryId
     pure $ if exitingsPlayers == 0 then Done tryId else Loop $ inc tryId
-  x'assign @"nextClmId" $ inc clmId
+  p'nextClmId @= inc clmId
   addPlayerIdToClmId playerId clmId
   pure clmId
 
@@ -479,7 +487,7 @@ buildCurrentSeasons spec = do
           x'consAt @"usedTags" clmId player.gamerTag
           x'insert @"participants" clmId participant
 
-      x'd1cons_ @"setGroups"
+      x'd1cons @"setGroups" default
       let eventSets = arr'concat $ event.phaseGroups <#> hm'vals <<< _.sets
       forM_ (arr'sortWith _.eventOrder eventSets) \set -> do
         x'consLast @"setGroups" set
@@ -498,11 +506,11 @@ buildCurrentSeasons spec = do
         , eventId: event.id
         }
     s'eval 0 $ whr'eval @Int show (s'setPure'b @"w2" 20) do
-      x'extract @"setGroups" >>= flip forM_ \sets -> do
+      (@.) p'setGroups >>= flip forM_ \sets -> do
         groupCount <- s'get
         anyCounted <- s'exec false do
           forM_ sets \set -> x'withReturn_ \x'return_ -> do
-            eventId <- x'lookup @"eventIdBySetId" set.id >>= sc'unwrap_
+            eventId <- xm'lookup (p @"eventIdBySetId") set.id >>= sc'unwrap_
             event <- x'lookup @"clmEvents" (seasonId /\ eventId) >>= sc'unwrap_
             let
               getSlotClmId slot = do
@@ -552,7 +560,7 @@ buildCurrentSeasons spec = do
             whr'createGame clmIdW clmIdL groupCount 0
         when anyCounted $ s'update inc
       whr'iterate 100
-      participants <- x'extract @"participants"
+      participants <- (@.) p'participants
       forM_ (hm'entries participants) \(clmId /\ participant) -> do
         let { player } = participant
         let { gamerTag, prefix, pronouns, socials } = player
@@ -602,9 +610,9 @@ buildCurrentSeasons spec = do
           , pronouns
           , clmId
           }
-      x'extract @"ratingData" >>= addRanks seasonId <<< hm'vals
+      (@.) p'ratingData >>= addRanks seasonId <<< hm'vals
       seasonOrds <- x'extractAt @"orderByClmIdAndSeasonId" seasonId
-      seasonSets <- x'extract @"sets"
+      seasonSets <- (@.) p'sets
       let setOrder = \setId -> hm'lookup setId seasonSets <#> _.eventOrder
       forM_ (hm'keys participants) \clmId -> do
         eventIds <- x'extractAt @"allEventIds" clmId
@@ -856,7 +864,7 @@ buildLegacySeasons = do
                   }
                 pure setId
               _'cons { opponent, setIds }
-          setByEventAndRound <- x'extract @"sets" <#>
+          setByEventAndRound <- (@.) p'sets <#>
             (keyBy (\s -> s.eventId /\ s.round) <<< hm'vals)
           events <- _'exec_ @(X'Vector ClmPlayer'Season'Event) do
             forM_ (arr'withInd playerSeason.events) \(eventInd /\ event) -> do
@@ -965,7 +973,7 @@ buildClm newActions = runClm do
     addPlayerIdToClmId clmId playerId
   buildLegacySeasons
   buildCurrentSeasons spec
-  clmSeasonRanks <- x'extract @"clmRanks" <#> hm'entries
+  clmSeasonRanks <- (@.) p'clmRanks <#> hm'entries
   let filtered = arr'filter ((<) 1 <<< arr'size <<< snd) clmSeasonRanks
   let allSeasonIds = arr'sort $ map fst filtered
   allPlayerSeasons <- map hs'vals <$> _'exec_ @(X'HashSet2D Int Int) do

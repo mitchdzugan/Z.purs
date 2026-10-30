@@ -14,7 +14,7 @@ import Z.Z.X.UtilPrelude
 
 import Data.Foldable (for_)
 import Data.Traversable (for)
-import Z.Z.Core (arr'concat)
+import Z.Z.Core (arr'concat, may'__, (<##>))
 import Z.Z.Eff.Bin2D
   ( Eff'Bin2D
   , eff'bin2D'addAt
@@ -34,7 +34,8 @@ import Z.Z.HashMap (HashMap, hm'entries, hm'fromFoldable, hm'lookup, hm'vals)
 import Z.Z.HashSet (HashSet, hs'vals)
 import Z.Z.Id (class Identable)
 import Z.Z.X.Core
-  ( class X'R'RespondsTo'rw
+  ( class RW'Tag'CanRead
+  , class RW'Tag'CanWrite
   , class X'Readable'rw
   , class X'Results'R'rw
   , RW'Tagged
@@ -43,17 +44,270 @@ import Z.Z.X.Core
   , x'evaluable
   , x'evaluable_
   )
-import Z.Z.X.Responds
-  ( Responds
-  , Responds'Const
-  , responds'const'eff
-  , responds'run'eff
+import Z.Z.X.Method
+  ( class Eff'RW'Getter
+  , class Eff'RW'Method
+  , class XM'type
+  , XG'clear
+  , XG'd1'entries
+  , XG'd1'keys
+  , XG'entries
+  , XG'extract
+  , XG'keys
+  , XG'reset
+  , XG'size
+  , XG'vals
+  , XM'add
+  , XM'addAt
+  , XM'assign
+  , XM'assignAt
+  , XM'clearAt
+  , XM'consAt
+  , XM'entriesAt
+  , XM'extractAt
+  , XM'keysAt
+  , XM'lookup
+  , XM'remove
+  , XM'resetAt
+  , XM'sizeAt
+  , XM'valsAt
+  , XMt'd1'key
+  , XMt'd1'value
+  , XMt'd2'key
+  , XMt'key
+  , XMt'self
+  , XMt'value
   )
 
 type HashSet2D k a = HashMap k (HashSet a)
 type Eff'HashSet2D k a = Eff'Bin2D k a
 
 newtype R'HashSet2D k a = R'HashSet2D (Eff'HashSet2D k a /\ HashSet2D k a)
+
+instance XM'type (R'HashSet2D k a) XMt'self (HashSet2D k a)
+
+instance XM'type (R'HashSet2D k a) XMt'key (k /\ a)
+
+instance XM'type (R'HashSet2D k a) XMt'value a
+
+instance XM'type (R'HashSet2D k a) XMt'd1'key k
+
+instance XM'type (R'HashSet2D k a) XMt'd1'value (HashSet a)
+
+instance XM'type (R'HashSet2D k a) XMt'd2'key a
+
+---------------------------------------------------------------------
+
+instance
+  ( RW'Tag'CanRead rwTag
+  , Identable k
+  , Identable a
+  ) =>
+  Eff'RW'Getter XG'extract (R'HashSet2D k a) rwTag (HashSet2D k a) where
+  eff'rw'get (R'HashSet2D (st /\ _)) = eff'hs2D'freeze st
+
+instance
+  ( RW'Tag'CanRead rwTag
+  ) =>
+  Eff'RW'Getter XG'size (R'HashSet2D k a) rwTag Int where
+  eff'rw'get (R'HashSet2D (st /\ _)) = eff'bin2D'size st
+
+instance
+  ( RW'Tag'CanRead rwTag
+  , Identable k
+  , Identable a
+  ) =>
+  Eff'RW'Getter XG'vals (R'HashSet2D k a) rwTag (Array a) where
+  eff'rw'get (R'HashSet2D (st /\ _)) = eff'hs2D'vals st
+
+instance
+  ( RW'Tag'CanRead rwTag
+  , Identable k
+  , Identable a
+  ) =>
+  Eff'RW'Getter XG'keys (R'HashSet2D k a) rwTag (Array a) where
+  eff'rw'get (R'HashSet2D (st /\ _)) = eff'hs2D'vals st
+
+instance
+  ( RW'Tag'CanRead rwTag
+  , Identable k
+  , Identable a
+  ) =>
+  Eff'RW'Getter XG'entries (R'HashSet2D k a) rwTag (Array (a /\ a)) where
+  eff'rw'get (R'HashSet2D (st /\ _)) = eff'hs2D'vals st <##> \a -> a /\ a
+
+instance
+  ( RW'Tag'CanRead rwTag
+  , Identable k
+  , Identable a
+  ) =>
+  Eff'RW'Method XM'lookup (R'HashSet2D k a) rwTag (k /\ a) (Maybe a) where
+  eff'rw'call (R'HashSet2D (st /\ _)) (k /\ a) = eff'bin2D'lookup k a st
+
+instance
+  ( RW'Tag'CanRead rwTag
+  , Identable k
+  , Identable a
+  ) =>
+  Eff'RW'Method XM'extractAt (R'HashSet2D k a) rwTag k (HashSet a) where
+  eff'rw'call (R'HashSet2D (st /\ _)) k = eff'hs2D'freezeAt k st
+
+instance
+  ( RW'Tag'CanRead rwTag
+  , Identable k
+  , Identable a
+  ) =>
+  Eff'RW'Method XM'sizeAt (R'HashSet2D k a) rwTag k Int where
+  eff'rw'call (R'HashSet2D (st /\ _)) k = eff'bin2D'sizeAt k st
+
+instance
+  ( RW'Tag'CanRead rwTag
+  , Identable k
+  , Identable a
+  ) =>
+  Eff'RW'Method XM'valsAt (R'HashSet2D k a) rwTag k (Array a) where
+  eff'rw'call (R'HashSet2D (st /\ _)) k = eff'bin2D'valsAt k st
+
+instance
+  ( RW'Tag'CanRead rwTag
+  , Identable k
+  , Identable a
+  ) =>
+  Eff'RW'Method XM'keysAt (R'HashSet2D k a) rwTag k (Array a) where
+  eff'rw'call (R'HashSet2D (st /\ _)) k = eff'bin2D'valsAt k st
+
+instance
+  ( RW'Tag'CanRead rwTag
+  , Identable k
+  , Identable a
+  ) =>
+  Eff'RW'Method XM'entriesAt (R'HashSet2D k a) rwTag k (Array (a /\ a)) where
+  eff'rw'call (R'HashSet2D (st /\ _)) k =
+    eff'bin2D'valsAt k st <##> \a -> a /\ a
+
+instance
+  ( RW'Tag'CanRead rwTag
+  , Identable k
+  , Identable a
+  ) =>
+  Eff'RW'Getter XG'd1'keys (R'HashSet2D k a) rwTag (Array k) where
+  eff'rw'get (R'HashSet2D (st /\ _)) = eff'bin2D'd1keys st
+
+instance
+  ( RW'Tag'CanRead rwTag
+  , Identable k
+  , Identable a
+  ) =>
+  Eff'RW'Getter XG'd1'entries
+    (R'HashSet2D k a)
+    rwTag
+    (Array (k /\ HashSet a)) where
+  eff'rw'get (R'HashSet2D (st /\ _)) = eff'hs2D'd1entries st
+
+-----------------------------
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  , Identable k
+  , Identable a
+  ) =>
+  Eff'RW'Method XM'assign (R'HashSet2D k a) rwTag (HashSet2D k a) Unit where
+  eff'rw'call (R'HashSet2D (st /\ _)) hs2d = eff'hs2D'set hs2d st
+
+-----------------------------
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  , Identable k
+  , Identable a
+  ) =>
+  Eff'RW'Method XM'assignAt (R'HashSet2D k a) rwTag (k /\ HashSet a) Unit where
+  eff'rw'call (R'HashSet2D (st /\ _)) (k /\ hs) = eff'hs2D'setAt k hs st
+
+-----------------------------
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  , Identable k
+  , Identable a
+  ) =>
+  Eff'RW'Getter XG'reset (R'HashSet2D k a) rwTag Unit where
+  eff'rw'get (R'HashSet2D (st /\ init)) = eff'hs2D'set init st
+
+-----------------------------
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  , Identable k
+  , Identable a
+  ) =>
+  Eff'RW'Method XM'resetAt (R'HashSet2D k a) rwTag k Unit where
+  eff'rw'call (R'HashSet2D (st /\ init)) k = may'__
+    (\_ -> eff'bin2D'clearAt k st)
+    (\hs -> eff'hs2D'setAt k hs st)
+    (hm'lookup k init)
+
+-----------------------------
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  , Identable k
+  , Identable a
+  ) =>
+  Eff'RW'Getter XG'clear (R'HashSet2D k a) rwTag Unit where
+  eff'rw'get (R'HashSet2D (st /\ _)) = eff'bin2D'clear st
+
+-----------------------------
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  , Identable k
+  , Identable a
+  ) =>
+  Eff'RW'Method XM'clearAt (R'HashSet2D k a) rwTag k Unit where
+  eff'rw'call (R'HashSet2D (st /\ _)) k = eff'bin2D'clearAt k st
+
+-----------------------------
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  , Identable k
+  , Identable a
+  ) =>
+  Eff'RW'Method XM'add (R'HashSet2D k a) rwTag (HashSet2D k a) Unit where
+  eff'rw'call (R'HashSet2D (st /\ _)) hs2d = eff'hs2D'add hs2d st
+
+-----------------------------
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  , Identable k
+  , Identable a
+  ) =>
+  Eff'RW'Method XM'addAt (R'HashSet2D k a) rwTag (k /\ HashSet a) Unit where
+  eff'rw'call (R'HashSet2D (st /\ _)) (k /\ hs) = eff'hs2D'addAt k hs st
+
+-----------------------------
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  , Identable k
+  , Identable a
+  ) =>
+  Eff'RW'Method XM'consAt (R'HashSet2D k a) rwTag (k /\ a) Unit where
+  eff'rw'call (R'HashSet2D (st /\ _)) (k /\ a) = eff'bin2D'insert k a a st
+
+-----------------------------
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  , Identable k
+  , Identable a
+  ) =>
+  Eff'RW'Method XM'remove (R'HashSet2D k a) rwTag (k /\ a) Unit where
+  eff'rw'call (R'HashSet2D (st /\ _)) (k /\ a) = eff'bin2D'delete k a st
+
+---------------------------------------------------------------------
 
 instance
   ( Identable k
@@ -71,71 +325,6 @@ instance
   ) =>
   X'Results'R'rw (R'HashSet2D k a) (HashSet2D k a) where
   x'results'r'rw'impl (R'HashSet2D (st /\ _)) = eff'hs2D'freeze st
-
-instance
-  ( Identable k
-  , Identable a
-  ) =>
-  X'R'RespondsTo'rw (R'HashSet2D k a)
-    ( VariantF
-        ( extract :: Responds'Const (HashSet2D k a)
-        , extractAt :: Responds k (HashSet a)
-        , size :: Responds'Const Int
-        , sizeAt :: Responds k Int
-        , vals :: Responds'Const (Array a)
-        , valsAt :: Responds k (Array a)
-        , lookup :: Responds (k /\ a) (Maybe a)
-        , d1keys :: Responds'Const (Array k)
-        )
-    )
-    ( VariantF
-        ( assign :: Responds (HashSet2D k a) Unit
-        , assignAt :: Responds (k /\ HashSet a) Unit
-        , reset :: Responds'Const Unit
-        , resetAt :: Responds k Unit
-        , clear :: Responds'Const Unit
-        , clearAt :: Responds k Unit
-        , add :: Responds (HashSet2D k a) Unit
-        , addAt :: Responds (k /\ HashSet a) Unit
-        , consAt :: Responds (k /\ a) Unit
-        , remove :: Responds (k /\ a) Unit
-        )
-    )
-    ( self :: (HashSet2D k a)
-    , element :: a
-    , key :: k /\ a
-    , d1key :: k
-    , d1element :: HashSet a
-    ) where
-  x'r'mkResponds'rw'types = Proxy
-  x'r'mkResponds'r (R'HashSet2D (st /\ _)) = match
-    { extract: responds'const'eff $ eff'hs2D'freeze st
-    , extractAt: responds'run'eff \k -> eff'hs2D'freezeAt k st
-    , size: responds'const'eff $ eff'bin2D'size st
-    , sizeAt: responds'run'eff \k -> eff'bin2D'sizeAt k st
-    , vals: responds'const'eff
-        $ eff'hs2D'freeze st
-        <#> hm'vals
-        <#> map hs'vals
-        <#> arr'concat
-    , valsAt: responds'run'eff \k -> eff'bin2D'valsAt k st
-    , lookup: responds'run'eff \(k /\ a) -> eff'bin2D'lookup k a st
-    , d1keys: responds'const'eff $ eff'bin2D'd1keys st
-    }
-  x'r'mkResponds'w (R'HashSet2D (st /\ init)) = match
-    { assign: responds'run'eff \hs2d -> eff'hs2D'set hs2d st
-    , assignAt: responds'run'eff \(k /\ hs2d) -> eff'hs2D'setAt k hs2d st
-    , reset: responds'const'eff $ eff'hs2D'set init st
-    , resetAt: responds'run'eff \k -> case hm'lookup k init of
-        Just hs -> eff'hs2D'setAt k hs st
-        Nothing -> eff'bin2D'clearAt k st
-    , clear: responds'const'eff $ eff'bin2D'clear st
-    , clearAt: responds'run'eff \k -> eff'bin2D'clearAt k st
-    , add: responds'run'eff \hs -> eff'hs2D'add hs st
-    , addAt: responds'run'eff \(k /\ hs) -> eff'hs2D'addAt k hs st
-    , consAt: responds'run'eff \(k /\ a) -> eff'bin2D'insert k a a st
-    , remove: responds'run'eff \(k /\ a) -> eff'bin2D'delete k a st
-    }
 
 ---------------------------------------------------------------------
 
@@ -209,7 +398,22 @@ eff'hs2D'freezeAt k st = wrap <$> eff'bin2D'freezeAt k st
 
 eff'hs2D'freeze
   :: forall k1 a. Identable k1 => Eff'HashSet2D k1 a -> Effect (HashSet2D k1 a)
-eff'hs2D'freeze st = do
+eff'hs2D'freeze st = eff'hs2D'd1entries st <#> hm'fromFoldable
+
+eff'hs2D'd1entries
+  :: forall k1 a
+   . Identable k1
+  => Eff'HashSet2D k1 a
+  -> Effect (Array (k1 /\ HashSet a))
+eff'hs2D'd1entries st = do
   d1keys <- eff'bin2D'd1keys st
-  entries <- for d1keys \k1 -> eff'hs2D'freezeAt k1 st <#> (/\) k1
-  pure $ hm'fromFoldable entries
+  for d1keys \k1 -> eff'hs2D'freezeAt k1 st <#> (/\) k1
+
+eff'hs2D'vals
+  :: forall k1 a
+   . Identable k1
+  => Identable a
+  => Eff'HashSet2D k1 a
+  -> Effect (Array a)
+eff'hs2D'vals st =
+  eff'hs2D'freeze st <#> hm'vals <#> map hs'vals <#> arr'concat

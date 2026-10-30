@@ -15,7 +15,7 @@ import Z.Z.X.UtilPrelude
 
 import Data.Foldable (for_)
 import Data.Traversable (for)
-import Z.Z.Core (arr'concat)
+import Z.Z.Core (arr'concat, may'__, (<##>))
 import Z.Z.Defaultable (whenJust)
 import Z.Z.Eff.Bin2D
   ( Eff'Bin2D
@@ -35,7 +35,8 @@ import Z.Z.Eff.Bin2D
 import Z.Z.HashMap (HashMap, hm'entries, hm'fromFoldable, hm'lookup)
 import Z.Z.Id (class Identable)
 import Z.Z.X.Core
-  ( class X'R'RespondsTo'rw
+  ( class RW'Tag'CanRead
+  , class RW'Tag'CanWrite
   , class X'Readable'rw
   , class X'Results'R'rw
   , RW'Tagged
@@ -44,11 +45,39 @@ import Z.Z.X.Core
   , x'evaluable
   , x'evaluable_
   )
-import Z.Z.X.Responds
-  ( Responds
-  , Responds'Const
-  , responds'const'eff
-  , responds'run'eff
+import Z.Z.X.Method
+  ( class Eff'RW'Getter
+  , class Eff'RW'Method
+  , class XM'type
+  , XG'clear
+  , XG'd1'entries
+  , XG'd1'keys
+  , XG'entries
+  , XG'extract
+  , XG'keys
+  , XG'reset
+  , XG'size
+  , XG'vals
+  , XM'add
+  , XM'addAt
+  , XM'assign
+  , XM'assignAt
+  , XM'clearAt
+  , XM'entriesAt
+  , XM'extractAt
+  , XM'insert
+  , XM'keysAt
+  , XM'lookup
+  , XM'remove
+  , XM'resetAt
+  , XM'sizeAt
+  , XM'valsAt
+  , XMt'd1'key
+  , XMt'd1'value
+  , XMt'd2'key
+  , XMt'key
+  , XMt'self
+  , XMt'value
   )
 
 type HashMap2D k1 k2 v = HashMap k1 (HashMap k2 v)
@@ -56,6 +85,251 @@ type Eff'HashMap2D k1 k2 v = Eff'Bin2D k1 { k :: k2, v :: v }
 
 newtype R'HashMap2D k1 k2 v =
   R'HashMap2D (Eff'HashMap2D k1 k2 v /\ HashMap2D k1 k2 v)
+
+instance XM'type (R'HashMap2D k1 k2 v) XMt'self (HashMap2D k1 k2 v)
+
+instance XM'type (R'HashMap2D k1 k2 v) XMt'key (k1 /\ k2)
+
+instance XM'type (R'HashMap2D k1 k2 v) XMt'value v
+
+instance XM'type (R'HashMap2D k1 k2 v) XMt'd1'key k1
+
+instance XM'type (R'HashMap2D k1 k2 v) XMt'd1'value (HashMap k2 v)
+
+instance XM'type (R'HashMap2D k1 k2 v) XMt'd2'key k2
+
+---------------------------------------------------------------------
+
+instance
+  ( RW'Tag'CanRead rwTag
+  , Identable k1
+  , Identable k2
+  ) =>
+  Eff'RW'Getter XG'extract (R'HashMap2D k1 k2 v) rwTag (HashMap2D k1 k2 v) where
+  eff'rw'get (R'HashMap2D (st /\ _)) = eff'hm2D'freeze st
+
+instance
+  ( RW'Tag'CanRead rwTag
+  ) =>
+  Eff'RW'Getter XG'size (R'HashMap2D k1 k2 v) rwTag Int where
+  eff'rw'get (R'HashMap2D (st /\ _)) = eff'bin2D'size st
+
+instance
+  ( RW'Tag'CanRead rwTag
+  , Identable k1
+  , Identable k2
+  ) =>
+  Eff'RW'Getter XG'vals (R'HashMap2D k1 k2 v) rwTag (Array v) where
+  eff'rw'get (R'HashMap2D (st /\ _)) = eff'hm2D'entries st <##> \e -> e.v
+
+instance
+  ( RW'Tag'CanRead rwTag
+  , Identable k1
+  , Identable k2
+  ) =>
+  Eff'RW'Getter XG'keys (R'HashMap2D k1 k2 v) rwTag (Array (k1 /\ k2)) where
+  eff'rw'get (R'HashMap2D (st /\ _)) =
+    eff'hm2D'entries st <#> map \e -> e.k1 /\ e.k2
+
+instance
+  ( RW'Tag'CanRead rwTag
+  , Identable k1
+  , Identable k2
+  ) =>
+  Eff'RW'Getter
+    XG'entries
+    (R'HashMap2D k1 k2 v)
+    rwTag
+    (Array ((k1 /\ k2) /\ v)) where
+  eff'rw'get (R'HashMap2D (st /\ _)) =
+    eff'hm2D'entries st <#> map \e -> (e.k1 /\ e.k2) /\ e.v
+
+instance
+  ( RW'Tag'CanRead rwTag
+  , Identable k1
+  , Identable k2
+  ) =>
+  Eff'RW'Method XM'lookup (R'HashMap2D k1 k2 v) rwTag (k1 /\ k2) (Maybe v) where
+  eff'rw'call (R'HashMap2D (st /\ _)) (k1 /\ k2) =
+    eff'bin2D'lookup k1 k2 st <#> map _.v
+
+instance
+  ( RW'Tag'CanRead rwTag
+  , Identable k1
+  , Identable k2
+  ) =>
+  Eff'RW'Method XM'extractAt (R'HashMap2D k1 k2 v) rwTag k1 (HashMap k2 v) where
+  eff'rw'call (R'HashMap2D (st /\ _)) k1 = eff'hm2D'freezeAt k1 st
+
+instance
+  ( RW'Tag'CanRead rwTag
+  , Identable k1
+  , Identable k2
+  ) =>
+  Eff'RW'Method XM'sizeAt (R'HashMap2D k1 k2 v) rwTag k1 Int where
+  eff'rw'call (R'HashMap2D (st /\ _)) k1 = eff'bin2D'sizeAt k1 st
+
+instance
+  ( RW'Tag'CanRead rwTag
+  , Identable k1
+  , Identable k2
+  ) =>
+  Eff'RW'Method XM'valsAt (R'HashMap2D k1 k2 v) rwTag k1 (Array v) where
+  eff'rw'call (R'HashMap2D (st /\ _)) k1 = eff'bin2D'valsAt k1 st <#> map _.v
+
+instance
+  ( RW'Tag'CanRead rwTag
+  , Identable k1
+  , Identable k2
+  ) =>
+  Eff'RW'Method
+    XM'entriesAt
+    (R'HashMap2D k1 k2 v)
+    rwTag
+    k1
+    (Array (k2 /\ v)) where
+  eff'rw'call (R'HashMap2D (st /\ _)) k1 =
+    eff'bin2D'valsAt k1 st <#> map \e -> e.k /\ e.v
+
+instance
+  ( RW'Tag'CanRead rwTag
+  , Identable k1
+  , Identable k2
+  ) =>
+  Eff'RW'Method XM'keysAt (R'HashMap2D k1 k2 v) rwTag k1 (Array k2) where
+  eff'rw'call (R'HashMap2D (st /\ _)) k1 = eff'bin2D'valsAt k1 st <#> map _.k
+
+instance
+  ( RW'Tag'CanRead rwTag
+  , Identable k1
+  , Identable k2
+  ) =>
+  Eff'RW'Getter XG'd1'keys (R'HashMap2D k1 k2 v) rwTag (Array k1) where
+  eff'rw'get (R'HashMap2D (st /\ _)) = eff'bin2D'd1keys st
+
+instance
+  ( RW'Tag'CanRead rwTag
+  , Identable k1
+  , Identable k2
+  ) =>
+  Eff'RW'Getter XG'd1'entries
+    (R'HashMap2D k1 k2 v)
+    rwTag
+    (Array (k1 /\ HashMap k2 v)) where
+  eff'rw'get (R'HashMap2D (st /\ _)) = eff'hm2D'd1entries st
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  , Identable k1
+  , Identable k2
+  ) =>
+  Eff'RW'Method
+    XM'assign
+    (R'HashMap2D k1 k2 v)
+    rwTag
+    (HashMap2D k1 k2 v)
+    Unit where
+  eff'rw'call (R'HashMap2D (st /\ _)) hm2d = eff'hm2D'set hm2d st
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  , Identable k1
+  , Identable k2
+  ) =>
+  Eff'RW'Getter XG'reset (R'HashMap2D k1 k2 v) rwTag Unit where
+  eff'rw'get (R'HashMap2D (st /\ init)) = eff'hm2D'set init st
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  ) =>
+  Eff'RW'Getter XG'clear (R'HashMap2D k1 k2 v) rwTag Unit where
+  eff'rw'get (R'HashMap2D (st /\ _)) = eff'bin2D'clear st
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  , Identable k1
+  , Identable k2
+  ) =>
+  Eff'RW'Method
+    XM'add
+    (R'HashMap2D k1 k2 v)
+    rwTag
+    (HashMap2D k1 k2 v)
+    Unit where
+  eff'rw'call (R'HashMap2D (st /\ _)) hm2d = eff'hm2D'add hm2d st
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  , Identable k1
+  , Identable k2
+  ) =>
+  Eff'RW'Method XM'remove (R'HashMap2D k1 k2 v) rwTag (k1 /\ k2) Unit where
+  eff'rw'call (R'HashMap2D (st /\ _)) (k1 /\ k2) = eff'bin2D'delete k1 k2 st
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  , Identable k1
+  , Identable k2
+  ) =>
+  Eff'RW'Method
+    XM'insert
+    (R'HashMap2D k1 k2 v)
+    rwTag
+    ((k1 /\ k2) /\ v)
+    Unit where
+  eff'rw'call (R'HashMap2D (st /\ _)) ((k1 /\ k2) /\ v) =
+    eff'bin2D'insert k1 k2 { k: k2, v } st
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  , Identable k1
+  , Identable k2
+  ) =>
+  Eff'RW'Method XM'assignAt
+    (R'HashMap2D k1 k2 v)
+    rwTag
+    (k1 /\ HashMap k2 v)
+    Unit where
+  eff'rw'call (R'HashMap2D (st /\ _)) (k1 /\ hm2d) = eff'hm2D'setAt k1 hm2d st
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  , Identable k1
+  , Identable k2
+  ) =>
+  Eff'RW'Method XM'resetAt
+    (R'HashMap2D k1 k2 v)
+    rwTag
+    k1
+    Unit where
+  eff'rw'call (R'HashMap2D (st /\ init)) k1 = may'__
+    (\_ -> eff'bin2D'clearAt k1 st)
+    (\hm -> eff'hm2D'setAt k1 hm st)
+    (hm'lookup k1 init)
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  , Identable k1
+  , Identable k2
+  ) =>
+  Eff'RW'Method XM'clearAt
+    (R'HashMap2D k1 k2 v)
+    rwTag
+    k1
+    Unit where
+  eff'rw'call (R'HashMap2D (st /\ _)) k1 = eff'bin2D'clearAt k1 st
+
+instance
+  ( RW'Tag'CanWrite rwTag
+  , Identable k1
+  , Identable k2
+  ) =>
+  Eff'RW'Method XM'addAt
+    (R'HashMap2D k1 k2 v)
+    rwTag
+    (k1 /\ HashMap k2 v)
+    Unit where
+  eff'rw'call (R'HashMap2D (st /\ _)) (k1 /\ hm2d) = eff'hm2D'addAt k1 hm2d st
 
 ---------------------------------------------------------------------
 
@@ -75,86 +349,6 @@ instance
   ) =>
   X'Results'R'rw (R'HashMap2D k1 k2 v) (HashMap2D k1 k2 v) where
   x'results'r'rw'impl (R'HashMap2D (st /\ _)) = eff'hm2D'freeze st
-
-instance
-  ( Identable k1
-  , Identable k2
-  ) =>
-  X'R'RespondsTo'rw (R'HashMap2D k1 k2 v)
-    ( VariantF
-        ( extract :: Responds'Const (HashMap2D k1 k2 v)
-        , extractAt :: Responds k1 (HashMap k2 v)
-        , size :: Responds'Const Int
-        , sizeAt :: Responds k1 Int
-        , vals :: Responds'Const (Array v)
-        , valsAt :: Responds k1 (Array v)
-        , entries :: Responds'Const (Array $ (k1 /\ k2) /\ v)
-        , entriesAt :: Responds k1 (Array $ k2 /\ v)
-        , keys :: Responds'Const (Array $ k1 /\ k2)
-        , keysAt :: Responds k1 (Array k2)
-        , lookup :: Responds (k1 /\ k2) (Maybe v)
-        , d1keys :: Responds'Const (Array k1)
-        , d1entries :: Responds'Const (Array $ k1 /\ HashMap k2 v)
-        )
-    )
-    ( VariantF
-        ( assign :: Responds (HashMap2D k1 k2 v) Unit
-        , assignAt :: Responds (k1 /\ HashMap k2 v) Unit
-        , reset :: Responds'Const Unit
-        , resetAt :: Responds k1 Unit
-        , clear :: Responds'Const Unit
-        , clearAt :: Responds k1 Unit
-        , add :: Responds (HashMap2D k1 k2 v) Unit
-        , addAt :: Responds (k1 /\ HashMap k2 v) Unit
-        , remove :: Responds (k1 /\ k2) Unit
-        , insert :: Responds ((k1 /\ k2) /\ v) Unit
-        , replace :: Responds ((k1 /\ k2) /\ v) Unit
-        )
-    )
-    ( self :: (HashMap2D k1 k2 v)
-    , element :: v
-    , key :: k1 /\ k2
-    , d1key :: k1
-    , d2key :: k2
-    , d1element :: HashMap k2 v
-    ) where
-  x'r'mkResponds'rw'types = Proxy
-  x'r'mkResponds'r (R'HashMap2D (st /\ _)) = match
-    { extract: responds'const'eff $ eff'hm2D'freeze st
-    , extractAt: responds'run'eff \k1 -> eff'hm2D'freezeAt k1 st
-    , size: responds'const'eff $ eff'bin2D'size st
-    , sizeAt: responds'run'eff \k1 -> eff'bin2D'sizeAt k1 st
-    , vals: responds'const'eff $ eff'hm2D'entries st <#> map \e -> e.v
-    , valsAt: responds'run'eff \k1 -> eff'bin2D'valsAt k1 st <#> map _.v
-    , entries: responds'const'eff $ eff'hm2D'entries st
-        <#> map \e -> (e.k1 /\ e.k2) /\ e.v
-    , entriesAt: responds'run'eff \k1 ->
-        eff'bin2D'valsAt k1 st <#> map \e -> e.k /\ e.v
-    , keys: responds'const'eff $ eff'hm2D'entries st <#> map \e -> e.k1 /\ e.k2
-    , keysAt: responds'run'eff \k1 -> eff'bin2D'valsAt k1 st <#> map _.k
-    , lookup: responds'run'eff
-        \(k1 /\ k2) -> eff'bin2D'lookup k1 k2 st <#> map _.v
-    , d1keys: responds'const'eff $ eff'bin2D'd1keys st
-    , d1entries: responds'const'eff $ eff'hm2D'd1entries st
-    }
-  x'r'mkResponds'w (R'HashMap2D (st /\ init)) = match
-    { assign: responds'run'eff \hm2d -> eff'hm2D'set hm2d st
-    , assignAt: responds'run'eff \(k1 /\ hm2d) -> eff'hm2D'setAt k1 hm2d st
-    , reset: responds'const'eff $ eff'hm2D'set init st
-    , resetAt: responds'run'eff \k -> case hm'lookup k init of
-        Just hm -> eff'hm2D'setAt k hm st
-        Nothing -> eff'bin2D'clearAt k st
-    , clear: responds'const'eff $ eff'bin2D'clear st
-    , clearAt: responds'run'eff \k1 -> eff'bin2D'clearAt k1 st
-    , add: responds'run'eff \hm -> eff'hm2D'add hm st
-    , addAt: responds'run'eff \(k1 /\ hm) -> eff'hm2D'addAt k1 hm st
-    , remove: responds'run'eff \(k1 /\ k2) -> eff'bin2D'delete k1 k2 st
-    , insert: responds'run'eff \((k1 /\ k2) /\ v) ->
-        eff'bin2D'insert k1 k2 { k: k2, v } st
-    , replace: responds'run'eff \((k1 /\ k2) /\ v) ->
-        eff'bin2D'lookup k1 k2 st >>= \curr ->
-          whenJust curr $ const $ eff'bin2D'insert k1 k2 { k: k2, v } st
-    }
 
 ---------------------------------------------------------------------
 
@@ -247,10 +441,7 @@ eff'hm2D'freeze
   => Identable k2
   => Eff'HashMap2D k1 k2 v
   -> Effect (HashMap2D k1 k2 v)
-eff'hm2D'freeze st = do
-  d1keys <- eff'bin2D'd1keys st
-  entries <- for d1keys \k1 -> eff'hm2D'freezeAt k1 st <#> (/\) k1
-  pure $ hm'fromFoldable entries
+eff'hm2D'freeze st = eff'hm2D'd1entries st <#> hm'fromFoldable
 
 eff'hm2D'entries
   :: forall k1 k2 v

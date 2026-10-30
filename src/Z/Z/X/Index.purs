@@ -75,8 +75,12 @@ module Z.Z.X.Index
   , edit
   , edit'v
   , r'ask
+  , r'preview
+  , r'preview'b
   , r'run
   , r'run''
+  , r'toArrayOf
+  , r'toArrayOf'b
   , r'view
   , r'view'b
   , runner'_
@@ -216,39 +220,37 @@ import Z.Z.X.Core
   , x'run
   , x'run_
   )
-import Z.Z.X.Methods
-  ( T'x'extract
-  , T'x'over
-  , T'x'over'b
-  , T'x'preview
-  , T'x'preview'b
-  , T'x'set
-  , T'x'set'b
-  , T'x'setPure
-  , T'x'setPure'b
-  , T'x'toArrayOf
-  , T'x'toArrayOf'b
-  , T'x'view
-  , T'x'view'b
-  , x'cons
+import Z.Z.X.Method
+  ( T'xm'extract
+  , T'xm'over
+  , T'xm'over'b
+  , T'xm'preview
+  , T'xm'preview'b
+  , T'xm'set
+  , T'xm'set'b
+  , T'xm'setPure
+  , T'xm'setPure'b
+  , T'xm'toArrayOf
+  , T'xm'toArrayOf'b
+  , T'xm'view
+  , T'xm'view'b
+  , xm'assign
+  , xm'over
+  , xm'over'b
+  , xm'preview
+  , xm'preview'b
+  , xm'set
+  , xm'set'b
+  , xm'setPure
+  , xm'setPure'b
+  , xm'toArrayOf
+  , xm'toArrayOf'b
+  , xm'update
+  , xm'view
+  , xm'view'b
+  , (@.)
   )
-import Z.Z.X.Methods
-  ( x'assign
-  , x'extract
-  , x'over
-  , x'over'b
-  , x'preview
-  , x'preview'b
-  , x'set
-  , x'set'b
-  , x'setPure
-  , x'setPure'b
-  , x'toArrayOf
-  , x'toArrayOf'b
-  , x'update
-  , x'view
-  , x'view'b
-  ) as Methods
+import Z.Z.X.Methods (x'cons)
 import Z.Z.X.Readables.Base (LogLevel(..), X'BaseM, x'now'', x'out'')
 import Z.Z.X.Readables.RW.Ref (X'Ref)
 import Z.Z.X.Readables.RW.Vector (X'Writer)
@@ -338,11 +340,14 @@ x'permit = x'eval_ @p
 x'do :: forall @p x' x a. ConsSymbol p X'Permit x' x => Eff'At p a -> Run x a
 x'do (Eff'At eff) = pure unit <#> \_ -> unsafePerformEffect eff
 
+p'x'state :: Proxy "_'x'state"
+p'x'state = Proxy
+
 s'put :: forall x s. s -> Run (S' s x) Unit
-s'put = Methods.x'assign @"_'x'state"
+s'put = xm'assign p'x'state
 
 s'update :: forall x s. (s -> s) -> Run (S' s x) Unit
-s'update = Methods.x'update @"_'x'state"
+s'update = xm'update p'x'state
 
 s'run :: forall x r a. r -> Run (S' r x) a -> Run x (a /\ r)
 s'run = x'run @"_'x'state"
@@ -440,14 +445,26 @@ r'run = r'run'' @p
 
 type T'r'ask p = forall x' x r. ConsSymbol p (X'R r) x' x => Run x r
 
-r'ask :: forall p. T'use'r'AsSym p T'x'extract
-r'ask = Methods.x'extract @p
+r'ask :: forall p. T'use'r'AsSym p (T'xm'extract T'id)
+r'ask = (@.) (Proxy @p)
 
-r'view :: forall p. T'use'r'AsSym p T'x'view
-r'view = Methods.x'view @p
+r'view :: forall p. T'use'r'AsSym p (T'xm'view T'id)
+r'view = xm'view (Proxy @p)
 
-r'view'b :: forall @sym p. T'use'r'AsSym p (T'x'view'b sym)
-r'view'b = Methods.x'view'b @p @sym
+r'view'b :: forall @sym p. T'use'r'AsSym p (T'xm'view'b T'id sym)
+r'view'b = xm'view'b @sym (Proxy @p)
+
+r'preview :: forall p. T'use'r'AsSym p (T'xm'preview T'id)
+r'preview = xm'preview (Proxy @p)
+
+r'preview'b :: forall @sym p. T'use'r'AsSym p (T'xm'preview'b T'id sym)
+r'preview'b = xm'preview'b @sym (Proxy @p)
+
+r'toArrayOf :: forall p. T'use'r'AsSym p (T'xm'toArrayOf T'id)
+r'toArrayOf = xm'toArrayOf (Proxy @p)
+
+r'toArrayOf'b :: forall @sym p. T'use'r'AsSym p (T'xm'toArrayOf'b T'id sym)
+r'toArrayOf'b = xm'toArrayOf'b @sym (Proxy @p)
 
 ---------------------------------------------------------------------
 
@@ -767,44 +784,44 @@ type T'use's'AsSym p f = T'useAsSym "_'x'state" p f
 
 --------------------------------------------
 
-s'get :: forall p. T'use's'AsSym p T'x'extract
-s'get = Methods.x'extract @p
+s'get :: forall p. T'use's'AsSym p (T'xm'extract T'id)
+s'get = (@.) (Proxy @p)
 
-s'view :: forall p. T'use's'AsSym p T'x'view
-s'view = Methods.x'view @p
+s'view :: forall p. T'use's'AsSym p (T'xm'view T'id)
+s'view = xm'view (Proxy @p)
 
-s'view'b :: forall @sym p. T'use's'AsSym p (T'x'view'b sym)
-s'view'b = Methods.x'view'b @p @sym
+s'view'b :: forall @sym p. T'use's'AsSym p (T'xm'view'b T'id sym)
+s'view'b = xm'view'b @sym (Proxy @p)
 
-s'preview :: forall p. T'use's'AsSym p T'x'preview
-s'preview = Methods.x'preview @p
+s'preview :: forall p. T'use's'AsSym p (T'xm'preview T'id)
+s'preview = xm'preview (Proxy @p)
 
-s'preview'b :: forall @sym p. T'use's'AsSym p (T'x'preview'b sym)
-s'preview'b = Methods.x'preview'b @p @sym
+s'preview'b :: forall @sym p. T'use's'AsSym p (T'xm'preview'b T'id sym)
+s'preview'b = xm'preview'b @sym (Proxy @p)
 
-s'toArrayOf :: forall p. T'use's'AsSym p T'x'toArrayOf
-s'toArrayOf = Methods.x'toArrayOf @p
+s'toArrayOf :: forall p. T'use's'AsSym p (T'xm'toArrayOf T'id)
+s'toArrayOf = xm'toArrayOf (Proxy @p)
 
-s'toArrayOf'b :: forall @sym p. T'use's'AsSym p (T'x'toArrayOf'b sym)
-s'toArrayOf'b = Methods.x'toArrayOf'b @p @sym
+s'toArrayOf'b :: forall @sym p. T'use's'AsSym p (T'xm'toArrayOf'b T'id sym)
+s'toArrayOf'b = xm'toArrayOf'b @sym (Proxy @p)
 
-s'set :: forall p. T'use's'AsSym p T'x'set
-s'set = Methods.x'set @p
+s'set :: forall p. T'use's'AsSym p (T'xm'set T'id)
+s'set = xm'set (Proxy @p)
 
-s'set'b :: forall @sym p. T'use's'AsSym p (T'x'set'b sym)
-s'set'b = Methods.x'set'b @p @sym
+s'set'b :: forall @sym p. T'use's'AsSym p (T'xm'set'b T'id sym)
+s'set'b = xm'set'b @sym (Proxy @p)
 
-s'setPure :: forall p. T'use's'AsSym p T'x'setPure
-s'setPure = Methods.x'setPure @p
+s'setPure :: forall p. T'use's'AsSym p (T'xm'setPure T'id)
+s'setPure = xm'setPure (Proxy @p)
 
-s'setPure'b :: forall @sym p. T'use's'AsSym p (T'x'setPure'b sym)
-s'setPure'b = Methods.x'setPure'b @p @sym
+s'setPure'b :: forall @sym p. T'use's'AsSym p (T'xm'setPure'b T'id sym)
+s'setPure'b = xm'setPure'b @sym (Proxy @p)
 
-s'over :: forall p. T'use's'AsSym p T'x'over
-s'over = Methods.x'over @p
+s'over :: forall p. T'use's'AsSym p (T'xm'over T'id)
+s'over = xm'over (Proxy @p)
 
-s'over'b :: forall @sym p. T'use's'AsSym p (T'x'over'b sym)
-s'over'b = Methods.x'over'b @p @sym
+s'over'b :: forall @sym p. T'use's'AsSym p (T'xm'over'b T'id sym)
+s'over'b = xm'over'b @sym (Proxy @p)
 
 --------------------------------------------
 

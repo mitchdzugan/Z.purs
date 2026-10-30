@@ -56,6 +56,9 @@ type XPageSpecHandle x v r =
 ggPageSpecHandle :: forall x v r. GGPageSpec v r -> XPageSpecHandle x v r
 ggPageSpecHandle = runExists ggPageSpecHandleImpl
 
+p'seenIds :: Proxy "seenIds"
+p'seenIds = default
+
 ggPageSpecHandleImpl
   :: forall x v r pnr
    . GGPageSpecF v r pnr
@@ -66,8 +69,8 @@ ggPageSpecHandleImpl (GGPageSpecF pageL dataL) = do
   where
   loop op client networkControl = do
     s'toArrayOf (_o_ @"res" @"nodes+.id" dataL) >>= \ids -> do
-      (x'assign @"seenIds" $ hs'fromFoldable ids)
-    seenIds <- x'extract @"seenIds"
+      p'seenIds @= hs'fromFoldable ids
+    seenIds <- (@.) p'seenIds
     total <- s'view (_o_ @"res" @"pageInfo.total" dataL)
     when (hs'size seenIds < total) do
       s'over (_o @"vars" pageL) inc

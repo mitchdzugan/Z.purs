@@ -2,13 +2,16 @@ module Z.Z.X.Core
   ( Def'Sel'Evaluable
   , Def'Sel'm
   , Def'Sel'result
-  , R'Identity'RespondsTo
-  , R'Tagged(..)
-  , RW'Tagged(..)
+  , R'Tagged
+  , RW'Tag'R
+  , RW'Tag'RW
+  , RW'Tag'W
+  , RW'Tagged
   , T'Consable
   , T'Evaluable
   , T'use'_'AsSym
-  , W'Tagged(..)
+  , W'Tagged
+  , WithRWTag(..)
   , X'Evaluable(..)
   , X'EvaluableAt(..)
   , _'eval
@@ -17,16 +20,16 @@ module Z.Z.X.Core
   , _'exec_
   , _'run
   , _'run_
+  , class RW'Tag'CanRead
+  , class RW'Tag'CanWrite
   , class X'Buildable
   , class X'Buildable'RL
   , class X'Consable
-  , class X'R'RespondsTo
-  , class X'R'RespondsTo'rw
   , class X'Readable
   , class X'Readable'rw
-  , class X'RespondsTo
   , class X'Results
   , class X'Results'R
+  , class X'Results'R'Eff
   , class X'Results'R'rw
   , x'build
   , x'buildable'eval
@@ -40,18 +43,10 @@ module Z.Z.X.Core
   , x'evaluable_
   , x'exec
   , x'exec_
-  , x'mkResponds
-  , x'mkResponds'types
-  , x'r'mkResponds
-  , x'r'mkResponds'r
-  , x'r'mkResponds'rw'types
-  , x'r'mkResponds'types
-  , x'r'mkResponds'w
   , x'readable'mk
   , x'readable'rw'mk
-  , x'respondTo
-  , x'respondTo_
   , x'results'impl
+  , x'results'r'eff'impl
   , x'results'r'impl
   , x'results'r'rw'impl
   , x'run
@@ -63,7 +58,6 @@ import Z.Z.X.UtilPrelude
 import Prim.RowList as RL
 import Unsafe.Coerce (unsafeCoerce)
 import Z.Z.Core (T'useAsSym, rec'get, rec'insert)
-import Z.Z.X.Responds (Responds, Responds'Const, responds'const, responds'id)
 
 type T'Consable p m param res'm =
   forall x' x a
@@ -74,13 +68,6 @@ type T'Consable p m param res'm =
 
 class X'Consable m param res'm | m -> param res'm where
   x'consable'impl :: forall p. Proxy p -> T'Consable p m param res'm
-
-class
-  X'RespondsTo m responds responds'types
-  | m -> responds responds'types where
-  x'mkResponds'types :: Proxy (Record responds'types)
-  x'mkResponds
-    :: forall p x' x a. ConsSymbol p m x' x => Proxy p -> responds a -> Run x a
 
 ------------------------------------------------------------------------------
 
@@ -97,14 +84,13 @@ instance X'Results'R r result => X'Results (Reader r) result where
 class X'Results'R'rw r result | r -> result where
   x'results'r'rw'impl :: r -> Effect result
 
-instance X'Results'R'rw r result => X'Results'R (R'Tagged r) result where
-  x'results'r'impl (R'Tagged r) = unsafePerformEffect $ x'results'r'rw'impl r
+class X'Results'R'Eff r result | r -> result where
+  x'results'r'eff'impl :: r -> Effect result
 
-instance X'Results'R'rw r result => X'Results'R (RW'Tagged r) result where
-  x'results'r'impl (RW'Tagged r) = unsafePerformEffect $ x'results'r'rw'impl r
-
-instance X'Results'R'rw r result => X'Results'R (W'Tagged r) result where
-  x'results'r'impl (W'Tagged r) = unsafePerformEffect $ x'results'r'rw'impl r
+instance X'Results'R'rw r result => X'Results'R (WithRWTag tag r) result where
+  x'results'r'impl (WithRWTag r) = unsafePerformEffect $ x'results'r'rw'impl r
+else instance X'Results'R'Eff r result => X'Results'R r result where
+  x'results'r'impl r = unsafePerformEffect $ x'results'r'eff'impl r
 
 ------------------------------------------------------------------------------
 
@@ -255,136 +241,54 @@ instance
     impl p param m =
       wrap <$> runReaderAt p (unsafePerformEffect $ x'readable'mk @r param) m
 
-instance
-  X'R'RespondsTo r responds responds'types =>
-  X'RespondsTo (Reader r) responds responds'types where
-  x'mkResponds'types = Proxy
-  x'mkResponds p responds = asksAt p \r -> x'r'mkResponds @r r responds
-
 class X'Readable r param | r -> param where
   x'readable'mk :: param -> Effect r
-
-class
-  X'R'RespondsTo r responds responds'types
-  | r -> responds responds'types where
-  x'r'mkResponds'types :: Proxy (Record responds'types)
-  x'r'mkResponds :: forall a. r -> responds a -> a
-
-------------------------------------------------------------------------------
-
-x'respondTo
-  :: forall @p m x' x @method args res resp' resp resp'types
-   . ConsSymbol method (Responds args res) resp' resp
-  => ConsSymbol p m x' x
-  => X'RespondsTo m (VariantF resp) resp'types
-  => args
-  -> Run x res
-x'respondTo args = do
-  x'mkResponds @m (Proxy @p) $ inj (Proxy @method) (responds'id args)
-
-x'respondTo_
-  :: forall @p m x' x @method args res resp' resp resp'types
-   . ConsSymbol method (Responds args res) resp' resp
-  => ConsSymbol p m x' x
-  => Generable args GDefault args
-  => X'RespondsTo m (VariantF resp) resp'types
-  => Run x res
-x'respondTo_ = do
-  x'mkResponds @m (Proxy @p) $ inj (Proxy @method) (responds'id $ g @args)
 
 ------------------------------------------------------------------------------
 
 instance X'Readable (Identity r) r where
   x'readable'mk = pure <<< Identity
 
-type R'Identity'RespondsTo r = VariantF
-  (extract :: Responds'Const r, result :: Responds'Const r)
-
-instance X'R'RespondsTo (Identity r) (R'Identity'RespondsTo r) (self :: r) where
-  x'r'mkResponds'types = Proxy
-  x'r'mkResponds (Identity r) = match
-    { extract: responds'const r, result: responds'const r }
-
-instance X'Results'R (Identity r) r where
-  x'results'r'impl = unwrap
+instance X'Results'R'Eff (Identity r) r where
+  x'results'r'eff'impl = pure <<< unwrap
 
 ------------------------------------------------------------------------------
 
 instance X'Readable Unit Unit where
   x'readable'mk = pure
 
-instance X'R'RespondsTo Unit (VariantF ()) () where
-  x'r'mkResponds'types = Proxy
-  x'r'mkResponds _ = match {}
-
-instance X'Results'R Unit Unit where
-  x'results'r'impl _ = unit
+instance X'Results'R'Eff Unit Unit where
+  x'results'r'eff'impl _ = pure unit
 
 ---------------------------------------------------------------------
 
-newtype R'Tagged r = R'Tagged r
-newtype W'Tagged r = W'Tagged r
-newtype RW'Tagged r = RW'Tagged r
+foreign import data RW'Tag'R :: Type
+foreign import data RW'Tag'W :: Type
+foreign import data RW'Tag'RW :: Type
 
----------------------------------------------------------------------
+class RW'Tag'CanRead t
 
-class
-  X'R'RespondsTo'rw r responds'r responds'w responds'types
-  | r -> responds'r responds'w responds'types where
-  x'r'mkResponds'rw'types :: Proxy (Record responds'types)
-  x'r'mkResponds'r :: forall a. r -> responds'r a -> a
-  x'r'mkResponds'w :: forall a. r -> responds'w a -> a
+instance RW'Tag'CanRead RW'Tag'R
+instance RW'Tag'CanRead RW'Tag'RW
 
-instance
-  ( X'R'RespondsTo'rw r responds'r responds'w responds'types
-  ) =>
-  X'R'RespondsTo (W'Tagged r) responds'w responds'types where
-  x'r'mkResponds'types = Proxy
-  x'r'mkResponds (W'Tagged r) = x'r'mkResponds'w @r r
+class RW'Tag'CanWrite w
 
-instance
-  ( X'R'RespondsTo'rw r responds'r responds'w responds'types
-  ) =>
-  X'R'RespondsTo (R'Tagged r) responds'r responds'types where
-  x'r'mkResponds'types = Proxy
-  x'r'mkResponds (R'Tagged r) = x'r'mkResponds'r @r r
+instance RW'Tag'CanWrite RW'Tag'W
+instance RW'Tag'CanWrite RW'Tag'RW
 
-instance
-  ( X'R'RespondsTo'rw r (VariantF responds'r) (VariantF responds'w)
-      responds'types
-  , Contractable responds responds'r
-  , Contractable responds responds'w
-  , Union responds'r responds'w responds
-  ) =>
-  X'R'RespondsTo (RW'Tagged r) (VariantF responds) responds'types where
-  x'r'mkResponds'types = Proxy
-  x'r'mkResponds (RW'Tagged r) vf = case contract'r vf of
-    Just (vf'r) -> x'r'mkResponds'r @r r vf'r
-    Nothing -> case contract'w vf of
-      Just (vf'r) -> x'r'mkResponds'w @r r vf'r
-      Nothing -> unsafePerformEffect $ throw "unhandled case"
-    where
-    contract'r :: forall a. VariantF responds a -> Maybe (VariantF responds'r a)
-    contract'r = contract
+newtype WithRWTag tag t = WithRWTag t
 
-    contract'w :: forall a. VariantF responds a -> Maybe (VariantF responds'w a)
-    contract'w = contract
+type R'Tagged r = WithRWTag RW'Tag'R r
+type W'Tagged r = WithRWTag RW'Tag'W r
+type RW'Tagged r = WithRWTag RW'Tag'RW r
 
 ---------------------------------------------------------------------
 
 class X'Readable'rw r param | r -> param where
   x'readable'rw'mk :: param -> Effect r
 
-instance X'Readable'rw r param => X'Readable (R'Tagged r) param where
-  x'readable'mk param = R'Tagged <$> x'readable'rw'mk @r param
-
-instance X'Readable'rw r param => X'Readable (RW'Tagged r) param where
-  x'readable'mk param = RW'Tagged <$> x'readable'rw'mk @r param
-
-instance X'Readable'rw r param => X'Readable (W'Tagged r) param where
-  x'readable'mk param = W'Tagged <$> x'readable'rw'mk @r param
-
----------------------------------------------------------------------
+instance X'Readable'rw r param => X'Readable (WithRWTag tag r) param where
+  x'readable'mk param = WithRWTag <$> x'readable'rw'mk @r param
 
 ---------------------------------------------------------------------
 
