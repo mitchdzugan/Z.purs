@@ -80,16 +80,16 @@ domW'exec :: forall x. Run (DomW' x) Unit -> Run x ReactEls
 domW'exec m = domW'runWithCompleted [] m <#> snd
 
 domW'push :: forall x. ReactEl -> Run (DomW' x) Unit
-domW'push = xm'effCall (Proxy @"domW") (Proxy @"push")
+domW'push = x'effCall @"domW" @"push"
 
 domW'concat :: forall x. ReactEls -> Run (DomW' x) Unit
 domW'concat els = forM_ els domW'push
 
 domW'start :: forall x. Run (DomW' x) DomW'ParentId
-domW'start = xm'effGet (Proxy @"domW") (Proxy @"start")
+domW'start = x'effGet @"domW" @"start"
 
 domW'finish :: forall x. DomW'ParentId -> Run (DomW' x) ReactEls
-domW'finish = xm'effCall (Proxy @"domW") (Proxy @"finish")
+domW'finish = x'effCall @"domW" @"finish"
 
 -------------------------------------------------------------------------
 
@@ -149,19 +149,19 @@ attrW'exec :: forall x. Run (AttrW' x) Unit -> Run x Json
 attrW'exec m = attrW'run m <#> snd
 
 attrW'resetClassnames :: forall x. Run (AttrW' x) Unit
-attrW'resetClassnames = xm'effGet (Proxy @"attrW") (Proxy @"resetClassnames")
+attrW'resetClassnames = x'effGet @"attrW" @"resetClassnames"
 
 attrW'resetStyles :: forall x. Run (AttrW' x) Unit
-attrW'resetStyles = xm'effGet (Proxy @"attrW") (Proxy @"resetStyles")
+attrW'resetStyles = x'effGet @"attrW" @"resetStyles"
 
 attrW'addAttr :: forall x. String -> JsAny -> Run (AttrW' x) Unit
-attrW'addAttr = curry $ xm'effCall (Proxy @"attrW") (Proxy @"addAttr")
+attrW'addAttr = curry $ x'effCall @"attrW" @"addAttr"
 
 attrW'addClassname :: forall x. String -> Run (AttrW' x) Unit
-attrW'addClassname = xm'effCall (Proxy @"attrW") (Proxy @"addClassname")
+attrW'addClassname = x'effCall @"attrW" @"addClassname"
 
 attrW'addStyle :: forall x. String -> String -> Run (AttrW' x) Unit
-attrW'addStyle = curry $ xm'effCall (Proxy @"attrW") (Proxy @"addStyle")
+attrW'addStyle = curry $ x'effCall @"attrW" @"addStyle"
 
 ------------------------------------------------------------
 

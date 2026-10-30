@@ -28,7 +28,7 @@ import Z.Z.X.Core
   )
 import Z.Z.X.Index (Edit)
 import Z.Z.X.Method
-  ( xm'effCall
+  ( x'effCall
   )
 
 ---------------------------------------------------------------------
@@ -85,7 +85,7 @@ type T'whr'createGame p =
 
 whr'createGame'' :: forall @p. T'whr'createGame p
 whr'createGame'' winner loser timestep handicap =
-  xm'effCall (Proxy @p) (Proxy @"createGame")
+  x'effCall @p @"createGame"
     (winner /\ loser /\ timestep /\ handicap)
 
 whr'createGame :: forall p. T'use'whr'AsSym p T'whr'createGame
@@ -97,7 +97,7 @@ type T'whr'iterate p =
   forall t x' x. ConsSymbol p (X'Whr t) x' x => Int -> Run x Unit
 
 whr'iterate'' :: forall @p. T'whr'iterate p
-whr'iterate'' = xm'effCall (Proxy @p) (Proxy @"iterate")
+whr'iterate'' = x'effCall @p @"iterate"
 
 whr'iterate :: forall p. T'use'whr'AsSym p T'whr'iterate
 whr'iterate = whr'iterate'' @p
@@ -108,7 +108,7 @@ type T'whr'ratingsForPlayer p =
   forall t x' x. ConsSymbol p (X'Whr t) x' x => t -> Run x Whr'Ratings
 
 whr'ratingsForPlayer'' :: forall @p. T'whr'ratingsForPlayer p
-whr'ratingsForPlayer'' = xm'effCall (Proxy @p) (Proxy @"ratingsForPlayer")
+whr'ratingsForPlayer'' = x'effCall @p @"ratingsForPlayer"
 
 whr'ratingsForPlayer :: forall p. T'use'whr'AsSym p T'whr'ratingsForPlayer
 whr'ratingsForPlayer = whr'ratingsForPlayer'' @p

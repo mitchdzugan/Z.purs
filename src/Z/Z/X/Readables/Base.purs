@@ -17,7 +17,7 @@ import Z.Z.X.Core
   , X'Evaluable
   , x'evaluable_
   )
-import Z.Z.X.Method (xm'effCall, xm'effGet)
+import Z.Z.X.Method (x'effCall, x'effGet)
 
 data LogLevel = LogLevel'Info | LogLevel'Warning | LogLevel'Error
 
@@ -52,8 +52,8 @@ x'base :: X'Evaluable X'BaseM
 x'base = x'evaluable_ @X'BaseM
 
 x'now'' :: forall @p x' x. ConsSymbol p X'BaseM x' x => Run x DateTime
-x'now'' = xm'effGet (Proxy @p) (Proxy @"now")
+x'now'' = x'effGet @p @"now"
 
 x'out''
   :: forall @p x' x a. ConsSymbol p X'BaseM x' x => LogLevel -> a -> Run x Unit
-x'out'' ll = xm'effCall (Proxy @p) (Proxy @"out") <<< (/\) ll <<< loggable
+x'out'' ll = x'effCall @p @"out" <<< (/\) ll <<< loggable

@@ -259,7 +259,7 @@ getH2hData spec allowRefetch =
         else pure eventData'
       let seasonId = seasonIdByDate eventData.tournament.date
       x'insert @"seasonH2hEvents" (seasonId /\ eventData.id) eventData
-    x'd1entries @"seasonH2hEvents" <#> arr'sortWith fst
+    x'd1'entries @"seasonH2hEvents" <#> arr'sortWith fst
 
 type RatingData =
   { raw :: Number
@@ -479,7 +479,7 @@ buildCurrentSeasons spec = do
           x'consAt @"usedTags" clmId player.gamerTag
           x'insert @"participants" clmId participant
 
-      x'd1cons @"setGroups" default
+      x'd1'cons @"setGroups" default
       let eventSets = arr'concat $ event.phaseGroups <#> hm'vals <<< _.sets
       forM_ (arr'sortWith _.eventOrder eventSets) \set -> do
         x'consLast @"setGroups" set

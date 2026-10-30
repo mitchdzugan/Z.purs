@@ -3,56 +3,56 @@ module Z.Z.X.Method
   , (@.)
   , (@<=>)
   , (@=)
-  , T'xm'add
-  , T'xm'addAt
-  , T'xm'alter
-  , T'xm'assign
-  , T'xm'assignAt
-  , T'xm'assignPure
-  , T'xm'clear
-  , T'xm'clearAt
-  , T'xm'cons
-  , T'xm'consAt
-  , T'xm'consLast
-  , T'xm'd1'cons
-  , T'xm'd1'entries
-  , T'xm'd1'keys
-  , T'xm'effCall
-  , T'xm'effGet
-  , T'xm'entries
-  , T'xm'entriesAt
-  , T'xm'extract
-  , T'xm'extractAt
-  , T'xm'has
-  , T'xm'insert
-  , T'xm'keys
-  , T'xm'keysAt
-  , T'xm'lookup
-  , T'xm'modify
-  , T'xm'over
-  , T'xm'over'b
-  , T'xm'pop
-  , T'xm'preview
-  , T'xm'preview'b
-  , T'xm'push
-  , T'xm'remove
-  , T'xm'replace
-  , T'xm'reset
-  , T'xm'resetAt
-  , T'xm'set
-  , T'xm'set'b
-  , T'xm'setPure
-  , T'xm'setPure'b
-  , T'xm'size
-  , T'xm'sizeAt
-  , T'xm'toArrayOf
-  , T'xm'toArrayOf'b
-  , T'xm'uncons
-  , T'xm'update
-  , T'xm'vals
-  , T'xm'valsAt
-  , T'xm'view
-  , T'xm'view'b
+  , T'x'add
+  , T'x'addAt
+  , T'x'alter
+  , T'x'assign
+  , T'x'assignAt
+  , T'x'assignPure
+  , T'x'clear
+  , T'x'clearAt
+  , T'x'cons
+  , T'x'consAt
+  , T'x'consLast
+  , T'x'd1'cons
+  , T'x'd1'entries
+  , T'x'd1'keys
+  , T'x'effCall
+  , T'x'effGet
+  , T'x'entries
+  , T'x'entriesAt
+  , T'x'extract
+  , T'x'extractAt
+  , T'x'has
+  , T'x'insert
+  , T'x'keys
+  , T'x'keysAt
+  , T'x'lookup
+  , T'x'modify
+  , T'x'over
+  , T'x'over'b
+  , T'x'pop
+  , T'x'preview
+  , T'x'preview'b
+  , T'x'push
+  , T'x'remove
+  , T'x'replace
+  , T'x'reset
+  , T'x'resetAt
+  , T'x'set
+  , T'x'set'b
+  , T'x'setPure
+  , T'x'setPure'b
+  , T'x'size
+  , T'x'sizeAt
+  , T'x'toArrayOf
+  , T'x'toArrayOf'b
+  , T'x'uncons
+  , T'x'update
+  , T'x'vals
+  , T'x'valsAt
+  , T'x'view
+  , T'x'view'b
   , XG'clear
   , XG'd1'entries
   , XG'd1'keys
@@ -110,56 +110,56 @@ module Z.Z.X.Method
   , eff'rw'get
   , x'call
   , x'get
-  , xm'add
-  , xm'addAt
-  , xm'alter
-  , xm'assign
-  , xm'assignAt
-  , xm'assignPure
-  , xm'clear
-  , xm'clearAt
-  , xm'cons
-  , xm'consAt
-  , xm'consLast
-  , xm'd1'cons
-  , xm'd1'entries
-  , xm'd1'keys
-  , xm'effCall
-  , xm'effGet
-  , xm'entries
-  , xm'entriesAt
-  , xm'extract
-  , xm'extractAt
-  , xm'has
-  , xm'insert
-  , xm'keys
-  , xm'keysAt
-  , xm'lookup
-  , xm'modify
-  , xm'over
-  , xm'over'b
-  , xm'pop
-  , xm'preview
-  , xm'preview'b
-  , xm'push
-  , xm'remove
-  , xm'replace
-  , xm'reset
-  , xm'resetAt
-  , xm'set
-  , xm'set'b
-  , xm'setPure
-  , xm'setPure'b
-  , xm'size
-  , xm'sizeAt
-  , xm'toArrayOf
-  , xm'toArrayOf'b
-  , xm'uncons
-  , xm'update
-  , xm'vals
-  , xm'valsAt
-  , xm'view
-  , xm'view'b
+  , x'add
+  , x'addAt
+  , x'alter
+  , x'assign
+  , x'assignAt
+  , x'assignPure
+  , x'clear
+  , x'clearAt
+  , x'cons
+  , x'consAt
+  , x'consLast
+  , x'd1'cons
+  , x'd1'entries
+  , x'd1'keys
+  , x'effCall
+  , x'effGet
+  , x'entries
+  , x'entriesAt
+  , x'extract
+  , x'extractAt
+  , x'has
+  , x'insert
+  , x'keys
+  , x'keysAt
+  , x'lookup
+  , x'modify
+  , x'over
+  , x'over'b
+  , x'pop
+  , x'preview
+  , x'preview'b
+  , x'push
+  , x'remove
+  , x'replace
+  , x'reset
+  , x'resetAt
+  , x'set
+  , x'set'b
+  , x'setPure
+  , x'setPure'b
+  , x'size
+  , x'sizeAt
+  , x'toArrayOf
+  , x'toArrayOf'b
+  , x'uncons
+  , x'update
+  , x'vals
+  , x'valsAt
+  , x'view
+  , x'view'b
   ) where
 
 import Prelude
@@ -293,22 +293,22 @@ class (X'Method XM'assign m t Unit, XM'type m XMt'self t) <= XC'assign m t
 
 instance (X'Method XM'assign m t Unit, XM'type m XMt'self t) => XC'assign m t
 
-type T'xm'assign use p =
+type T'x'assign use p =
   forall x' x m t
    . XC'assign m t
   => ConsSymbol p m x' x
   => use (t -> Run x Unit)
 
-xm'assign :: forall @p. T'xm'assign T'id p
-xm'assign = xAt'call @p @XM'assign
+x'assign :: forall @p. T'x'assign T'id p
+x'assign = xAt'call @p @XM'assign
 
-infixl 6 xm'assign as @=
+infixl 6 x'assign as @=
 
 -----------------------------------------
 
 foreign import data XM'assignAt :: Type
 
-type T'xm'assignAt use p =
+type T'x'assignAt use p =
   forall x' x m k v
    . X'Method XM'assignAt m (k /\ v) Unit
   => XM'type m XMt'd1'key k
@@ -316,82 +316,82 @@ type T'xm'assignAt use p =
   => ConsSymbol p m x' x
   => use (k -> v -> Run x Unit)
 
-xm'assignAt :: forall @p. T'xm'assignAt T'id p
-xm'assignAt = curry (xAt'call @p @XM'assignAt)
+x'assignAt :: forall @p. T'x'assignAt T'id p
+x'assignAt = curry (xAt'call @p @XM'assignAt)
 
 -----------------------------------------
 
-type T'xm'assignPure use p =
+type T'x'assignPure use p =
   forall x' x m t a
    . XC'assign m (a t)
   => ConsSymbol p m x' x
   => Applicative a
   => use (t -> Run x Unit)
 
-xm'assignPure :: forall @p. T'xm'assignPure T'id p
-xm'assignPure v = xAt'call @p @XM'assign (pure v)
+x'assignPure :: forall @p. T'x'assignPure T'id p
+x'assignPure v = xAt'call @p @XM'assign (pure v)
 
-infixl 6 xm'assignPure as @<=>
+infixl 6 x'assignPure as @<=>
 
 -----------------------------------------
 
 foreign import data XG'reset :: Type
 
-type T'xm'reset use p =
+type T'x'reset use p =
   forall x' x m
    . X'Getter XG'reset m Unit
   => ConsSymbol p m x' x
   => use (Run x Unit)
 
-xm'reset :: forall @p. T'xm'reset T'id p
-xm'reset = xAt'get @p @XG'reset
+x'reset :: forall @p. T'x'reset T'id p
+x'reset = xAt'get @p @XG'reset
 
 -----------------------------------------
 
 foreign import data XM'resetAt :: Type
 
-type T'xm'resetAt use p =
+type T'x'resetAt use p =
   forall x' x m k
    . X'Method XM'resetAt m k Unit
   => XM'type m XMt'd1'key k
   => ConsSymbol p m x' x
   => use (k -> Run x Unit)
 
-xm'resetAt :: forall @p. T'xm'resetAt T'id p
-xm'resetAt = xAt'call @p @XM'resetAt
+x'resetAt :: forall @p. T'x'resetAt T'id p
+x'resetAt = xAt'call @p @XM'resetAt
 
 -----------------------------------------
 
 foreign import data XM'sizeAt :: Type
 
-type T'xm'sizeAt use p =
+type T'x'sizeAt use p =
   forall x' x m k
    . X'Method XM'sizeAt m k Int
   => XM'type m XMt'd1'key k
   => ConsSymbol p m x' x
   => use (k -> Run x Int)
 
-xm'sizeAt :: forall @p. T'xm'sizeAt T'id p
-xm'sizeAt = xAt'call @p @XM'sizeAt
+x'sizeAt :: forall @p. T'x'sizeAt T'id p
+x'sizeAt = xAt'call @p @XM'sizeAt
 
 -----------------------------------------
 
 foreign import data XG'size :: Type
 
-type T'xm'size use p =
+type T'x'size use p =
   forall x' x m
    . X'Getter XG'size m Int
   => ConsSymbol p m x' x
   => use (Run x Int)
 
-xm'size :: forall @p. T'xm'size T'id p
-xm'size = xAt'get @p @XG'size
+x'size :: forall @p. T'x'size T'id p
+x'size = xAt'get @p @XG'size
 
 -----------------------------------------
 
 foreign import data XM'valsAt :: Type
 
-type T'xm'valsAt use p =
+type T'x'valsAt use p =
   forall x' x m k v
    . X'Method XM'valsAt m k (Array v)
   => XM'type m XMt'd1'key k
@@ -399,28 +399,28 @@ type T'xm'valsAt use p =
   => ConsSymbol p m x' x
   => use (k -> Run x (Array v))
 
-xm'valsAt :: forall @p. T'xm'valsAt T'id p
-xm'valsAt = xAt'call @p @XM'valsAt
+x'valsAt :: forall @p. T'x'valsAt T'id p
+x'valsAt = xAt'call @p @XM'valsAt
 
 -----------------------------------------
 
 foreign import data XG'vals :: Type
 
-type T'xm'vals use p =
+type T'x'vals use p =
   forall x' x m t
    . X'Getter XG'vals m (Array t)
   => XM'type m XMt'value t
   => ConsSymbol p m x' x
   => use (Run x (Array t))
 
-xm'vals :: forall @p. T'xm'vals T'id p
-xm'vals = xAt'get @p @XG'vals
+x'vals :: forall @p. T'x'vals T'id p
+x'vals = xAt'get @p @XG'vals
 
 -----------------------------------------
 
 foreign import data XM'keysAt :: Type
 
-type T'xm'keysAt use p =
+type T'x'keysAt use p =
   forall x' x m k1 k2
    . X'Method XM'keysAt m k1 (Array k2)
   => XM'type m XMt'd1'key k1
@@ -428,28 +428,28 @@ type T'xm'keysAt use p =
   => ConsSymbol p m x' x
   => use (k1 -> Run x (Array k2))
 
-xm'keysAt :: forall @p. T'xm'keysAt T'id p
-xm'keysAt = xAt'call @p @XM'keysAt
+x'keysAt :: forall @p. T'x'keysAt T'id p
+x'keysAt = xAt'call @p @XM'keysAt
 
 -----------------------------------------
 
 foreign import data XG'keys :: Type
 
-type T'xm'keys use p =
+type T'x'keys use p =
   forall x' x m t
    . X'Getter XG'keys m (Array t)
   => XM'type m XMt'key t
   => ConsSymbol p m x' x
   => use (Run x (Array t))
 
-xm'keys :: forall @p. T'xm'keys T'id p
-xm'keys = xAt'get @p @XG'keys
+x'keys :: forall @p. T'x'keys T'id p
+x'keys = xAt'get @p @XG'keys
 
 -----------------------------------------
 
 foreign import data XM'entriesAt :: Type
 
-type T'xm'entriesAt use p =
+type T'x'entriesAt use p =
   forall x' x m k1 k2 v
    . X'Method XM'entriesAt m k1 (Array (k2 /\ v))
   => XM'type m XMt'd1'key k1
@@ -458,14 +458,14 @@ type T'xm'entriesAt use p =
   => ConsSymbol p m x' x
   => use (k1 -> Run x (Array (k2 /\ v)))
 
-xm'entriesAt :: forall @p. T'xm'entriesAt T'id p
-xm'entriesAt = xAt'call @p @XM'entriesAt
+x'entriesAt :: forall @p. T'x'entriesAt T'id p
+x'entriesAt = xAt'call @p @XM'entriesAt
 
 -----------------------------------------
 
 foreign import data XG'entries :: Type
 
-type T'xm'entries use p =
+type T'x'entries use p =
   forall x' x m k v
    . X'Getter XG'entries m (Array (k /\ v))
   => XM'type m XMt'key k
@@ -473,14 +473,14 @@ type T'xm'entries use p =
   => ConsSymbol p m x' x
   => use (Run x (Array (k /\ v)))
 
-xm'entries :: forall @p. T'xm'entries T'id p
-xm'entries = xAt'get @p @XG'entries
+x'entries :: forall @p. T'x'entries T'id p
+x'entries = xAt'get @p @XG'entries
 
 -----------------------------------------
 
 foreign import data XM'lookup :: Type
 
-type T'xm'lookup use p =
+type T'x'lookup use p =
   forall x' x m k v
    . X'Method XM'lookup m k (Maybe v)
   => XM'type m XMt'key k
@@ -488,12 +488,12 @@ type T'xm'lookup use p =
   => ConsSymbol p m x' x
   => use (k -> Run x (Maybe v))
 
-xm'lookup :: forall @p. T'xm'lookup T'id p
-xm'lookup = xAt'call @p @XM'lookup
+x'lookup :: forall @p. T'x'lookup T'id p
+x'lookup = xAt'call @p @XM'lookup
 
 -----------------------------------------
 
-type T'xm'has use p =
+type T'x'has use p =
   forall x' x m k v
    . X'Method XM'lookup m k (Maybe v)
   => XM'type m XMt'key k
@@ -501,28 +501,28 @@ type T'xm'has use p =
   => ConsSymbol p m x' x
   => use (k -> Run x Boolean)
 
-xm'has :: forall @p. T'xm'has T'id p
-xm'has k = xm'lookup @p k <#> isJust
+x'has :: forall @p. T'x'has T'id p
+x'has k = x'lookup @p k <#> isJust
 
 -----------------------------------------
 
 foreign import data XG'd1'keys :: Type
 
-type T'xm'd1'keys use p =
+type T'x'd1'keys use p =
   forall x' x m k
    . X'Getter XG'd1'keys m (Array k)
   => XM'type m XMt'd1'key k
   => ConsSymbol p m x' x
   => use (Run x (Array k))
 
-xm'd1'keys :: forall @p. T'xm'd1'keys T'id p
-xm'd1'keys = xAt'get @p @XG'd1'keys
+x'd1'keys :: forall @p. T'x'd1'keys T'id p
+x'd1'keys = xAt'get @p @XG'd1'keys
 
 -----------------------------------------
 
 foreign import data XG'd1'entries :: Type
 
-type T'xm'd1'entries use p =
+type T'x'd1'entries use p =
   forall x' x m k v
    . X'Getter XG'd1'entries m (Array (k /\ v))
   => XM'type m XMt'd1'key k
@@ -530,55 +530,55 @@ type T'xm'd1'entries use p =
   => ConsSymbol p m x' x
   => use (Run x (Array (k /\ v)))
 
-xm'd1'entries :: forall @p. T'xm'd1'entries T'id p
-xm'd1'entries = xAt'get @p @XG'd1'entries
+x'd1'entries :: forall @p. T'x'd1'entries T'id p
+x'd1'entries = xAt'get @p @XG'd1'entries
 
 -----------------------------------------
 
 foreign import data XG'clear :: Type
 
-type T'xm'clear use p =
+type T'x'clear use p =
   forall x' x m
    . X'Getter XG'clear m Unit
   => ConsSymbol p m x' x
   => use (Run x Unit)
 
-xm'clear :: forall @p. T'xm'clear T'id p
-xm'clear = xAt'get @p @XG'clear
+x'clear :: forall @p. T'x'clear T'id p
+x'clear = xAt'get @p @XG'clear
 
 -----------------------------------------
 
 foreign import data XM'clearAt :: Type
 
-type T'xm'clearAt use p =
+type T'x'clearAt use p =
   forall x' x m k
    . X'Method XM'clearAt m k Unit
   => XM'type m XMt'key k
   => ConsSymbol p m x' x
   => use (k -> Run x Unit)
 
-xm'clearAt :: forall @p. T'xm'clearAt T'id p
-xm'clearAt = xAt'call @p @XM'clearAt
+x'clearAt :: forall @p. T'x'clearAt T'id p
+x'clearAt = xAt'call @p @XM'clearAt
 
 -----------------------------------------
 
 foreign import data XM'add :: Type
 
-type T'xm'add use p =
+type T'x'add use p =
   forall x' x m t
    . X'Method XM'add m t Unit
   => XM'type m XMt'self t
   => ConsSymbol p m x' x
   => use (t -> Run x Unit)
 
-xm'add :: forall @p. T'xm'add T'id p
-xm'add = xAt'call @p @XM'add
+x'add :: forall @p. T'x'add T'id p
+x'add = xAt'call @p @XM'add
 
 -----------------------------------------
 
 foreign import data XM'addAt :: Type
 
-type T'xm'addAt use p =
+type T'x'addAt use p =
   forall x' x m k v
    . X'Method XM'addAt m (k /\ v) Unit
   => XM'type m XMt'd1'key k
@@ -586,28 +586,28 @@ type T'xm'addAt use p =
   => ConsSymbol p m x' x
   => use (k -> v -> Run x Unit)
 
-xm'addAt :: forall @p. T'xm'addAt T'id p
-xm'addAt = curry (xAt'call @p @XM'addAt)
+x'addAt :: forall @p. T'x'addAt T'id p
+x'addAt = curry (xAt'call @p @XM'addAt)
 
 -----------------------------------------
 
 foreign import data XM'remove :: Type
 
-type T'xm'remove use p =
+type T'x'remove use p =
   forall x' x m k
    . X'Method XM'remove m k Unit
   => XM'type m XMt'key k
   => ConsSymbol p m x' x
   => use (k -> Run x Unit)
 
-xm'remove :: forall @p. T'xm'remove T'id p
-xm'remove = xAt'call @p @XM'remove
+x'remove :: forall @p. T'x'remove T'id p
+x'remove = xAt'call @p @XM'remove
 
 -----------------------------------------
 
 foreign import data XM'insert :: Type
 
-type T'xm'insert use p =
+type T'x'insert use p =
   forall x' x m k v
    . X'Method XM'insert m (k /\ v) Unit
   => XM'type m XMt'key k
@@ -615,70 +615,70 @@ type T'xm'insert use p =
   => ConsSymbol p m x' x
   => use (k -> v -> Run x Unit)
 
-xm'insert :: forall @p. T'xm'insert T'id p
-xm'insert = curry (xAt'call @p @XM'insert)
+x'insert :: forall @p. T'x'insert T'id p
+x'insert = curry (xAt'call @p @XM'insert)
 
 -----------------------------------------
 
 foreign import data XM'cons :: Type
 
-type T'xm'cons use p =
+type T'x'cons use p =
   forall x' x m v
    . X'Method XM'cons m v Unit
   => XM'type m XMt'value v
   => ConsSymbol p m x' x
   => use (v -> Run x Unit)
 
-xm'cons :: forall @p. T'xm'cons T'id p
-xm'cons = xAt'call @p @XM'cons
+x'cons :: forall @p. T'x'cons T'id p
+x'cons = xAt'call @p @XM'cons
 
 -----------------------------------------
 
 foreign import data XG'uncons :: Type
 
-type T'xm'uncons use p =
+type T'x'uncons use p =
   forall x' x m v
    . X'Getter XG'uncons m (Maybe v)
   => XM'type m XMt'value v
   => ConsSymbol p m x' x
   => use (Run x (Maybe v))
 
-xm'uncons :: forall @p. T'xm'uncons T'id p
-xm'uncons = xAt'get @p @XG'uncons
+x'uncons :: forall @p. T'x'uncons T'id p
+x'uncons = xAt'get @p @XG'uncons
 
 -----------------------------------------
 
 foreign import data XM'push :: Type
 
-type T'xm'push use p =
+type T'x'push use p =
   forall x' x m v
    . X'Method XM'push m v Unit
   => XM'type m XMt'value v
   => ConsSymbol p m x' x
   => use (v -> Run x Unit)
 
-xm'push :: forall @p. T'xm'push T'id p
-xm'push = xAt'call @p @XM'push
+x'push :: forall @p. T'x'push T'id p
+x'push = xAt'call @p @XM'push
 
 -----------------------------------------
 
 foreign import data XG'pop :: Type
 
-type T'xm'pop use p =
+type T'x'pop use p =
   forall x' x m v
    . X'Getter XG'pop m (Maybe v)
   => XM'type m XMt'value v
   => ConsSymbol p m x' x
   => use (Run x (Maybe v))
 
-xm'pop :: forall @p. T'xm'pop T'id p
-xm'pop = xAt'get @p @XG'pop
+x'pop :: forall @p. T'x'pop T'id p
+x'pop = xAt'get @p @XG'pop
 
 -----------------------------------------
 
 foreign import data XM'consAt :: Type
 
-type T'xm'consAt use p =
+type T'x'consAt use p =
   forall x' x m k v
    . X'Method XM'consAt m (k /\ v) Unit
   => XM'type m XMt'd1'key k
@@ -686,40 +686,40 @@ type T'xm'consAt use p =
   => ConsSymbol p m x' x
   => use (k -> v -> Run x Unit)
 
-xm'consAt :: forall @p. T'xm'consAt T'id p
-xm'consAt = curry (xAt'call @p @XM'consAt)
+x'consAt :: forall @p. T'x'consAt T'id p
+x'consAt = curry (xAt'call @p @XM'consAt)
 
 -----------------------------------------
 
 foreign import data XM'consLast :: Type
 
-type T'xm'consLast use p =
+type T'x'consLast use p =
   forall x' x m v
    . X'Method XM'consLast m v Unit
   => XM'type m XMt'value v
   => ConsSymbol p m x' x
   => use (v -> Run x Unit)
 
-xm'consLast :: forall @p. T'xm'consLast T'id p
-xm'consLast = xAt'call @p @XM'consLast
+x'consLast :: forall @p. T'x'consLast T'id p
+x'consLast = xAt'call @p @XM'consLast
 
 -----------------------------------------
 
 foreign import data XM'd1'cons :: Type
 
-type T'xm'd1'cons use p =
+type T'x'd1'cons use p =
   forall x' x m v
    . X'Method XM'd1'cons m v Unit
   => XM'type m XMt'd1'value v
   => ConsSymbol p m x' x
   => use (v -> Run x Unit)
 
-xm'd1'cons :: forall @p. T'xm'd1'cons T'id p
-xm'd1'cons = xAt'call @p @XM'd1'cons
+x'd1'cons :: forall @p. T'x'd1'cons T'id p
+x'd1'cons = xAt'call @p @XM'd1'cons
 
 -----------------------------------------
 
-type T'xm'replace use p =
+type T'x'replace use p =
   forall x' x m k v
    . X'Method XM'insert m (k /\ v) Unit
   => X'Method XM'lookup m k (Maybe v)
@@ -728,12 +728,12 @@ type T'xm'replace use p =
   => ConsSymbol p m x' x
   => use (k -> v -> Run x Unit)
 
-xm'replace :: forall @p. T'xm'replace T'id p
-xm'replace k v = xm'has @p k >>= flip when (xm'insert @p k v)
+x'replace :: forall @p. T'x'replace T'id p
+x'replace k v = x'has @p k >>= flip when (x'insert @p k v)
 
 -----------------------------------------
 
-type T'xm'alter use p =
+type T'x'alter use p =
   forall x' x m k v
    . X'Method XM'insert m (k /\ v) Unit
   => X'Method XM'remove m k Unit
@@ -743,14 +743,14 @@ type T'xm'alter use p =
   => ConsSymbol p m x' x
   => use (k -> (Maybe v -> Maybe v) -> Run x Unit)
 
-xm'alter :: forall @p. T'xm'alter T'id p
-xm'alter k f = xm'lookup @p k <#> f >>= may'__
-  (\_ -> xm'remove @p k)
-  (\v -> xm'insert @p k v)
+x'alter :: forall @p. T'x'alter T'id p
+x'alter k f = x'lookup @p k <#> f >>= may'__
+  (\_ -> x'remove @p k)
+  (\v -> x'insert @p k v)
 
 -----------------------------------------
 
-type T'xm'modify use p =
+type T'x'modify use p =
   forall x' x m k v
    . X'Method XM'insert m (k /\ v) Unit
   => X'Method XM'remove m k Unit
@@ -760,16 +760,16 @@ type T'xm'modify use p =
   => ConsSymbol p m x' x
   => use (k -> (v -> v) -> Run x Unit)
 
-xm'modify :: forall @p. T'xm'modify T'id p
-xm'modify k f = xm'lookup @p k <#> map f >>= may'__
-  (\_ -> xm'remove @p k)
-  (\v -> xm'insert @p k v)
+x'modify :: forall @p. T'x'modify T'id p
+x'modify k f = x'lookup @p k <#> map f >>= may'__
+  (\_ -> x'remove @p k)
+  (\v -> x'insert @p k v)
 
 -----------------------------------------
 
 foreign import data XM'extractAt :: Type
 
-type T'xm'extractAt use p =
+type T'x'extractAt use p =
   forall x' x m k v
    . X'Method XM'extractAt m k v
   => XM'type m XMt'd1'key k
@@ -777,8 +777,8 @@ type T'xm'extractAt use p =
   => ConsSymbol p m x' x
   => use (k -> Run x v)
 
-xm'extractAt :: forall @p. T'xm'extractAt T'id p
-xm'extractAt = xAt'call @p @XM'extractAt
+x'extractAt :: forall @p. T'x'extractAt T'id p
+x'extractAt = xAt'call @p @XM'extractAt
 
 -----------------------------------------
 
@@ -788,20 +788,20 @@ class (X'Getter XG'extract m t, XM'type m XMt'self t) <= XC'extract m t
 
 instance (X'Getter XG'extract m t, XM'type m XMt'self t) => XC'extract m t
 
-type T'xm'extract use p =
+type T'x'extract use p =
   forall x' x m t
    . XC'extract m t
   => ConsSymbol p m x' x
   => use (Run x t)
 
-xm'extract :: forall @p. T'xm'extract T'id p
-xm'extract = xAt'get @p @XG'extract
+x'extract :: forall @p. T'x'extract T'id p
+x'extract = xAt'get @p @XG'extract
 
-infixl 6 xm'extract as @.
+infixl 6 x'extract as @.
 
 -------------------------------------------------------------------------
 
-type T'xm'effCall px pm =
+type T'x'effCall px pm =
   forall m x' x nt r' r param a
    . XC'extract m nt
   => Newtype nt { | r }
@@ -810,13 +810,13 @@ type T'xm'effCall px pm =
   => param
   -> Run x a
 
-xm'effCall :: forall @px @pm. T'xm'effCall px pm
-xm'effCall param = xm'extract @px <#> unwrap <#> rec'get @pm <#> (#) param <#>
+x'effCall :: forall @px @pm. T'x'effCall px pm
+x'effCall param = x'extract @px <#> unwrap <#> rec'get @pm <#> (#) param <#>
   unsafePerformEffect
 
 -------------------------------------------------------------------------
 
-type T'xm'effGet px pm =
+type T'x'effGet px pm =
   forall m x' x nt r' r a
    . XC'extract m nt
   => Newtype nt { | r }
@@ -824,38 +824,38 @@ type T'xm'effGet px pm =
   => ConsSymbol pm (Effect a) r' r
   => Run x a
 
-xm'effGet :: forall @px @pm. T'xm'effGet px pm
-xm'effGet = xm'extract @px <#> unwrap <#> rec'get @pm <#> unsafePerformEffect
+x'effGet :: forall @px @pm. T'x'effGet px pm
+x'effGet = x'extract @px <#> unwrap <#> rec'get @pm <#> unsafePerformEffect
 
 -----------------------------------------
 
-type T'xm'update use p =
+type T'x'update use p =
   forall x' x m t
    . XC'extract m t
   => XC'assign m t
   => ConsSymbol p m x' x
   => use ((t -> t) -> Run x Unit)
 
-xm'update :: forall @p. T'xm'update T'id p
-xm'update f = f <$> xm'extract @p >>= xm'assign @p
+x'update :: forall @p. T'x'update T'id p
+x'update f = f <$> x'extract @p >>= x'assign @p
 
-infixl 6 xm'update as @#
+infixl 6 x'update as @#
 
 -----------------------------------------
 
-type T'xm'view use p =
+type T'x'view use p =
   forall x' x m t a b
    . XC'extract m t
   => XC'assign m t
   => ConsSymbol p m x' x
   => use (Optic (Forget a) t t a b -> Run x a)
 
-xm'view :: forall @p. T'xm'view T'id p
-xm'view l = xm'extract @p <#> view l
+x'view :: forall @p. T'x'view T'id p
+x'view l = x'extract @p <#> view l
 
 -----------------------------------------
 
-type T'xm'view'b use sym p =
+type T'x'view'b use sym p =
   forall lenses x' x m t a b
    . XC'extract m t
   => XC'assign m t
@@ -863,24 +863,24 @@ type T'xm'view'b use sym p =
   => C'Barlow sym lenses (Forget a) t t a b
   => use (Run x a)
 
-xm'view'b :: forall @p @sym. T'xm'view'b T'id sym p
-xm'view'b = xm'extract @p <#> view (barlow @sym)
+x'view'b :: forall @p @sym. T'x'view'b T'id sym p
+x'view'b = x'extract @p <#> view (barlow @sym)
 
 -----------------------------------------
 
-type T'xm'preview use p =
+type T'x'preview use p =
   forall x' x m t a b
    . XC'extract m t
   => XC'assign m t
   => ConsSymbol p m x' x
   => use (Optic (Forget (First a)) t t a b -> Run x (Maybe a))
 
-xm'preview :: forall @p. T'xm'preview T'id p
-xm'preview l = xm'extract @p <#> preview l
+x'preview :: forall @p. T'x'preview T'id p
+x'preview l = x'extract @p <#> preview l
 
 -----------------------------------------
 
-type T'xm'preview'b use sym p =
+type T'x'preview'b use sym p =
   forall lenses x' x m t a b
    . XC'extract m t
   => XC'assign m t
@@ -888,24 +888,24 @@ type T'xm'preview'b use sym p =
   => C'Barlow sym lenses (Forget (First a)) t t a b
   => use (Run x (Maybe a))
 
-xm'preview'b :: forall @p @sym. T'xm'preview'b T'id sym p
-xm'preview'b = xm'extract @p <#> preview (barlow @sym)
+x'preview'b :: forall @p @sym. T'x'preview'b T'id sym p
+x'preview'b = x'extract @p <#> preview (barlow @sym)
 
 -----------------------------------------
 
-type T'xm'toArrayOf use p =
+type T'x'toArrayOf use p =
   forall x' x m t a b
    . XC'extract m t
   => XC'assign m t
   => ConsSymbol p m x' x
   => use (Optic (Forget (Endo Function (List a))) t t a b -> Run x (Array a))
 
-xm'toArrayOf :: forall @p. T'xm'toArrayOf T'id p
-xm'toArrayOf l = xm'extract @p <#> toArrayOf l
+x'toArrayOf :: forall @p. T'x'toArrayOf T'id p
+x'toArrayOf l = x'extract @p <#> toArrayOf l
 
 -----------------------------------------
 
-type T'xm'toArrayOf'b use sym p =
+type T'x'toArrayOf'b use sym p =
   forall lenses x' x m t a b
    . XC'extract m t
   => XC'assign m t
@@ -913,24 +913,24 @@ type T'xm'toArrayOf'b use sym p =
   => C'Barlow sym lenses (Forget (Endo Function (List a))) t t a b
   => use (Run x (Array a))
 
-xm'toArrayOf'b :: forall @p @sym. T'xm'toArrayOf'b T'id sym p
-xm'toArrayOf'b = xm'extract @p <#> toArrayOf (barlow @sym)
+x'toArrayOf'b :: forall @p @sym. T'x'toArrayOf'b T'id sym p
+x'toArrayOf'b = x'extract @p <#> toArrayOf (barlow @sym)
 
 -----------------------------------------
 
-type T'xm'set use p =
+type T'x'set use p =
   forall x' x m t a b
    . XC'extract m t
   => XC'assign m t
   => ConsSymbol p m x' x
   => use (Optic Function t t a b -> b -> Run x Unit)
 
-xm'set :: forall @p. T'xm'set T'id p
-xm'set l v = xm'update @p (set l v)
+x'set :: forall @p. T'x'set T'id p
+x'set l v = x'update @p (set l v)
 
 -----------------------------------------
 
-type T'xm'set'b use sym p =
+type T'x'set'b use sym p =
   forall lenses x' x m t a b
    . XC'extract m t
   => XC'assign m t
@@ -938,12 +938,12 @@ type T'xm'set'b use sym p =
   => C'Barlow sym lenses Function t t a b
   => use (b -> Run x Unit)
 
-xm'set'b :: forall @p @sym. T'xm'set'b T'id sym p
-xm'set'b v = xm'update @p (set (barlow @sym) v)
+x'set'b :: forall @p @sym. T'x'set'b T'id sym p
+x'set'b v = x'update @p (set (barlow @sym) v)
 
 -----------------------------------------
 
-type T'xm'setPure use p =
+type T'x'setPure use p =
   forall x' x m t a b app
    . XC'extract m t
   => XC'assign m t
@@ -951,12 +951,12 @@ type T'xm'setPure use p =
   => ConsSymbol p m x' x
   => use (Optic Function t t a (app b) -> b -> Run x Unit)
 
-xm'setPure :: forall @p. T'xm'setPure T'id p
-xm'setPure l v = xm'update @p (set l (pure v))
+x'setPure :: forall @p. T'x'setPure T'id p
+x'setPure l v = x'update @p (set l (pure v))
 
 -----------------------------------------
 
-type T'xm'setPure'b use sym p =
+type T'x'setPure'b use sym p =
   forall lenses x' x m t a b app
    . XC'extract m t
   => XC'assign m t
@@ -965,24 +965,24 @@ type T'xm'setPure'b use sym p =
   => C'Barlow sym lenses Function t t a (app b)
   => use (b -> Run x Unit)
 
-xm'setPure'b :: forall @p @sym. T'xm'setPure'b T'id sym p
-xm'setPure'b v = xm'update @p (set (barlow @sym) (pure v))
+x'setPure'b :: forall @p @sym. T'x'setPure'b T'id sym p
+x'setPure'b v = x'update @p (set (barlow @sym) (pure v))
 
 -----------------------------------------
 
-type T'xm'over use p =
+type T'x'over use p =
   forall x' x m t a b
    . XC'extract m t
   => XC'assign m t
   => ConsSymbol p m x' x
   => use (Optic Function t t a b -> (a -> b) -> Run x Unit)
 
-xm'over :: forall @p. T'xm'over T'id p
-xm'over l v = xm'update @p (over l v)
+x'over :: forall @p. T'x'over T'id p
+x'over l v = x'update @p (over l v)
 
 -----------------------------------------
 
-type T'xm'over'b use sym p =
+type T'x'over'b use sym p =
   forall lenses x' x m t a b
    . XC'extract m t
   => XC'assign m t
@@ -990,25 +990,25 @@ type T'xm'over'b use sym p =
   => C'Barlow sym lenses Function t t a b
   => use ((a -> b) -> Run x Unit)
 
-xm'over'b :: forall @p @sym. T'xm'over'b T'id sym p
-xm'over'b v = xm'update @p (over (barlow @sym) v)
+x'over'b :: forall @p @sym. T'x'over'b T'id sym p
+x'over'b v = x'update @p (over (barlow @sym) v)
 
 --------------------------------------------------------------
 
-_'insert :: forall p. T'use'_'AsSym p (T'xm'insert T'id)
-_'insert = xm'insert @p
+_'insert :: forall p. T'use'_'AsSym p (T'x'insert T'id)
+_'insert = x'insert @p
 
-_'lookup :: forall p. T'use'_'AsSym p (T'xm'lookup T'id)
-_'lookup = xm'lookup @p
+_'lookup :: forall p. T'use'_'AsSym p (T'x'lookup T'id)
+_'lookup = x'lookup @p
 
-_'cons :: forall p. T'use'_'AsSym p (T'xm'cons T'id)
-_'cons = xm'cons @p
+_'cons :: forall p. T'use'_'AsSym p (T'x'cons T'id)
+_'cons = x'cons @p
 
-_'consAt :: forall p. T'use'_'AsSym p (T'xm'consAt T'id)
-_'consAt = xm'consAt @p
+_'consAt :: forall p. T'use'_'AsSym p (T'x'consAt T'id)
+_'consAt = x'consAt @p
 
-_'alter :: forall p. T'use'_'AsSym p (T'xm'alter T'id)
-_'alter = xm'alter @p
+_'alter :: forall p. T'use'_'AsSym p (T'x'alter T'id)
+_'alter = x'alter @p
 
-_'modify :: forall p. T'use'_'AsSym p (T'xm'modify T'id)
-_'modify = xm'modify @p
+_'modify :: forall p. T'use'_'AsSym p (T'x'modify T'id)
+_'modify = x'modify @p

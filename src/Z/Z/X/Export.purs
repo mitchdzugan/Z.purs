@@ -3,7 +3,6 @@ module Z.Z.X.Export (module ModuleReExports) where
 import Z.Z.X.Core as ModuleReExports
 import Z.Z.X.Index as ModuleReExports
 import Z.Z.X.Method as ModuleReExports
-import Z.Z.X.Methods as ModuleReExports
 import Z.Z.X.Readables.RW.HashMap
   ( B'HashMap
   , R'HashMap
