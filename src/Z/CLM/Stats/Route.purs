@@ -42,12 +42,11 @@ import Z.CLM.Stats.Types (ClmBuildOutputs)
 
 data PlayerTab = PlayerTab'H2hs | PlayerTab'Tournaments
 
-derive instance Generic PlayerTab _
-
 derive instance Eq PlayerTab
 
 instance Show PlayerTab where
-  show = genericShow
+  show PlayerTab'H2hs = "PlayerTab'H2hs"
+  show _ = "PlayerTab'Tournaments"
 
 data SortBy
   = SortBy'Name
@@ -56,8 +55,6 @@ data SortBy
   | SortBy'Att
   | SortBy'Mru
 
-derive instance Generic SortBy _
-
 derive instance Eq SortBy
 
 instance Show SortBy where
@@ -65,7 +62,7 @@ instance Show SortBy where
   show SortBy'Qual = "qual"
   show SortBy'Acc = "acc"
   show SortBy'Att = "att"
-  show SortBy'Mru = "mru"
+  show _ = "mru"
 
 instance Identable SortBy where
   ident'get = id'of <<< show
@@ -75,7 +72,7 @@ sortBy'title SortBy'Name = "Player"
 sortBy'title SortBy'Qual = "Rating"
 sortBy'title SortBy'Acc = "W - L"
 sortBy'title SortBy'Att = "PR Events"
-sortBy'title SortBy'Mru = "Last Event"
+sortBy'title _ = "Last Event"
 
 sortBy'vals :: Array SortBy
 sortBy'vals = [ SortBy'Name, SortBy'Qual, SortBy'Acc, SortBy'Att, SortBy'Mru ]
@@ -139,18 +136,18 @@ getDefaultFilters seasonId = { req'prEvents: activeSeasonId'static /= seasonId }
 
 data RoutePage = Stats Sort Filters | Player PlayerTab | Compare | H2hGrid
 
-derive instance Generic RoutePage _
-
 derive instance Eq RoutePage
 
 instance Show RoutePage where
-  show = genericShow
+  show (Stats s f) = "stats:[" <> show s <> " " <> show f <> "]"
+  show (Player t) = "player:[" <> show t <> "]"
+  show p = page'key p
 
 page'key :: RoutePage -> String
 page'key (Stats _ _) = "stats"
 page'key (Player _) = "player"
 page'key Compare = "compare"
-page'key H2hGrid = "h2h"
+page'key _ = "h2h"
 
 page'sort :: RoutePage -> Sort
 page'sort (Stats sort _) = sort
@@ -160,7 +157,7 @@ page'conformIds :: RoutePage -> Array Int -> Array Int
 page'conformIds (Stats _ _) = const []
 page'conformIds (Player _) = arr'take 1
 page'conformIds Compare = arr'take 2
-page'conformIds H2hGrid = id
+page'conformIds _ = id
 
 getDefaultStatsPage :: Int -> RoutePage
 getDefaultStatsPage = Stats defaultSort <<< getDefaultFilters
@@ -170,10 +167,7 @@ newtype Route = Route
 
 derive instance Newtype Route _
 
-derive instance Generic Route _
-
-instance Show Route where
-  show = genericShow
+derive newtype instance Show Route
 
 route'mk :: Int -> RoutePage -> Array Int -> Route
 route'mk seasonId page clmIds = Route { page, seasonId, clmIds }
