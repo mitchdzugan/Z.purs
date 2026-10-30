@@ -89,6 +89,12 @@ module Z.Z.X.Method
   , XMt'key
   , XMt'self
   , XMt'value
+  , _'alter
+  , _'cons
+  , _'consAt
+  , _'insert
+  , _'lookup
+  , _'modify
   , class Eff'Getter
   , class Eff'Method
   , class Eff'RW'Getter
@@ -170,18 +176,25 @@ import Data.Tuple.Nested (type (/\))
 import Effect (Effect)
 import Effect.Unsafe (unsafePerformEffect)
 import Record as Rec
-import Type.Proxy (Proxy)
-import Web.Storage.Event.StorageEvent (key)
+import Type.Proxy (Proxy(..))
 import Z.EXTERNAL.RUN.Run (Run)
 import Z.EXTERNAL.RUN.Run.Reader (Reader, asksAt)
 import Z.Z.Barlow (class C'Barlow, barlow)
-import Z.Z.Core (class ConsSymbol, Eff'At, may'__, rec'get)
+import Z.Z.Core (class ConsSymbol, T'id, may'__, rec'get)
 import Z.Z.Method (class Method, call)
-import Z.Z.X.Core (WithRWTag(..))
+import Z.Z.X.Core (T'use'_'AsSym, WithRWTag(..))
 
 class X'Method :: forall k. k -> (Type -> Type) -> Type -> Type -> Constraint
 class X'Method name m param res | name m -> param res where
   x'call :: forall p x' x. ConsSymbol p m x' x => Proxy p -> param -> Run x res
+
+xAt'call
+  :: forall @p @name x' x m param res
+   . X'Method name m param res
+  => ConsSymbol p m x' x
+  => param
+  -> Run x res
+xAt'call = x'call @name (Proxy @p)
 
 class Eff'Method :: forall k. k -> Type -> Type -> Type -> Constraint
 class Eff'Method name t param res | name t -> param res where
@@ -195,6 +208,13 @@ class Eff'RW'Method name t rwTag param res | name t -> rwTag param res where
 class X'Getter :: forall k. k -> (Type -> Type) -> Type -> Constraint
 class X'Getter name m res | name m -> res where
   x'get :: forall p x' x. ConsSymbol p m x' x => Proxy p -> Run x res
+
+xAt'get
+  :: forall @p @name x' x m res
+   . X'Getter name m res
+  => ConsSymbol p m x' x
+  => Run x res
+xAt'get = x'get @name (Proxy @p)
 
 class Eff'Getter :: forall k. k -> Type -> Type -> Constraint
 class Eff'Getter name t res | name t -> res where
@@ -279,8 +299,8 @@ type T'xm'assign use p =
   => ConsSymbol p m x' x
   => use (t -> Run x Unit)
 
-xm'assign :: forall p. T'xm'assign ((->) (Proxy p)) p
-xm'assign = x'call @XM'assign
+xm'assign :: forall @p. T'xm'assign T'id p
+xm'assign = xAt'call @p @XM'assign
 
 infixl 6 xm'assign as @=
 
@@ -296,8 +316,8 @@ type T'xm'assignAt use p =
   => ConsSymbol p m x' x
   => use (k -> v -> Run x Unit)
 
-xm'assignAt :: forall p. T'xm'assignAt ((->) (Proxy p)) p
-xm'assignAt p = curry (x'call @XM'assignAt p)
+xm'assignAt :: forall @p. T'xm'assignAt T'id p
+xm'assignAt = curry (xAt'call @p @XM'assignAt)
 
 -----------------------------------------
 
@@ -308,8 +328,8 @@ type T'xm'assignPure use p =
   => Applicative a
   => use (t -> Run x Unit)
 
-xm'assignPure :: forall p. T'xm'assignPure ((->) (Proxy p)) p
-xm'assignPure p v = x'call @XM'assign p (pure v)
+xm'assignPure :: forall @p. T'xm'assignPure T'id p
+xm'assignPure v = xAt'call @p @XM'assign (pure v)
 
 infixl 6 xm'assignPure as @<=>
 
@@ -323,8 +343,8 @@ type T'xm'reset use p =
   => ConsSymbol p m x' x
   => use (Run x Unit)
 
-xm'reset :: forall p. T'xm'reset ((->) (Proxy p)) p
-xm'reset = x'get @XG'reset
+xm'reset :: forall @p. T'xm'reset T'id p
+xm'reset = xAt'get @p @XG'reset
 
 -----------------------------------------
 
@@ -337,8 +357,8 @@ type T'xm'resetAt use p =
   => ConsSymbol p m x' x
   => use (k -> Run x Unit)
 
-xm'resetAt :: forall p. T'xm'resetAt ((->) (Proxy p)) p
-xm'resetAt = x'call @XM'resetAt
+xm'resetAt :: forall @p. T'xm'resetAt T'id p
+xm'resetAt = xAt'call @p @XM'resetAt
 
 -----------------------------------------
 
@@ -351,8 +371,8 @@ type T'xm'sizeAt use p =
   => ConsSymbol p m x' x
   => use (k -> Run x Int)
 
-xm'sizeAt :: forall p. T'xm'sizeAt ((->) (Proxy p)) p
-xm'sizeAt = x'call @XM'sizeAt
+xm'sizeAt :: forall @p. T'xm'sizeAt T'id p
+xm'sizeAt = xAt'call @p @XM'sizeAt
 
 -----------------------------------------
 
@@ -364,8 +384,8 @@ type T'xm'size use p =
   => ConsSymbol p m x' x
   => use (Run x Int)
 
-xm'size :: forall p. T'xm'size ((->) (Proxy p)) p
-xm'size = x'get @XG'size
+xm'size :: forall @p. T'xm'size T'id p
+xm'size = xAt'get @p @XG'size
 
 -----------------------------------------
 
@@ -379,8 +399,8 @@ type T'xm'valsAt use p =
   => ConsSymbol p m x' x
   => use (k -> Run x (Array v))
 
-xm'valsAt :: forall p. T'xm'valsAt ((->) (Proxy p)) p
-xm'valsAt = x'call @XM'valsAt
+xm'valsAt :: forall @p. T'xm'valsAt T'id p
+xm'valsAt = xAt'call @p @XM'valsAt
 
 -----------------------------------------
 
@@ -393,8 +413,8 @@ type T'xm'vals use p =
   => ConsSymbol p m x' x
   => use (Run x (Array t))
 
-xm'vals :: forall p. T'xm'vals ((->) (Proxy p)) p
-xm'vals = x'get @XG'vals
+xm'vals :: forall @p. T'xm'vals T'id p
+xm'vals = xAt'get @p @XG'vals
 
 -----------------------------------------
 
@@ -408,8 +428,8 @@ type T'xm'keysAt use p =
   => ConsSymbol p m x' x
   => use (k1 -> Run x (Array k2))
 
-xm'keysAt :: forall p. T'xm'keysAt ((->) (Proxy p)) p
-xm'keysAt = x'call @XM'keysAt
+xm'keysAt :: forall @p. T'xm'keysAt T'id p
+xm'keysAt = xAt'call @p @XM'keysAt
 
 -----------------------------------------
 
@@ -422,8 +442,8 @@ type T'xm'keys use p =
   => ConsSymbol p m x' x
   => use (Run x (Array t))
 
-xm'keys :: forall p. T'xm'keys ((->) (Proxy p)) p
-xm'keys = x'get @XG'keys
+xm'keys :: forall @p. T'xm'keys T'id p
+xm'keys = xAt'get @p @XG'keys
 
 -----------------------------------------
 
@@ -438,8 +458,8 @@ type T'xm'entriesAt use p =
   => ConsSymbol p m x' x
   => use (k1 -> Run x (Array (k2 /\ v)))
 
-xm'entriesAt :: forall p. T'xm'entriesAt ((->) (Proxy p)) p
-xm'entriesAt = x'call @XM'entriesAt
+xm'entriesAt :: forall @p. T'xm'entriesAt T'id p
+xm'entriesAt = xAt'call @p @XM'entriesAt
 
 -----------------------------------------
 
@@ -453,8 +473,8 @@ type T'xm'entries use p =
   => ConsSymbol p m x' x
   => use (Run x (Array (k /\ v)))
 
-xm'entries :: forall p. T'xm'entries ((->) (Proxy p)) p
-xm'entries = x'get @XG'entries
+xm'entries :: forall @p. T'xm'entries T'id p
+xm'entries = xAt'get @p @XG'entries
 
 -----------------------------------------
 
@@ -468,8 +488,8 @@ type T'xm'lookup use p =
   => ConsSymbol p m x' x
   => use (k -> Run x (Maybe v))
 
-xm'lookup :: forall p. T'xm'lookup ((->) (Proxy p)) p
-xm'lookup = x'call @XM'lookup
+xm'lookup :: forall @p. T'xm'lookup T'id p
+xm'lookup = xAt'call @p @XM'lookup
 
 -----------------------------------------
 
@@ -481,8 +501,8 @@ type T'xm'has use p =
   => ConsSymbol p m x' x
   => use (k -> Run x Boolean)
 
-xm'has :: forall p. T'xm'has ((->) (Proxy p)) p
-xm'has p k = xm'lookup p k <#> isJust
+xm'has :: forall @p. T'xm'has T'id p
+xm'has k = xm'lookup @p k <#> isJust
 
 -----------------------------------------
 
@@ -495,8 +515,8 @@ type T'xm'd1'keys use p =
   => ConsSymbol p m x' x
   => use (Run x (Array k))
 
-xm'd1'keys :: forall p. T'xm'd1'keys ((->) (Proxy p)) p
-xm'd1'keys = x'get @XG'd1'keys
+xm'd1'keys :: forall @p. T'xm'd1'keys T'id p
+xm'd1'keys = xAt'get @p @XG'd1'keys
 
 -----------------------------------------
 
@@ -510,8 +530,8 @@ type T'xm'd1'entries use p =
   => ConsSymbol p m x' x
   => use (Run x (Array (k /\ v)))
 
-xm'd1'entries :: forall p. T'xm'd1'entries ((->) (Proxy p)) p
-xm'd1'entries = x'get @XG'd1'entries
+xm'd1'entries :: forall @p. T'xm'd1'entries T'id p
+xm'd1'entries = xAt'get @p @XG'd1'entries
 
 -----------------------------------------
 
@@ -523,8 +543,8 @@ type T'xm'clear use p =
   => ConsSymbol p m x' x
   => use (Run x Unit)
 
-xm'clear :: forall p. T'xm'clear ((->) (Proxy p)) p
-xm'clear = x'get @XG'clear
+xm'clear :: forall @p. T'xm'clear T'id p
+xm'clear = xAt'get @p @XG'clear
 
 -----------------------------------------
 
@@ -537,8 +557,8 @@ type T'xm'clearAt use p =
   => ConsSymbol p m x' x
   => use (k -> Run x Unit)
 
-xm'clearAt :: forall p. T'xm'clearAt ((->) (Proxy p)) p
-xm'clearAt = x'call @XM'clearAt
+xm'clearAt :: forall @p. T'xm'clearAt T'id p
+xm'clearAt = xAt'call @p @XM'clearAt
 
 -----------------------------------------
 
@@ -551,8 +571,8 @@ type T'xm'add use p =
   => ConsSymbol p m x' x
   => use (t -> Run x Unit)
 
-xm'add :: forall p. T'xm'add ((->) (Proxy p)) p
-xm'add = x'call @XM'add
+xm'add :: forall @p. T'xm'add T'id p
+xm'add = xAt'call @p @XM'add
 
 -----------------------------------------
 
@@ -566,8 +586,8 @@ type T'xm'addAt use p =
   => ConsSymbol p m x' x
   => use (k -> v -> Run x Unit)
 
-xm'addAt :: forall p. T'xm'addAt ((->) (Proxy p)) p
-xm'addAt p = curry (x'call @XM'addAt p)
+xm'addAt :: forall @p. T'xm'addAt T'id p
+xm'addAt = curry (xAt'call @p @XM'addAt)
 
 -----------------------------------------
 
@@ -580,8 +600,8 @@ type T'xm'remove use p =
   => ConsSymbol p m x' x
   => use (k -> Run x Unit)
 
-xm'remove :: forall p. T'xm'remove ((->) (Proxy p)) p
-xm'remove = x'call @XM'remove
+xm'remove :: forall @p. T'xm'remove T'id p
+xm'remove = xAt'call @p @XM'remove
 
 -----------------------------------------
 
@@ -595,8 +615,8 @@ type T'xm'insert use p =
   => ConsSymbol p m x' x
   => use (k -> v -> Run x Unit)
 
-xm'insert :: forall p. T'xm'insert ((->) (Proxy p)) p
-xm'insert p = curry (x'call @XM'insert p)
+xm'insert :: forall @p. T'xm'insert T'id p
+xm'insert = curry (xAt'call @p @XM'insert)
 
 -----------------------------------------
 
@@ -609,8 +629,8 @@ type T'xm'cons use p =
   => ConsSymbol p m x' x
   => use (v -> Run x Unit)
 
-xm'cons :: forall p. T'xm'cons ((->) (Proxy p)) p
-xm'cons p = x'call @XM'cons p
+xm'cons :: forall @p. T'xm'cons T'id p
+xm'cons = xAt'call @p @XM'cons
 
 -----------------------------------------
 
@@ -623,8 +643,8 @@ type T'xm'uncons use p =
   => ConsSymbol p m x' x
   => use (Run x (Maybe v))
 
-xm'uncons :: forall p. T'xm'uncons ((->) (Proxy p)) p
-xm'uncons p = x'get @XG'uncons p
+xm'uncons :: forall @p. T'xm'uncons T'id p
+xm'uncons = xAt'get @p @XG'uncons
 
 -----------------------------------------
 
@@ -637,8 +657,8 @@ type T'xm'push use p =
   => ConsSymbol p m x' x
   => use (v -> Run x Unit)
 
-xm'push :: forall p. T'xm'push ((->) (Proxy p)) p
-xm'push p = x'call @XM'push p
+xm'push :: forall @p. T'xm'push T'id p
+xm'push = xAt'call @p @XM'push
 
 -----------------------------------------
 
@@ -651,8 +671,8 @@ type T'xm'pop use p =
   => ConsSymbol p m x' x
   => use (Run x (Maybe v))
 
-xm'pop :: forall p. T'xm'pop ((->) (Proxy p)) p
-xm'pop p = x'get @XG'pop p
+xm'pop :: forall @p. T'xm'pop T'id p
+xm'pop = xAt'get @p @XG'pop
 
 -----------------------------------------
 
@@ -666,8 +686,8 @@ type T'xm'consAt use p =
   => ConsSymbol p m x' x
   => use (k -> v -> Run x Unit)
 
-xm'consAt :: forall p. T'xm'consAt ((->) (Proxy p)) p
-xm'consAt p = curry (x'call @XM'consAt p)
+xm'consAt :: forall @p. T'xm'consAt T'id p
+xm'consAt = curry (xAt'call @p @XM'consAt)
 
 -----------------------------------------
 
@@ -680,8 +700,8 @@ type T'xm'consLast use p =
   => ConsSymbol p m x' x
   => use (v -> Run x Unit)
 
-xm'consLast :: forall p. T'xm'consLast ((->) (Proxy p)) p
-xm'consLast = x'call @XM'consLast
+xm'consLast :: forall @p. T'xm'consLast T'id p
+xm'consLast = xAt'call @p @XM'consLast
 
 -----------------------------------------
 
@@ -694,8 +714,8 @@ type T'xm'd1'cons use p =
   => ConsSymbol p m x' x
   => use (v -> Run x Unit)
 
-xm'd1'cons :: forall p. T'xm'd1'cons ((->) (Proxy p)) p
-xm'd1'cons p = x'call @XM'd1'cons p
+xm'd1'cons :: forall @p. T'xm'd1'cons T'id p
+xm'd1'cons = xAt'call @p @XM'd1'cons
 
 -----------------------------------------
 
@@ -708,8 +728,8 @@ type T'xm'replace use p =
   => ConsSymbol p m x' x
   => use (k -> v -> Run x Unit)
 
-xm'replace :: forall p. T'xm'replace ((->) (Proxy p)) p
-xm'replace p k v = xm'has p k >>= flip when (xm'insert p k v)
+xm'replace :: forall @p. T'xm'replace T'id p
+xm'replace k v = xm'has @p k >>= flip when (xm'insert @p k v)
 
 -----------------------------------------
 
@@ -723,10 +743,10 @@ type T'xm'alter use p =
   => ConsSymbol p m x' x
   => use (k -> (Maybe v -> Maybe v) -> Run x Unit)
 
-xm'alter :: forall p. T'xm'alter ((->) (Proxy p)) p
-xm'alter p k f = xm'lookup p k <#> f >>= may'__
-  (\_ -> xm'remove p k)
-  (\v -> xm'insert p k v)
+xm'alter :: forall @p. T'xm'alter T'id p
+xm'alter k f = xm'lookup @p k <#> f >>= may'__
+  (\_ -> xm'remove @p k)
+  (\v -> xm'insert @p k v)
 
 -----------------------------------------
 
@@ -740,10 +760,10 @@ type T'xm'modify use p =
   => ConsSymbol p m x' x
   => use (k -> (v -> v) -> Run x Unit)
 
-xm'modify :: forall p. T'xm'modify ((->) (Proxy p)) p
-xm'modify p k f = xm'lookup p k <#> map f >>= may'__
-  (\_ -> xm'remove p k)
-  (\v -> xm'insert p k v)
+xm'modify :: forall @p. T'xm'modify T'id p
+xm'modify k f = xm'lookup @p k <#> map f >>= may'__
+  (\_ -> xm'remove @p k)
+  (\v -> xm'insert @p k v)
 
 -----------------------------------------
 
@@ -757,8 +777,8 @@ type T'xm'extractAt use p =
   => ConsSymbol p m x' x
   => use (k -> Run x v)
 
-xm'extractAt :: forall p. T'xm'extractAt ((->) (Proxy p)) p
-xm'extractAt = x'call @XM'extractAt
+xm'extractAt :: forall @p. T'xm'extractAt T'id p
+xm'extractAt = xAt'call @p @XM'extractAt
 
 -----------------------------------------
 
@@ -774,43 +794,38 @@ type T'xm'extract use p =
   => ConsSymbol p m x' x
   => use (Run x t)
 
-xm'extract :: forall p. T'xm'extract ((->) (Proxy p)) p
-xm'extract = x'get @XG'extract
+xm'extract :: forall @p. T'xm'extract T'id p
+xm'extract = xAt'get @p @XG'extract
 
 infixl 6 xm'extract as @.
 
 -------------------------------------------------------------------------
 
-type T'xm'effCall p =
-  forall m x' x nt r' r method param a
+type T'xm'effCall px pm =
+  forall m x' x nt r' r param a
    . XC'extract m nt
   => Newtype nt { | r }
-  => ConsSymbol p m x' x
-  => ConsSymbol method (param -> Effect a) r' r
-  => Proxy p
-  -> Proxy method
-  -> param
+  => ConsSymbol px m x' x
+  => ConsSymbol pm (param -> Effect a) r' r
+  => param
   -> Run x a
 
-xm'effCall :: forall @p. T'xm'effCall p
-xm'effCall px pm param =
-  xm'extract px <#> unwrap <#> Rec.get pm <#> (#) param <#> unsafePerformEffect
+xm'effCall :: forall @px @pm. T'xm'effCall px pm
+xm'effCall param = xm'extract @px <#> unwrap <#> rec'get @pm <#> (#) param <#>
+  unsafePerformEffect
 
 -------------------------------------------------------------------------
 
-type T'xm'effGet p =
-  forall m x' x nt r' r method a
+type T'xm'effGet px pm =
+  forall m x' x nt r' r a
    . XC'extract m nt
   => Newtype nt { | r }
-  => ConsSymbol p m x' x
-  => ConsSymbol method (Effect a) r' r
-  => Proxy p
-  -> Proxy method
-  -> Run x a
+  => ConsSymbol px m x' x
+  => ConsSymbol pm (Effect a) r' r
+  => Run x a
 
-xm'effGet :: forall @p. T'xm'effGet p
-xm'effGet px pm =
-  xm'extract px <#> unwrap <#> Rec.get pm <#> unsafePerformEffect
+xm'effGet :: forall @px @pm. T'xm'effGet px pm
+xm'effGet = xm'extract @px <#> unwrap <#> rec'get @pm <#> unsafePerformEffect
 
 -----------------------------------------
 
@@ -821,8 +836,8 @@ type T'xm'update use p =
   => ConsSymbol p m x' x
   => use ((t -> t) -> Run x Unit)
 
-xm'update :: forall p. T'xm'update ((->) (Proxy p)) p
-xm'update p f = f <$> xm'extract p >>= xm'assign p
+xm'update :: forall @p. T'xm'update T'id p
+xm'update f = f <$> xm'extract @p >>= xm'assign @p
 
 infixl 6 xm'update as @#
 
@@ -835,8 +850,8 @@ type T'xm'view use p =
   => ConsSymbol p m x' x
   => use (Optic (Forget a) t t a b -> Run x a)
 
-xm'view :: forall p. T'xm'view ((->) (Proxy p)) p
-xm'view p l = xm'extract p <#> view l
+xm'view :: forall @p. T'xm'view T'id p
+xm'view l = xm'extract @p <#> view l
 
 -----------------------------------------
 
@@ -848,8 +863,8 @@ type T'xm'view'b use sym p =
   => C'Barlow sym lenses (Forget a) t t a b
   => use (Run x a)
 
-xm'view'b :: forall @sym p. T'xm'view'b ((->) (Proxy p)) sym p
-xm'view'b p = xm'extract p <#> view (barlow @sym)
+xm'view'b :: forall @p @sym. T'xm'view'b T'id sym p
+xm'view'b = xm'extract @p <#> view (barlow @sym)
 
 -----------------------------------------
 
@@ -860,8 +875,8 @@ type T'xm'preview use p =
   => ConsSymbol p m x' x
   => use (Optic (Forget (First a)) t t a b -> Run x (Maybe a))
 
-xm'preview :: forall p. T'xm'preview ((->) (Proxy p)) p
-xm'preview p l = xm'extract p <#> preview l
+xm'preview :: forall @p. T'xm'preview T'id p
+xm'preview l = xm'extract @p <#> preview l
 
 -----------------------------------------
 
@@ -873,8 +888,8 @@ type T'xm'preview'b use sym p =
   => C'Barlow sym lenses (Forget (First a)) t t a b
   => use (Run x (Maybe a))
 
-xm'preview'b :: forall @sym p. T'xm'preview'b ((->) (Proxy p)) sym p
-xm'preview'b p = xm'extract p <#> preview (barlow @sym)
+xm'preview'b :: forall @p @sym. T'xm'preview'b T'id sym p
+xm'preview'b = xm'extract @p <#> preview (barlow @sym)
 
 -----------------------------------------
 
@@ -885,8 +900,8 @@ type T'xm'toArrayOf use p =
   => ConsSymbol p m x' x
   => use (Optic (Forget (Endo Function (List a))) t t a b -> Run x (Array a))
 
-xm'toArrayOf :: forall p. T'xm'toArrayOf ((->) (Proxy p)) p
-xm'toArrayOf p l = xm'extract p <#> toArrayOf l
+xm'toArrayOf :: forall @p. T'xm'toArrayOf T'id p
+xm'toArrayOf l = xm'extract @p <#> toArrayOf l
 
 -----------------------------------------
 
@@ -898,8 +913,8 @@ type T'xm'toArrayOf'b use sym p =
   => C'Barlow sym lenses (Forget (Endo Function (List a))) t t a b
   => use (Run x (Array a))
 
-xm'toArrayOf'b :: forall @sym p. T'xm'toArrayOf'b ((->) (Proxy p)) sym p
-xm'toArrayOf'b p = xm'extract p <#> toArrayOf (barlow @sym)
+xm'toArrayOf'b :: forall @p @sym. T'xm'toArrayOf'b T'id sym p
+xm'toArrayOf'b = xm'extract @p <#> toArrayOf (barlow @sym)
 
 -----------------------------------------
 
@@ -910,8 +925,8 @@ type T'xm'set use p =
   => ConsSymbol p m x' x
   => use (Optic Function t t a b -> b -> Run x Unit)
 
-xm'set :: forall p. T'xm'set ((->) (Proxy p)) p
-xm'set p l v = xm'update p (set l v)
+xm'set :: forall @p. T'xm'set T'id p
+xm'set l v = xm'update @p (set l v)
 
 -----------------------------------------
 
@@ -923,8 +938,8 @@ type T'xm'set'b use sym p =
   => C'Barlow sym lenses Function t t a b
   => use (b -> Run x Unit)
 
-xm'set'b :: forall @sym p. T'xm'set'b ((->) (Proxy p)) sym p
-xm'set'b p v = xm'update p (set (barlow @sym) v)
+xm'set'b :: forall @p @sym. T'xm'set'b T'id sym p
+xm'set'b v = xm'update @p (set (barlow @sym) v)
 
 -----------------------------------------
 
@@ -936,8 +951,8 @@ type T'xm'setPure use p =
   => ConsSymbol p m x' x
   => use (Optic Function t t a (app b) -> b -> Run x Unit)
 
-xm'setPure :: forall p. T'xm'setPure ((->) (Proxy p)) p
-xm'setPure p l v = xm'update p (set l (pure v))
+xm'setPure :: forall @p. T'xm'setPure T'id p
+xm'setPure l v = xm'update @p (set l (pure v))
 
 -----------------------------------------
 
@@ -950,8 +965,8 @@ type T'xm'setPure'b use sym p =
   => C'Barlow sym lenses Function t t a (app b)
   => use (b -> Run x Unit)
 
-xm'setPure'b :: forall @sym p. T'xm'setPure'b ((->) (Proxy p)) sym p
-xm'setPure'b p v = xm'update p (set (barlow @sym) (pure v))
+xm'setPure'b :: forall @p @sym. T'xm'setPure'b T'id sym p
+xm'setPure'b v = xm'update @p (set (barlow @sym) (pure v))
 
 -----------------------------------------
 
@@ -962,8 +977,8 @@ type T'xm'over use p =
   => ConsSymbol p m x' x
   => use (Optic Function t t a b -> (a -> b) -> Run x Unit)
 
-xm'over :: forall p. T'xm'over ((->) (Proxy p)) p
-xm'over p l v = xm'update p (over l v)
+xm'over :: forall @p. T'xm'over T'id p
+xm'over l v = xm'update @p (over l v)
 
 -----------------------------------------
 
@@ -975,5 +990,25 @@ type T'xm'over'b use sym p =
   => C'Barlow sym lenses Function t t a b
   => use ((a -> b) -> Run x Unit)
 
-xm'over'b :: forall @sym p. T'xm'over'b ((->) (Proxy p)) sym p
-xm'over'b p v = xm'update p (over (barlow @sym) v)
+xm'over'b :: forall @p @sym. T'xm'over'b T'id sym p
+xm'over'b v = xm'update @p (over (barlow @sym) v)
+
+--------------------------------------------------------------
+
+_'insert :: forall p. T'use'_'AsSym p (T'xm'insert T'id)
+_'insert = xm'insert @p
+
+_'lookup :: forall p. T'use'_'AsSym p (T'xm'lookup T'id)
+_'lookup = xm'lookup @p
+
+_'cons :: forall p. T'use'_'AsSym p (T'xm'cons T'id)
+_'cons = xm'cons @p
+
+_'consAt :: forall p. T'use'_'AsSym p (T'xm'consAt T'id)
+_'consAt = xm'consAt @p
+
+_'alter :: forall p. T'use'_'AsSym p (T'xm'alter T'id)
+_'alter = xm'alter @p
+
+_'modify :: forall p. T'use'_'AsSym p (T'xm'modify T'id)
+_'modify = xm'modify @p

@@ -321,7 +321,7 @@ runSeason = id
 addPlayerIdToClmId :: forall x. SorN -> Int -> ClmV () x @@> Unit
 addPlayerIdToClmId playerId clmId = do
   x'consAt @"playerIdsByClmId" clmId playerId
-  xm'insert (p @"clmIdByPlayerId") playerId clmId
+  x'insert @"clmIdByPlayerId" playerId clmId
 
 runClm
   :: forall x a
@@ -502,7 +502,7 @@ buildCurrentSeasons spec = do
         groupCount <- s'get
         anyCounted <- s'exec false do
           forM_ sets \set -> x'withReturn_ \x'return_ -> do
-            eventId <- xm'lookup (p @"eventIdBySetId") set.id >>= sc'unwrap_
+            eventId <- x'lookup @"eventIdBySetId" set.id >>= sc'unwrap_
             event <- x'lookup @"clmEvents" (seasonId /\ eventId) >>= sc'unwrap_
             let
               getSlotClmId slot = do
