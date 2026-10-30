@@ -75,6 +75,7 @@ import Data.Array as Array
 import Data.Either as Either
 import Data.Generic.Rep (class Generic) as Generic
 import Data.Maybe as Maybe
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Ord as Ord
 import Data.Ordering as Ordering
 import Data.Tuple as Tup
@@ -109,8 +110,8 @@ url'toString = Url.toString
 url'origin :: Url.URL -> String
 url'origin url = Url.protocol url <> "://" <> rest (Url.port url)
   where
-  rest Maybe.Nothing = Url.host url
   rest (Maybe.Just n) = Url.host url <> ":" <> show n
+  rest _ = Url.host url
 
 url'pathSegments :: Url.URL -> Array String
 url'pathSegments = Url.path
@@ -200,7 +201,7 @@ decodeRtoI (JDE.UnexpectedValue j) = UnexpectedValue j
 decodeRtoI (JDE.AtIndex i e) = AtIndex i $ decodeRtoI e
 decodeRtoI (JDE.AtKey s e) = AtKey s $ decodeRtoI e
 decodeRtoI (JDE.Named s e) = Named s $ decodeRtoI e
-decodeRtoI JDE.MissingValue = MissingValue
+decodeRtoI _ = MissingValue
 
 decodeItoR :: JsonDecodeErrorInt -> JDE.JsonDecodeError
 decodeItoR (TypeMismatch s) = JDE.TypeMismatch s
@@ -208,7 +209,7 @@ decodeItoR (UnexpectedValue j) = JDE.UnexpectedValue j
 decodeItoR (AtIndex i e) = JDE.AtIndex i $ decodeItoR e
 decodeItoR (AtKey s e) = JDE.AtKey s $ decodeItoR e
 decodeItoR (Named s e) = JDE.Named s $ decodeItoR e
-decodeItoR MissingValue = JDE.MissingValue
+decodeItoR _ = JDE.MissingValue
 
 decodeViaString
   :: forall a
@@ -305,7 +306,9 @@ type Type_Ap_R x f = f x
 infixr 0 type Type_Ap as $
 infixr 0 type Type_Ap_R as #
 
-data SorN = SorN_S String | SorN_I Int
+newtype SorN = SorN (Either.Either String Int)
+
+derive instance Newtype SorN _
 
 class IsStringOrNum a where
   sOrN :: a -> SorN
@@ -314,26 +317,24 @@ derive instance Eq SorN
 derive instance Ord SorN
 
 instance Dec.DecodeJson SorN where
-  decodeJson x = case ADec.decodeJson x <#> SorN_S of
-    Either.Left _ -> ADec.decodeJson x <#> SorN_I
-    Either.Right v -> pure v
+  decodeJson x = case ADec.decodeJson x of
+    Either.Right v -> pure $ wrap $ Either.Left v
+    _ -> ADec.decodeJson x <#> wrap <<< Either.Right
 
 instance Enc.EncodeJson SorN where
-  encodeJson (SorN_S s) = Enc.encodeJson s
-  encodeJson (SorN_I i) = Enc.encodeJson i
+  encodeJson = unwrap >>> Either.either Enc.encodeJson Enc.encodeJson
 
 instance IsStringOrNum String where
-  sOrN = SorN_S
+  sOrN = wrap <<< Either.Left
 
 instance IsStringOrNum Int where
-  sOrN = SorN_I
+  sOrN = wrap <<< Either.Right
 
 instance IsStringOrNum SorN where
   sOrN = identity
 
 instance Show SorN where
-  show (SorN_S s) = s
-  show (SorN_I i) = show i
+  show = unwrap >>> Either.either identity show
 
 instance Identable SorN where
   ident'get = id'of <<< show

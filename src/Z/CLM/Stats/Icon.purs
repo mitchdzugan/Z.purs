@@ -32,7 +32,7 @@ defIcon d iconProps = do
       Size2 -> "size-2"
       Size3 -> "size-3"
       Size4 -> "size-4"
-      Size6 -> "size-6"
+      _ -> "size-6"
     el'addCn $ str'joinWith " " cnExtra
     el'xmlns "http://www.w3.org/2000/svg"
     el'viewBox "0 0 640 640"

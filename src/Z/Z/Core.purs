@@ -47,6 +47,7 @@ module Z.Z.Core
   , class SText
   , constL
   , dec
+  , eOr'_
   , eff'defer
   , eff'tag
   , eff'untag
@@ -579,6 +580,9 @@ may'_ = May.maybe
 
 may'__ :: forall a b. (Unit -> b) -> (a -> b) -> May.Maybe a -> b
 may'__ = May.maybe'
+
+eOr'_ :: forall e v a. (e -> a) -> (v -> a) -> Eor.Either e v -> a
+eOr'_ = Eor.either
 
 may'toArray :: forall a. May.Maybe a -> Array a
 may'toArray (May.Just a) = [ a ]

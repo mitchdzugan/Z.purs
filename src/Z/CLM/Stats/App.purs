@@ -104,12 +104,10 @@ type OutOfSeasonPlayer =
 type AnyPlayer = Either OutOfSeasonPlayer ClmSeason'Player'Full
 
 anyPlayer'gamerTag :: AnyPlayer -> String
-anyPlayer'gamerTag (Left { gamerTag }) = gamerTag
-anyPlayer'gamerTag (Right { player }) = player.gamerTag
+anyPlayer'gamerTag = eOr'_ _.gamerTag _.player.gamerTag
 
 anyPlayer'otherTags :: AnyPlayer -> Array String
-anyPlayer'otherTags (Left { otherTags }) = otherTags
-anyPlayer'otherTags (Right { otherTags }) = otherTags
+anyPlayer'otherTags = eOr'_ _.otherTags _.otherTags
 
 anyPlayer'otherTags'key :: AnyPlayer -> String
 anyPlayer'otherTags'key = str'joinWith " " <<< anyPlayer'otherTags
@@ -122,8 +120,7 @@ sortBy'sorters SortBy'Name = [ sorter _.player.gamerTag ]
 sortBy'sorters SortBy'Qual = []
 sortBy'sorters SortBy'Acc = [ sorter'rev _.winrate, sorter'rev _.sets ]
 sortBy'sorters SortBy'Att = [ sorter'rev _.prEvents, sorter'rev _.sets ]
-sortBy'sorters SortBy'Mru =
-  [ sorter'rev _.lastEvent.data.date, sorter'rev _.prEvents ]
+sortBy'sorters _ = [ sorter'rev _.lastEvent.data.date, sorter'rev _.prEvents ]
 
 foreign import data M'events :: Type
 foreign import data M'players :: Type
@@ -281,7 +278,7 @@ type ClmDomE dx x a = XDom (DomE' ClmDom'Err dx) (ClmDom'X x) a
 getPxPerRem :: forall x. ClmDomEff x Number
 getPxPerRem = domRef'get'' @"pxPerRemOr_" >>= case _ of
   Just pxPerRem -> pure pxPerRem
-  Nothing -> do
+  _ -> do
     pxPerRem <- domEff'doc'pxPerRem
     domRef'set'' @"pxPerRemOr_" $ Just pxPerRem
     pure pxPerRem
@@ -629,7 +626,7 @@ profileImage props = do
 eventUrl :: ClmSeason'Event -> String
 eventUrl { source: { site, slug } } = case site of
   H2h.Startgg -> "https://start.gg/" <> slug
-  H2h.Challonge -> "https://challonge.com/" <> slug
+  _ -> "https://challonge.com/" <> slug
 
 eventDateString :: ClmSeason'Event -> String
 eventDateString { date } = str'joinWith "/" $ (#) date <$>
@@ -760,8 +757,6 @@ page'stats sort filters = do
   dom'withKey "statsPage" $ dom'div do
     el'cn "relative"
     pure case seasonOr_ of
-      FetchCache'ValState'Loading _ -> do
-        forM_ (arr'range 1 17) \id -> tableSkelRow id
       FetchCache'ValState'Error err _ -> do
         domError'fail $ ClmDom'Err'LoadSeason seasonId err
       FetchCache'ValState'Val season -> do
@@ -832,6 +827,8 @@ page'stats sort filters = do
                   el'addCn "w-[100%] h-[100%] absolute top-0 left-0"
                   whenNot isInUse $ el'addCn "pointer-events-none"
                   pure $ when isInUse $ tablePlayerRow (rankInd + 1) rank
+      _ -> do
+        forM_ (arr'range 1 17) \id -> tableSkelRow id
 
   where
   tableHead sortBy = do
@@ -1079,7 +1076,7 @@ app'body = do
             Stats sort filters -> page'stats sort filters
             Player tab -> page'player tab
             Compare -> page'compare
-            H2hGrid -> page'h2h
+            _ -> page'h2h
 
 app'mk :: forall dx x. ClmBuildOutputs -> UrlSt.XProvider dx x -> XDom dx x Unit
 app'mk buildOutputs = router'run urlEdits parseUrl mkTitleOr_ do

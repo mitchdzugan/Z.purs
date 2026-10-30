@@ -82,7 +82,7 @@ instance IsId Unit where
 
 instance IsId Boolean where
   id'char true = 't'
-  id'char false = 'f'
+  id'char _ = 'f'
   id'keyImpl _ = ""
   id'bytesImpl _ = []
 
@@ -111,10 +111,10 @@ instance IsId Number where
 instance IsId t => IsId (Z.Maybe t) where
   id'char Z.Nothing = '_'
   id'char _ = 'j'
-  id'keyImpl Z.Nothing = ""
   id'keyImpl (Z.Just v) = id'key v
-  id'bytesImpl Z.Nothing = []
+  id'keyImpl _ = ""
   id'bytesImpl (Z.Just v) = id'bytes v
+  id'bytesImpl _ = []
 
 instance (IsId l, IsId r) => IsId (l Z./\ r) where
   id'char _ = 'p'
