@@ -18,7 +18,7 @@ import Z.XDom.Preact (DomEl, DomEvent)
 import Z.XDom.Prelude as XD
 import Z.XDom.UrlState as UrlSt
 
-foreign import js_renderIn :: XD.ReactEl -> Element -> Effect (Promise Unit)
+foreign import js_renderIn :: XD.ReactEl -> Element -> EffPromise Unit
 
 foreign import js_el_webToG :: Element -> DomEl
 foreign import js_el_gToWeb :: DomEl -> Element
@@ -26,7 +26,7 @@ foreign import js_el_gToWeb :: DomEl -> Element
 foreign import js_event_webToG :: WET.Event -> DomEvent
 foreign import js_event_gToWeb :: DomEvent -> WET.Event
 
-foreign import js_animationFramePromise :: Effect (Promise Unit)
+foreign import js_animationFramePromise :: EffPromise Unit
 
 foreign import js_eventCurrentTargetValue :: DomEvent -> Effect String
 

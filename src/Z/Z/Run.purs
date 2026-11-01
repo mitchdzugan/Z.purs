@@ -1,49 +1,98 @@
-module Z.Z.Run where
+module Z.Z.Run
+  ( Ctx
+  , Ctx'Async
+  , Ctx'Except
+  , Ctx'Sync
+  , CtxR
+  , RunA
+  , RunS
+  , ctx'askAt
+  , ctx'attempt
+  , ctx'runAsync
+  , ctx'runExceptAt
+  , ctx'runReaderAt
+  , ctx'runSync
+  , ctx'throwAt
+  ) where
 
 import Prelude
 
-import Control.Monad.Rec.Class (class MonadRec, Step(..))
-import Effect (Effect)
-
-foreign import data Rdr :: Row Type -> Type -> Type
-
------------------------------------------------------------
-
-instance Apply (Rdr x) where
-  apply = js_r_apply
-
-instance Applicative (Rdr x) where
-  pure = js_r_pure
-
-instance Functor (Rdr x) where
-  map = js_r_map
-
-instance Bind (Rdr x) where
-  bind = js_r_bind
-
-instance Monad (Rdr x)
-
-instance MonadRec (Rdr x) where
-  tailRecM = js_r_tailRecM useStep
+import Data.Either (Either(..))
+import Data.Symbol (reflectSymbol)
+import Type.Proxy (Proxy(..))
+import Z.Z.Core (class ConsSymbol)
+import Z.Z.Future (Future)
 
 -----------------------------------------------------------
 
-foreign import js_r_pure :: forall v x. v -> Rdr x v
+foreign import data Ctx :: Type -> Row Type -> Type
 
-foreign import js_r_map :: forall v1 v2 x. (v1 -> v2) -> Rdr x v1 -> Rdr x v2
+foreign import data Ctx'Async :: Type
 
-foreign import js_r_apply
-  :: forall v1 v2 x. (Rdr x (v1 -> v2)) -> Rdr x v1 -> Rdr x v2
+foreign import data Ctx'Sync :: Type
 
-foreign import js_r_bind
-  :: forall v1 v2 x. Rdr x v1 -> (v1 -> Rdr x v2) -> Rdr x v2
+foreign import data Ctx'Except :: Type -> Type
 
-foreign import js_r_tailRecM
-  :: forall a b x. T'useStep a b -> (a -> Rdr x (Step a b)) -> a -> Rdr x b
+type CtxR rt x a = Ctx rt x -> a
 
-type T'useStep a b =
-  (a -> Effect Unit) -> (b -> Effect Unit) -> Step a b -> Effect Unit
+type RunS x a = forall rt. CtxR rt x a
 
-useStep :: forall a b. T'useStep a b
-useStep useLoop _ (Loop a) = useLoop a
-useStep _ useDone (Done b) = useDone b
+type RunA x a = CtxR Ctx'Async x a
+
+ctx'runSync :: forall a. RunS () a -> a
+ctx'runSync = js_ctx_runSync
+
+ctx'runAsync :: forall a. RunA () a -> Future a
+ctx'runAsync = js_ctx_runAsync
+
+ctx'runReaderAt
+  :: forall @p v x' x a
+   . ConsSymbol p v x' x
+  => v
+  -> RunS x a
+  -> RunS x' a
+ctx'runReaderAt = js_ctx_runReaderAt (reflectSymbol (Proxy @p))
+
+ctx'askAt :: forall @p v x' x. ConsSymbol p v x' x => RunS x v
+ctx'askAt = js_ctx_askAt (reflectSymbol (Proxy @p))
+
+ctx'runExceptAt
+  :: forall @p e x' x a
+   . ConsSymbol p (Ctx'Except e) x' x
+  => RunS x a
+  -> RunS x' a
+ctx'runExceptAt = js_ctx_runExceptAt Left Right (reflectSymbol (Proxy @p))
+
+ctx'throwAt
+  :: forall @p rt e x' x a
+   . ConsSymbol p (Ctx'Except e) x' x
+  => e
+  -> CtxR rt x a
+ctx'throwAt = js_ctx_throwAt (reflectSymbol (Proxy @p))
+
+ctx'attempt :: forall x a. Future a -> RunA x a
+ctx'attempt f = js_ctx_liftFuture f pure
+
+-----------------------------------------------------------
+
+foreign import js_ctx_runSync :: forall a. RunS () a -> a
+
+foreign import js_ctx_runAsync :: forall a. RunA () a -> Future a
+
+foreign import js_ctx_askAt :: forall v x. String -> RunS x v
+
+foreign import js_ctx_runReaderAt
+  :: forall v x' x a. String -> v -> RunS x a -> RunS x' a
+
+foreign import js_ctx_throwAt :: forall e x a. String -> e -> RunS x a
+
+foreign import js_ctx_runExceptAt
+  :: forall e x' x a
+   . (e -> Either e a)
+  -> (a -> Either e a)
+  -> String
+  -> RunS x a
+  -> RunS x' a
+
+foreign import js_ctx_liftFuture
+  :: forall x a. Future a -> (a -> RunA x a) -> RunA x a

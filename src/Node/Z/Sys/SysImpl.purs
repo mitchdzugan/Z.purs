@@ -49,19 +49,19 @@ import Z.Z.Future (future'run)
 import Z.Z.Opt as O
 
 foreign import js_readTextFile
-  :: String -> Effect $ Promise String
+  :: String -> EffPromise String
 
 foreign import js_readFile
-  :: String -> Effect $ Promise Buffer
+  :: String -> EffPromise Buffer
 
 foreign import js_mkdir
-  :: String -> Effect $ Promise Unit
+  :: String -> EffPromise Unit
 
 foreign import js_mkdirp
-  :: String -> Effect $ Promise Unit
+  :: String -> EffPromise Unit
 
 foreign import js_writeTextFile
-  :: String -> String -> Effect $ Promise Unit
+  :: String -> String -> EffPromise Unit
 
 foreign import js_loadYaml
   :: String
@@ -70,13 +70,13 @@ foreign import js_loadYaml
   -> Either JsError Json
 
 foreign import js_rimraf
-  :: String -> Effect $ Promise Unit
+  :: String -> EffPromise Unit
 
-foreign import js_isDirectory :: String -> Effect $ Promise Boolean
+foreign import js_isDirectory :: String -> EffPromise Boolean
 
-foreign import js_symlink :: String -> String -> String -> Effect $ Promise Unit
+foreign import js_symlink :: String -> String -> String -> EffPromise Unit
 
-foreign import js_readdir :: String -> Effect $ Promise $ Array String
+foreign import js_readdir :: String -> EffPromise $ Array String
 
 newtype Path = Path String
 

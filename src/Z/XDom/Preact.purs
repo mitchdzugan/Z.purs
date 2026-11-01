@@ -46,7 +46,7 @@ foreign import js_withBoundedError
 foreign import js_throwBoundedError :: forall e a. String -> e -> a
 
 foreign import js_renderToString :: ReactEl -> String
-foreign import js_renderToStringAsync :: ReactEl -> Effect (Promise String)
+foreign import js_renderToStringAsync :: ReactEl -> EffPromise String
 
 foreign import data DomEvent :: Type
 

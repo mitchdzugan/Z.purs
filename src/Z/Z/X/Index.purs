@@ -39,7 +39,6 @@ module Z.Z.X.Index
   , X'flipped
   , a'attempt
   , async'_
-  , async'run
   , async'x
   , e'const
   , e'const''
@@ -194,13 +193,13 @@ import Z.Z.DateTime (DateTime)
 import Z.Z.Defaultable.Util as D
 import Z.Z.Fetch (Fetch'RequestOptions, Fetch'Response, fetch, fetchRes'json)
 import Z.Z.Future
-  ( EffPromise
-  , Future
+  ( Future
   , future'fromEff
   , future'fromEffPromise
   , future'of
   , future'try
   )
+import Z.Z.Promise (EffPromise)
 import Z.Z.String (str'joinWith)
 import Z.Z.Url (URL)
 import Z.Z.Util
@@ -391,20 +390,6 @@ instance X'Buildable (Runner't x x') x' x Unit where
 
 runner'eval :: forall x a. Runner x -> Run x a -> a
 runner'eval (Runner r) m = sync'_ $ r m
-
-async'run :: forall x a. Run (A' x) a -> Future (Run x a)
-async'run = loop
-  where
-  handle = Run.on (Proxy @"_'x'async") Left Right
-  loop r = case Run.peel r of
-    Left a -> case handle a of
-      Left (AsyncSend a') -> do
-        next <- a'
-        loop next
-      Right a' -> async'run do
-        inner <- unsafeCoerce $ Run.send a'
-        inner
-    Right a -> future'of (pure a)
 
 runner'evalA :: forall x a. Runner x -> Run (A' x) a -> Future a
 runner'evalA runner = runRec $

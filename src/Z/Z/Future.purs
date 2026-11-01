@@ -1,7 +1,5 @@
 module Z.Z.Future
-  ( EffPromise
-  , Future
-  , Promise
+  ( Future
   , future'defer
   , future'fromEff
   , future'fromEffPromise
@@ -21,12 +19,9 @@ import Effect (Effect)
 import Effect.Exception (Error)
 import Z.Z.Core (JsError(..), eff'defer)
 import Z.Z.Passable (pass)
-
-foreign import data Promise :: Type -> Type
+import Z.Z.Promise (EffPromise)
 
 foreign import data Future :: Type -> Type
-
-type EffPromise a = Effect (Promise a)
 
 instance Functor Future where
   map = js_futureMap

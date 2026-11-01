@@ -20,6 +20,7 @@ module Z.Prelude
   , module ZShorthand
   , module ZWraps
   , module ZPassable
+  , module ZPromise
   , module ZFuture
   , module ZFuzzy
   , module ZX
@@ -216,6 +217,7 @@ import Z.Z.Method as ZMethod
 import Z.Z.Pair (Pair(..), pair'get, pair'getOppo, pair'swap, (~)) as ZPair
 import Z.Z.PairKey as ZPairKey
 import Z.Z.Passable (pass) as ZPassable
+import Z.Z.Promise (EffPromise) as ZPromise
 import Z.Z.Shorthand as ZShorthand
 import Z.Z.String as ZString
 import Z.Z.Url (URL) as ZUrl

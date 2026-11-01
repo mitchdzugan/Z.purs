@@ -50,7 +50,7 @@ foreign import js_requestGql
   -> Json
   -> String
   -> Json
-  -> Effect (Promise $ Either GqlE.GqlResponseError Json)
+  -> EffPromise $ Either GqlE.GqlResponseError Json
 
 requestGql
   :: forall x

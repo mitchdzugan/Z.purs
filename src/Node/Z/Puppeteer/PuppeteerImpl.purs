@@ -118,31 +118,31 @@ data Element = Element String Element_
 
 -------------- foreign imports ----------------------------------------
 
-foreign import js_launchPuppeteer :: Json -> Effect (Promise Browser)
+foreign import js_launchPuppeteer :: Json -> EffPromise Browser
 
-foreign import js_browserClose :: Browser -> Effect (Promise Unit)
+foreign import js_browserClose :: Browser -> EffPromise Unit
 
-foreign import js_newPage :: Browser -> Effect (Promise Page)
+foreign import js_newPage :: Browser -> EffPromise Page
 
-foreign import js_setViewport :: Int -> Int -> Page -> Effect (Promise Unit)
+foreign import js_setViewport :: Int -> Int -> Page -> EffPromise Unit
 
 foreign import js_goto
-  :: String -> Json -> Page -> Effect (Promise Unit)
+  :: String -> Json -> Page -> EffPromise Unit
 
 foreign import js_waitForSelector
-  :: String -> Json -> Page -> Effect (Promise Unit)
+  :: String -> Json -> Page -> EffPromise Unit
 
 foreign import js_els
-  :: String -> PageOrElement -> Effect (Promise (Array Element_))
+  :: String -> PageOrElement -> EffPromise (Array Element_)
 
-foreign import js_el :: String -> PageOrElement -> Effect (Promise Element_)
+foreign import js_el :: String -> PageOrElement -> EffPromise Element_
 
-foreign import js_innerText :: PageOrElement -> Effect (Promise String)
+foreign import js_innerText :: PageOrElement -> EffPromise String
 
-foreign import js_innerHtml :: PageOrElement -> Effect (Promise String)
+foreign import js_innerHtml :: PageOrElement -> EffPromise String
 
 foreign import js_getAttribute
-  :: Element_ -> String -> Effect (Promise String)
+  :: Element_ -> String -> EffPromise String
 
 foreign import js_PageOrElement_P :: Page -> PageOrElement
 

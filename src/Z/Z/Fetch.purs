@@ -17,22 +17,21 @@ import Data.Either (Either, note)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Tuple.Nested ((/\))
-import Effect (Effect)
 import Z.Z.Core (encodeOpts)
 import Z.Z.Defaultable (class Generable, GDefault, default)
-import Z.Z.Future (Promise)
 import Z.Z.HashMap (HashMap, hm'fromFoldable, hm'lookup)
+import Z.Z.Promise (EffPromise)
 import Z.Z.Util (decodeViaString)
 
 foreign import data Fetch'Response :: Type
 
-fetch :: String -> Fetch'RequestOptions -> Effect (Promise Fetch'Response)
+fetch :: String -> Fetch'RequestOptions -> EffPromise Fetch'Response
 fetch url = js_fetch url <<< encodeOpts
 
-fetchRes'text :: Fetch'Response -> Effect (Promise String)
+fetchRes'text :: Fetch'Response -> EffPromise String
 fetchRes'text = js_fetchRes_text
 
-fetchRes'json :: Fetch'Response -> Effect (Promise Json)
+fetchRes'json :: Fetch'Response -> EffPromise Json
 fetchRes'json = js_fetchRes_json
 
 data Http'Method
@@ -109,9 +108,8 @@ type Fetch'RequestOptions =
   , body :: Maybe String
   }
 
-foreign import js_fetch
-  :: String -> Json -> Effect (Promise Fetch'Response)
+foreign import js_fetch :: String -> Json -> EffPromise Fetch'Response
 
-foreign import js_fetchRes_json :: Fetch'Response -> Effect (Promise Json)
+foreign import js_fetchRes_json :: Fetch'Response -> EffPromise Json
 
-foreign import js_fetchRes_text :: Fetch'Response -> Effect (Promise String)
+foreign import js_fetchRes_text :: Fetch'Response -> EffPromise String
