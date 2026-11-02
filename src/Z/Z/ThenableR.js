@@ -4,10 +4,8 @@ class ThenableSync {
   }
 
   then(f) {
-    const res = f(this.v);
-    return res instanceof Promise || res instanceof ThenableSync
-      ? res
-      : new ThenableSync(res);
+    const r = f(this.v);
+    return r instanceof Promise || r instanceof ThenableSync ? r : Thenable(r);
   }
 }
 
@@ -88,10 +86,12 @@ class NonError extends Error {
   }
 }
 
-export const js_thenableR_try = (Left) => (Right) => (thR) => async (r) => {
+export const js_thenableR_try = (Left) => (Right) => (thR) => (r) => {
+  const toL = (e) => Left(e instanceof Error ? e : new NonError(e));
   try {
-    return Right(await ensurePromise(thR(r)));
+    const res = thR(r).then(Right);
+    return res instanceof Promise ? res.catch(toL) : res;
   } catch (caught) {
-    return Left(caught instanceof Error ? caught : new NonError(caught));
+    return toL(caught);
   }
 };

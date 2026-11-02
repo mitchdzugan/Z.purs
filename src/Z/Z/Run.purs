@@ -2,97 +2,131 @@ module Z.Z.Run
   ( Ctx
   , Ctx'Async
   , Ctx'Except
-  , Ctx'Sync
-  , CtxR
+  , Ctx'x'async
+  , Run'
   , RunA
   , RunS
-  , ctx'askAt
-  , ctx'attempt
-  , ctx'runAsync
-  , ctx'runExceptAt
-  , ctx'runReaderAt
-  , ctx'runSync
-  , ctx'throwAt
+  , ctxA'fromEff
+  , ctxA'fromEffPromise
+  , ctxA'run
+  , ctxE'failAt
+  , ctxE'okAt
+  , ctxE'runAt
+  , ctxE'throwAt
+  , ctxR'askAt
+  , ctxR'runAt
   ) where
 
 import Prelude
 
-import Data.Either (Either(..))
+import Data.Either (Either)
 import Data.Symbol (reflectSymbol)
+import Effect (Effect)
+import Type.Equality (class TypeEquals)
 import Type.Proxy (Proxy(..))
-import Z.Z.Core (class ConsSymbol)
-import Z.Z.Future (Future)
+import Unsafe.Coerce (unsafeCoerce)
+import Z.Z.Core (class ConsSymbol, JsError, eOr'_, mapL)
+import Z.Z.Defaultable (class Generable, GDefault)
+import Z.Z.Promise (EffPromise)
+import Z.Z.ThenableR
+  ( Tag'Async
+  , Tag'Sync
+  , ThenableR
+  , async'fromEff
+  , async'fromEffPromise
+  , thenableR'ask
+  , thenableR'try
+  )
 
 -----------------------------------------------------------
 
-foreign import data Ctx :: Type -> Row Type -> Type
-
-foreign import data Ctx'Async :: Type
-
-foreign import data Ctx'Sync :: Type
+foreign import data Ctx :: Row Type -> Type
 
 foreign import data Ctx'Except :: Type -> Type
 
-type CtxR rt x a = Ctx rt x -> a
+foreign import data Ctx'Async :: Type
 
-type RunS x a = forall rt. CtxR rt x a
+instance (TypeEquals x ()) => Generable (Ctx x) GDefault (Ctx x) where
+  mkGenerable = js_ctx_default
 
-type RunA x a = CtxR Ctx'Async x a
+type Ctx'x'async x = (_'x'async :: Ctx'Async | x)
 
-ctx'runSync :: forall a. RunS () a -> a
-ctx'runSync = js_ctx_runSync
+type Run' rt x a = ThenableR rt (Ctx x) a
 
-ctx'runAsync :: forall a. RunA () a -> Future a
-ctx'runAsync = js_ctx_runAsync
+type RunS x a = Run' Tag'Sync x a
 
-ctx'runReaderAt
-  :: forall @p v x' x a
+type RunA x a = Run' Tag'Async x a
+
+ctxR'askAt :: forall @p rt v x' x. ConsSymbol p v x' x => Run' rt x v
+ctxR'askAt = thenableR'ask <#> js_ctx_at (reflectSymbol (Proxy @p))
+
+ctxR'runAt
+  :: forall @p rt v x' x a
    . ConsSymbol p v x' x
   => v
-  -> RunS x a
-  -> RunS x' a
-ctx'runReaderAt = js_ctx_runReaderAt (reflectSymbol (Proxy @p))
+  -> Run' rt x a
+  -> Run' rt x' a
+ctxR'runAt = js_ctx_runReaderAt (reflectSymbol (Proxy @p))
 
-ctx'askAt :: forall @p v x' x. ConsSymbol p v x' x => RunS x v
-ctx'askAt = js_ctx_askAt (reflectSymbol (Proxy @p))
-
-ctx'runExceptAt
-  :: forall @p e x' x a
+ctxE'runAt
+  :: forall @p @e rt x' x a
    . ConsSymbol p (Ctx'Except e) x' x
-  => RunS x a
-  -> RunS x' a
-ctx'runExceptAt = js_ctx_runExceptAt Left Right (reflectSymbol (Proxy @p))
+  => Run' rt x a
+  -> Run' rt x' (Either e a)
+ctxE'runAt m = do
+  let symK = reflectSymbol (Proxy @p)
+  js_ctx_runExceptAt symK do
+    r <- thenableR'ask
+    mapL (js_ctx_unwrapErrorAt symK r) <$> thenableR'try m
 
-ctx'throwAt
-  :: forall @p rt e x' x a
+ctxE'throwAt
+  :: forall @p e rt x' x a
    . ConsSymbol p (Ctx'Except e) x' x
   => e
-  -> CtxR rt x a
-ctx'throwAt = js_ctx_throwAt (reflectSymbol (Proxy @p))
+  -> Run' rt x a
+ctxE'throwAt e = thenableR'ask <#> js_ctx_throwAt (reflectSymbol (Proxy @p)) e
 
-ctx'attempt :: forall x a. Future a -> RunA x a
-ctx'attempt f = js_ctx_liftFuture f pure
+ctxE'failAt
+  :: forall @p e rt x' x
+   . ConsSymbol p (Ctx'Except e) x' x
+  => e
+  -> Run' rt x Unit
+ctxE'failAt = ctxE'throwAt @p
 
------------------------------------------------------------
+ctxE'okAt
+  :: forall @p e rt x' x a
+   . ConsSymbol p (Ctx'Except e) x' x
+  => Either e a
+  -> Run' rt x a
+ctxE'okAt = eOr'_ (ctxE'throwAt @p) pure
 
-foreign import js_ctx_runSync :: forall a. RunS () a -> a
+ctxA'fromEff :: forall r a. Effect a -> RunS (Ctx'x'async r) (Either JsError a)
+ctxA'fromEff = ctx_asyncX_to_syncAX <<< async'fromEff
 
-foreign import js_ctx_runAsync :: forall a. RunA () a -> Future a
+ctxA'fromEffPromise
+  :: forall r a. EffPromise a -> RunS (Ctx'x'async r) (Either JsError a)
+ctxA'fromEffPromise = ctx_asyncX_to_syncAX <<< async'fromEffPromise
 
-foreign import js_ctx_askAt :: forall v x. String -> RunS x v
+ctxA'run :: forall x a. RunS (Ctx'x'async x) a -> RunA x a
+ctxA'run = ctx_syncAX_to_asyncX
 
 foreign import js_ctx_runReaderAt
-  :: forall v x' x a. String -> v -> RunS x a -> RunS x' a
+  :: forall rt v x' x a. String -> v -> Run' rt x a -> Run' rt x' a
 
-foreign import js_ctx_throwAt :: forall e x a. String -> e -> RunS x a
+foreign import js_ctx_default :: forall x. Ctx x
+
+foreign import js_ctx_at :: forall x v. String -> Ctx x -> v
 
 foreign import js_ctx_runExceptAt
-  :: forall e x' x a
-   . (e -> Either e a)
-  -> (a -> Either e a)
-  -> String
-  -> RunS x a
-  -> RunS x' a
+  :: forall rt x' x a. String -> Run' rt x a -> Run' rt x' a
 
-foreign import js_ctx_liftFuture
-  :: forall x a. Future a -> (a -> RunA x a) -> RunA x a
+foreign import js_ctx_unwrapErrorAt
+  :: forall x e. String -> Ctx x -> JsError -> e
+
+foreign import js_ctx_throwAt :: forall e x a. String -> e -> Ctx x -> a
+
+ctx_syncAX_to_asyncX :: forall x a. RunS (Ctx'x'async x) a -> RunA x a
+ctx_syncAX_to_asyncX = unsafeCoerce
+
+ctx_asyncX_to_syncAX :: forall x a. RunA x a -> RunS (Ctx'x'async x) a
+ctx_asyncX_to_syncAX = unsafeCoerce

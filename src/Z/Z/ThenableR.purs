@@ -3,12 +3,12 @@ module Z.Z.ThenableR
   , Tag'Async
   , Tag'Sync
   , ThenableR
+  , async'fromEff
+  , async'fromEffPromise
   , async'run
   , thenableR'ask
   , thenableR'async
-  , thenableR'async'fromEff
-  , thenableR'async'try
-  , thenableR'fromEffPromise
+  , thenableR'try
   , thenableR'parallel
   , thenableR'runAsync
   , thenableR'sync
@@ -21,6 +21,7 @@ import Data.Either (Either(..))
 import Effect (Effect)
 import Effect.Exception (Error)
 import Z.Z.Core (JsError(..))
+import Z.Z.Defaultable (class Generable, GDefault, default)
 import Z.Z.Promise (EffPromise)
 
 --------------------------------
@@ -67,12 +68,13 @@ thenableR'runAsync
 thenableR'runAsync = js_thenableR_runA
 
 async'run
-  :: forall rt a
-   . (a -> Effect Unit)
+  :: forall rt r a
+   . Generable r GDefault r
+  => (a -> Effect Unit)
   -> (JsError -> Effect Unit)
-  -> ThenableR rt Unit a
+  -> ThenableR rt r a
   -> Effect Unit
-async'run = thenableR'runAsync unit
+async'run = thenableR'runAsync default
 
 thenableR'ask :: forall rt r. ThenableR rt r r
 thenableR'ask = js_thenableR_ask
@@ -81,17 +83,19 @@ thenableR'parallel
   :: forall rt r a. Array (ThenableR rt r a) -> ThenableR rt r (Array a)
 thenableR'parallel = js_thenableR_parallel
 
-thenableR'async'fromEff :: forall r a. Effect a -> ThenableR Tag'Async r a
-thenableR'async'fromEff = js_thenableR_asyncFromEff
+thenableR'try
+  :: forall rt r a
+   . ThenableR rt r a
+  -> ThenableR rt r (Either JsError a)
+thenableR'try = js_thenableR_try (Left <<< JsError) Right
 
-thenableR'async'try
-  :: forall r a
-   . ThenableR Tag'Async r a
-  -> ThenableR Tag'Async r (Either JsError a)
-thenableR'async'try = js_thenableR_try (Left <<< JsError) Right
+async'fromEff
+  :: forall r a. Effect a -> ThenableR Tag'Async r (Either JsError a)
+async'fromEff = thenableR'try <<< js_thenableR_asyncFromEff
 
-thenableR'fromEffPromise :: forall r a. EffPromise a -> ThenableR Tag'Async r a
-thenableR'fromEffPromise = js_thenableR_fromEffPromise
+async'fromEffPromise
+  :: forall r a. EffPromise a -> ThenableR Tag'Async r (Either JsError a)
+async'fromEffPromise = thenableR'try <<< js_thenableR_fromEffPromise
 
 -------------------------------
 
@@ -151,8 +155,8 @@ foreign import js_thenableR_parallel
   :: forall rt r a. Array (ThenableR rt r a) -> ThenableR rt r (Array a)
 
 foreign import js_thenableR_try
-  :: forall r a
+  :: forall rt r a
    . (Error -> Either JsError a)
   -> (a -> Either JsError a)
-  -> ThenableR Tag'Async r a
-  -> ThenableR Tag'Async r (Either JsError a)
+  -> ThenableR rt r a
+  -> ThenableR rt r (Either JsError a)

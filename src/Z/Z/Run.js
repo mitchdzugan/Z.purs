@@ -1,39 +1,39 @@
-export const js_ctx_runSync = (useCtx) => useCtx({ x: {} });
-export const js_ctx_runAsync = (useCtx) => async () => useCtx({ x: {} });
-export const js_ctx_askAt = (k) => (ctx) => ctx[k][0];
-export const js_ctx_throwAt = (k) => (e) => (ctx) => ctx[k][0](e);
-export const js_ctx_runReaderAt = (k) => (v) => (useCtx) => (ctx) => {
+export const js_ctx_default = {};
+
+export const js_ctx_at = (k) => (ctx) => ctx[k][0];
+
+export const js_ctx_runReaderAt = (k) => (v) => (useCtx) => (_ctx) => {
+  const ctx = _ctx == js_ctx_default ? {} : js_ctx_default;
   const was = ctx[k];
   ctx[k] = [v];
-  const res = useCtx(ctx);
-  if (!was) {
-    delete ctx[k];
-  } else {
+  return useCtx(ctx).then((res) => {
     ctx[k] = was;
-  }
-  return res;
+    if (!was) {
+      delete ctx[k];
+    }
+    return res;
+  });
 };
-export const js_ctx_runExceptAt = (L) => (R) => (k) => (useCtx) => (ctx) => {
-  const LocalErrorClass = class LocalError {
+
+export const js_ctx_runExceptAt = (k) => (useCtx) => (ctx) => {
+  const LocalErrorClass = class LocalError extends Error {
     constructor(e) {
+      super("");
       this.e = e;
     }
   };
   const thrower = (e) => {
     throw new LocalErrorClass(e);
   };
-  try {
-    return R(js_ctx_runReaderAt(k)(thrower)(useCtx)(ctx));
-  } catch (e) {
+  const completer = (e) => {
     if (e instanceof LocalErrorClass) {
-      return L(e.e);
-    } else {
-      throw e;
+      return e.e;
     }
-  }
+    throw e;
+  };
+  return js_ctx_runReaderAt(k)({ thrower, completer })(useCtx)(ctx);
 };
-export const js_ctx_liftFuture = (future) => (useFuture) => async (ctx) => {
-  const v = await future();
-  console.log({ v, ctx, useFuture });
-  return useFuture(v)(ctx);
-};
+
+export const js_ctx_unwrapErrorAt = (k) => (ctx) => ctx[k][0].completer;
+
+export const js_ctx_throwAt = (k) => (e) => (ctx) => ctx[k][0].thrower(e);

@@ -3,8 +3,6 @@ module Z.Z.Promise
   , Promise
   ) where
 
-import Prelude
-
 import Effect (Effect)
 
 foreign import data Promise :: Type -> Type
