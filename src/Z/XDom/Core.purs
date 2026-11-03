@@ -201,7 +201,9 @@ import Z.XDom.X
   , domW'run
   , domW'start
   )
-import Z.Z.X.Index (a'attempt)
+import Z.Z.Run (Future, ctxA'lift)
+import Z.Z.ThenableR (async'run_)
+import Z.Z.X.Index (runner'evalA)
 
 data Self dx x = Self (Runner dx) (Runner x)
 
@@ -631,7 +633,7 @@ domEff'every'lag m = domEff'onNew antiUnit $ pure m
 domEff'async :: forall x. MDomEff'a x Unit -> MDomEff x Unit
 domEff'async m = do
   self <- dom'getSelf
-  pure $ unsafePerformEffect $ future'run_ $ evalA'self self m
+  pure $ unsafePerformEffect $ async'run_ $ evalA'self self m
 
 domEffA'sync :: forall x. MDomEff x Unit -> MDomEff'a x Unit
 domEffA'sync m = dom'getSelf <#> flip eval'self m
@@ -682,7 +684,7 @@ domEff'el'boundingRect el = do
 domEffA'animationFrame :: forall x. MDomEff'a (XDomR' x) Unit
 domEffA'animationFrame = do
   f <- x'extract @"_'xdom'reader" >>= \r -> x'do r.future'animationFrame
-  a'attempt f <#> const unit
+  ctxA'lift f
 
 domEff'doc'pxPerRem :: forall x. MDomEff (XDomR' x) Number
 domEff'doc'pxPerRem = do
@@ -790,7 +792,7 @@ exec'xdom'static = exec'xdom
   , el'scrollTo: \_ _ -> pure unit
   , event'preventDefault: \_ -> pure unit
   , event'currentTargetValue: \_ -> pure ""
-  , future'animationFrame: pure $ future'of unit
+  , future'animationFrame: pure $ pure unit
   , doc'pxPerRem: pure 1.0
   }
 

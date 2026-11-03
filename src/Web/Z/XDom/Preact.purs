@@ -17,6 +17,7 @@ import Web.Z.Web.DOM as DOM
 import Z.XDom.Preact (DomEl, DomEvent)
 import Z.XDom.Prelude as XD
 import Z.XDom.UrlState as UrlSt
+import Z.Z.ThenableR (async'fromEffPromise)
 
 foreign import js_renderIn :: XD.ReactEl -> Element -> EffPromise Unit
 
@@ -98,7 +99,7 @@ exec'xdom'web = XD.exec'xdom
   , el'scrollTo: \_ _ -> pure unit
   , event'preventDefault: \event -> preventDefault $ js_event_gToWeb event
   , event'currentTargetValue: js_eventCurrentTargetValue
-  , future'animationFrame:
-      eff'defer \_ -> future'fromEffPromise js_animationFramePromise
+  , future'animationFrame: eff'defer \_ ->
+      async'fromEffPromise js_animationFramePromise <#> const unit
   , doc'pxPerRem: pure 1.0
   }

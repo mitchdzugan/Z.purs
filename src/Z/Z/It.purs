@@ -1,4 +1,10 @@
-module Z.Z.It where
+module Z.Z.It
+  ( Iterator
+  , class Iterable
+  , it'process
+  , iterable'mk
+  , iterable'process
+  ) where
 
 import Prelude
 
@@ -10,6 +16,25 @@ foreign import data Iterator :: Type -> Type
 
 class Iterable it k v where
   iterable'mk :: it -> Iterator (k /\ v)
+
+it'process
+  :: forall carry el res
+   . (carry -> el -> Step carry res)
+  -> (carry -> res)
+  -> carry
+  -> Iterator el
+  -> res
+it'process = js_it_process useStep
+
+iterable'process
+  :: forall it k v carry res
+   . Iterable it k v
+  => (carry -> (k /\ v) -> Step carry res)
+  -> (carry -> res)
+  -> carry
+  -> it
+  -> res
+iterable'process onEl onDone init = it'process onEl onDone init <<< iterable'mk
 
 foreign import js_it_process
   :: forall carry el res

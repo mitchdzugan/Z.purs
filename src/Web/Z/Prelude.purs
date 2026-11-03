@@ -38,7 +38,6 @@ import Web.Z.Web.DOM
   , xPushState
   , xSetDocumentTitle
   , xStopPropagation
-  , xWebR
   , xWindow
   ) as DOM
 import Z.Prelude as ZPrelude

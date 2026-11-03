@@ -64,7 +64,7 @@ instance X'Results'R'Eff R'DomW ReactEls where
 
 ------------------------------------------------------------
 
-type X'DomW = Reader (R'DomW)
+type X'DomW = R'DomW
 
 type DomW' x = (domW :: X'DomW | x)
 
@@ -135,7 +135,7 @@ instance X'Results'R'Eff R'AttrW Json where
 
 ------------------------------------------------------------
 
-type X'AttrW = Reader R'AttrW
+type X'AttrW = R'AttrW
 
 type AttrW' x = (attrW :: X'AttrW | x)
 

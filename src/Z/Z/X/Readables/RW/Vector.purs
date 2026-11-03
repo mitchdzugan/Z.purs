@@ -212,8 +212,8 @@ instance X'Results'R'rw (R'Vector t) (Array t) where
 
 ---------------------------------------------------------------------
 
-type X'Vector a = Reader (RW'Tagged (R'Vector a))
-type X'Vector'w a = Reader (W'Tagged (R'Vector a))
+type X'Vector a = RW'Tagged (R'Vector a)
+type X'Vector'w a = W'Tagged (R'Vector a)
 
 x'vector :: forall @a. Array a -> X'Evaluable (X'Vector a)
 x'vector t = x'evaluable t
@@ -251,7 +251,7 @@ instance XM'type (R'Writer a) XMt'value a
 
 ---------------------------------------------------------------------
 
-type X'Writer a = Reader (RW'Tagged (R'Writer a))
+type X'Writer a = RW'Tagged (R'Writer a)
 
 x'writer :: forall @monoid. Monoid monoid => X'Evaluable (X'Writer monoid)
 x'writer = x'evaluable_

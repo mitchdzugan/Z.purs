@@ -70,8 +70,8 @@ instance
   Eff'RW'Getter XG'extract (R'Ref t) rwTag t where
   eff'rw'get (R'Ref (ref /\ _)) = eff'ref'get ref
 
-type X'Ref t = Reader (RW'Tagged (R'Ref t))
-type X'Ref'w t = Reader (W'Tagged (R'Ref t))
+type X'Ref t = RW'Tagged (R'Ref t)
+type X'Ref'w t = W'Tagged (R'Ref t)
 
 x'ref :: forall t. t -> X'Evaluable (X'Ref t)
 x'ref t = x'evaluable t
@@ -107,8 +107,8 @@ instance
   X'Results'R'rw (R'Ref'nt nt) t where
   x'results'r'rw'impl (R'Ref'nt (ref /\ _)) = eff'ref'get ref <#> unwrap
 
-type X'Ref'nt nt = Reader (RW'Tagged (R'Ref'nt nt))
-type X'Ref'nt'w nt = Reader (W'Tagged (R'Ref'nt nt))
+type X'Ref'nt nt = RW'Tagged (R'Ref'nt nt)
+type X'Ref'nt'w nt = W'Tagged (R'Ref'nt nt)
 
 instance
   ( RW'Tag'CanWrite rwTag
@@ -145,8 +145,8 @@ x'ref'nt'w
   => X'Evaluable (X'Ref'nt'w nt)
 x'ref'nt'w = x'evaluable @(X'Ref'nt'w nt) unit
 
-type B'Ref'nt :: forall k1 k2. ((Type -> Type) -> k1 -> k2) -> Type -> k1 -> k2
+type B'Ref'nt :: forall k1 k2. (Type -> k1 -> k2) -> Type -> k1 -> k2
 type B'Ref'nt sel nt t = sel (X'Ref'nt nt) t
 
-type B'Ref :: forall k. ((Type -> Type) -> Type -> k) -> Type -> k
+type B'Ref :: forall k. (Type -> Type -> k) -> Type -> k
 type B'Ref sel t = sel (X'Ref t) t

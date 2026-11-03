@@ -5,7 +5,7 @@ module Node.Z.Sys.SysImpl
   , Path
   , Platform(..)
   , X'Node
-  , XNodeF
+  , XNodeR(..)
   , basename
   , class Pathlike
   , dirname
@@ -45,8 +45,9 @@ import Z.Prelude
 
 import Effect.Unsafe as Unsafe
 import Z.Sys.Module as Sys
-import Z.Z.Future (future'run)
 import Z.Z.Opt as O
+import Z.Z.Run (Future)
+import Z.Z.ThenableR (async'run)
 
 foreign import js_readTextFile
   :: String -> EffPromise String
@@ -215,7 +216,7 @@ x'lookupEnv k = e'try (e'runEffA $ lookupEnv k) <#> getRes
   getRes _ = Nothing
 
 effAffThenExit :: forall e a. RtError e => Future (Either e a) -> Effect Unit
-effAffThenExit = future'run onDone onError
+effAffThenExit = async'run onDone onError
   where
   onError e = do
     js_errorLog "process failed with UNHANDLED UNKNOWN error ⌄"
@@ -262,19 +263,20 @@ toPlatform "openbsd" = OpenBSD
 toPlatform _ = Unknown
 
 x'argv :: forall x. X'Node x @@> Array String
-x'argv = lift p'X'Node (FullArgvCmd (arr'drop 2))
+x'argv = x'effGet @P'X'Node @"fullArgv" <#> arr'drop 2
 
 x'pid :: forall x. X'Node x @@> Int
-x'pid = lift p'X'Node $ PidCmd identity
+x'pid = x'effGet @P'X'Node @"pid"
 
 x'wd :: forall x. X'Node x @@> Path
-x'wd = lift p'X'Node (WdCmd Path)
+x'wd = x'effGet @P'X'Node @"wd" <#> Path
 
 x'envPaths :: forall x. String -> Maybe String -> X'Node x @@> EnvPaths
-x'envPaths appName suffix = lift p'X'Node (EnvPathsCmd appName suffix id)
+x'envPaths appName suffix =
+  x'effCall @P'X'Node @"envPaths" $ appName /\ suffix
 
 x'platform :: forall x. X'Node x @@> Platform
-x'platform = lift p'X'Node (PlatformCmd toPlatform)
+x'platform = x'effGet @P'X'Node @"platform" <#> toPlatform
 
 envData :: EnvPaths -> Path
 envData = Path <<< js_envData
@@ -312,31 +314,35 @@ foreign import data EnvPaths :: Type
 
 foreign import js_envPaths :: String -> Json -> Effect EnvPaths
 
-data XNodeF a
-  = WdCmd (String -> a)
-  | FullArgvCmd (Array String -> a)
-  | PidCmd (Int -> a)
-  | PlatformCmd (String -> a)
-  | EnvPathsCmd String (Maybe String) (EnvPaths -> a)
+newtype XNodeR = XNodeR
+  { wd :: Effect String
+  , fullArgv :: Effect (Array String)
+  , pid :: Effect Int
+  , platform :: Effect String
+  , envPaths :: String /\ Maybe String -> Effect EnvPaths
+  }
 
-handleXNode :: forall r. XNodeF ~> Run r
-handleXNode = case _ of
-  WdCmd f -> pure $ f (Unsafe.unsafePerformEffect js_wd)
-  FullArgvCmd f -> pure $ f (Unsafe.unsafePerformEffect js_argv)
-  PidCmd f -> pure $ f $ Unsafe.unsafePerformEffect js_pid
-  PlatformCmd f -> pure $ f (Unsafe.unsafePerformEffect js_platform)
-  EnvPathsCmd appName suffix f -> pure $ f $ Unsafe.unsafePerformEffect $
-    js_envPaths appName (encodeOpts { suffix })
+derive instance Newtype XNodeR _
 
-derive instance Functor XNodeF
+instance X'Readable XNodeR Unit where
+  x'readable'mk _ = pure $ wrap
+    { wd: js_wd
+    , fullArgv: js_argv
+    , pid: js_pid
+    , platform: js_platform
+    , envPaths: \(appName /\ suffix) ->
+        js_envPaths appName (encodeOpts { suffix })
+    }
 
-type X'Node x = (_'x'node :: XNodeF | x)
+type X'Node x = (_'x'node :: XNodeR | x)
 
-p'X'Node :: Proxy "_'x'node"
-p'X'Node = Proxy @"_'x'node"
+type P'X'Node = "_'x'node"
+
+p'X'Node :: Proxy P'X'Node
+p'X'Node = Proxy
 
 runXNode :: forall x a. Run (X'Node x) a -> Run x a
-runXNode = run (on p'X'Node handleXNode send)
+runXNode = x'eval_ @P'X'Node
 
 dirname :: forall p. Pathlike p => p -> Path
 dirname p = Path $ js_pathDirname $ pathStr p

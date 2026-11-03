@@ -22,14 +22,9 @@ import Z.Z.Eff.WholeHistoryRating
   , eff'whr'new
   , eff'whr'ratingsForPlayer
   )
-import Z.Z.X.Core
-  ( class X'Readable
-  , x'eval
-  )
+import Z.Z.X.Core (class X'Readable, Reader, Run, x'eval)
 import Z.Z.X.Index (Edit)
-import Z.Z.X.Method
-  ( x'effCall
-  )
+import Z.Z.X.Method (x'effCall)
 
 ---------------------------------------------------------------------
 
@@ -52,7 +47,7 @@ instance X'Readable (R'Whr t) (Edit Whr'Opts /\ (t -> String)) where
           eff'whr'ratingsForPlayer (toKey p) st
       }
 
-type X'Whr t = Reader (R'Whr t)
+type X'Whr t = R'Whr t
 
 ---------------------------------------------------------------------
 

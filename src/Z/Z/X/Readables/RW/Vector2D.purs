@@ -189,8 +189,8 @@ instance X'Results'R'rw (R'Vector2D t) (Array2D t) where
 
 ---------------------------------------------------------------------
 
-type X'Vector2D a = Reader (RW'Tagged (R'Vector2D a))
-type X'Vector2D'w a = Reader (W'Tagged (R'Vector2D a))
+type X'Vector2D a = RW'Tagged (R'Vector2D a)
+type X'Vector2D'w a = W'Tagged (R'Vector2D a)
 
 x'vector2D :: forall @a. Array2D a -> X'Evaluable (X'Vector2D a)
 x'vector2D t = x'evaluable t

@@ -2,18 +2,20 @@ module Z.Z.X.Core
   ( Def'Sel'Evaluable
   , Def'Sel'm
   , Def'Sel'result
+  , Eff'Reader(..)
   , R'Tagged
   , RW'Tag'R
   , RW'Tag'RW
   , RW'Tag'W
   , RW'Tagged
+  , Reader(..)
+  , Run
   , T'Consable
   , T'Evaluable
   , T'use'_'AsSym
   , W'Tagged
   , WithRWTag(..)
   , X'Evaluable(..)
-  , X'EvaluableAt(..)
   , _'eval
   , _'eval_
   , _'exec
@@ -31,6 +33,7 @@ module Z.Z.X.Core
   , class X'Results'R
   , class X'Results'R'Eff
   , class X'Results'R'rw
+  , evaluable'run
   , x'build
   , x'buildable'eval
   , x'buildable'rl'run
@@ -39,7 +42,6 @@ module Z.Z.X.Core
   , x'eval
   , x'eval_
   , x'evaluable
-  , x'evaluableAt_
   , x'evaluable_
   , x'exec
   , x'exec_
@@ -58,6 +60,17 @@ import Z.Z.X.UtilPrelude
 import Prim.RowList as RL
 import Unsafe.Coerce (unsafeCoerce)
 import Z.Z.Core (T'useAsSym, rec'get, rec'insert)
+import Z.Z.Run (RunS, ctxR'askAt, ctxR'runAt)
+
+type Run x a = RunS x a
+
+newtype Reader r = Reader r
+
+derive instance Newtype (Reader r) _
+
+newtype Eff'Reader r = Eff'Reader r
+
+derive instance Newtype (Eff'Reader r) _
 
 type T'Consable p m param res'm =
   forall x' x a
@@ -78,19 +91,26 @@ class X'Results m result | m -> result where
 class X'Results'R r result where
   x'results'r'impl :: r -> result
 
-instance X'Results'R r result => X'Results (Reader r) result where
-  x'results'impl p = askAt p <#> x'results'r'impl @r
-
 class X'Results'R'rw r result | r -> result where
   x'results'r'rw'impl :: r -> Effect result
 
 class X'Results'R'Eff r result | r -> result where
   x'results'r'eff'impl :: r -> Effect result
 
-instance X'Results'R'rw r result => X'Results'R (WithRWTag tag r) result where
-  x'results'r'impl (WithRWTag r) = unsafePerformEffect $ x'results'r'rw'impl r
-else instance X'Results'R'Eff r result => X'Results'R r result where
-  x'results'r'impl r = unsafePerformEffect $ x'results'r'eff'impl r
+instance
+  X'Results'R'rw r result =>
+  X'Results'R'Eff (WithRWTag tag r) result where
+  x'results'r'eff'impl (WithRWTag r) = x'results'r'rw'impl r
+
+instance X'Results'R r result => X'Results (Reader r) result where
+  x'results'impl
+    :: forall p x' x. ConsSymbol p (Reader r) x' x => Proxy p -> Run x result
+  x'results'impl _ = ctxR'askAt @p <#> unwrap <#> x'results'r'impl @r
+else instance X'Results'R'Eff r result => X'Results r result where
+  x'results'impl
+    :: forall p x' x. ConsSymbol p r x' x => Proxy p -> Run x result
+  x'results'impl _ =
+    ctxR'askAt @p <#> x'results'r'eff'impl <#> unsafePerformEffect
 
 ------------------------------------------------------------------------------
 
@@ -234,22 +254,24 @@ _'eval_ = x'eval_ @p
 
 instance
   X'Readable r param =>
-  X'Consable (Reader r) param Identity where
+  X'Consable r param Identity where
   x'consable'impl = impl
     where
-    impl :: forall p. Proxy p -> T'Consable p (Reader r) param Identity
+    impl :: forall p. Proxy p -> T'Consable p r param Identity
     impl p param m =
-      wrap <$> runReaderAt p (unsafePerformEffect $ x'readable'mk @r param) m
+      wrap <$> ctxR'runAt @p
+        (unsafePerformEffect $ x'readable'mk @r param)
+        m
 
 class X'Readable r param | r -> param where
   x'readable'mk :: param -> Effect r
 
 ------------------------------------------------------------------------------
 
-instance X'Readable (Identity r) r where
-  x'readable'mk = pure <<< Identity
+instance X'Readable (Reader r) r where
+  x'readable'mk = pure <<< wrap
 
-instance X'Results'R'Eff (Identity r) r where
+instance X'Results'R'Eff (Eff'Reader r) r where
   x'results'r'eff'impl = pure <<< unwrap
 
 ------------------------------------------------------------------------------
@@ -312,17 +334,6 @@ x'build
 x'build spec m = x'buildable'run @spec @x' spec m <#> snd
 
 instance
-  ( ConsSymbol p m x' x
-  , X'Consable m param Identity
-  , X'Results m result
-  ) =>
-  X'Buildable (X'EvaluableAt p m) x' x result where
-  x'buildable'run (X'EvaluableAt e) m = evaluable'run @p @m @param e do
-    a <- m
-    result <- x'results'impl @m $ Proxy @p
-    pure $ a /\ result
-
-instance
   ( RL.RowToList spec'row spec'rl
   , X'Buildable'RL spec'row spec'rl x' x result'row
   ) =>
@@ -335,8 +346,8 @@ class X'Buildable'RL
   :: forall k1
    . Row Type
   -> k1
-  -> Row (Type -> Type)
-  -> Row (Type -> Type)
+  -> Row Type
+  -> Row Type
   -> Row Type
   -> Constraint
 class
@@ -374,23 +385,11 @@ instance
 
 ---------------------------------------------------------------------
 
-newtype X'EvaluableAt :: Symbol -> (Type -> Type) -> Type
-newtype X'EvaluableAt p mf = X'EvaluableAt (X'Evaluable mf)
-
-x'evaluableAt_
-  :: forall @p @mf param
-   . X'Consable mf param Identity
-  => Generable param GDefault param
-  => X'EvaluableAt p mf
-x'evaluableAt_ = X'EvaluableAt $ x'evaluable_ @mf @param
-
----------------------------------------------------------------------
-
-type Def'Sel'Evaluable :: forall k. (Type -> Type) -> k -> Type
+type Def'Sel'Evaluable :: forall k. Type -> k -> Type
 type Def'Sel'Evaluable m _result = X'Evaluable m
 
-type Def'Sel'm :: forall k. (Type -> Type) -> k -> (Type -> Type)
+type Def'Sel'm :: forall k. Type -> k -> Type
 type Def'Sel'm m _result = m
 
-type Def'Sel'result :: forall k. (Type -> Type) -> k -> k
+type Def'Sel'result :: forall k. Type -> k -> k
 type Def'Sel'result _m result = result

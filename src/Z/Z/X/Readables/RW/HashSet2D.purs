@@ -328,8 +328,8 @@ instance
 
 ---------------------------------------------------------------------
 
-type X'HashSet2D k a = Reader (RW'Tagged (R'HashSet2D k a))
-type X'HashSet2D'w k a = Reader (W'Tagged (R'HashSet2D k a))
+type X'HashSet2D k a = RW'Tagged (R'HashSet2D k a)
+type X'HashSet2D'w k a = W'Tagged (R'HashSet2D k a)
 
 x'hashset2D
   :: forall @k @a

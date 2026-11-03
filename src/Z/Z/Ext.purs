@@ -37,11 +37,6 @@ module Z.Z.Ext
   , module Proxy
   , module Record
   , module Row
-  , module Run
-  , module RunE
-  , module RunR
-  , module RunS
-  , module RunW
   , module ShowGeneric
   , module Str
   , module Symbol
@@ -141,8 +136,3 @@ import Routing.Duplex (RouteDuplex, RouteDuplex') as Dup
 import Routing.Duplex.Parser (RouteError) as DupP
 import Type.Equality (class TypeEquals) as TypeEquals
 import Type.Proxy (Proxy(..)) as Proxy
-import Z.EXTERNAL.RUN.Run (Run, expand, extract, lift, on, run, send) as Run
-import Z.EXTERNAL.RUN.Run.Except (Except) as RunE
-import Z.EXTERNAL.RUN.Run.Reader (Reader) as RunR
-import Z.EXTERNAL.RUN.Run.State (State, execState) as RunS
-import Z.EXTERNAL.RUN.Run.Writer (Writer) as RunW

@@ -5,7 +5,7 @@ import Node.Z.Prelude
 import Debug (traceM)
 import Effect.Class.Console (log)
 import Z.Z.Run
-  ( RunA
+  ( Future
   , ctxE'failAt
   , ctxE'okAt
   , ctxE'runAt
@@ -19,7 +19,7 @@ import Z.Z.ThenableR
   , thenableR'runAsync
   )
 
-runMain :: RunA () (Either String (Array Int))
+runMain :: Future (Either String (Array Int))
 runMain = mapL jsErrorName <$> ctxE'runAt @"e" do
   a1 <- ctxE'okAt @"e" =<< async'fromEff (pure 420)
   a2 <- ctxE'okAt @"e" =<< async'fromEff (pure 69)

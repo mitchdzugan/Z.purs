@@ -158,8 +158,8 @@ instance
 
 ---------------------------------------------------------------------
 
-type X'HashMap k v = Reader (RW'Tagged (R'HashMap k v))
-type X'HashMap'w k v = Reader (W'Tagged (R'HashMap k v))
+type X'HashMap k v = RW'Tagged (R'HashMap k v)
+type X'HashMap'w k v = W'Tagged (R'HashMap k v)
 
 x'hashmap
   :: forall @k @v. Identable k => HashMap k v -> X'Evaluable (X'HashMap k v)
@@ -184,6 +184,5 @@ eff'hm'set hm st = eff'bin'clear st *> do
 eff'hm'freeze :: forall k v. Eff'HashMap k v -> Effect (HashMap k v)
 eff'hm'freeze st = wrap <$> eff'bin'freeze st
 
-type B'HashMap
-  :: forall k1. ((Type -> Type) -> Type -> k1) -> Type -> Type -> k1
+type B'HashMap :: forall k1. (Type -> Type -> k1) -> Type -> Type -> k1
 type B'HashMap sel k v = sel (X'HashMap k v) (HashMap k v)

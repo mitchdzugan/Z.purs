@@ -12,11 +12,7 @@ import Z.Z.X.UtilPrelude
 
 import Unsafe.Coerce (unsafeCoerce)
 import Z.Z.DateTime (DateTime, dateTime'eff'now)
-import Z.Z.X.Core
-  ( class X'Readable
-  , X'Evaluable
-  , x'evaluable_
-  )
+import Z.Z.X.Core (class X'Readable, Run, X'Evaluable, x'evaluable_)
 import Z.Z.X.Method (x'effCall, x'effGet)
 
 data LogLevel = LogLevel'Info | LogLevel'Warning | LogLevel'Error
@@ -41,12 +37,12 @@ newtype R'X'Base = R'X'Base
 derive instance Newtype R'X'Base _
 
 instance X'Readable R'X'Base Unit where
-  x'readable'mk _ = pure $ R'X'Base
+  x'readable'mk _ = pure $ wrap
     { now: dateTime'eff'now
     , out: \(ll /\ v) -> js_consoleOut unit (logLevel'consoleKey ll) v
     }
 
-type X'BaseM = Reader R'X'Base
+type X'BaseM = R'X'Base
 
 x'base :: X'Evaluable X'BaseM
 x'base = x'evaluable_ @X'BaseM

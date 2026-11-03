@@ -108,14 +108,13 @@ module Z.Z.X.Method
   , eff'get
   , eff'rw'call
   , eff'rw'get
-  , x'call
-  , x'get
   , x'add
   , x'addAt
   , x'alter
   , x'assign
   , x'assignAt
   , x'assignPure
+  , x'call
   , x'clear
   , x'clearAt
   , x'cons
@@ -130,6 +129,7 @@ module Z.Z.X.Method
   , x'entriesAt
   , x'extract
   , x'extractAt
+  , x'get
   , x'has
   , x'insert
   , x'keys
@@ -164,7 +164,6 @@ module Z.Z.X.Method
 
 import Prelude
 
-import Data.Identity (Identity(..))
 import Data.Lens (Forget, Optic, over, preview, set, toArrayOf, view)
 import Data.List (List)
 import Data.Maybe (Maybe, isJust)
@@ -177,14 +176,14 @@ import Effect (Effect)
 import Effect.Unsafe (unsafePerformEffect)
 import Record as Rec
 import Type.Proxy (Proxy(..))
-import Z.EXTERNAL.RUN.Run (Run)
-import Z.EXTERNAL.RUN.Run.Reader (Reader, asksAt)
+import Z.EXTERNAL.RUN.Run.Reader (asksAt)
 import Z.Z.Barlow (class C'Barlow, barlow)
 import Z.Z.Core (class ConsSymbol, T'id, may'__, rec'get)
 import Z.Z.Method (class Method, call)
-import Z.Z.X.Core (T'use'_'AsSym, WithRWTag(..))
+import Z.Z.Run (ctxR'askAt)
+import Z.Z.X.Core (Reader, Run, T'use'_'AsSym, WithRWTag(..))
 
-class X'Method :: forall k. k -> (Type -> Type) -> Type -> Type -> Constraint
+class X'Method :: forall k. k -> Type -> Type -> Type -> Constraint
 class X'Method name m param res | name m -> param res where
   x'call :: forall p x' x. ConsSymbol p m x' x => Proxy p -> param -> Run x res
 
@@ -205,7 +204,7 @@ class Eff'RW'Method
 class Eff'RW'Method name t rwTag param res | name t -> rwTag param res where
   eff'rw'call :: t -> param -> Effect res
 
-class X'Getter :: forall k. k -> (Type -> Type) -> Type -> Constraint
+class X'Getter :: forall k. k -> Type -> Type -> Constraint
 class X'Getter name m res | name m -> res where
   x'get :: forall p x' x. ConsSymbol p m x' x => Proxy p -> Run x res
 
@@ -228,46 +227,74 @@ class Eff'RW'Getter name t rwTag res | name t -> rwTag res where
 instance
   ( Method name r param res
   ) =>
-  X'Method name (Reader (Identity r)) param res where
-  x'call p param = asksAt p \(Identity r) -> call @name r param
+  X'Method name (Reader r) param res where
+  x'call
+    :: forall p x' x
+     . ConsSymbol p (Reader r) x' x
+    => Proxy p
+    -> param
+    -> Run x res
+  x'call p param = ctxR'askAt @p <#> unwrap <#> \r -> call @name r param
 else instance
   ( Eff'RW'Method name r rwTag param res
   ) =>
-  X'Method name (Reader (WithRWTag rwTag r)) param res where
+  X'Method name (WithRWTag rwTag r) param res where
+  x'call
+    :: forall p x' x
+     . ConsSymbol p (WithRWTag rwTag r) x' x
+    => Proxy p
+    -> param
+    -> Run x res
   x'call p param =
-    asksAt p \(WithRWTag r) -> unsafePerformEffect $ eff'rw'call @name r param
+    ctxR'askAt @p <#>
+      \(WithRWTag r) -> unsafePerformEffect $ eff'rw'call @name r param
 else instance
   ( Eff'Method name r param res
   ) =>
-  X'Method name (Reader r) param res where
-  x'call p param = asksAt p \r -> unsafePerformEffect $ eff'call @name r param
+  X'Method name r param res where
+  x'call
+    :: forall p x' x
+     . ConsSymbol p r x' x
+    => Proxy p
+    -> param
+    -> Run x res
+  x'call p param = ctxR'askAt @p <#>
+    \r -> unsafePerformEffect $ eff'call @name r param
 
 instance
-  X'Getter XG'extract (Reader (Identity r)) r where
-  x'get p = asksAt p \(Identity r) -> r
+  X'Getter XG'extract (Reader r) r where
+  x'get
+    :: forall p x' x
+     . ConsSymbol p (Reader r) x' x
+    => Proxy p
+    -> Run x r
+  x'get p = ctxR'askAt @p <#> unwrap
 else instance
   ( Eff'RW'Getter name r rwTag res
   ) =>
-  X'Getter name (Reader (WithRWTag rwTag r)) res where
+  X'Getter name (WithRWTag rwTag r) res where
+  x'get
+    :: forall p x' x
+     . ConsSymbol p (WithRWTag rwTag r) x' x
+    => Proxy p
+    -> Run x res
   x'get p =
-    asksAt p \(WithRWTag r) -> unsafePerformEffect $ eff'rw'get @name r
-else instance
-  X'Getter XG'extract (Reader r) r where
-  x'get p = asksAt p \r -> r
+    ctxR'askAt @p <#> \(WithRWTag r) -> unsafePerformEffect $ eff'rw'get @name r
 else instance
   ( Eff'Getter name r res
   ) =>
-  X'Getter name (Reader r) res where
-  x'get p = asksAt p \r -> unsafePerformEffect $ eff'get @name r
+  X'Getter name r res where
+  x'get
+    :: forall p x' x
+     . ConsSymbol p r x' x
+    => Proxy p
+    -> Run x res
+  x'get p = ctxR'askAt @p <#> \r -> unsafePerformEffect $ eff'get @name r
 
 class XM'type :: forall k1 k2 k3. k1 -> k2 -> k3 -> Constraint
 class XM'type m tag t | m tag -> t
 
-instance XM'type r tag t => XM'type (Reader (WithRWTag rwTag r)) tag t
-
-else instance XM'type (Reader (Identity r)) XMt'self r
-
-else instance XM'type r tag t => XM'type (Reader (Identity r)) tag t
+instance XM'type r tag t => XM'type (WithRWTag rwTag r) tag t
 
 else instance XM'type (Reader r) XMt'self r
 
@@ -802,30 +829,28 @@ infixl 6 x'extract as @.
 -------------------------------------------------------------------------
 
 type T'x'effCall px pm =
-  forall m x' x nt r' r param a
-   . XC'extract m nt
-  => Newtype nt { | r }
-  => ConsSymbol px m x' x
+  forall x' x nt r' r param a
+   . Newtype nt { | r }
+  => ConsSymbol px nt x' x
   => ConsSymbol pm (param -> Effect a) r' r
   => param
   -> Run x a
 
 x'effCall :: forall @px @pm. T'x'effCall px pm
-x'effCall param = x'extract @px <#> unwrap <#> rec'get @pm <#> (#) param <#>
+x'effCall param = ctxR'askAt @px <#> unwrap <#> rec'get @pm <#> (#) param <#>
   unsafePerformEffect
 
 -------------------------------------------------------------------------
 
 type T'x'effGet px pm =
-  forall m x' x nt r' r a
-   . XC'extract m nt
-  => Newtype nt { | r }
-  => ConsSymbol px m x' x
+  forall x' x nt r' r a
+   . Newtype nt { | r }
+  => ConsSymbol px nt x' x
   => ConsSymbol pm (Effect a) r' r
   => Run x a
 
 x'effGet :: forall @px @pm. T'x'effGet px pm
-x'effGet = x'extract @px <#> unwrap <#> rec'get @pm <#> unsafePerformEffect
+x'effGet = ctxR'askAt @px <#> unwrap <#> rec'get @pm <#> unsafePerformEffect
 
 -----------------------------------------
 

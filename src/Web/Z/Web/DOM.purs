@@ -21,7 +21,6 @@ module Web.Z.Web.DOM
   , xPushState
   , xSetDocumentTitle
   , xStopPropagation
-  , xWebR
   , xWindow
   ) where
 
@@ -40,11 +39,12 @@ import Web.HTML.HTMLElement as HTMLEl
 import Web.HTML.History as History
 import Web.HTML.Location as Loc
 import Web.HTML.Window as Window
-import Z.Z.Future (future'run)
+import Z.Z.Run (Future)
+import Z.Z.ThenableR (async'run)
 
 type T'_'x'web = "_'x'web"
 
-type X'Web x = (_'x'web :: X'R XWebR | x)
+type X'Web x = (_'x'web :: XWebR | x)
 newtype XWebR = XWebR
   { window :: Effect Window.Window
   , document :: Effect HTMLDoc.HTMLDocument
@@ -79,6 +79,58 @@ newtype XWebR = XWebR
   }
 
 derive instance Newtype XWebR _
+
+instance X'Readable XWebR Unit where
+  x'readable'mk _ = pure $ wrap
+    { window: HTML.window
+    , document: HTML.window >>= Window.document
+    , body: HTML.window >>= Window.document >>= getDocumentBody
+    , head: HTML.window >>= Window.document >>= getDocumentHead
+    , locationUrl: do
+        win <- HTML.window
+        loc <- Window.location win
+        hashs <- Loc.hash loc
+        pathname <- Loc.pathname loc
+        search <- Loc.search loc
+        host <- Loc.hostname loc
+        protocol <- Loc.protocol loc
+        ports <- Loc.port loc
+        let port = tryParseInt ports
+        pure $ url'fromParts
+          { hash: if (eq hashs "") then Nothing else Just hashs
+          , port
+          , username: Nothing
+          , password: Nothing
+          , protocol
+          , host
+          , query: Left search
+          , path: url'pathSegmentsFromPathname pathname
+          }
+    , getElementById: \id -> HTML.window >>= Window.document >>=
+        getElementById id
+    , closest: \(qs /\ et) -> do
+        let orEl = Element.fromEventTarget et
+        whenJust orEl $ Element.closest (PN.QuerySelector qs)
+    , preventDefault: WebEvent.preventDefault
+    , stopPropagation: WebEvent.stopPropagation
+    , pushState: \(url /\ titleOr_) -> do
+        let title = jOr' titleOr_
+        let hasTitle = isJust titleOr_
+        let
+          opts =
+            if hasTitle then (encodeForeign { title }) else (encodeForeign {})
+        w <- HTML.window
+        h <- Window.history w
+        History.pushState opts (History.DocumentTitle title) (History.URL url) h
+    , setDocumentTitle: \t -> do
+        w <- HTML.window
+        d <- Window.document w
+        HTMLDoc.setTitle t d
+    , addEventListener: \(et /\ t /\ o /\ h) -> raw_addEventListener et t o h
+    , subToEvent: \(et /\ t /\ o /\ h) -> raw_subToEvent et t o h
+    , rmEventListener: \(et /\ t /\ c /\ l) -> raw_rmEventListener et t c l
+    , getAttribute: \(attr /\ el) -> Element.getAttribute attr el
+    }
 
 evTarget :: WET.Event -> Maybe WET.EventTarget
 evTarget = WebEvent.target
@@ -219,65 +271,13 @@ raw_subToEvent eType target opts onE = do
   el <- raw_addEventListener eType tgt o onE
   pure $ raw_rmEventListener eType tgt o.capture el
 
-xWebR :: XWebR
-xWebR = XWebR
-  { window: HTML.window
-  , document: HTML.window >>= Window.document
-  , body: HTML.window >>= Window.document >>= getDocumentBody
-  , head: HTML.window >>= Window.document >>= getDocumentHead
-  , locationUrl: do
-      win <- HTML.window
-      loc <- Window.location win
-      hashs <- Loc.hash loc
-      pathname <- Loc.pathname loc
-      search <- Loc.search loc
-      host <- Loc.hostname loc
-      protocol <- Loc.protocol loc
-      ports <- Loc.port loc
-      let port = tryParseInt ports
-      pure $ url'fromParts
-        { hash: if (eq hashs "") then Nothing else Just hashs
-        , port
-        , username: Nothing
-        , password: Nothing
-        , protocol
-        , host
-        , query: Left search
-        , path: url'pathSegmentsFromPathname pathname
-        }
-  , getElementById: \id -> HTML.window >>= Window.document >>=
-      getElementById id
-  , closest: \(qs /\ et) -> do
-      let orEl = Element.fromEventTarget et
-      whenJust orEl $ Element.closest (PN.QuerySelector qs)
-  , preventDefault: WebEvent.preventDefault
-  , stopPropagation: WebEvent.stopPropagation
-  , pushState: \(url /\ titleOr_) -> do
-      let title = jOr' titleOr_
-      let hasTitle = isJust titleOr_
-      let
-        opts =
-          if hasTitle then (encodeForeign { title }) else (encodeForeign {})
-      w <- HTML.window
-      h <- Window.history w
-      History.pushState opts (History.DocumentTitle title) (History.URL url) h
-  , setDocumentTitle: \t -> do
-      w <- HTML.window
-      d <- Window.document w
-      HTMLDoc.setTitle t d
-  , addEventListener: \(et /\ t /\ o /\ h) -> raw_addEventListener et t o h
-  , subToEvent: \(et /\ t /\ o /\ h) -> raw_subToEvent et t o h
-  , rmEventListener: \(et /\ t /\ c /\ l) -> raw_rmEventListener et t c l
-  , getAttribute: \(attr /\ el) -> Element.getAttribute attr el
-  }
-
 runXWeb :: forall x a. Run (X'Web x) a -> Run x a
-runXWeb = x'eval @"_'x'web" @(X'R XWebR) xWebR
+runXWeb = x'eval_ @"_'x'web" @XWebR
 
 foreign import js_errorLog :: forall a. a -> Effect Unit
 
 effAffThenExit :: forall e a. RtError e => Future (Either e a) -> Effect Unit
-effAffThenExit = future'run onDone onError
+effAffThenExit = async'run onDone onError
   where
   onError e = do
     js_errorLog "process failed with UNHANDLED UNKNOWN error ⌄"

@@ -203,36 +203,6 @@ import Prim.Row
   ) as M
 import Type.Equality (class TypeEquals) as M
 import Type.Proxy (Proxy(..)) as M
-import Z.EXTERNAL.RUN.Run
-  ( EFFECT
-  , Run(..)
-  , Step(..)
-  , VariantF
-  , case_
-  , expand
-  , extract
-  , inj
-  , interpret
-  , interpretRec
-  , lift
-  , liftEffect
-  , match
-  , on
-  , onMatch
-  , peel
-  , resume
-  , run
-  , runAccum
-  , runAccumCont
-  , runAccumPure
-  , runAccumRec
-  , runBaseEffect
-  , runCont
-  , runPure
-  , runRec
-  , send
-  ) as M
-import Z.EXTERNAL.RUN.Run.Reader (Reader, askAt, asksAt, runReaderAt) as M
 import Z.Z.Core
   ( class C'Relate
   , class ConsSymbol

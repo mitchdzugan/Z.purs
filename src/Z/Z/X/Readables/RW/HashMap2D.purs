@@ -352,8 +352,8 @@ instance
 
 ---------------------------------------------------------------------
 
-type X'HashMap2D k1 k2 v = Reader (RW'Tagged (R'HashMap2D k1 k2 v))
-type X'HashMap2D'w k1 k2 v = Reader (W'Tagged (R'HashMap2D k1 k2 v))
+type X'HashMap2D k1 k2 v = RW'Tagged (R'HashMap2D k1 k2 v)
+type X'HashMap2D'w k1 k2 v = W'Tagged (R'HashMap2D k1 k2 v)
 
 x'hashmap2D
   :: forall @k1 @k2 @v
@@ -467,5 +467,5 @@ eff'hm2D'd1entries st = do
 ---------------------------------------------------------------------
 
 type B'HashMap2D
-  :: forall k. ((Type -> Type) -> Type -> k) -> Type -> Type -> Type -> k
+  :: forall k. (Type -> Type -> k) -> Type -> Type -> Type -> k
 type B'HashMap2D sel k1 k2 v = sel (X'HashMap2D k1 k2 v) (HashMap2D k1 k2 v)

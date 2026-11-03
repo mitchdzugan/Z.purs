@@ -155,8 +155,8 @@ instance
 
 ---------------------------------------------------------------------
 
-type X'HashSet a = Reader (RW'Tagged (R'HashSet a))
-type X'HashSet'w a = Reader (W'Tagged (R'HashSet a))
+type X'HashSet a = RW'Tagged (R'HashSet a)
+type X'HashSet'w a = W'Tagged (R'HashSet a)
 
 x'hashset :: forall @a. Identable a => HashSet a -> X'Evaluable (X'HashSet a)
 x'hashset t = x'evaluable t
@@ -179,5 +179,5 @@ eff'hs'set hs st = eff'bin'clear st *> eff'bin'add (unwrap hs) st
 eff'hs'freeze :: forall a. Eff'Bin a -> Effect (HashSet a)
 eff'hs'freeze st = wrap <$> eff'bin'freeze st
 
-type B'HashSet :: forall k. ((Type -> Type) -> Type -> k) -> Type -> k
+type B'HashSet :: forall k. (Type -> Type -> k) -> Type -> k
 type B'HashSet sel a = sel (X'HashSet a) (HashSet a)

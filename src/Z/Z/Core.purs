@@ -142,6 +142,7 @@ module Z.Z.Core
   , tup'flip
   , var'inj
   , var'match
+  , var'unwrap
   , varF'inj
   , varf'match
   , whenNot
@@ -271,6 +272,14 @@ rec'modify = Record.modify (Proxy.Proxy @l)
 
 var'inj :: forall v' v @l a. IsSymbol l => Cons l a v' v => a -> Var.Variant v
 var'inj = Var.inj (Proxy.Proxy @l)
+
+var'unwrap
+  :: forall v' v l a
+   . IsSymbol l
+  => Cons l a v' v
+  => Var.Variant v
+  -> Proxy.Proxy l
+var'unwrap _ = Proxy.Proxy @l
 
 varF'inj
   :: forall v' v @l a f

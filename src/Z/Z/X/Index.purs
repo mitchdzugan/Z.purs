@@ -28,7 +28,6 @@ module Z.Z.X.Index
   , WaEA'
   , WaS'
   , X
-  , X'A
   , X'Base
   , X'E
   , X'Permit
@@ -37,8 +36,6 @@ module Z.Z.X.Index
   , X'W
   , X'Wa
   , X'flipped
-  , a'attempt
-  , async'_
   , async'x
   , e'const
   , e'const''
@@ -59,8 +56,6 @@ module Z.Z.X.Index
   , e'runEffPromise''
   , e'runParser
   , e'runParser''
-  , e'runPromise
-  , e'runPromise''
   , e'try
   , e'try''
   , e'tryUntil
@@ -169,9 +164,6 @@ import Data.Argonaut.Decode (class DecodeJson)
 import Data.Either (Either(..))
 import Data.Int (floor)
 import Parsing (Parser)
-import Unsafe.Coerce (unsafeCoerce)
-import Z.EXTERNAL.RUN.Run as Run
-import Z.EXTERNAL.RUN.Run.Except (Except, runExceptAt, throwAt)
 import Z.Z.Core
   ( class Resulting
   , Eff'At(..)
@@ -192,15 +184,21 @@ import Z.Z.Core
 import Z.Z.DateTime (DateTime)
 import Z.Z.Defaultable.Util as D
 import Z.Z.Fetch (Fetch'RequestOptions, Fetch'Response, fetch, fetchRes'json)
-import Z.Z.Future
-  ( Future
-  , future'fromEff
-  , future'fromEffPromise
-  , future'of
-  , future'try
-  )
 import Z.Z.Promise (EffPromise)
+import Z.Z.Run
+  ( Ctx'Except
+  , Ctx'x'async
+  , Future
+  , ctxA'adapt
+  , ctxA'fromEff
+  , ctxA'fromEffPromise
+  , ctxA'run
+  , ctxE'okAt
+  , ctxE'runAt
+  , ctxE'throwAt
+  )
 import Z.Z.String (str'joinWith)
+import Z.Z.ThenableR (thenableR'sync)
 import Z.Z.Url (URL)
 import Z.Z.Util
   ( JsonDecodeError
@@ -209,9 +207,11 @@ import Z.Z.Util
   , url'fromParts
   , url'parts
   )
-import Z.Z.X.Async (AsyncF(..), x'async'')
 import Z.Z.X.Core
   ( class X'Buildable
+  , Reader
+  , Run
+  , evaluable'run
   , x'eval
   , x'eval_
   , x'exec
@@ -250,7 +250,7 @@ import Z.Z.X.Method
   , x'view'b
   , (@.)
   )
-import Z.Z.X.Readables.Base (LogLevel(..), X'BaseM, x'now'', x'out'')
+import Z.Z.X.Readables.Base (LogLevel(..), X'BaseM, x'base, x'now'', x'out'')
 import Z.Z.X.Readables.RW.Ref (X'Ref)
 import Z.Z.X.Readables.RW.Vector (X'Writer)
 import Z.Z.X.Util (js_timeout)
@@ -295,25 +295,21 @@ x'logError :: forall x a. a -> Unit <@< x
 x'logError = x'outErr
 
 type X'Permit = Reader Unit
-type X'R t = Reader (Identity t)
+type X'R t = Reader t
 type X'W t = X'Writer t
 type X'Wa t = X'Writer (Array t)
 type X'S t = X'Ref t
 
-type X'E :: forall k. Type -> k -> Type
-type X'E e = Except e
-
-type X'A = AsyncF
+type X'E e = Ctx'Except e
 
 type R' r x = (_'x'reader :: X'R r | x)
 type W' w x = (_'x'writer :: X'W w | x)
 type Wa' w x = (_'x'writer :: X'Wa w | x)
 type S' s x = (_'x'state :: X'S s | x)
 
-type E' :: forall k. Type -> Row (k -> Type) -> Row (k -> Type)
 type E' e x = (_'x'except :: X'E e | x)
 
-type A' x = (_'x'async :: AsyncF | x)
+type A' x = Ctx'x'async x
 
 type RS' r s x = R' r $ S' s x
 
@@ -354,29 +350,19 @@ s'eval = x'eval @"_'x'state"
 s'exec :: forall x r. r -> Run (S' r x) Unit -> Run x r
 s'exec = x'exec @"_'x'state"
 
-a'attempt :: forall x a. Future a -> Run (A' x) (Either JsError a)
-a'attempt = x'async'' @"_'x'async" <<< future'try
-
 ---------------------------------------------------------------
 
-data IdF a = IdSend (Identity a)
-
-derive instance Functor IdF
-
-sync'id :: forall a. Run (id :: IdF) a -> a
-sync'id m = unwrap $ flip runRec m $ match { id: \(IdSend a) -> a }
-
 sync'_ :: forall a. Run () a -> a
-sync'_ = sync'id <<< expand
+sync'_ = thenableR'sync default
 
 sync'x :: forall a. () @@> a -> a
 sync'x = sync'_ <<< x'eval_ @"_'x'base" @X'BaseM
 
-async'_ :: forall a. Run (A' ()) a -> Future a
-async'_ m = match { _'x'async: \(AsyncSend a) -> a } # runRec $ m
+-- async'_ :: forall a. Run (A' ()) a -> Future a
+-- async'_ m = match { _'x'async: \(AsyncSend a) -> a } # runRec $ m
 
 async'x :: forall a. A' () @@> a -> Future a
-async'x = async'_ <<< x'eval_ @"_'x'base" @X'BaseM
+async'x = ctxA'run <<< x'eval_ @"_'x'base" @X'BaseM
 
 ---------------------------------------------------------------------
 
@@ -392,9 +378,7 @@ runner'eval :: forall x a. Runner x -> Run x a -> a
 runner'eval (Runner r) m = sync'_ $ r m
 
 runner'evalA :: forall x a. Runner x -> Run (A' x) a -> Future a
-runner'evalA runner = runRec $
-  onMatch { _'x'async: \(AsyncSend a) -> a } \other ->
-    pure $ runner'eval runner $ send other
+runner'evalA (Runner r) = ctxA'run <<< ctxA'adapt r
 
 runner'mkDeferred :: forall x a. Runner x -> Run x a -> Effect a
 runner'mkDeferred runner m = eff'defer \_ -> runner'eval runner m
@@ -458,7 +442,7 @@ type T'e'try p =
   forall e x' x a. ConsSymbol p (X'E e) x' x => Run x a -> Run x' (Either e a)
 
 e'try'' :: forall @p. T'e'try p
-e'try'' = runExceptAt (Proxy @p)
+e'try'' = ctxE'runAt @p
 
 e'try :: forall p. T'use'e'AsSym p T'e'try
 e'try = e'try'' @p
@@ -468,7 +452,7 @@ e'try = e'try'' @p
 type T'e'fail p = forall e x' x a. ConsSymbol p (X'E e) x' x => e -> Run x a
 
 e'fail'' :: forall @p. T'e'fail p
-e'fail'' = throwAt (Proxy @p)
+e'fail'' = ctxE'throwAt @p
 
 e'fail :: forall p. T'use'e'AsSym p T'e'fail
 e'fail = e'fail'' @p
@@ -487,20 +471,6 @@ e'ok = e'ok'' @p
 
 --------------------------------------------
 
-type T'e'runPromise p =
-  forall x' x a
-   . ConsSymbol p (X'E JsError) (A' x') (A' x)
-  => Future a
-  -> Run (A' x) a
-
-e'runPromise'' :: forall @p. T'e'runPromise p
-e'runPromise'' = (=<<) (e'ok'' @p) <<< a'attempt
-
-e'runPromise :: forall p. T'use'e'AsSym p T'e'runPromise
-e'runPromise = e'runPromise'' @p
-
---------------------------------------------
-
 type T'e'runEffPromise p =
   forall x' x a
    . ConsSymbol p (X'E JsError) (A' x') (A' x)
@@ -508,7 +478,7 @@ type T'e'runEffPromise p =
   -> Run (A' x) a
 
 e'runEffPromise'' :: forall @p. T'e'runEffPromise p
-e'runEffPromise'' = e'runPromise'' @p <<< future'fromEffPromise
+e'runEffPromise'' effP = ctxA'fromEffPromise effP >>= ctxE'okAt @p
 
 e'runEffPromise :: forall p. T'use'e'AsSym p T'e'runEffPromise
 e'runEffPromise = e'runEffPromise'' @p
@@ -691,7 +661,7 @@ type T'e'runEffA p =
   -> Run (A' x) a
 
 e'runEffA'' :: forall @p. T'e'runEffA p
-e'runEffA'' eff = a'attempt (future'fromEff eff) >>= e'ok'' @p
+e'runEffA'' eff = ctxA'fromEff eff >>= ctxE'okAt @p
 
 e'runEffA :: forall p. T'use'e'AsSym p T'e'runEffA
 e'runEffA = e'runEffA'' @p
