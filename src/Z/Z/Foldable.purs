@@ -74,9 +74,6 @@ arr'fromTraversable :: forall it v. Iterable it v => it -> Array v
 arr'fromTraversable coll = sync'x $ _'exec_ @(X'Vector v) do
   forM_ coll \v -> _'cons v
 
-arr'fromIterable :: forall it v. Iterable it v => it -> Array v
-arr'fromIterable = collect @Array <<< iterable'mk
-
 arr'idented :: forall it v. Iterable it v => it -> Array (Idented Int v)
 arr'idented a = uncurry idented'mk <$> (arr'withInd $ arr'fromTraversable a)
 

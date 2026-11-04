@@ -65,7 +65,7 @@ ggPageSpecHandleImpl (GGPageSpecF pageL dataL) = do
   x'eval_ @"seenIds" @(X'HashSet Int) $ loop op client networkControl
   where
   loop op client networkControl = do
-    s'toArrayOf (_o_ @"res" @"nodes+.id" dataL) >>= \ids -> do
+    s'get <#> _.res <#> view dataL <#> _.nodes <#> map _.id >>= \ids -> do
       x'assign @"seenIds" (hs'collect ids)
     seenIds <- x'extract @"seenIds"
     total <- s'view (_o_ @"res" @"pageInfo.total" dataL)

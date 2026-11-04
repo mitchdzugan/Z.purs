@@ -9,7 +9,7 @@ import Data.Generic.Rep
   , Product
   , Sum
   )
-import Data.Lens (class Wander, Optic, _Just, _Left, _Right, traversed)
+import Data.Lens (Optic, _Just, _Left, _Right)
 import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Lens.Record (prop)
 import Data.Maybe (Maybe)
@@ -17,7 +17,7 @@ import Data.Newtype (class Newtype)
 import Data.Profunctor (class Profunctor)
 import Data.Profunctor.Choice (class Choice)
 import Data.Profunctor.Strong (class Strong)
-import Data.Traversable (class Traversable)
+-- import Data.Traversable (class Traversable)
 import Prelude (Unit, (<<<))
 import Prim.Row as Row
 import Type.Prelude (class IsSymbol)
@@ -37,7 +37,6 @@ import Z.EXTERNAL.BARLOW.Barlow.Types
   , LeftArrow
   , N1
   , Percentage
-  , Plus
   , QuestionMark
   , RecordField
   , RightArrow
@@ -309,12 +308,14 @@ else instance
   ConstructBarlow (TCons LeftArrow TNil) p (Either a r) (Either b r) a b where
   constructBarlow _ = _Left
 -- Nil instance for plus
+{-
 else instance
   ( Wander p
   , Traversable t
   ) =>
   ConstructBarlow (TCons Plus TNil) p (t a) (t b) a b where
   constructBarlow _ = traversed
+-}
 -- Nil instance for exclamation mark  
 else instance constructBarlowNilExclamationMark ::
   ( Profunctor p
@@ -371,6 +372,7 @@ else instance
     b where
   constructBarlow _ = _Left <<< constructBarlow (Proxy :: Proxy rest)
 -- Cons instance for plus
+{-
 else instance
   ( ConstructBarlow rest p restA restB a b
   , Wander p
@@ -384,6 +386,7 @@ else instance
     a
     b where
   constructBarlow _ = traversed <<< constructBarlow (Proxy :: Proxy rest)
+-}
 -- Cons instance for Newtype
 else instance
   ( ConstructBarlow rest p restA restA a a

@@ -3,6 +3,7 @@ module Z.Z.It
   , arr'collect
   , class Collectable
   , class Iterable
+  , class Iterable'KV
   , collect
   , forM
   , forM_
@@ -20,6 +21,7 @@ module Z.Z.It
   , it'sum
   , it'sumBy
   , iterable'mk
+  , iterable'kv'mk
   , list'collect
   , mapM
   , mapM_

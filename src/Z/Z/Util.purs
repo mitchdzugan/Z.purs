@@ -78,6 +78,7 @@ import Data.Maybe as Maybe
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Ord as Ord
 import Data.Ordering as Ordering
+import Data.Tuple (fst)
 import Data.Tuple as Tup
 import Data.Tuple.Nested (type (/\), (/\))
 import Foreign as Foreign
@@ -88,7 +89,7 @@ import Z.Z.Core (arr'drop, arr'size, arr'take)
 import Z.Z.Core as Z
 import Z.Z.HashMap (HashMap, hm'entries)
 import Z.Z.Id (class Identable, id'of)
-import Z.Z.It (obj'collect)
+import Z.Z.It (arr'collect, iterable'kv'mk, obj'collect)
 import Z.Z.Url as Url
 
 type UrlParts = Url.Parts
@@ -163,10 +164,10 @@ jsonVals :: Arg.Json -> Array Arg.Json
 jsonVals = Arg.caseJsonObject [] FO.values
 
 jsonPairs :: Arg.Json -> Array (Tup.Tuple String Arg.Json)
-jsonPairs = Arg.caseJsonObject [] FO.toUnfoldable
+jsonPairs = Arg.caseJsonObject [] (arr'collect <<< iterable'kv'mk)
 
 jsonSortedPairs :: Arg.Json -> Array (Tup.Tuple String Arg.Json)
-jsonSortedPairs = Arg.caseJsonObject [] FO.toAscUnfoldable
+jsonSortedPairs a = arr'sortWith fst $ jsonPairs a
 
 jsonLookup :: String -> Arg.Json -> Maybe.Maybe Arg.Json
 jsonLookup k = Arg.caseJsonObject Maybe.Nothing (FO.lookup k)
