@@ -14,8 +14,7 @@ module Z.Z.X.Readables.RW.Vector
 
 import Z.Z.X.UtilPrelude
 
-import Data.Foldable (for_)
-import Z.Z.Core (arr'fold, arr'range, arr'withInd, mapM)
+import Z.Z.Core (arr'fold, arr'range, arr'withInd, forM_, mapM)
 import Z.Z.Defaultable (whenJust)
 import Z.Z.Eff.Bin
   ( Eff'Bin
@@ -320,7 +319,7 @@ eff'vec'pop st@{ b'els, r'start, r'length } = do
     pure res
 
 eff'vec'add :: forall a. Array a -> Eff'Vector a -> Effect Unit
-eff'vec'add a st = for_ a (flip eff'vec'cons st)
+eff'vec'add a st = forM_ a (flip eff'vec'cons st)
 
 eff'vec'set :: forall a. Array a -> Eff'Vector a -> Effect Unit
 eff'vec'set a st = eff'vec'clear st *> eff'vec'add a st

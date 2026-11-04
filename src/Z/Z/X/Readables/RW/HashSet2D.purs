@@ -12,9 +12,7 @@ module Z.Z.X.Readables.RW.HashSet2D
 
 import Z.Z.X.UtilPrelude
 
-import Data.Foldable (for_)
-import Data.Traversable (for)
-import Z.Z.Core (arr'concat, may'__, (<##>))
+import Z.Z.Core (arr'concat, forM, forM_, may'__, (<##>))
 import Z.Z.Eff.Bin2D
   ( Eff'Bin2D
   , eff'bin2D'addAt
@@ -373,7 +371,7 @@ eff'hs2D'add
   -> Eff'HashSet2D k a
   -> Effect Unit
 eff'hs2D'add hs2d st =
-  for_ (hm'entries hs2d) \(k /\ hs) -> eff'hs2D'addAt k hs st
+  forM_ (hm'entries hs2d) \(k /\ hs) -> eff'hs2D'addAt k hs st
 
 eff'hs2D'setAt
   :: forall k a
@@ -407,7 +405,7 @@ eff'hs2D'd1entries
   -> Effect (Array (k1 /\ HashSet a))
 eff'hs2D'd1entries st = do
   d1keys <- eff'bin2D'd1keys st
-  for d1keys \k1 -> eff'hs2D'freezeAt k1 st <#> (/\) k1
+  forM d1keys \k1 -> eff'hs2D'freezeAt k1 st <#> (/\) k1
 
 eff'hs2D'vals
   :: forall k1 a

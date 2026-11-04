@@ -103,7 +103,6 @@ module Z.Z.X.Index
   , s'view'b
   , sc'unwrap
   , sc'unwrap_
-  , sync'_
   , sync'x
   , type (<@<)
   , type (<@@)
@@ -196,6 +195,7 @@ import Z.Z.Run
   , ctxE'okAt
   , ctxE'runAt
   , ctxE'throwAt
+  , ctxS'run
   )
 import Z.Z.String (str'joinWith)
 import Z.Z.ThenableR (thenableR'sync)
@@ -352,14 +352,8 @@ s'exec = x'exec @"_'x'state"
 
 ---------------------------------------------------------------
 
-sync'_ :: forall a. Run () a -> a
-sync'_ = thenableR'sync default
-
 sync'x :: forall a. () @@> a -> a
-sync'x = sync'_ <<< x'eval_ @"_'x'base" @X'BaseM
-
--- async'_ :: forall a. Run (A' ()) a -> Future a
--- async'_ m = match { _'x'async: \(AsyncSend a) -> a } # runRec $ m
+sync'x = ctxS'run <<< x'eval_ @"_'x'base" @X'BaseM
 
 async'x :: forall a. A' () @@> a -> Future a
 async'x = ctxA'run <<< x'eval_ @"_'x'base" @X'BaseM
@@ -375,7 +369,7 @@ instance X'Buildable (Runner't x x') x' x Unit where
   x'buildable'run (Runner r) m = r m <#> flip (/\) unit
 
 runner'eval :: forall x a. Runner x -> Run x a -> a
-runner'eval (Runner r) m = sync'_ $ r m
+runner'eval (Runner r) = ctxS'run <<< r
 
 runner'evalA :: forall x a. Runner x -> Run (A' x) a -> Future a
 runner'evalA (Runner r) = ctxA'run <<< ctxA'adapt r

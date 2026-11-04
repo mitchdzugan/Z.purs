@@ -12,9 +12,8 @@ module Z.Z.X.Readables.RW.Vector2D
 
 import Z.Z.X.UtilPrelude
 
-import Data.Foldable (for_)
 import Data.Maybe (fromMaybe)
-import Z.Z.Core (arr'concat, arr'range, mapM)
+import Z.Z.Core (arr'concat, arr'range, forM_, mapM)
 import Z.Z.Eff.Bin
   ( Eff'Bin
   , eff'bin'clear
@@ -215,7 +214,7 @@ eff'vec2D'clear st = do
   eff'ref'set 0 st.r'length
 
 eff'vec2D'add :: forall a. Array (Array a) -> Eff'Vector2D a -> Effect Unit
-eff'vec2D'add nexts st = for_ nexts \next -> eff'vec2D'd1cons next st
+eff'vec2D'add nexts st = forM_ nexts \next -> eff'vec2D'd1cons next st
 
 eff'vec2D'set :: forall a. Array (Array a) -> Eff'Vector2D a -> Effect Unit
 eff'vec2D'set nexts st = eff'vec2D'clear st *> eff'vec2D'add nexts st
@@ -237,7 +236,7 @@ eff'vec2D'd1cons next st = do
   length <- eff'ref'get st.r'length
   eff'ref'set (length + 1) st.r'length
   let ind1 = start + length
-  for_ next \el -> eff'vec2D'consAt ind1 el st
+  forM_ next \el -> eff'vec2D'consAt ind1 el st
   pure unit
 
 eff'vec2D'consAt :: forall a. Int -> a -> Eff'Vector2D a -> Effect Unit

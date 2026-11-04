@@ -92,6 +92,7 @@ module Z.Z.X.Method
   , _'alter
   , _'cons
   , _'consAt
+  , _'extract
   , _'insert
   , _'lookup
   , _'modify
@@ -174,9 +175,7 @@ import Data.Tuple (curry)
 import Data.Tuple.Nested (type (/\))
 import Effect (Effect)
 import Effect.Unsafe (unsafePerformEffect)
-import Record as Rec
 import Type.Proxy (Proxy(..))
-import Z.EXTERNAL.RUN.Run.Reader (asksAt)
 import Z.Z.Barlow (class C'Barlow, barlow)
 import Z.Z.Core (class ConsSymbol, T'id, may'__, rec'get)
 import Z.Z.Method (class Method, call)
@@ -1028,6 +1027,9 @@ _'lookup = x'lookup @p
 
 _'cons :: forall p. T'use'_'AsSym p (T'x'cons T'id)
 _'cons = x'cons @p
+
+_'extract :: forall p. T'use'_'AsSym p (T'x'extract T'id)
+_'extract = x'extract @p
 
 _'consAt :: forall p. T'use'_'AsSym p (T'x'consAt T'id)
 _'consAt = x'consAt @p

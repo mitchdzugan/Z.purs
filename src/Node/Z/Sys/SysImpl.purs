@@ -338,9 +338,6 @@ type X'Node x = (_'x'node :: XNodeR | x)
 
 type P'X'Node = "_'x'node"
 
-p'X'Node :: Proxy P'X'Node
-p'X'Node = Proxy
-
 runXNode :: forall x a. Run (X'Node x) a -> Run x a
 runXNode = x'eval_ @P'X'Node
 

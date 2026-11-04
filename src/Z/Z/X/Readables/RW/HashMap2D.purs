@@ -13,9 +13,7 @@ module Z.Z.X.Readables.RW.HashMap2D
 
 import Z.Z.X.UtilPrelude
 
-import Data.Foldable (for_)
-import Data.Traversable (for)
-import Z.Z.Core (arr'concat, may'__, (<##>))
+import Z.Z.Core (arr'concat, forM, forM_, may'__, (<##>))
 import Z.Z.Defaultable (whenJust)
 import Z.Z.Eff.Bin2D
   ( Eff'Bin2D
@@ -405,7 +403,7 @@ eff'hm2D'add
   -> Eff'HashMap2D k1 k2 v
   -> Effect Unit
 eff'hm2D'add hm2d st =
-  for_ (hm'entries hm2d) \(k /\ hm) -> eff'hm2D'addAt k hm st
+  forM_ (hm'entries hm2d) \(k /\ hm) -> eff'hm2D'addAt k hm st
 
 eff'hm2D'setAt
   :: forall k1 k2 v
@@ -462,7 +460,7 @@ eff'hm2D'd1entries
   -> Effect (Array $ k1 /\ HashMap k2 v)
 eff'hm2D'd1entries st = do
   keys <- eff'bin2D'd1keys st
-  for keys \k -> eff'hm2D'freezeAt k st <#> (/\) k
+  forM keys \k -> eff'hm2D'freezeAt k st <#> (/\) k
 
 ---------------------------------------------------------------------
 

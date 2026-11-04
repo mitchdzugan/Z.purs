@@ -24,6 +24,7 @@ module Z.Z.Foldable
 
 import Prelude
 
+import Control.Monad.Rec.Class (tailRecM)
 import Data.Exists (Exists, mkExists, runExists)
 import Data.List (List(..), fromFoldable)
 import Data.Maybe (Maybe(..))
@@ -45,6 +46,7 @@ import Z.Z.Core
 import Z.Z.HashMap (HashMap, hm'entries, hm'fromFoldable, hm'lookup)
 import Z.Z.HashSet (HashSet, hs'fromFoldable, hs'has, hs'vals)
 import Z.Z.Id (class Identable, IdV, Idented, ident'get, idented'mk, idented'v)
+import Z.Z.It (class Iterable, collect, iterable'mk)
 import Z.Z.Passable (pass)
 import Z.Z.Util (arr'sortBy)
 import Z.Z.X.Core (_'exec_)
@@ -67,6 +69,9 @@ keyBy toKey coll = sync'x $ _'exec_ @(X'HashMap k v) do
 arr'fromTraversable :: forall f v. Traversable f => f v -> Array v
 arr'fromTraversable coll = sync'x $ _'exec_ @(X'Vector v) do
   forM_ coll \v -> _'cons v
+
+arr'fromIterable :: forall it v. Iterable it v => it -> Array v
+arr'fromIterable = collect @(Array v) <<< iterable'mk
 
 arr'idented :: forall f v. Traversable f => f v -> Array (Idented Int v)
 arr'idented a = uncurry idented'mk <$> (arr'withInd $ arr'fromTraversable a)

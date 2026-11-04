@@ -8,7 +8,6 @@ module Z.Z.ThenableR
   , async'run
   , async'run_
   , thenableR'ask
-  , thenableR'async
   , thenableR'parallel
   , thenableR'runAsync
   , thenableR'sync
@@ -67,10 +66,6 @@ else instance (Generable rReq GDefault rReq) => Supplies rHas rReq where
 
 thenableR'sync :: forall r a. r -> ThenableR Tag'Sync r a -> a
 thenableR'sync = js_thenableR_sync
-
-thenableR'async
-  :: forall r rOut a. r -> ThenableR Tag'Async r a -> ThenableR Tag'Async rOut a
-thenableR'async = js_thenableR_async
 
 thenableR'runAsync
   :: forall rt r a
@@ -159,9 +154,6 @@ foreign import js_thenableR_runA
   -> (JsError -> Effect Unit)
   -> ThenableR rt r a
   -> Effect Unit
-
-foreign import js_thenableR_async
-  :: forall rt r rOut a. r -> ThenableR rt r a -> ThenableR Tag'Async rOut a
 
 foreign import js_thenableR_asyncFromEff
   :: forall r a. Effect a -> ThenableR Tag'Async r a
