@@ -21,6 +21,7 @@ import Z.Z.ThenableR
   , thenableR'ask
   , thenableR'runAsync
   )
+import Z.Z.Variant (Var''Decode, variant'handle, variant'mkers)
 
 runMain :: Future (Either String (Array Int))
 runMain = ctxA'run $ mapL jsErrorName <$> do
@@ -43,9 +44,21 @@ runMain = ctxA'run $ mapL jsErrorName <$> do
     traceM { currHi }
     pure res
 
+var'unwrap
+  :: forall v' v l a
+   . IsSymbol l
+  => Cons l a v' v
+  => Variant v
+  -> Proxy l
+var'unwrap _ = Proxy @l
+
+type MyVar = Variant (a :: Maybe Int, bc :: Array String)
+
+mkMyVar :: MyVar
+mkMyVar = var'inj @"a" (Just 123)
+
 main :: Effect Unit
 main = do
-  {-}
   thenableR'runAsync 37 (log <<< show) (log <<< show) do
     a <- do
       a1 <- thenableR'ask
@@ -57,5 +70,8 @@ main = do
     traceM { a, b, c }
     pure c
   log "before or after"
-  -}
   async'run (log <<< show) (log <<< show) runMain
+  let mkers = variant'mkers @Var''Decode @MyVar
+  forM_ (obj'entries mkers) \(k1 /\ mkV) -> do
+    let v1 = mkV jsonEmptyObject
+    traceM { k1, v1 }

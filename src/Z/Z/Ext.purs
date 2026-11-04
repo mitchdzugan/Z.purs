@@ -17,6 +17,7 @@ module Z.Z.Ext
   , module Exists
   , module Foreign
   , module FuncVar
+  , module Var
   , module Generic
   , module HetMap
   , module Identity
@@ -113,6 +114,7 @@ import Data.String (Pattern(..)) as Str
 import Data.Symbol (class IsSymbol, reflectSymbol, reifySymbol) as Symbol
 import Data.Tuple (Tuple(..), curry, fst, snd, uncurry) as Tup
 import Data.Tuple.Nested (type (/\), (/\)) as TupNested
+import Data.Variant (Variant) as Var
 import Effect (Effect) as Effect
 import Effect.Class (liftEffect) as EffectClass
 import Foreign (Foreign) as Foreign

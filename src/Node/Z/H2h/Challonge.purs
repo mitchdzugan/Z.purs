@@ -122,7 +122,7 @@ getEventDataImpl = do
             , participant
             }
           pure { entrantId: Just entrantId, score }
-        let emptySlot = { entrantId: Nothing, score: H2h.NoScore }
+        let emptySlot = { entrantId: Nothing, score: H2h.noScore }
         let slotA = jOr emptySlot (nth slots 0)
         let slotB = jOr emptySlot (nth slots 1)
         winnerId <- x'extract @"winnerId"
@@ -240,7 +240,7 @@ getEventDataImpl = do
       , name
       , slug
       , state: if isComplete then "COMPLETED" else "ACTIVE"
-      , site: H2h.Challonge
+      , site: H2h.site'challonge
       , phaseGroups:
           [ { id: sOrN 1
             , phase: { id: sOrN 1, name: "Bracket", phaseOrder: 1 }
@@ -252,7 +252,7 @@ getEventDataImpl = do
       , tournament:
           { id: sOrN $ "Challonge-" <> slug <> "-tournamentId"
           , name: tournamentName
-          , images: hm'collect [ H2h.Profile /\ profileImageUrl ]
+          , images: hm'collect [ H2h.imageType'profile /\ profileImageUrl ]
           , date: date
           }
       }

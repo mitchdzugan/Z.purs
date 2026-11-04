@@ -624,9 +624,10 @@ profileImage props = do
       whenJust props.alt el'alt
 
 eventUrl :: ClmSeason'Event -> String
-eventUrl { source: { site, slug } } = case site of
-  H2h.Startgg -> "https://start.gg/" <> slug
-  _ -> "https://challonge.com/" <> slug
+eventUrl { source: { site, slug } } = (#) site
+  $ var'case_
+  # var'on @"startgg" (\_ -> "https://start.gg/" <> slug)
+  # var'on @"challonge" (\_ -> "https://challonge.com/" <> slug)
 
 eventDateString :: ClmSeason'Event -> String
 eventDateString { date } = str'joinWith "/" $ (#) date <$>
@@ -636,16 +637,17 @@ eventDateString { date } = str'joinWith "/" $ (#) date <$>
   ]
 
 getSocialHref :: H2h.SocialType -> String -> Maybe String
-getSocialHref H2h.Twitter s = Just $ "https://x.com/" <> s
-getSocialHref H2h.Twitch s = Just $ "https://www.twitch.tv/" <> s
-getSocialHref H2h.LuckyStats s = Just $ "https://luckystats.gg/player/" <> s
-getSocialHref _ _ = Nothing
+getSocialHref stype sid = (#) stype
+  $ var'default Nothing
+  # var'on @"twitter" (\_ -> Just $ "https://x.com/" <> sid)
+  # var'on @"twitch" (\_ -> Just $ "https://www.twitch.tv/" <> sid)
+  # var'on @"luckyStats" (\_ -> Just $ "https://luckystats.gg/player/" <> sid)
 
 getSocialImgSrc :: H2h.SocialType -> Maybe String
-getSocialImgSrc H2h.Twitter = Just $ "/links/twitter.png"
-getSocialImgSrc H2h.Twitch = Just $ "/links/twitch.png"
-getSocialImgSrc H2h.LuckyStats = Just $ "/links/lucky_stats.png"
-getSocialImgSrc _ = Nothing
+getSocialImgSrc = var'default Nothing
+  # var'on @"twitter" (\_ -> Just "/links/twitter.png")
+  # var'on @"twitch" (\_ -> Just "/links/twitch.png")
+  # var'on @"luckyStats" (\_ -> Just "/links/lucky_stats.png")
 
 type SocialProps = { imgSrc :: String, href :: String }
 

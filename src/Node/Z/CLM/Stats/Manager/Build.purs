@@ -494,7 +494,7 @@ buildCurrentSeasons spec = do
         , prEligible: not prIneligible
         , tournamentName: event.tournament.name
         , imageUrl: jOr placeholderImageUrl $
-            hm'lookup H2h.Profile event.tournament.images
+            hm'lookup H2h.imageType'profile event.tournament.images
         , eventId: event.id
         }
     s'eval 0 $ whr'eval @Int show (s'setPure'b @"w2" 20) do
@@ -557,7 +557,7 @@ buildCurrentSeasons spec = do
         let { player } = participant
         let { gamerTag, prefix, pronouns, socials } = player
         let realName = player.name
-        let image = hm'lookup H2h.Profile player.images
+        let image = hm'lookup H2h.imageType'profile player.images
         ratings <- whr'ratingsForPlayer clmId
         let rawRating = (+) 1000.0 <$> (arr'last ratings >>= flip nth 1)
         prEvents <- x'extractAt @"prEventIds" clmId
@@ -786,8 +786,8 @@ buildLegacySeasons = do
         , pronouns: player.pronouns
         , realName: player.realName
         , socials: hm'collect $ arr'concatMaybes
-            [ player.twitter <#> (/\) H2h.Twitter
-            , player.twitch <#> (/\) H2h.Twitch
+            [ player.twitter <#> (/\) H2h.socialType'twitter
+            , player.twitch <#> (/\) H2h.socialType'twitch
             ]
         , image: Just player.image
         }
@@ -920,7 +920,7 @@ buildSeasonJson allSeasonIds allPlayerSeasons otherPlayerTags seasonId = do
       e'unwrap (ClmStE.MissingPlayer clmId)
     socials <- _'exec @(X'HashMap H2h.SocialType String) player.socials do
       whenJust (hm'lookup clmId luckyStatsIdByClmId) \luckyStatsId ->
-        _'insert H2h.LuckyStats luckyStatsId
+        _'insert H2h.socialType'luckyStats luckyStatsId
     pure $ rec'set @"socials" socials player
   let playersById = keyBy _.clmId players
   allOtherPlayerTags <- _'exec_ @(X'Vector (Int /\ Array String)) do

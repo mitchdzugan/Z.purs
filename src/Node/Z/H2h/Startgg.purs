@@ -30,15 +30,15 @@ mapOfJsonElsWithFieldsTypeAnd els =
       Nothing -> pass
 
 toSocialType :: String -> Maybe H2h.SocialType
-toSocialType "DISCORD" = Just H2h.Discord
-toSocialType "TWITCH" = Just H2h.Twitch
-toSocialType "TWITTER" = Just H2h.Twitter
-toSocialType "XBOX" = Just H2h.XBox
+toSocialType "DISCORD" = Just H2h.socialType'discord
+toSocialType "TWITCH" = Just H2h.socialType'twitch
+toSocialType "TWITTER" = Just H2h.socialType'twitter
+toSocialType "XBOX" = Just H2h.socialType'xbox
 toSocialType _ = Nothing
 
 toImageType :: String -> Maybe H2h.ImageType
-toImageType "profile" = Just H2h.Profile
-toImageType "banner" = Just H2h.Banner
+toImageType "profile" = Just H2h.imageType'profile
+toImageType "banner" = Just H2h.imageType'banner
 toImageType _ = Nothing
 
 toSocialMap :: HashMap String String -> HashMap H2h.SocialType String
@@ -129,7 +129,7 @@ getEventData = B.adaptBuilder do
             completeScores = H2h.mkScoreWL isWinA /\ H2h.mkScoreWL
               (not isWinA)
           pure
-            if isComplete then completeScores else H2h.NoScore /\ H2h.NoScore
+            if isComplete then completeScores else H2h.noScore /\ H2h.noScore
         let slotA = { entrantId: eIdA <#> sOrN, score: slotScoreA }
         let slotB = { entrantId: eIdB <#> sOrN, score: slotScoreB }
         let
@@ -185,7 +185,7 @@ getEventData = B.adaptBuilder do
       , name: event.name
       , slug
       , state: event.state
-      , site: H2h.Startgg
+      , site: H2h.site'startgg
       , entrants
       , phaseGroups: pgs
       , tournament:

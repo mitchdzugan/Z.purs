@@ -19,9 +19,19 @@ module Z.H2h.Module
   , Tournament
   , Warning
   , challongeSource
+  , imageType'banner
+  , imageType'profile
   , mkScoreCount
   , mkScoreDQ
   , mkScoreWL
+  , noScore
+  , site'challonge
+  , site'startgg
+  , socialType'discord
+  , socialType'luckyStats
+  , socialType'twitch
+  , socialType'twitter
+  , socialType'xbox
   , startggSource
   ) where
 
@@ -29,51 +39,63 @@ import Z.Prelude
 
 import Z.H2h.Error as H2hE
 import Z.H2h.Warning as H2hW
+import Z.Z.Variant (var'decode, var'encode)
 
 type Error = H2hE.T
 
 type Warning = H2hW.T
 
-data BracketingSite = Startgg | Challonge
+newtype BracketingSite = BracketingSite
+  (Variant (startgg :: Unit, challonge :: Unit))
 
-derive instance Eq BracketingSite
+derive instance Newtype BracketingSite _
 
-derive instance Generic BracketingSite _
+derive newtype instance Eq BracketingSite
 
 instance DecodeJson BracketingSite where
-  decodeJson x = genericDecodeJson x
+  decodeJson = var'decode
 
 instance EncodeJson BracketingSite where
-  encodeJson x = genericEncodeJson x
+  encodeJson = var'encode
 
-data Score
-  = Count Int
-  | WLBinary { isSetWinner :: Boolean, setHasDQ :: Boolean }
-  | NoScore
+newtype Score = Score
+  ( Variant
+      ( count :: Int
+      , binaryWL :: { isSetWinner :: Boolean, setHasDQ :: Boolean }
+      , noScore :: Unit
+      )
+  )
 
 mkScoreWL :: Boolean -> Score
-mkScoreWL isSetWinner = WLBinary { isSetWinner, setHasDQ: false }
+mkScoreWL isSetWinner =
+  var'inj @"binaryWL" { isSetWinner, setHasDQ: false }
 
 mkScoreDQ :: Boolean -> Score
-mkScoreDQ isSetWinner = WLBinary { isSetWinner, setHasDQ: true }
+mkScoreDQ isSetWinner =
+  var'inj @"binaryWL" { isSetWinner, setHasDQ: true }
 
 mkScoreCount :: Int -> Score
-mkScoreCount count = Count count
+mkScoreCount count = var'inj @"count" count
 
-derive instance Generic Score _
+noScore :: Score
+noScore = var'inj @"noScore" unit
+
+derive instance Newtype Score _
 
 instance DecodeJson Score where
-  decodeJson x = genericDecodeJson x
+  decodeJson = var'decode
 
 instance EncodeJson Score where
-  encodeJson x = genericEncodeJson x
+  encodeJson = var'encode
 
 instance Show Score where
-  show (Count n) = show n
-  show (WLBinary { isSetWinner: true, setHasDQ: false }) = "W"
-  show (WLBinary { isSetWinner: false, setHasDQ: false }) = "L"
-  show (WLBinary { isSetWinner: false, setHasDQ: true }) = "DQ"
-  show _ = ""
+  show = var'default ""
+    # var'on @"count" show
+    # var'on @"binaryWL" \props -> case props of
+        { isSetWinner: true, setHasDQ: false } -> "W"
+        { isSetWinner: false, setHasDQ: false } -> "L"
+        { isSetWinner: false, setHasDQ: true } -> "DQ"
+        _ -> ""
 
 type Slot =
   { entrantId :: Maybe SorN
@@ -121,31 +143,61 @@ type PhaseGroup =
   , phase :: Phase
   }
 
-data SocialType = Discord | Twitter | Twitch | XBox | LuckyStats
+newtype SocialType = SocialType
+  ( Variant
+      ( discord :: Unit
+      , twitter :: Unit
+      , twitch :: Unit
+      , xbox :: Unit
+      , luckyStats :: Unit
+      )
+  )
 
-derive instance Generic SocialType _
+derive instance Newtype SocialType _
 
 instance Identable SocialType where
-  ident'get = id'of <<< genericShow
+  ident'get = id'of <<< var'key
 
 instance EncodeJson SocialType where
-  encodeJson = genericEncodeJson
+  encodeJson = var'encode
 
 instance DecodeJson SocialType where
-  decodeJson = genericDecodeJson
+  decodeJson = var'decode
 
-data ImageType = Profile | Banner
+socialType'discord :: SocialType
+socialType'discord = var'inj @"discord" unit
 
-derive instance Generic ImageType _
+socialType'twitter :: SocialType
+socialType'twitter = var'inj @"twitter" unit
+
+socialType'twitch :: SocialType
+socialType'twitch = var'inj @"twitch" unit
+
+socialType'xbox :: SocialType
+socialType'xbox = var'inj @"xbox" unit
+
+socialType'luckyStats :: SocialType
+socialType'luckyStats = var'inj @"luckyStats" unit
+
+newtype ImageType = ImageType
+  (Variant (profile :: Unit, banner :: Unit))
+
+derive instance Newtype ImageType _
 
 instance Identable ImageType where
-  ident'get = id'of <<< genericShow
+  ident'get = id'of <<< var'key
 
 instance EncodeJson ImageType where
-  encodeJson = genericEncodeJson
+  encodeJson = var'encode
 
 instance DecodeJson ImageType where
-  decodeJson = genericDecodeJson
+  decodeJson = var'decode
+
+imageType'banner :: ImageType
+imageType'banner = var'inj @"banner" unit
+
+imageType'profile :: ImageType
+imageType'profile = var'inj @"profile" unit
 
 type Player =
   { id :: SorN
@@ -197,7 +249,13 @@ type EventSource =
   }
 
 startggSource :: String -> EventSource
-startggSource slug = { slug, site: Startgg }
+startggSource slug = { slug, site: site'startgg }
 
 challongeSource :: String -> EventSource
-challongeSource slug = { slug, site: Challonge }
+challongeSource slug = { slug, site: site'challonge }
+
+site'challonge :: BracketingSite
+site'challonge = var'inj @"challonge" unit
+
+site'startgg :: BracketingSite
+site'startgg = var'inj @"startgg" unit

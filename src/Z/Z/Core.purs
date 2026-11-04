@@ -128,9 +128,6 @@ module Z.Z.Core
   , tryParseInt
   , tryParseNum
   , tup'flip
-  , var'inj
-  , var'match
-  , var'unwrap
   , varF'inj
   , varf'match
   , whenNot
@@ -155,7 +152,7 @@ import Data.Lens (Lens', lens')
 import Data.List as List
 import Data.Maybe (Maybe)
 import Data.Maybe as May
-import Data.Newtype (class Newtype, unwrap)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Ring as Ring
 import Data.Semiring as Semiring
 import Data.Symbol (class IsSymbol)
@@ -255,17 +252,6 @@ rec'modify
   -> Record r2
 rec'modify = Record.modify (Proxy.Proxy @l)
 
-var'inj :: forall v' v @l a. IsSymbol l => Cons l a v' v => a -> Var.Variant v
-var'inj = Var.inj (Proxy.Proxy @l)
-
-var'unwrap
-  :: forall v' v l a
-   . IsSymbol l
-  => Cons l a v' v
-  => Var.Variant v
-  -> Proxy.Proxy l
-var'unwrap _ = Proxy.Proxy @l
-
 varF'inj
   :: forall v' v @l a f
    . Functor f
@@ -274,16 +260,6 @@ varF'inj
   => f a
   -> VarF.VariantF v a
 varF'inj = VarF.inj (Proxy.Proxy @l)
-
-var'match
-  :: forall rl r r1 r2 b
-   . RowToList r rl
-  => VariantMatchCases rl r1 b
-  => Union r1 () r2
-  => Record r
-  -> Variant r2
-  -> b
-var'match = Var.match
 
 varf'match
   :: forall rl r r1 r2 a b

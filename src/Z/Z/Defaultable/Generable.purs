@@ -134,7 +134,7 @@ instance
     insert = unsafeSet key :: focus -> Record rowTail -> Record row
     tail = mkDefaultRecord (Proxy :: Proxy rowListTail)
 
-instance defaultValueForRecord ::
+instance
   ( RL.RowToList row list
   , DefaultValueRecord list row
   ) =>

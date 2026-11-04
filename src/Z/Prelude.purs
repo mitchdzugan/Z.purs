@@ -24,6 +24,7 @@ module Z.Prelude
   , module ZPromise
   , module ZFuzzy
   , module ZX
+  , module ZVariant
   ) where
 
 import Prelude
@@ -222,6 +223,7 @@ import Z.Z.Shorthand as ZShorthand
 import Z.Z.String as ZString
 import Z.Z.Url (URL) as ZUrl
 import Z.Z.Util as ZUtil
+import Z.Z.Variant as ZVariant
 import Z.Z.Wraps
   ( class Unwraps
   , class Wraps
