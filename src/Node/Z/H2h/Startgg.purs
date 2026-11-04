@@ -74,7 +74,7 @@ getEventData = B.adaptBuilder do
                   mapOfJsonElsWithFieldsTypeAnd @"url" playerImages
               }
           }
-      let emptyEntrantErr = H2hE.EmptyEntrant entrantNode.id
+      let emptyEntrantErr = H2hE.emptyEntrant entrantNode.id
       participant <- e'unwrap emptyEntrantErr $ nth participants 0
       let
         entrantId = sOrN entrantNode.id
@@ -203,18 +203,20 @@ getEventData = B.adaptBuilder do
     let pSpecs = [ All.ggPageSpec (__ @"page") (__ @"phaseGroup!.sets") ]
     All.ggQueryAll Q.phaseGroup initVars pSpecs client networkControl
   fetchRawEventData = do
-    e'try fetchRawEventDataImpl >>= case _ of
-      Left fullE@(H2hE.Gql (GqlE.ResponseError e)) -> do
-        case decodeJson @Q.EventDataRes_ e.response.data of
-          Left _ -> e'fail fullE
-          Right res -> pure
-            { event: rec'merge res.event
-                { standings: { nodes: [], pageInfo: { total: 0 } }
-                , entrants: { nodes: [], pageInfo: { total: 0 } }
-                }
-            }
-      Left fullE -> e'fail fullE
-      Right r -> pure r
+    e'try @H2hE.T fetchRawEventDataImpl >>=
+      flip eOr'_ pure \e -> (#) e
+        $ var'default (e'fail e)
+        # var'on @"gql" \(gqlE) -> (#) gqlE
+            $ var'default (e'fail e)
+            # var'on @"responseError" \respE ->
+                case decodeJson @Q.EventDataRes_ respE.response.data of
+                  Right res -> pure
+                    { event: rec'merge res.event
+                        { standings: { nodes: [], pageInfo: { total: 0 } }
+                        , entrants: { nodes: [], pageInfo: { total: 0 } }
+                        }
+                    }
+                  _ -> e'fail e
   fetchRawEventDataImpl = e'tryUntil
     (f' Q.eventMaxDataPerReq $ Just Gql.CacheOnly)
     [ const (f' Q.evenMinComplexityPerReq $ Just Gql.CacheOnly)

@@ -39,13 +39,11 @@ bin'size = Fo.size <<< Z.unwrap
 bin'vals :: forall v. Bin v -> Array v
 bin'vals = Fo.values <<< Z.unwrap
 
-derive instance Z.Generic JsonEncodedBin _
+derive instance Z.Newtype JsonEncodedBin _
 
-instance Z.DecodeJson JsonEncodedBin where
-  decodeJson x = Z.genericDecodeJson x
+derive newtype instance Z.DecodeJson JsonEncodedBin
 
-instance Z.EncodeJson JsonEncodedBin where
-  encodeJson x = Z.genericEncodeJson x
+derive newtype instance Z.EncodeJson JsonEncodedBin
 
 instance Z.DecodeJson v => Z.DecodeJson (Bin v) where
   decodeJson x = do

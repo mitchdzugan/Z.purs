@@ -45,9 +45,13 @@ module Z.Z.X.Index
   , e'fail''
   , e'invert
   , e'invert''
+  , e'liftAt
+  , e'liftAt''
   , e'map
   , e'map''
   , e'map'flipped
+  , e'mapAt
+  , e'mapAt''
   , e'ok
   , e'ok''
   , e'runEffA
@@ -62,6 +66,10 @@ module Z.Z.X.Index
   , e'tryUntil''
   , e'unwrap
   , e'unwrap''
+  , e'unwrapAt
+  , e'unwrapAt''
+  , e'unwrapAt_
+  , e'unwrapAt_''
   , e'unwrap_
   , e'unwrap_''
   , e'withFinalizer
@@ -206,6 +214,7 @@ import Z.Z.Util
   , url'fromParts
   , url'parts
   )
+import Z.Z.Variant (class IsVariant, var'inj)
 import Z.Z.X.Core
   ( class X'Buildable
   , Reader
@@ -431,13 +440,13 @@ type T'use'e'AsSym p f = T'useAsSym "_'x'except" p f
 
 --------------------------------------------
 
-type T'e'try p =
-  forall e x' x a. ConsSymbol p (X'E e) x' x => Run x a -> Run x' (Either e a)
+type T'e'try e p =
+  forall x' x a. ConsSymbol p (X'E e) x' x => Run x a -> Run x' (Either e a)
 
-e'try'' :: forall @p. T'e'try p
+e'try'' :: forall @p @e. T'e'try e p
 e'try'' = ctxE'runAt @p
 
-e'try :: forall p. T'use'e'AsSym p T'e'try
+e'try :: forall @e p. T'use'e'AsSym p (T'e'try e)
 e'try = e'try'' @p
 
 --------------------------------------------
@@ -490,6 +499,41 @@ e'runParser'' s pr = e'ok'' @p $ runParser s pr
 
 e'runParser :: forall p. T'use'e'AsSym p T'e'runParser
 e'runParser = e'runParser'' @p
+
+--------------------------------------------
+
+type T'e'mapAt sym p =
+  forall vt v' v x'' x' x e1 e2 a
+   . ConsSymbol sym e1 v' v
+  => IsVariant vt v
+  => ConsSymbol p (X'E vt) x'' x'
+  => ConsSymbol p (X'E e2) x' x
+  => (e2 -> e1)
+  -> Run x a
+  -> Run x' a
+
+e'mapAt'' :: forall @p @sym. T'e'mapAt sym p
+e'mapAt'' f = e'map'' @p (var'inj @sym <<< f)
+
+e'mapAt :: forall @sym p. T'use'e'AsSym p (T'e'mapAt sym)
+e'mapAt = e'mapAt'' @p @sym
+
+--------------------------------------------
+
+type T'e'liftAt sym p =
+  forall vt v' v x'' x' x e a
+   . ConsSymbol sym e v' v
+  => IsVariant vt v
+  => ConsSymbol p (X'E vt) x'' x'
+  => ConsSymbol p (X'E e) x' x
+  => Run x a
+  -> Run x' a
+
+e'liftAt'' :: forall @p @sym. T'e'liftAt sym p
+e'liftAt'' = e'mapAt'' @p @sym identity
+
+e'liftAt :: forall @sym p. T'use'e'AsSym p (T'e'liftAt sym)
+e'liftAt = e'liftAt'' @p @sym
 
 --------------------------------------------
 
@@ -586,6 +630,42 @@ e'unwrap = e'unwrap'' @p
 
 sc'unwrap :: forall p. T'use'sc'AsSym p T'e'unwrap
 sc'unwrap = e'unwrap'' @p
+
+--------------------------------------------
+
+type T'e'unwrapAt sym p =
+  forall vt v' v x' x e f a
+   . ConsSymbol sym e v' v
+  => IsVariant vt v
+  => ConsSymbol p (X'E vt) x' x
+  => Resulting f
+  => e
+  -> f a
+  -> Run x a
+
+e'unwrapAt'' :: forall @p @sym. T'e'unwrapAt sym p
+e'unwrapAt'' e = e'unwrap'' @p (var'inj @sym e)
+
+e'unwrapAt :: forall @sym p. T'use'e'AsSym p (T'e'unwrapAt sym)
+e'unwrapAt = e'unwrapAt'' @p @sym
+
+--------------------------------------------
+
+type T'e'unwrapAt_ sym p =
+  forall vt v' v x' x e f a
+   . ConsSymbol sym e v' v
+  => IsVariant vt v
+  => ConsSymbol p (X'E vt) x' x
+  => Resulting f
+  => Generable e GDefault e
+  => f a
+  -> Run x a
+
+e'unwrapAt_'' :: forall @p @sym. T'e'unwrapAt_ sym p
+e'unwrapAt_'' = e'unwrapAt'' @p @sym default
+
+e'unwrapAt_ :: forall @sym p. T'use'e'AsSym p (T'e'unwrapAt_ sym)
+e'unwrapAt_ = e'unwrapAt_'' @p @sym
 
 --------------------------------------------
 

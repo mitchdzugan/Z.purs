@@ -2,6 +2,7 @@ module Z.Z.Variant
   ( Var''Decode
   , Var''Encode
   , Var''Key
+  , Var''Shown
   , class IsVariant
   , class Variant'Mk
   , class Variant'Mker
@@ -16,9 +17,11 @@ module Z.Z.Variant
   , var'default
   , var'encode
   , var'inj
+  , var'inj_
   , var'key
   , var'match
   , var'on
+  , var'show
   , variant'handle
   , variant'handle'rows
   , variant'mk
@@ -45,6 +48,7 @@ import Prim.Row (class Cons, class Union)
 import Prim.RowList as RL
 import Type.Proxy (Proxy(..))
 import Z.Z.Core (may'_, obj'lookup)
+import Z.Z.Defaultable (class Generable, GDefault, default)
 import Z.Z.It (obj'collect)
 
 class IsVariant t v | t -> v where
@@ -61,6 +65,15 @@ else instance (Newtype t (Variant v)) => IsVariant t v where
 var'inj
   :: forall t v' v @l a. IsSymbol l => Cons l a v' v => IsVariant t v => a -> t
 var'inj = fromVariant @t <<< inj (Proxy @l)
+
+var'inj_
+  :: forall t v' v @l a
+   . IsSymbol l
+  => Cons l a v' v
+  => IsVariant t v
+  => Generable a GDefault a
+  => t
+var'inj_ = var'inj @l default
 
 var'match
   :: forall t rl r r1 r2 b
@@ -226,3 +239,14 @@ var'encode = variant'handle @Var''Encode
 
 var'key :: forall @from. Variant'handle Var''Key from String => from -> String
 var'key = variant'handle @Var''Key
+
+var'show
+  :: forall @from
+   . Variant'handle Var''Key from String
+  => Variant'handle Var''Shown from String
+  => from
+  -> String
+var'show v = "Var@" <> vAt <> "[= " <> vInj <> " =]"
+  where
+  vAt = variant'handle @Var''Key v
+  vInj = variant'handle @Var''Shown v

@@ -59,9 +59,13 @@ addConfigs allowFNF wd configPaths = do
     let configDir = (dirname fullPath)
     s'update $ updateEnv configDir c
     addConfigs false configDir (gmOr'_ @"includes?" c)
+  {-
   onDecode fp (Left (ReadError _)) = do
     when (not allowFNF) $ e'fail $ ConfigNotFound $ show fp
   onDecode _ (Left (DecodeError e)) = e'fail $ ConfigDecodeErr e
+-}
+  onDecode fp _ = do
+    when (not allowFNF) $ e'fail $ ConfigNotFound $ show fp
 
 getDefaultSlippiPlaybackBin :: forall x. Path -> A' x @$> String
 getDefaultSlippiPlaybackBin slippiLauncherPath = x'withReturn \x'return -> do

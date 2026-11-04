@@ -3,14 +3,15 @@ module Z.H2h.Warning
   ) where
 
 import Z.Prelude
+
 import Z.Gql.Module as Gql
 
-data T = Gql Gql.Warning
+newtype T = T (Variant (gql :: Gql.Warning))
 
-derive instance Generic T _
+derive instance Newtype T _
 
 instance DecodeJson T where
-  decodeJson x = genericDecodeJson x
+  decodeJson = var'decode
 
 instance EncodeJson T where
-  encodeJson x = genericEncodeJson x
+  encodeJson = var'encode

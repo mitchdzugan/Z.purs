@@ -1,15 +1,17 @@
 module Z.Sys.Module
-  ( FSDataError(..)
+  ( FSDataError'row
+  , FSDataError(..)
   ) where
 
 import Z.Prelude
 
-data FSDataError = ReadError JsError | DecodeError JsonDecodeError
+type FSDataError'row = (readError :: JsError, decodeError :: JsonDecodeError)
+newtype FSDataError = FSDataError (Variant FSDataError'row)
 
-derive instance Generic FSDataError _
+derive instance Newtype FSDataError _
 
 instance DecodeJson FSDataError where
-  decodeJson x = genericDecodeJson x
+  decodeJson = var'decode
 
 instance EncodeJson FSDataError where
-  encodeJson x = genericEncodeJson x
+  encodeJson = var'encode

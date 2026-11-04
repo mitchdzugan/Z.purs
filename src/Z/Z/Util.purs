@@ -68,12 +68,9 @@ import Data.Argonaut.Core as Arg
 import Data.Argonaut.Decode (class DecodeJson, fromJsonString) as Dec
 import Data.Argonaut.Decode (JsonDecodeError(..)) as JDE
 import Data.Argonaut.Decode as ADec
-import Data.Argonaut.Decode.Generic (genericDecodeJson) as DecodeGeneric
 import Data.Argonaut.Encode (class EncodeJson, encodeJson) as Enc
-import Data.Argonaut.Encode.Generic (genericEncodeJson) as EncodeGeneric
 import Data.Array as Array
 import Data.Either as Either
-import Data.Generic.Rep (class Generic) as Generic
 import Data.Maybe as Maybe
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Ord as Ord
@@ -81,6 +78,7 @@ import Data.Ordering as Ordering
 import Data.Tuple (fst)
 import Data.Tuple as Tup
 import Data.Tuple.Nested (type (/\), (/\))
+import Data.Variant (Variant)
 import Foreign as Foreign
 import Foreign.Object as FO
 import Prim.Symbol as Symbol
@@ -91,6 +89,14 @@ import Z.Z.HashMap (HashMap, hm'entries)
 import Z.Z.Id (class Identable, id'of)
 import Z.Z.It (arr'collect, iterable'kv'mk, obj'collect)
 import Z.Z.Url as Url
+import Z.Z.Variant
+  ( var'decode
+  , var'default
+  , var'encode
+  , var'inj
+  , var'inj_
+  , var'on
+  )
 
 type UrlParts = Url.Parts
 
@@ -179,13 +185,18 @@ type RawJsonDecodeError = JDE.JsonDecodeError
 
 newtype JsonDecodeError = JsonDecodeError JDE.JsonDecodeError
 
-data JsonDecodeErrorInt
-  = TypeMismatch String
-  | UnexpectedValue Arg.Json
-  | AtIndex Int JsonDecodeErrorInt
-  | AtKey String JsonDecodeErrorInt
-  | Named String JsonDecodeErrorInt
-  | MissingValue
+type JsonDecodeErrorInt'row =
+  ( typeMismatch :: String
+  , unexpectedValue :: Arg.Json
+  , atIndex :: Int /\ JsonDecodeErrorInt
+  , atKey :: String /\ JsonDecodeErrorInt
+  , named :: String /\ JsonDecodeErrorInt
+  , missingValue :: Unit
+  )
+
+newtype JsonDecodeErrorInt = JsonDecodeErrorInt (Variant JsonDecodeErrorInt'row)
+
+derive instance Newtype JsonDecodeErrorInt _
 
 decodeErrTypeMismatch :: String -> JDE.JsonDecodeError
 decodeErrTypeMismatch = JDE.TypeMismatch
@@ -198,20 +209,20 @@ instance Show JsonDecodeError where
   show (JsonDecodeError jde) = show jde
 
 decodeRtoI :: JDE.JsonDecodeError -> JsonDecodeErrorInt
-decodeRtoI (JDE.TypeMismatch s) = TypeMismatch s
-decodeRtoI (JDE.UnexpectedValue j) = UnexpectedValue j
-decodeRtoI (JDE.AtIndex i e) = AtIndex i $ decodeRtoI e
-decodeRtoI (JDE.AtKey s e) = AtKey s $ decodeRtoI e
-decodeRtoI (JDE.Named s e) = Named s $ decodeRtoI e
-decodeRtoI _ = MissingValue
+decodeRtoI (JDE.TypeMismatch s) = var'inj @"typeMismatch" s
+decodeRtoI (JDE.UnexpectedValue j) = var'inj @"unexpectedValue" j
+decodeRtoI (JDE.AtIndex i e) = var'inj @"atIndex" $ i /\ decodeRtoI e
+decodeRtoI (JDE.AtKey s e) = var'inj @"atKey" $ s /\ decodeRtoI e
+decodeRtoI (JDE.Named s e) = var'inj @"named" $ s /\ decodeRtoI e
+decodeRtoI _ = var'inj_ @"missingValue"
 
 decodeItoR :: JsonDecodeErrorInt -> JDE.JsonDecodeError
-decodeItoR (TypeMismatch s) = JDE.TypeMismatch s
-decodeItoR (UnexpectedValue j) = JDE.UnexpectedValue j
-decodeItoR (AtIndex i e) = JDE.AtIndex i $ decodeItoR e
-decodeItoR (AtKey s e) = JDE.AtKey s $ decodeItoR e
-decodeItoR (Named s e) = JDE.Named s $ decodeItoR e
-decodeItoR _ = JDE.MissingValue
+decodeItoR = var'default JDE.MissingValue
+  # var'on @"typeMismatch" JDE.TypeMismatch
+  # var'on @"unexpectedValue" JDE.UnexpectedValue
+  # var'on @"atIndex" (\(i /\ e) -> JDE.AtIndex i $ decodeItoR e)
+  # var'on @"atKey" (\(s /\ e) -> JDE.AtKey s $ decodeItoR e)
+  # var'on @"named" (\(s /\ e) -> JDE.Named s $ decodeItoR e)
 
 decodeViaString
   :: forall a
@@ -224,15 +235,11 @@ decodeViaString ofString x = do
   onEor (Either.Right v) = pure v
   onEor (Either.Left msg) = decodeFailTypeMismatch msg
 
-derive instance Generic.Generic JsonDecodeError _
-derive instance
-  Generic.Generic JsonDecodeErrorInt _
-
 instance Dec.DecodeJson JsonDecodeErrorInt where
-  decodeJson x = DecodeGeneric.genericDecodeJson x
+  decodeJson x = var'decode x
 
 instance Enc.EncodeJson JsonDecodeErrorInt where
-  encodeJson x = EncodeGeneric.genericEncodeJson x
+  encodeJson x = var'encode x
 
 instance Dec.DecodeJson JsonDecodeError where
   decodeJson x = do
@@ -354,15 +361,16 @@ arg4'
   -> (a1 -> a2 -> a3 -> r)
 arg4' a4 f a1 a2 a3 = f a1 a2 a3 a4
 
-data ResourceStage = Acquire | Release
+newtype ResourceStage =
+  ResourceStage (Variant (acquire :: Unit, release :: Unit))
 
-derive instance Generic.Generic ResourceStage _
+derive instance Newtype ResourceStage _
 
 instance Dec.DecodeJson ResourceStage where
-  decodeJson x = DecodeGeneric.genericDecodeJson x
+  decodeJson = var'decode
 
 instance Enc.EncodeJson ResourceStage where
-  encodeJson x = EncodeGeneric.genericEncodeJson x
+  encodeJson = var'encode
 
 class SplitSp1 :: forall k1 k2 k3. k1 -> k2 -> k3 -> Constraint
 class SplitSp1 i o1 o2 | i -> o1 o2

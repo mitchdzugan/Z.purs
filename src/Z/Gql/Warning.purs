@@ -2,15 +2,16 @@ module Z.Gql.Warning
   ( T(..)
   ) where
 
-import Node.Z.Prelude
+import Z.Prelude
 
-data T
-  = CacheDecode FSDataError
-  | CacheWrite JsError
+import Z.Sys.Module (FSDataError)
 
-derive instance Generic T _
+newtype T = T (Variant (cacheDecode :: FSDataError, cacheWrite :: JsError))
+
+derive instance Newtype T _
+
 instance DecodeJson T where
-  decodeJson x = genericDecodeJson x
+  decodeJson = var'decode
 
 instance EncodeJson T where
-  encodeJson x = genericEncodeJson x
+  encodeJson = var'encode

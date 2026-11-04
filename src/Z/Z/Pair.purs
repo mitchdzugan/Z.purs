@@ -10,6 +10,9 @@ module Z.Z.Pair
 
 import Prelude
 
+import Data.Argonaut.Decode (decodeJson)
+import Data.Tuple.Nested (type (/\), (/\))
+import Z.Z.Ext (encodeJson)
 import Z.Z.Ext as Z
 import Z.Z.It (class Iterable, iterable'mk)
 import Z.Z.PairKey as PK
@@ -43,14 +46,16 @@ pair'get pk (x ~ y) = if pk == PK.pos then x else y
 pair'getOppo ∷ ∀ a. PK.PairKey -> Pair a -> a
 pair'getOppo pk p = pair'get (PK.pairKey'inv pk) p
 
-derive instance Z.Generic (Pair p) _
 derive instance Eq a => Eq (Pair a)
 derive instance Ord a => Ord (Pair a)
 instance Z.DecodeJson p => Z.DecodeJson (Pair p) where
-  decodeJson x = Z.genericDecodeJson x
+  decodeJson x = decodeJson x <#> onDecodedTuple
+    where
+    onDecodedTuple :: (p /\ p) -> Pair p
+    onDecodedTuple (l /\ r) = l ~ r
 
 instance Z.EncodeJson p => Z.EncodeJson (Pair p) where
-  encodeJson x = Z.genericEncodeJson x
+  encodeJson (x ~ y) = encodeJson (x /\ y)
 
 instance Show a ⇒ Show (Pair a) where
   show (x ~ y) = "(" <> show x <> " ~ " <> show y <> ")"

@@ -1,5 +1,6 @@
 module Z.CLM.Stats.Types
   ( ClmActionData
+  , ClmAppLoadError'row
   , ClmAppLoadError(..)
   , ClmBuildMeta(..)
   , ClmBuildOutputs
@@ -167,26 +168,23 @@ newtype ClmBuildMeta = ClmBuildMeta
   }
 
 derive instance Newtype ClmBuildMeta _
-
-derive instance Generic ClmBuildMeta _
-
-instance DecodeJson ClmBuildMeta where
-  decodeJson x = genericDecodeJson x
-
-instance EncodeJson ClmBuildMeta where
-  encodeJson x = genericEncodeJson x
+derive newtype instance DecodeJson ClmBuildMeta
+derive newtype instance EncodeJson ClmBuildMeta
 
 clmBuildMeta :: ClmActionData -> ClmBuildOutputs -> ClmBuildMeta
 clmBuildMeta actionData outputs = ClmBuildMeta { actionData, outputs }
 
-data ClmAppLoadError
-  = MissingHtmlHead
-  | MissingHtmlBody
-  | MissingBuildOutputs
-  | InvalidBuildOutputs String
-  | HydrateError JsError
+type ClmAppLoadError'row =
+  ( missingHtmlHead :: Unit
+  , missingHtmlBody :: Unit
+  , missingBuildOutputs :: Unit
+  , invalidBuildOutputs :: String
+  , hydrateErr :: JsError
+  )
 
-derive instance Generic ClmAppLoadError _
+newtype ClmAppLoadError = ClmAppLoadError (Variant ClmAppLoadError'row)
+
+derive instance Newtype ClmAppLoadError _
 
 instance Show ClmAppLoadError where
-  show = genericShow
+  show = var'show

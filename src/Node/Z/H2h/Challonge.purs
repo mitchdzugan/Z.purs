@@ -13,13 +13,12 @@ import Z.Gql.Error as GqlE
 import Z.Gql.Warning as GqlW
 import Z.H2h.Error as H2hE
 import Z.H2h.Module as H2h
-import Z.H2h.Warning as H2hW
 
 getEventData :: forall x. B.GetDataFn x
 getEventData = B.adaptBuilder $ x'withReturn \xReturn -> do
   { client, networkControl, slug } <- r'ask
   let { cachePath } = client
-  let eCacheOnlyEmpty = H2hE.Gql GqlE.CacheOnlyEmpty
+  let eCacheOnlyEmpty = H2hE.gql GqlE.cacheOnlyEmpty
   cached <- getCached slug cachePath networkControl
   whenJust cached xReturn
   when (networkControl == Gql.CacheOnly) $ e'fail eCacheOnlyEmpty
@@ -30,19 +29,20 @@ getEventData = B.adaptBuilder $ x'withReturn \xReturn -> do
   fullPath slug path = path /./ ("CHALLONGE-" <> slug <> ".json")
   writeToCache _ Nothing _ = pure unit
   writeToCache slug (Just path) res =
-    we'tellMappedHush (H2hW.Gql <<< GqlW.CacheWrite) $ x'encodeTextFileP
-      (fullPath slug path)
-      res
+    we'tellMappedHush (var'inj @"gql" <<< var'inj @"cacheWrite") $
+      x'encodeTextFileP (fullPath slug path) res
   getCached _ Nothing _ = pure Nothing
   getCached _ _ Gql.ForceFetch = pure Nothing
   getCached slug (Just path) _ = we'tellMappedMHush mapMDecodeErr $ Just
     <$> x'decodeTextFile @H2h.Event (fullPath slug path)
-  mapMDecodeErr e@(DecodeError _) = [ H2hW.Gql $ GqlW.CacheDecode e ]
-  mapMDecodeErr _ = []
+  mapMDecodeErr e = (#) e
+    $ var'default []
+    # var'on @"decodeError"
+        (\_ -> [ var'inj @"gql" $ var'inj @"cacheDecode" e ])
 
 getEventDataImpl :: forall x. H2h.Event <@@ B.BuildX x
 getEventDataImpl = do
-  P.xUseBrowser H2hE.PuppeteerBrowserResource browserOpts $ \browser -> do
+  P.xUseBrowser H2hE.puppeteerBrowserResource browserOpts $ \browser -> do
     x'info { op: "newPage" }
     page <- pDo "newPage" "" $ P.xNewPage browser
     x'info { op: "xSetViewport" }
@@ -62,8 +62,8 @@ getEventDataImpl = do
   where
   initialState =
     { isDE: false
-    , nameOrE: Left $ H2hE.MissingData "event.name"
-    , dateOrE: Left $ H2hE.MissingData "event.date"
+    , nameOrE: Left $ H2hE.missingData "event.name"
+    , dateOrE: Left $ H2hE.missingData "event.date"
     }
 
   readPageData page = do
@@ -73,7 +73,7 @@ getEventDataImpl = do
       itemLabel <- pEl el ".item-label" >>= pInnerText
       itemText <- pEl el ".text" >>= pInnerText
       when (itemLabel == "Start Time" || itemLabel == "Start") do
-        date <- H2hE.ParseTime !$! e'runParser itemText parseDate
+        date <- H2hE.parseTime !$! e'runParser itemText parseDate
         s'setPure'b @"dateOrE" date
       when (itemLabel == "Game") do
         s'setPure'b @"nameOrE" itemText
@@ -88,7 +88,7 @@ getEventDataImpl = do
       matchEls <- pEls bracketEl ".match"
       forM_ matchEls \matchEl -> x'eval_ @"winnerId" @(X'Ref (Maybe SorN)) do
         setId <- pReadDataAttr matchEl "match" >>=
-          \matchAttr -> H2hE.ParseMatchId !$! e'runParser matchAttr parseInt
+          \matchAttr -> H2hE.parseMatchId !$! e'runParser matchAttr parseInt
         playerEls <- pEls matchEl ".match--player"
         slots <- forM playerEls $ \playerEl -> do
           entrantId <- pReadIdDataAttr playerEl "participant"
@@ -96,7 +96,7 @@ getEventDataImpl = do
           scoreEl <- pEl playerEl ".match--player-score"
           scoreClass <- pGetAttribute scoreEl "class"
           scoreS <- pInnerHtml scoreEl
-          score <- H2hE.ParseScore !$! do
+          score <- H2hE.parseScore !$! do
             e'runParser scoreS parseInt <#> H2h.mkScoreCount
           forM_ (str'split (Pattern " ") scoreClass) $ \cn -> do
             when (cn == "-winner") $ x'assignPure @"winnerId" entrantId
@@ -290,7 +290,7 @@ getEventDataImpl = do
     -> String
     -> E' JsError + EA' H2hE.T xx @@> a
     -> EA' H2hE.T xx @@> a
-  pDo s1 s2 m = H2hE.Puppeteer s1 s2 !$! m
+  pDo s1 s2 m = H2hE.puppeteer s1 s2 !$! m
 
   pDoPorE
     :: forall xx pOrE a
@@ -299,7 +299,7 @@ getEventDataImpl = do
     -> String
     -> E' JsError + EA' H2hE.T xx @@> a
     -> EA' H2hE.T xx @@> a
-  pDoPorE pOrE s m = H2hE.Puppeteer (P.context pOrE) s !$! m
+  pDoPorE pOrE s m = H2hE.puppeteer (P.context pOrE) s !$! m
 
   pEls
     :: forall xx pOrE

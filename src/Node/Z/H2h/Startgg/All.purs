@@ -40,7 +40,7 @@ ggQueryAll op initVars pageSpecs client networkControl = we'liftGql do
     ggPageSpecHandle
   pure res
   where
-  we'liftGql = we'map H2hW.Gql H2hE.Gql
+  we'liftGql = we'map (var'inj @"gql") H2hE.gql
 
 type QAllR v r =
   { client :: Gql.Client
