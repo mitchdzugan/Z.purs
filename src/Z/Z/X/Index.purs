@@ -178,12 +178,10 @@ import Z.Z.Core
   , ParseError
   , Result
   , T'useAsSym
-  , eOr'_
   , eff'defer
   , fDiscard
   , invert
   , mapL
-  , may'__
   , rec'modify
   , resultVal
   , runParser
@@ -409,7 +407,7 @@ r'run'' :: forall @p. T'r'run p
 r'run'' = x'eval @p
 
 r'run :: forall p. T'use'r'AsSym p T'r'run
-r'run = x'eval @p
+r'run = r'run'' @p
 
 --------------------------------------------
 
@@ -449,7 +447,7 @@ e'try'' :: forall @p @e. T'e'try e p
 e'try'' = ctxE'runAt @p
 
 e'try :: forall @e p. T'use'e'AsSym p (T'e'try e)
-e'try = ctxE'runAt @p
+e'try = e'try'' @p
 
 --------------------------------------------
 
@@ -459,7 +457,7 @@ e'fail'' :: forall @p. T'e'fail p
 e'fail'' = ctxE'throwAt @p
 
 e'fail :: forall p. T'use'e'AsSym p T'e'fail
-e'fail = ctxE'throwAt @p
+e'fail = e'fail'' @p
 
 --------------------------------------------
 
@@ -467,10 +465,11 @@ type T'e'ok p =
   forall e x' x a. ConsSymbol p (X'E e) x' x => Either e a -> Run x a
 
 e'ok'' :: forall @p. T'e'ok p
-e'ok'' = eOr'_ (e'fail'' @p) pure
+e'ok'' (Left e) = e'fail'' @p e
+e'ok'' (Right a) = pure a
 
 e'ok :: forall p. T'use'e'AsSym p T'e'ok
-e'ok = eOr'_ e'fail pure
+e'ok = e'ok'' @p
 
 --------------------------------------------
 
@@ -484,7 +483,7 @@ e'runEffPromise'' :: forall @p. T'e'runEffPromise p
 e'runEffPromise'' effP = ctxA'fromEffPromise effP >>= ctxE'okAt @p
 
 e'runEffPromise :: forall p. T'use'e'AsSym p T'e'runEffPromise
-e'runEffPromise effP = ctxA'fromEffPromise effP >>= ctxE'okAt @p
+e'runEffPromise = e'runEffPromise'' @p
 
 --------------------------------------------
 
@@ -499,7 +498,7 @@ e'runParser'' :: forall @p. T'e'runParser p
 e'runParser'' s pr = e'ok'' @p $ runParser s pr
 
 e'runParser :: forall p. T'use'e'AsSym p T'e'runParser
-e'runParser s pr = e'ok $ runParser s pr
+e'runParser = e'runParser'' @p
 
 --------------------------------------------
 
@@ -517,7 +516,7 @@ e'mapAt'' :: forall @p @sym. T'e'mapAt sym p
 e'mapAt'' f = e'map'' @p (var'inj @sym <<< f)
 
 e'mapAt :: forall @sym p. T'use'e'AsSym p (T'e'mapAt sym)
-e'mapAt f = e'map (var'inj @sym <<< f)
+e'mapAt = e'mapAt'' @p @sym
 
 --------------------------------------------
 
@@ -534,7 +533,7 @@ e'liftAt'' :: forall @p @sym. T'e'liftAt sym p
 e'liftAt'' = e'mapAt'' @p @sym identity
 
 e'liftAt :: forall @sym p. T'use'e'AsSym p (T'e'liftAt sym)
-e'liftAt = e'mapAt @sym identity
+e'liftAt = e'liftAt'' @p @sym
 
 --------------------------------------------
 
@@ -550,7 +549,7 @@ e'map'' :: forall @p. T'e'map p
 e'map'' f m = e'try'' @p m <#> mapL f >>= e'ok'' @p
 
 e'map :: forall p. T'use'e'AsSym p T'e'map
-e'map f m = e'try m <#> mapL f >>= e'ok
+e'map = e'map'' @p
 
 type T'e'const p =
   forall x'' x' x e1 e2 a
@@ -564,7 +563,7 @@ e'const'' :: forall @p. T'e'const p
 e'const'' e = e'map'' @p $ const e
 
 e'const :: forall p. T'use'e'AsSym p T'e'const
-e'const e = e'map $ const e
+e'const = e'const'' @p
 
 type T'e'map'flipped p =
   forall x'' x' x e1 e2 a
@@ -589,7 +588,7 @@ e'const'flipped'' :: forall @p. T'e'const'flipped p
 e'const'flipped'' = flip $ e'const'' @p
 
 e'const'flipped :: forall p. T'use'e'AsSym p T'e'const'flipped
-e'const'flipped = flip e'const
+e'const'flipped = e'const'flipped'' @p
 
 infixr 0 e'map as !$!
 infixr 0 e'map'flipped as !#!
@@ -609,7 +608,7 @@ e'invert'' :: forall @p. T'e'invert p
 e'invert'' m = e'try'' @p m <#> invert >>= e'ok'' @p
 
 e'invert :: forall p. T'use'e'AsSym p T'e'invert
-e'invert m = e'try m <#> invert >>= e'ok
+e'invert = e'invert'' @p
 
 --------------------------------------------
 
@@ -622,10 +621,12 @@ type T'e'unwrap p =
   -> Run x a
 
 e'unwrap'' :: forall @p. T'e'unwrap p
-e'unwrap'' e = may'__ (\_ -> e'fail'' @p e) pure <<< resultVal
+e'unwrap'' e v = case resultVal v of
+  Just result -> pure result
+  _ -> e'fail'' @p e
 
 e'unwrap :: forall p. T'use'e'AsSym p T'e'unwrap
-e'unwrap e = may'__ (\_ -> e'fail e) pure <<< resultVal
+e'unwrap = e'unwrap'' @p
 
 sc'unwrap :: forall p. T'use'sc'AsSym p T'e'unwrap
 sc'unwrap = e'unwrap'' @p
@@ -646,7 +647,7 @@ e'unwrapAt'' :: forall @p @sym. T'e'unwrapAt sym p
 e'unwrapAt'' e = e'unwrap'' @p (var'inj @sym e)
 
 e'unwrapAt :: forall @sym p. T'use'e'AsSym p (T'e'unwrapAt sym)
-e'unwrapAt e = e'unwrap (var'inj @sym e)
+e'unwrapAt = e'unwrapAt'' @p @sym
 
 --------------------------------------------
 
@@ -664,7 +665,7 @@ e'unwrapAt_'' :: forall @p @sym. T'e'unwrapAt_ sym p
 e'unwrapAt_'' = e'unwrapAt'' @p @sym default
 
 e'unwrapAt_ :: forall @sym p. T'use'e'AsSym p (T'e'unwrapAt_ sym)
-e'unwrapAt_ = e'unwrapAt @sym default
+e'unwrapAt_ = e'unwrapAt_'' @p @sym
 
 --------------------------------------------
 
@@ -677,10 +678,12 @@ type T'e'unwrap_ p =
   -> Run x a
 
 e'unwrap_'' :: forall @p. T'e'unwrap_ p
-e'unwrap_'' = may'__ (\_ -> e'fail'' @p default) pure <<< resultVal
+e'unwrap_'' v = case resultVal v of
+  Just result -> pure result
+  _ -> e'fail'' @p default
 
 e'unwrap_ :: forall p. T'use'e'AsSym p T'e'unwrap_
-e'unwrap_ = may'__ (\_ -> e'fail default) pure <<< resultVal
+e'unwrap_ = e'unwrap_'' @p
 
 sc'unwrap_ :: forall p. T'use'sc'AsSym p T'e'unwrap_
 sc'unwrap_ = e'unwrap_'' @p
@@ -701,8 +704,7 @@ e'tryUntil'' try1 tryRest = e'invert'' @p $ e'invert'' @p try1 >>= \e1 ->
   reduceM (\e tryN -> e'invert'' @p $ tryN e) e1 tryRest
 
 e'tryUntil :: forall p. T'use'e'AsSym p T'e'tryUntil
-e'tryUntil try1 tryRest = e'invert $ e'invert try1 >>= \e1 ->
-  reduceM (\e tryN -> e'invert $ tryN e) e1 tryRest
+e'tryUntil = e'tryUntil'' @p
 
 --------------------------------------------
 
@@ -721,10 +723,7 @@ e'withFinalizer'' handle m = do
   e'ok'' @p res
 
 e'withFinalizer :: forall p. T'use'e'AsSym p T'e'withFinalizer
-e'withFinalizer handle m = do
-  res <- e'try m
-  handle res
-  e'ok res
+e'withFinalizer = e'withFinalizer'' @p
 
 --------------------------------------------
 
@@ -738,7 +737,7 @@ e'runEffA'' :: forall @p. T'e'runEffA p
 e'runEffA'' eff = ctxA'fromEff eff >>= ctxE'okAt @p
 
 e'runEffA :: forall p. T'use'e'AsSym p T'e'runEffA
-e'runEffA eff = ctxA'fromEff eff >>= e'ok
+e'runEffA = e'runEffA'' @p
 
 ---------------------------------------------------------------------
 
@@ -764,7 +763,7 @@ w'tell'' :: forall @p. T'w'tell p
 w'tell'' w = x'cons @p w
 
 w'tell :: forall p. T'use'w'AsSym p T'w'tell
-w'tell w = x'cons @p w
+w'tell = w'tell'' @p
 
 --------------------------------------------
 
@@ -780,7 +779,7 @@ w'say'' :: forall @p. T'w'say p
 w'say'' w = x'cons @p (pure w)
 
 w'say :: forall p. T'use'w'AsSym p T'w'say
-w'say w = x'cons @p (pure w)
+w'say = w'say'' @p
 
 --------------------------------------------
 
