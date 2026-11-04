@@ -33,7 +33,7 @@ clmSeasonProps :: Int -> String -> String -> ClmSeason'Props
 clmSeasonProps year title slug = { year, title, slug }
 
 legacySeasonProps :: HashMap Int ClmSeason'Props
-legacySeasonProps = hm'fromFoldable
+legacySeasonProps = hm'collect
   [ 2 /\ clmSeasonProps 2022 "2022 Spring" "chicago-2022-spring"
   , 3 /\ clmSeasonProps 2022 "2022 Spring" "chicago-2022-summer"
   , 4 /\ clmSeasonProps 2022 "2022 Spring" "chicago-2022-fall"

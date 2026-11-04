@@ -12,7 +12,7 @@ module Z.Z.X.Readables.RW.HashSet2D
 
 import Z.Z.X.UtilPrelude
 
-import Z.Z.Core (arr'concat, forM, forM_, may'__, (<##>))
+import Z.Z.Core (arr'concat, may'__, (<##>))
 import Z.Z.Eff.Bin2D
   ( Eff'Bin2D
   , eff'bin2D'addAt
@@ -28,9 +28,10 @@ import Z.Z.Eff.Bin2D
   , eff'bin2D'sizeAt
   , eff'bin2D'valsAt
   )
-import Z.Z.HashMap (HashMap, hm'entries, hm'fromFoldable, hm'lookup, hm'vals)
+import Z.Z.HashMap (HashMap, hm'collect, hm'entries, hm'lookup, hm'vals)
 import Z.Z.HashSet (HashSet, hs'vals)
 import Z.Z.Id (class Identable)
+import Z.Z.It (forM, forM_)
 import Z.Z.X.Core
   ( class RW'Tag'CanRead
   , class RW'Tag'CanWrite
@@ -396,7 +397,7 @@ eff'hs2D'freezeAt k st = wrap <$> eff'bin2D'freezeAt k st
 
 eff'hs2D'freeze
   :: forall k1 a. Identable k1 => Eff'HashSet2D k1 a -> Effect (HashSet2D k1 a)
-eff'hs2D'freeze st = eff'hs2D'd1entries st <#> hm'fromFoldable
+eff'hs2D'freeze st = eff'hs2D'd1entries st <#> hm'collect
 
 eff'hs2D'd1entries
   :: forall k1 a

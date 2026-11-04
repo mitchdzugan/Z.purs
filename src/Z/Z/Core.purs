@@ -28,8 +28,6 @@ module Z.Z.Core
   , arr'drop
   , arr'empty
   , arr'filter
-  , arr'fold
-  , arr'fromFoldable
   , arr'isEmpty
   , arr'range
   , arr'range'inc
@@ -56,8 +54,6 @@ module Z.Z.Core
   , fDiscard
   , ffmap
   , ffmapFlipped
-  , forM
-  , forM_
   , idLens
   , inc
   , ini'stringify
@@ -72,10 +68,7 @@ module Z.Z.Core
   , jsonFromForeign
   , jsonRmNils
   , jsonStr
-  , list'fromFoldable
   , mapL
-  , mapM
-  , maximumWith
   , may'_
   , may'__
   , may'filter
@@ -84,11 +77,9 @@ module Z.Z.Core
   , may'remove
   , may'remove_
   , may'toArray
-  , minimumWith
   , numberable'toNumber
   , obj'empty
   , obj'entries
-  , obj'fromFoldable
   , obj'has
   , obj'insert
   , obj'keys
@@ -124,8 +115,6 @@ module Z.Z.Core
   , rec'modify
   , rec'set
   , rec'union
-  , reduce
-  , reduceM
   , resultVal
   , routeParse
   , routePrint
@@ -135,7 +124,6 @@ module Z.Z.Core
   , runParser
   , simpleHash
   , stext
-  , sumBy
   , tern
   , tryParseInt
   , tryParseNum
@@ -159,8 +147,6 @@ import Data.Argonaut.Decode (class DecodeJson, decodeJson)
 import Data.Argonaut.Encode (class EncodeJson, encodeJson)
 import Data.Array as Arr
 import Data.Either as Eor
-import Data.Foldable (class Foldable, maximumBy, minimumBy, sum)
-import Data.Foldable as Foldable
 import Data.Functor as F
 import Data.Functor.Variant (class VariantFMatchCases)
 import Data.Functor.Variant as VarF
@@ -173,7 +159,6 @@ import Data.Newtype (class Newtype, unwrap)
 import Data.Ring as Ring
 import Data.Semiring as Semiring
 import Data.Symbol (class IsSymbol)
-import Data.Traversable as Traversable
 import Data.Tuple as Tup
 import Data.Tuple.Nested as TupN
 import Data.Variant (class VariantMatchCases, Variant)
@@ -553,13 +538,6 @@ obj'entries = Obj.toArrayWithKey TupN.(/\)
 obj'vals :: forall a. Obj.Object a -> Array a
 obj'vals = Obj.values
 
-obj'fromFoldable
-  :: forall @a f
-   . Foldable.Foldable f
-  => f (String TupN./\ a)
-  -> Obj.Object a
-obj'fromFoldable = Obj.fromFoldable
-
 objST'new :: forall a r. ST r (STObject r a)
 objST'new = ObjSt.new
 
@@ -608,30 +586,6 @@ may'remove_
   :: forall a. Generable a GDefault a => Eq a => May.Maybe a -> May.Maybe a
 may'remove_ = may'filter $ not <<< ((==) default)
 
-sumBy
-  :: forall f b a. Foldable f => Functor f => Semiring a => (b -> a) -> f b -> a
-sumBy f c = sum $ f <$> c
-
-maximumWith
-  :: forall f b a
-   . Foldable f
-  => Functor f
-  => Ord a
-  => (b -> a)
-  -> f b
-  -> Maybe b
-maximumWith f = maximumBy \a b -> compare (f a) (f b)
-
-minimumWith
-  :: forall f b a
-   . Foldable f
-  => Functor f
-  => Ord a
-  => (b -> a)
-  -> f b
-  -> Maybe b
-minimumWith f = minimumBy \a b -> compare (f a) (f b)
-
 foreign import js_arrWithInd
   :: forall v. (v -> Int -> v TupN./\ Int) -> Array v -> Array (Int TupN./\ v)
 
@@ -662,9 +616,6 @@ arr'remove f = Arr.filter $ not <<< f
 arr'empty :: forall @a. Array a
 arr'empty = []
 
-arr'fromFoldable :: forall a f. Foldable.Foldable f => f a -> Array a
-arr'fromFoldable = Arr.fromFoldable
-
 arr'concat :: forall a. Array (Array a) -> Array a
 arr'concat = Arr.concat
 
@@ -679,64 +630,12 @@ arr'range start end = if start == end then [] else arr'range'inc start end'
   where
   end' = if start < end then dec end else inc end
 
-arr'fold :: forall monoid. Monoid monoid => Array monoid -> monoid
-arr'fold = Arr.fold
-
-list'fromFoldable :: forall a f. Foldable.Foldable f => f a -> List.List a
-list'fromFoldable = List.fromFoldable
-
 invert :: forall e r. Eor.Either e r -> Eor.Either r e
 invert (Eor.Left e) = Eor.Right e
 invert (Eor.Right r) = Eor.Left r
 
 tup'flip :: forall t1 t2. t1 TupN./\ t2 -> t2 TupN./\ t1
 tup'flip (t1 TupN./\ t2) = t2 TupN./\ t1
-
-mapM
-  :: forall t a b m
-   . Traversable.Traversable t
-  => Applicative.Applicative m
-  => (a -> m b)
-  -> t a
-  -> m (t b)
-mapM = Traversable.traverse
-
-forM
-  :: forall t a b m
-   . Traversable.Traversable t
-  => Applicative.Applicative m
-  => t a
-  -> (a -> m b)
-  -> m (t b)
-forM = flip Traversable.traverse
-
-forM_
-  :: forall t a m
-   . Traversable.Traversable t
-  => Applicative.Applicative m
-  => t a
-  -> (a -> m Unit)
-  -> m Unit
-forM_ = flip Traversable.traverse_
-
-reduceM
-  :: forall f m a b
-   . Foldable.Foldable f
-  => Monad.Monad m
-  => (b -> a -> m b)
-  -> b
-  -> f a
-  -> m b
-reduceM = Foldable.foldM
-
-reduce
-  :: forall f a b
-   . Foldable.Foldable f
-  => (b -> a -> b)
-  -> b
-  -> f a
-  -> b
-reduce = Foldable.foldl
 
 newtype ParseError = ParseError Parsing.ParseError
 

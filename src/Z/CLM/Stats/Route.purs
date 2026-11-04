@@ -78,7 +78,7 @@ sortBy'vals :: Array SortBy
 sortBy'vals = [ SortBy'Name, SortBy'Qual, SortBy'Acc, SortBy'Att, SortBy'Mru ]
 
 sortBy'byKey :: HashMap String SortBy
-sortBy'byKey = hm'fromFoldable $ sortBy'vals <#> \v -> show v /\ v
+sortBy'byKey = hm'collect $ sortBy'vals <#> \v -> show v /\ v
 
 sortBy'parse :: String -> SortBy
 sortBy'parse key = may'or defaultSort.by $ hm'lookup key sortBy'byKey
@@ -232,7 +232,7 @@ route'mkDefault defaultSeasonId = route'mk defaultSeasonId defaultStatsPage []
 urlParse'impl :: Int -> HashMap String Int -> URL -> Either String Route
 urlParse'impl defaultSeasonId seasonIdBySlug u =
   sync'x $ e'try $ s'exec (route'mkDefault defaultSeasonId) do
-    processRouteList false $ list'fromFoldable $ url'pathSegments u
+    processRouteList false $ list'collect $ url'pathSegments u
     processQuery $ url'query u
     processClmIds $ url'hash u
   where
@@ -283,7 +283,7 @@ route'urlParse { timeline } = urlParse'impl defaultSeasonId seasonIdBySlug
   allSeasonIds = arr'concat
     [ [ defaultSeasonId ], timeline.preDefault, timeline.postDefault ]
   seasonIdBySlug =
-    hm'fromFoldable $ allSeasonIds <#> \id -> seasonId'slug id /\ id
+    hm'collect $ allSeasonIds <#> \id -> seasonId'slug id /\ id
 
 route'isH2hPage :: Route -> Boolean
 route'isH2hPage (Route { page: H2hGrid }) = true

@@ -166,7 +166,6 @@ module Z.XDom.Core
 
 import Z.Prelude
 
-import Data.Traversable (class Traversable)
 import Effect.Unsafe (unsafePerformEffect)
 import Z.XDom.Preact
   ( DomEl
@@ -914,16 +913,16 @@ el'addStyle :: forall dx x. String -> String -> MDomEl dx x Unit
 el'addStyle = attrW'addStyle
 
 el'addStyles
-  :: forall m dx x
-   . Traversable m
-  => m (String /\ String)
+  :: forall it dx x
+   . Iterable it (String /\ String)
+  => it
   -> MDomEl dx x Unit
 el'addStyles pairs = forM_ pairs \(k /\ v) -> el'addStyle k v
 
 el'setStyles
-  :: forall m dx x
-   . Traversable m
-  => m (String /\ String)
+  :: forall it dx x
+   . Iterable it (String /\ String)
+  => it
   -> MDomEl dx x Unit
 el'setStyles pairs = attrW'resetStyles *> el'addStyles pairs
 

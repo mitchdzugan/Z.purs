@@ -27,7 +27,6 @@ import Prelude
 
 import Data.Either (Either(..))
 import Data.Filterable (filter)
-import Data.Foldable (foldl, intercalate)
 import Data.Int as Int
 import Data.Maybe (Maybe(..), fromJust, maybe)
 import Data.Newtype (wrap)
@@ -36,9 +35,9 @@ import Data.Nullable as Nullable
 import Data.String (null, replace, split) as String
 import Data.Tuple.Nested (type (/\), (/\))
 import Partial.Unsafe (unsafePartial)
-import Z.Z.Core (arr'drop)
 import Z.Z.Defaultable (class Generable, GDefault, default)
-import Z.Z.HashMap (HashMap, hm'entries, hm'fromFoldable)
+import Z.Z.HashMap (HashMap, hm'collect, hm'entries)
+import Z.Z.It (it'intercalate, reduce)
 import Z.Z.String (str'drop, str'startsWith)
 
 class QueryParam a where
@@ -123,7 +122,7 @@ fromParts u =
     perhaps f a = maybe identity f a
   in
     setQuery u.query
-      $ setPathnameImpl ("/" <> intercalate "/" u.path)
+      $ setPathnameImpl ("/" <> it'intercalate "/" u.path)
       $ setHostImpl u.host
       $ perhaps setUsernameImpl u.username
       $ perhaps setPasswordImpl u.password
@@ -151,14 +150,14 @@ query u =
     ks = queryKeysImpl u
     vals k = queryLookupImpl k u
   in
-    hm'fromFoldable $ map (\k -> k /\ vals k) ks
+    hm'collect $ map (\k -> k /\ vals k) ks
 
 setQuery :: Either String (HashMap String (Array String)) -> URL -> URL
 setQuery (Left qs'str) u = querySetRawImpl qs'str u
 setQuery (Right qs'hm) u =
   let
     qs = hm'entries qs'hm
-    asRecord = foldl (\a (k /\ vs) -> a <> [ { k, vs } ]) [] qs
+    asRecord = reduce (\a (k /\ vs) -> a <> [ { k, vs } ]) [] qs
   in
     querySetAllImpl asRecord u
 

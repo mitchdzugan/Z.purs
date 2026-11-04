@@ -66,7 +66,7 @@ ggPageSpecHandleImpl (GGPageSpecF pageL dataL) = do
   where
   loop op client networkControl = do
     s'toArrayOf (_o_ @"res" @"nodes+.id" dataL) >>= \ids -> do
-      x'assign @"seenIds" (hs'fromFoldable ids)
+      x'assign @"seenIds" (hs'collect ids)
     seenIds <- x'extract @"seenIds"
     total <- s'view (_o_ @"res" @"pageInfo.total" dataL)
     when (hs'size seenIds < total) do

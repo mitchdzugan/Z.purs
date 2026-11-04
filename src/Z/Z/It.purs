@@ -1,26 +1,48 @@
 module Z.Z.It
   ( Iterator
+  , arr'collect
   , class Collectable
   , class Iterable
   , collect
+  , forM
+  , forM_
+  , it'collect
+  , it'fold
   , it'forM
   , it'forM_
+  , it'intercalate
+  , it'maximum
+  , it'maximumWith
+  , it'minimum
+  , it'minimumWith
   , it'process
+  , it'reduce
+  , it'sum
+  , it'sumBy
   , iterable'mk
+  , list'collect
+  , mapM
+  , mapM_
+  , obj'collect
+  , reduce
+  , reduceM
   ) where
 
 import Prelude
 
 import Control.Monad.Rec.Class (class MonadRec, Step(..), tailRecM)
 import Data.Either (Either(..))
+import Data.Identity (Identity(..))
+import Data.List (List(..))
 import Data.Maybe (Maybe(..))
-import Data.Tuple (snd, uncurry)
+import Data.Newtype (unwrap, wrap)
+import Data.Tuple (fst, snd, uncurry)
 import Data.Tuple.Nested (type (/\), (/\))
 import Effect (Effect)
 import Effect.Unsafe (unsafePerformEffect)
 import Foreign.Object (Object)
 import Unsafe.Coerce (unsafeCoerce)
-import Z.Z.Core (eOr'_, may'_, may'__)
+import Z.Z.Core (eOr'_, may'_, may'__, may'or)
 
 foreign import data Iterator :: Type -> Type
 
@@ -40,14 +62,32 @@ instance Iterable (Iterator el) el where
 instance Iterable (Array el) el where
   iterable'mk = js_it_ofArray
 
+instance Iterable (el /\ el) el where
+  iterable'mk (l /\ r) = js_it_ofArray [ l, r ]
+
 instance Iterable (Object el) el where
   iterable'mk obj = js_it_ofObj (/\) obj <#> snd
+
+instance Iterable (List el) el where
+  iterable'mk = js_it_ofList useList
+
+type T'useList a =
+  Effect Unit
+  -> (a -> List a -> Effect Unit)
+  -> List a
+  -> Effect Unit
+
+useList :: forall a. T'useList a
+useList _ useCons (Cons head tail) = useCons head tail
+useList useNil _ _ = useNil
 
 class Iterable'KV it k v where
   iterable'kv'mk :: it -> Iterator (k /\ v)
 
 instance Iterable'KV (Array a) Int a where
   iterable'kv'mk = js_it_withInd (/\) <<< js_it_ofArray
+else instance Iterable'KV (List a) Int a where
+  iterable'kv'mk = js_it_withInd (/\) <<< js_it_ofList useList
 else instance Iterable'KV (Object a) String a where
   iterable'kv'mk = js_it_ofObj (/\)
 else instance Iterable'KV (Iterator (k /\ v)) k v where
@@ -57,14 +97,18 @@ else instance Iterable'KV (Iterator a) Int a where
 else instance Iterable it (k /\ v) => Iterable'KV it k v where
   iterable'kv'mk = iterable'mk
 
-class Collectable coll el | coll -> el where
-  collect :: Iterator el -> coll
+class Collectable :: forall k. k -> Type -> Type -> Constraint
+class Collectable coll el full where
+  collect :: Iterator el -> full
 
-instance Collectable (Array a) a where
+instance Collectable Array a (Array a) where
   collect = js_it_toArray
 
-instance Collectable (Object a) (String /\ a) where
+instance Collectable Object (String /\ a) (Object a) where
   collect = js_it_toObj <<< map (uncurry js_obj_entry)
+
+instance Collectable List a (List a) where
+  collect = it'reduce (flip Cons) Nil
 
 rawIt'start :: forall a. Iterator a -> Effect (Raw'Iterator a)
 rawIt'start = unsafeCoerce
@@ -124,7 +168,161 @@ it'forM it f = do
   let impl fLoop fDone = it'process fLoop fDone unit it
   impl (\_ el -> f el <#> cons) (\_ -> pure $ js_arrayPartial_complete partial)
 
+it'reduce :: forall it a b. Iterable it a => (b -> a -> b) -> b -> it -> b
+it'reduce f s = unwrap <<< it'process (\c a -> wrap $ Left $ f c a) Identity s
+
+it'sum :: forall it a. Iterable it a => Semiring a => it -> a
+it'sum = it'reduce (+) zero
+
+it'sumBy :: forall it b a. Iterable it b => Semiring a => (b -> a) -> it -> a
+it'sumBy f it = it'sum $ iterable'mk it <#> f
+
+it'extremeWith
+  :: forall it b a
+   . Iterable it b
+  => Ord a
+  => (a -> a -> Boolean)
+  -> (b -> a)
+  -> it
+  -> Maybe b
+it'extremeWith isMoreExtreme f it = it'reduce onEl Nothing it <#> fst
+  where
+  onEl best@(Just (_ /\ bestVal)) currEl = do
+    let currVal = f currEl
+    if isMoreExtreme currVal bestVal then Just (currEl /\ currVal) else best
+  onEl _ currEl = Just (currEl /\ f currEl)
+
+it'maximumWith
+  :: forall it b a
+   . Iterable it b
+  => Ord a
+  => (b -> a)
+  -> it
+  -> Maybe b
+it'maximumWith = it'extremeWith (>)
+
+it'minimumWith
+  :: forall it b a
+   . Iterable it b
+  => Ord a
+  => (b -> a)
+  -> it
+  -> Maybe b
+it'minimumWith = it'extremeWith (<)
+
+it'maximum
+  :: forall it a
+   . Iterable it a
+  => Ord a
+  => it
+  -> Maybe a
+it'maximum = it'maximumWith identity
+
+it'minimum
+  :: forall it a
+   . Iterable it a
+  => Ord a
+  => it
+  -> Maybe a
+it'minimum = it'minimumWith identity
+
+it'fold
+  :: forall it m
+   . Iterable it m
+  => Monoid m
+  => it
+  -> m
+it'fold = it'reduce (<>) mempty
+
+it'intercalate
+  :: forall it m
+   . Iterable it m
+  => Monoid m
+  => m
+  -> it
+  -> m
+it'intercalate inter = may'or mempty <<< flip it'reduce Nothing \carry el ->
+  Just $ may'_ el (\els -> els <> inter <> el) carry
+
+it'collect
+  :: forall @tag it el full
+   . Iterable it el
+  => Collectable tag el full
+  => it
+  -> full
+it'collect = collect @tag <<< iterable'mk
+
+arr'collect :: forall it el. Iterable it el => it -> Array el
+arr'collect = it'collect @Array
+
+obj'collect :: forall it el. Iterable it (String /\ el) => it -> Object el
+obj'collect = it'collect @Object
+
+list'collect :: forall it el. Iterable it el => it -> List el
+list'collect = it'collect @List
+
+-------------------------------------------------------------------------------
+
+mapM
+  :: forall it m el a
+   . MonadRec m
+  => Iterable it el
+  => (el -> m a)
+  -> it
+  -> m (Array a)
+mapM = flip it'forM
+
+forM
+  :: forall it m el a
+   . MonadRec m
+  => Iterable it el
+  => it
+  -> (el -> m a)
+  -> m (Array a)
+forM = it'forM
+
+mapM_
+  :: forall it m el
+   . MonadRec m
+  => Iterable it el
+  => (el -> m Unit)
+  -> it
+  -> m Unit
+mapM_ = flip it'forM_
+
+forM_
+  :: forall it m el
+   . MonadRec m
+  => Iterable it el
+  => it
+  -> (el -> m Unit)
+  -> m Unit
+forM_ = it'forM_
+
+reduce
+  :: forall it el b
+   . Iterable it el
+  => (b -> el -> b)
+  -> b
+  -> it
+  -> b
+reduce = it'reduce
+
+reduceM
+  :: forall m it el b
+   . MonadRec m
+  => Iterable it el
+  => (b -> el -> m b)
+  -> b
+  -> it
+  -> m b
+reduceM f s = it'process (\c a -> Left <$> f c a) pure s
+
+-------------------------------------------------------------------------------
+
 foreign import js_it_ofArray :: forall a. Array a -> Iterator a
+
+foreign import js_it_ofList :: forall a. T'useList a -> List a -> Iterator a
 
 foreign import js_it_ofObj
   :: forall a

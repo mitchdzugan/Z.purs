@@ -14,7 +14,7 @@ module Z.Z.X.Readables.RW.Vector
 
 import Z.Z.X.UtilPrelude
 
-import Z.Z.Core (arr'fold, arr'range, arr'withInd, forM_, mapM)
+import Z.Z.Core (arr'range, arr'withInd)
 import Z.Z.Defaultable (whenJust)
 import Z.Z.Eff.Bin
   ( Eff'Bin
@@ -26,6 +26,7 @@ import Z.Z.Eff.Bin
   , eff'bin'size
   )
 import Z.Z.Eff.Ref (Eff'Ref, eff'ref'get, eff'ref'new, eff'ref'set)
+import Z.Z.It (forM_, it'fold, mapM)
 import Z.Z.X.Core
   ( class RW'Tag'CanRead
   , class RW'Tag'CanWrite
@@ -234,7 +235,7 @@ instance Monoid monoid => X'Readable'rw (R'Writer monoid) Unit where
   x'readable'rw'mk _ = R'Writer <$> eff'vec'init []
 
 instance Monoid monoid => X'Results'R'rw (R'Writer monoid) monoid where
-  x'results'r'rw'impl (R'Writer st) = eff'vec'freeze st <#> arr'fold
+  x'results'r'rw'impl (R'Writer st) = eff'vec'freeze st <#> it'fold
 
 instance
   ( RW'Tag'CanWrite rwTag

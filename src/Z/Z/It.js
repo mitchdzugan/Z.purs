@@ -32,6 +32,23 @@ export const js_it_ofObj = (mkTuple) => (obj) =>
     }
   };
 
+export const js_it_ofList = (useList) => (list) =>
+  function* () {
+    let carry = list;
+    let isDone = false;
+    let nextEl;
+    while (true) {
+      useList(() => (isDone = true))((el) => (rest) => () => {
+        carry = rest;
+        nextEl = el;
+      })(carry)();
+      if (isDone) {
+        break;
+      }
+      yield nextEl;
+    }
+  };
+
 export const js_it_toArray = (mkIt) => [...mkIt()];
 
 export const js_it_toObj = (mkIt) => Object.fromEntries(mkIt());

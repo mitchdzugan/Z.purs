@@ -1,9 +1,9 @@
 module Z.Z.HashMap
   ( HashMap(..)
   , hm'alter
+  , hm'collect
   , hm'empty
   , hm'entries
-  , hm'fromFoldable
   , hm'has
   , hm'insert
   , hm'keys
@@ -20,15 +20,22 @@ module Z.Z.HashMap
 import Prelude
 
 import Data.Argonaut.Decode as Dec
-import Data.Foldable (class Foldable)
 import Data.Maybe (Maybe(..), isJust, isNothing)
 import Data.Tuple.Nested (type (/\), (/\))
+import Foreign.Object (Object)
 import Z.Z.Bin as Bin
-import Z.Z.Core (arr'concat, arr'fromFoldable, arr'remove)
+import Z.Z.Core (arr'concat, arr'remove)
 import Z.Z.Defaultable (class Generable)
 import Z.Z.Ext (class Newtype)
 import Z.Z.Ext as Z
 import Z.Z.Id (class Identable, ident'key)
+import Z.Z.It
+  ( class Collectable
+  , class Iterable
+  , collect
+  , it'collect
+  , iterable'mk
+  )
 
 newtype HashMap k v = HashMap (Bin.Bin { k :: k, v :: v })
 
@@ -49,17 +56,25 @@ instance (Z.EncodeJson { k :: k, v :: v }) => Z.EncodeJson (HashMap k v) where
 instance (Z.DecodeJson { k :: k, v :: v }) => Z.DecodeJson (HashMap k v) where
   decodeJson v = Z.wrap <$> Dec.decodeJson v
 
+instance Iterable (HashMap k v) (k /\ v) where
+  iterable'mk it =
+    map (\r -> r.k /\ r.v) $ iterable'mk $ Z.unwrap $ Z.unwrap it
+
+instance
+  Identable k =>
+  Collectable HashMap (k /\ v) (HashMap k v) where
+  collect it = Z.wrap $ Z.wrap $ collect @Object $
+    it <#> \(k /\ v) -> ident'key k /\ { k, v }
+
 hm'empty :: forall @k @v. Identable k => HashMap k v
 hm'empty = Z.wrap Bin.bin'empty
 
 hm'set :: forall @k @v. Identable k => k -> v -> HashMap k v -> HashMap k v
 hm'set k v = Z.wrap <<< Bin.bin'insert k { k, v } <<< Z.unwrap
 
-hm'fromFoldable
-  :: forall @f @k @v. Identable k => Foldable f => f (k /\ v) -> HashMap k v
-hm'fromFoldable f =
-  Z.wrap $ Bin.bin'fromFoldable $ arr'fromFoldable f <#> \(k /\ v) -> k /\
-    { k, v }
+hm'collect
+  :: forall it k v. Iterable it (k /\ v) => Identable k => it -> HashMap k v
+hm'collect = it'collect @HashMap
 
 hm'size :: forall @k @v. Identable k => HashMap k v -> Int
 hm'size = Bin.bin'size <<< Z.unwrap
@@ -82,14 +97,14 @@ hm'vals (HashMap hm) = Bin.bin'vals hm <#> \{ v } -> v
 --------------------------------- MUTABLE ------------------------------------
 
 hm'merge :: forall @k @v. Identable k => Array (HashMap k v) -> HashMap k v
-hm'merge hms = hm'fromFoldable $ arr'concat $ map hm'entries hms
+hm'merge hms = hm'collect $ arr'concat $ map hm'entries hms
 
 hm'insert
   :: forall @k @v. Eq v => Identable k => k -> v -> HashMap k v -> HashMap k v
 hm'insert k v hm = if willNotChange then hm else rebuilt unit
   where
   willNotChange = Just v == hm'lookup k hm
-  rebuilt _ = hm'fromFoldable $ arr'concat [ hm'entries hm, [ k /\ v ] ]
+  rebuilt _ = hm'collect $ arr'concat [ hm'entries hm, [ k /\ v ] ]
 
 hm'remove
   :: forall @k @v. Identable k => k -> HashMap k v -> HashMap k v
@@ -98,7 +113,7 @@ hm'remove k hm = if willNotChange then hm else rebuilt unit
   willNotChange = isNothing $ hm'lookup k hm
   kString = ident'key k
   pred (kIn /\ _) = ident'key kIn == kString
-  rebuilt _ = hm'fromFoldable $ arr'remove pred $ hm'entries hm
+  rebuilt _ = hm'collect $ arr'remove pred $ hm'entries hm
 
 hm'replace
   :: forall @k @v. Eq v => Identable k => k -> v -> HashMap k v -> HashMap k v

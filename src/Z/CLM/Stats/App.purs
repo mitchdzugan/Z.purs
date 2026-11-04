@@ -145,7 +145,7 @@ instance
     ClmSeason'Boxed
     Unit
     (HashMap Int (Array String)) where
-  call b _ = hm'fromFoldable $ _.otherPlayerTags $ unwrap $ boxed'v b
+  call b _ = hm'collect $ _.otherPlayerTags $ unwrap $ boxed'v b
 
 instance
   Method
@@ -153,7 +153,7 @@ instance
     ClmSeason'Boxed
     Unit
     (HashMap Int (Array Int)) where
-  call b _ = hm'fromFoldable $ _.otherPlayerSeasons $ unwrap $ boxed'v b
+  call b _ = hm'collect $ _.otherPlayerSeasons $ unwrap $ boxed'v b
 
 instance
   Method M'ranksOrE

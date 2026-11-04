@@ -15,7 +15,6 @@ module Z.Z.Ext
   , module EncodeGeneric
   , module Enum
   , module Exists
-  , module Foldable
   , module Foreign
   , module FuncVar
   , module Generic
@@ -71,16 +70,6 @@ import Data.Enum
   , toEnum
   ) as Enum
 import Data.Exists (Exists, mkExists, runExists) as Exists
-import Data.Foldable
-  ( class Foldable
-  , fold
-  , foldlDefault
-  , maximum
-  , maximumBy
-  , minimum
-  , minimumBy
-  , sum
-  ) as Foldable
 import Data.Functor.Variant (VariantF) as FuncVar
 import Data.Generic.Rep (class Generic) as Generic
 import Data.Identity (Identity(..)) as Identity

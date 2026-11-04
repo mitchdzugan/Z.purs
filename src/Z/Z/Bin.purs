@@ -1,7 +1,6 @@
 module Z.Z.Bin
   ( Bin(..)
   , bin'empty
-  , bin'fromFoldable
   , bin'insert
   , bin'lookup
   , bin'size
@@ -12,10 +11,10 @@ import Prelude
 
 import Data.Argonaut.Decode (decodeJson)
 import Foreign.Object as Fo
-import Z.Z.Core (arr'fromFoldable, mapM)
 import Z.Z.Defaultable (class Generable)
 import Z.Z.Ext as Z
 import Z.Z.Id (class Identable, ident'key)
+import Z.Z.It (mapM, obj'collect)
 
 newtype Bin a = Bin (Fo.Object a)
 
@@ -33,11 +32,6 @@ bin'lookup k = Fo.lookup (ident'key k) <<< Z.unwrap
 
 bin'insert :: forall k v. Identable k => k -> v -> Bin v -> Bin v
 bin'insert k v (Bin o) = Bin $ Fo.insert (ident'key k) v o
-
-bin'fromFoldable
-  :: forall k v f. Identable k => Z.Foldable f => f (k Z./\ v) -> Bin v
-bin'fromFoldable f = Bin $ Fo.fromFoldable $ flip map (arr'fromFoldable f)
-  \(k Z./\ v) -> ident'key k Z./\ v
 
 bin'size :: forall v. Bin v -> Int
 bin'size = Fo.size <<< Z.unwrap
@@ -58,7 +52,7 @@ instance Z.DecodeJson v => Z.DecodeJson (Bin v) where
     partial <- decodeJson x
     ty <- flip mapM (decodedKVs partial) $ \e -> decodeJson e.v <#> \f ->
       e.k Z./\ f
-    pure $ bin'fromFoldable ty
+    pure $ Z.wrap $ obj'collect ty
     where
     decodedKVs (JsonEncodedBin els) = els
 

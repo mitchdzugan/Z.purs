@@ -24,12 +24,10 @@ module Z.Z.Foldable
 
 import Prelude
 
-import Control.Monad.Rec.Class (tailRecM)
 import Data.Exists (Exists, mkExists, runExists)
-import Data.List (List(..), fromFoldable)
+import Data.List (List(..))
 import Data.Maybe (Maybe(..))
 import Data.Number (pow, sqrt)
-import Data.Traversable (class Traversable, sum)
 import Data.Tuple (snd, uncurry)
 import Data.Tuple.Nested (type (/\), (/\))
 import Z.Z.Core
@@ -38,15 +36,21 @@ import Z.Z.Core
   , arr'size
   , arr'withInd
   , ffmap
-  , forM_
   , may'or
   , numberable'toNumber
   , zScoreToPercentile
   )
-import Z.Z.HashMap (HashMap, hm'entries, hm'fromFoldable, hm'lookup)
-import Z.Z.HashSet (HashSet, hs'fromFoldable, hs'has, hs'vals)
+import Z.Z.HashMap (HashMap, hm'collect, hm'entries, hm'lookup)
+import Z.Z.HashSet (HashSet, hs'collect, hs'has, hs'vals)
 import Z.Z.Id (class Identable, IdV, Idented, ident'get, idented'mk, idented'v)
-import Z.Z.It (class Iterable, collect, iterable'mk)
+import Z.Z.It
+  ( class Iterable
+  , collect
+  , forM_
+  , it'sum
+  , iterable'mk
+  , list'collect
+  )
 import Z.Z.Passable (pass)
 import Z.Z.Util (arr'sortBy)
 import Z.Z.X.Core (_'exec_)
@@ -57,31 +61,31 @@ import Z.Z.X.Readables.RW.HashSet2D (X'HashSet2D)
 import Z.Z.X.Readables.RW.Vector (X'Vector)
 
 keyBy
-  :: forall f k v
+  :: forall it k v
    . Identable k
-  => Traversable f
+  => Iterable it v
   => (v -> k)
-  -> f v
+  -> it
   -> HashMap k v
 keyBy toKey coll = sync'x $ _'exec_ @(X'HashMap k v) do
   forM_ coll \v -> _'insert (toKey v) v
 
-arr'fromTraversable :: forall f v. Traversable f => f v -> Array v
+arr'fromTraversable :: forall it v. Iterable it v => it -> Array v
 arr'fromTraversable coll = sync'x $ _'exec_ @(X'Vector v) do
   forM_ coll \v -> _'cons v
 
 arr'fromIterable :: forall it v. Iterable it v => it -> Array v
-arr'fromIterable = collect @(Array v) <<< iterable'mk
+arr'fromIterable = collect @Array <<< iterable'mk
 
-arr'idented :: forall f v. Traversable f => f v -> Array (Idented Int v)
+arr'idented :: forall it v. Iterable it v => it -> Array (Idented Int v)
 arr'idented a = uncurry idented'mk <$> (arr'withInd $ arr'fromTraversable a)
 
 groupBy
-  :: forall f k v
+  :: forall it k v
    . Identable k
-  => Traversable f
+  => Iterable it v
   => (v -> k)
-  -> f v
+  -> it
   -> HashMap k (Array v)
 groupBy toKey coll =
   ffmap idented'v
@@ -151,46 +155,46 @@ multisort'impl Nil arr = arr
 multisort'impl (Cons s s'rest) arr = arr'concat
   $ map (multisort'impl s'rest) (sorter'groups s arr)
 
-multisort :: forall f v. Traversable f => Array (Sorter v) -> f v -> Array v
+multisort :: forall it v. Iterable it v => Array (Sorter v) -> it -> Array v
 multisort sorters coll =
-  multisort'impl (fromFoldable sorters) $ arr'fromTraversable coll
+  multisort'impl (list'collect sorters) $ arr'fromTraversable coll
 
 withMultisortInd
-  :: forall f v. Traversable f => Array (Sorter v) -> f v -> Array (Int /\ v)
+  :: forall it v. Iterable it v => Array (Sorter v) -> it -> Array (Int /\ v)
 withMultisortInd sorters coll =
   let
     arr = arr'fromTraversable coll
   in
     js_withNewInds (/\) arr (multisort $ sorters <#> sorter'adapt _.el)
 
-average :: forall f n. Traversable f => Numberable n => f n -> Number
+average :: forall it n. Iterable it n => Numberable n => it -> Number
 average = averageBy identity
 
 averageBy
-  :: forall f v n. Traversable f => Numberable n => (v -> n) -> f v -> Number
+  :: forall it v n. Iterable it v => Numberable n => (v -> n) -> it -> Number
 averageBy toN coll = _.avg $ statsBy toN coll
 
-stddev :: forall f n. Traversable f => Numberable n => f n -> Number
+stddev :: forall it n. Iterable it n => Numberable n => it -> Number
 stddev = stddevBy identity
 
 stddevBy
-  :: forall f v n. Traversable f => Numberable n => (v -> n) -> f v -> Number
+  :: forall it v n. Iterable it v => Numberable n => (v -> n) -> it -> Number
 stddevBy toN coll = _.stddev $ statsBy toN coll
 
 type Stats = { avg :: Number, stddev :: Number }
 
-stats :: forall f n. Traversable f => Numberable n => f n -> Stats
+stats :: forall it n. Iterable it n => Numberable n => it -> Stats
 stats = statsBy identity
 
 statsBy
-  :: forall f v n. Traversable f => Numberable n => (v -> n) -> f v -> Stats
+  :: forall it v n. Iterable it v => Numberable n => (v -> n) -> it -> Stats
 statsBy toN coll =
   let
     nums = arr'fromTraversable coll <#> numberable'toNumber <<< toN
     size = numberable'toNumber (arr'size nums)
-    avg = sum nums / size
+    avg = it'sum nums / size
     variances = nums <#> \n -> pow (n - avg) 2.0
-    variance = sum variances / size
+    variance = it'sum variances / size
   in
     { avg, stddev: sqrt variance }
 
@@ -201,10 +205,10 @@ stats'percentile :: forall n. Numberable n => n -> Stats -> Number
 stats'percentile n s = zScoreToPercentile $ stats'zScore n s
 
 weirdOrdinalSuffixes :: HashSet Int
-weirdOrdinalSuffixes = hs'fromFoldable [ 11, 12, 13 ]
+weirdOrdinalSuffixes = hs'collect [ 11, 12, 13 ]
 
 baseOrdinalSuffixes :: HashMap Int String
-baseOrdinalSuffixes = hm'fromFoldable [ 1 /\ "st", 2 /\ "nd", 3 /\ "rd" ]
+baseOrdinalSuffixes = hm'collect [ 1 /\ "st", 2 /\ "nd", 3 /\ "rd" ]
 
 ordinalSuffix :: Int -> String
 ordinalSuffix n =

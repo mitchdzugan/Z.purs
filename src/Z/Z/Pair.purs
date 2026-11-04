@@ -10,10 +10,8 @@ module Z.Z.Pair
 
 import Prelude
 
-import Data.Distributive (class Distributive)
-import Data.Foldable (class Foldable)
-import Data.Traversable (class Traversable)
 import Z.Z.Ext as Z
+import Z.Z.It (class Iterable, iterable'mk)
 import Z.Z.PairKey as PK
 
 data Pair p = Pair p p
@@ -77,15 +75,6 @@ instance Semigroup a ⇒ Semigroup (Pair a) where
 instance Monoid a ⇒ Monoid (Pair a) where
   mempty = mempty ~ mempty
 
-instance Foldable Pair where
-  foldr f z (Pair x y) = x `f` (y `f` z)
-  foldl f z (Pair x y) = (z `f` x) `f` y
-  foldMap f (Pair x y) = f x <> f y
+instance Iterable (Pair a) a where
+  iterable'mk (Pair x y) = iterable'mk [ x, y ]
 
-instance Traversable Pair where
-  traverse f (Pair x y) = Pair <$> f x <*> f y
-  sequence (Pair mx my) = Pair <$> mx <*> my
-
-instance Distributive Pair where
-  distribute xs = map pos xs ~ map neg xs
-  collect f xs = map (pos <<< f) xs ~ map (neg <<< f) xs

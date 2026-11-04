@@ -11,6 +11,7 @@ module Z.Prelude
   , module ZMashMap
   , module ZMashSet
   , module ZId
+  , module ZIt
   , module ZMethod
   , module ZPair
   , module ZPairKey
@@ -182,8 +183,8 @@ import Z.Z.HashMap as ZMashMap
 import Z.Z.HashSet
   ( HashSet(..)
   , hs'add
+  , hs'collect
   , hs'empty
-  , hs'fromFoldable
   , hs'has
   , hs'size
   , hs'vals
@@ -211,6 +212,7 @@ import Z.Z.Id
   , idented'mk
   , idented'v
   ) as ZId
+import Z.Z.It as ZIt
 import Z.Z.Method as ZMethod
 import Z.Z.Pair (Pair(..), pair'get, pair'getOppo, pair'swap, (~)) as ZPair
 import Z.Z.PairKey as ZPairKey

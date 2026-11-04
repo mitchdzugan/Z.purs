@@ -342,7 +342,7 @@ runClm m = do
   activeSeasonId <- seasonId'active
   let tryDecode = x'decodeTextFile $ dataRoot /./ "FULL_LEGACY.json"
   legacyBlob <- e'try tryDecode >>= e'ok <<< constL (jsError "legacy read" "")
-  clmIdByPlayerId <- hm'fromFoldable <$> forM
+  clmIdByPlayerId <- hm'collect <$> forM
     (obj'entries legacyBlob.nameDataByPlayerId)
     \(ggIdS /\ { ident }) -> do
       ggId <- e'ok $ constL (jsError "invalid ggId" "") $
@@ -564,18 +564,18 @@ buildCurrentSeasons spec = do
           <#> hs'vals
           <#> map (\id -> hm'lookup id h2hEvents <#> \e -> e.tournament.id)
           <#> arr'concatMaybes
-          <#> hs'fromFoldable
+          <#> hs'collect
           <#> hs'size
         charUsedGames <- x'extractAt @"charUsedGames" clmId
           <#> (arr'reverse <<< arr'sortWith snd <<< hm'entries)
-        let totGames = toNumber $ sumBy snd charUsedGames
+        let totGames = toNumber $ it'sumBy snd charUsedGames
         let mostGames = ceil $ totGames * 2.0 / 3.0
         chars <- _'exec_ @(X'Vector ClmSeason'Player'Char) $ s'eval 0 do
           forM_ charUsedGames \(charId /\ usedGames) -> do
             addedGames <- s'get
             when (addedGames <= mostGames) do
               color <- x'extractAt @"charColorUsedGames" (clmId /\ charId)
-                <#> (hm'entries >>> maximumWith snd >>> map fst >>> may'or 0)
+                <#> (hm'entries >>> it'maximumWith snd >>> map fst >>> may'or 0)
               _'cons { charId, usage: toNumber usedGames / totGames, color }
         x'lookup @"lastEventId" clmId >>= flip whenJust \lastEventId -> do
           lastEventPlacing <-
@@ -640,7 +640,7 @@ buildCurrentSeasons spec = do
               <#> hs'vals
             _'cons { opponent: Right oppId, setIds }
         let
-          setIds = hs'vals $ hs'fromFoldable $ arr'concat $ arr'concat
+          setIds = hs'vals $ hs'collect $ arr'concat $ arr'concat
             [ events <#> _.setIds
             , h2hs <#> _.setIds
             ]
@@ -785,7 +785,7 @@ buildLegacySeasons = do
         , prefix: player.prefix
         , pronouns: player.pronouns
         , realName: player.realName
-        , socials: hm'fromFoldable $ arr'concatMaybes
+        , socials: hm'collect $ arr'concatMaybes
             [ player.twitter <#> (/\) H2h.Twitter
             , player.twitch <#> (/\) H2h.Twitch
             ]

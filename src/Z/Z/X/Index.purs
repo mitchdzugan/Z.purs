@@ -172,17 +172,16 @@ import Z.Z.Core
   , T'useAsSym
   , eff'defer
   , fDiscard
-  , forM_
   , invert
   , mapL
   , rec'modify
-  , reduceM
   , resultVal
   , runParser
   )
 import Z.Z.DateTime (DateTime)
 import Z.Z.Defaultable.Util as D
 import Z.Z.Fetch (Fetch'RequestOptions, Fetch'Response, fetch, fetchRes'json)
+import Z.Z.It (forM_, reduceM)
 import Z.Z.Promise (EffPromise)
 import Z.Z.Run
   ( Ctx'Except

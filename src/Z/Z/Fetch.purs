@@ -19,7 +19,7 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Tuple.Nested ((/\))
 import Z.Z.Core (encodeOpts)
 import Z.Z.Defaultable (class Generable, GDefault, default)
-import Z.Z.HashMap (HashMap, hm'fromFoldable, hm'lookup)
+import Z.Z.HashMap (HashMap, hm'collect, hm'lookup)
 import Z.Z.Promise (EffPromise)
 import Z.Z.Util (decodeViaString)
 
@@ -75,7 +75,7 @@ allHttpMethods =
   ]
 
 httpMethodByString :: HashMap String Http'Method
-httpMethodByString = hm'fromFoldable $ allHttpMethods <#> \m -> show m /\ m
+httpMethodByString = hm'collect $ allHttpMethods <#> \m -> show m /\ m
 
 parseHttpMethod :: String -> Either String Http'Method
 parseHttpMethod s =

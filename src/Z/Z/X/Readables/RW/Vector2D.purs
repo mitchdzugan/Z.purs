@@ -13,7 +13,7 @@ module Z.Z.X.Readables.RW.Vector2D
 import Z.Z.X.UtilPrelude
 
 import Data.Maybe (fromMaybe)
-import Z.Z.Core (arr'concat, arr'range, forM_, mapM)
+import Z.Z.Core (arr'concat, arr'range)
 import Z.Z.Eff.Bin
   ( Eff'Bin
   , eff'bin'clear
@@ -29,6 +29,7 @@ import Z.Z.Eff.Bin2D
   , eff'bin2D'new
   )
 import Z.Z.Eff.Ref (Eff'Ref, eff'ref'get, eff'ref'new, eff'ref'set)
+import Z.Z.It (forM_, mapM)
 import Z.Z.X.Core
   ( class RW'Tag'CanRead
   , class RW'Tag'CanWrite

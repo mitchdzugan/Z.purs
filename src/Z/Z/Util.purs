@@ -88,6 +88,7 @@ import Z.Z.Core (arr'drop, arr'size, arr'take)
 import Z.Z.Core as Z
 import Z.Z.HashMap (HashMap, hm'entries)
 import Z.Z.Id (class Identable, id'of)
+import Z.Z.It (obj'collect)
 import Z.Z.Url as Url
 
 type UrlParts = Url.Parts
@@ -416,4 +417,4 @@ else instance
   SplitSp1Impl s cat cf ct tat tf
 
 obj'fromHM :: forall @a. HashMap String a -> FO.Object a
-obj'fromHM = FO.fromFoldable <<< hm'entries
+obj'fromHM = obj'collect <<< hm'entries

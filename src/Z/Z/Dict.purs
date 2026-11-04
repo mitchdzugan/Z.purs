@@ -8,7 +8,6 @@ module Z.Z.Dict
 import Prelude
 
 import Data.Argonaut.Decode (class DecodeJson, decodeJson)
-import Z.Z.Core (mapM)
 import Z.Z.Ext
   ( class EncodeJson
   , class Generic
@@ -18,6 +17,7 @@ import Z.Z.Ext
   , genericDecodeJson
   ) as Z
 import Z.Z.Id (class Identable, ident'key)
+import Z.Z.It (mapM)
 
 foreign import data Dict :: Type -> Type
 

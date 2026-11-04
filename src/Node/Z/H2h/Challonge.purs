@@ -161,7 +161,7 @@ getEventDataImpl = do
         let sameSlots = (slotsKey baseSet) == mSlotsKey prevSet
         let isGrands = isNothing prev && isDE || (wasGrands && sameSlots)
         when (isGrands && wasGrands) $ x'assign @"hasReset" true
-        forM_ (arr'fromFoldable baseSet.slots) $ \slot -> do
+        forM_ (arr'collect baseSet.slots) $ \slot -> do
           whenJust slot.entrantId $ \entrantId -> do
             (if isGrands then x'cons @"gfEIds" else x'cons @"nonGfEIds")
               entrantId
@@ -227,14 +227,14 @@ getEventDataImpl = do
       else pure $ set (ix 0 # o_ @"round") (Round.Grands true) roundSets'
     let lSets = arr'filter (Round.isLosers <<< g_ @"round") roundSets
     let wSets = arr'filter (Round.isWinners <<< g_ @"round") roundSets
-    let maxWR = jOr0 $ maximum $ wSets <#> Round.roundTypeInd <<< g_ @"round"
-    let maxLR = jOr0 $ maximum $ lSets <#> Round.roundTypeInd <<< g_ @"round"
+    let maxWR = jOr0 $ it'maximum $ wSets <#> Round.roundTypeInd <<< g_ @"round"
+    let maxLR = jOr0 $ it'maximum $ lSets <#> Round.roundTypeInd <<< g_ @"round"
     entrants <- x'extract @"entrants"
     let profileImageUrl = "https://i.imgur.com/7MsdKge.jpeg"
     let
       mkSet = \rs -> rs.set `(~.) @"roundText"` roundLabel rs.round maxWR maxLR
     let mkSetT = \rs -> Tuple rs.set.id $ mkSet rs
-    let sets = hm'fromFoldable $ roundSets <#> mkSetT
+    let sets = hm'collect $ roundSets <#> mkSetT
     pure
       { id: sOrN $ "Challonge-" <> slug <> "-eventId"
       , name
@@ -252,7 +252,7 @@ getEventDataImpl = do
       , tournament:
           { id: sOrN $ "Challonge-" <> slug <> "-tournamentId"
           , name: tournamentName
-          , images: hm'fromFoldable [ H2h.Profile /\ profileImageUrl ]
+          , images: hm'collect [ H2h.Profile /\ profileImageUrl ]
           , date: date
           }
       }

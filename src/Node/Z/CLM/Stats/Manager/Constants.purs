@@ -6,7 +6,7 @@ module Node.Z.CLM.Stats.Manager.Constants
 import Z.Prelude
 
 sggSlippiCharIdMap :: HashMap Int Int
-sggSlippiCharIdMap = hm'fromFoldable
+sggSlippiCharIdMap = hm'collect
   [ 1 /\ 5
   , 2 /\ 0
   , 3 /\ 1
@@ -34,7 +34,7 @@ sggSlippiCharIdMap = hm'fromFoldable
   ]
 
 luckyStatsIdByClmId :: HashMap Int String
-luckyStatsIdByClmId = show <$> hm'fromFoldable
+luckyStatsIdByClmId = show <$> hm'collect
   [ 420 /\ 322 -- dz
   , 1062 /\ 21081 -- ober
   , 1286 /\ 72859 -- pleeba

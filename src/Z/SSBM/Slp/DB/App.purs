@@ -65,7 +65,7 @@ app'mk = router'run'' @"router" urlEdits parseUrl mkTitleOr_ do
   parseRouteL _ = Left "Invalid Route"
 
   parseUrl :: URL -> Either String Route
-  parseUrl u = parseRouteL $ list'fromFoldable $ url'pathSegments u
+  parseUrl u = parseRouteL $ list'collect $ url'pathSegments u
 
   urlEdits :: Route -> Edit UrlParts
   urlEdits (Profile s) = s'set'b @"path" [ "profile", s ]

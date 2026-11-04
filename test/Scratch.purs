@@ -4,7 +4,7 @@ import Node.Z.Prelude
 
 import Debug (traceM)
 import Effect.Class.Console (log)
-import Z.Z.It (it'forM, it'forM_)
+import Z.Z.It (it'forM, it'forM_, it'maximum, it'minimum)
 import Z.Z.Run
   ( Future
   , ctxA'fromEff
@@ -26,6 +26,8 @@ runMain :: Future (Either String (Array Int))
 runMain = ctxA'run $ mapL jsErrorName <$> do
   ctxR'runAt @"hi" "hi" do
     res <- ctxE'runAt @"e" do
+      traceM $ it'maximum [ 1, 2, 8, -2, 4, 5 ]
+      traceM $ it'minimum [ 1, 2, 8, -2, 4, 5 ]
       names <- it'forM [ 1, 2, 3 ] \id -> do
         prefix <- ctxE'okAt @"e" =<< ctxA'fromEff (pure "Name")
         let name = prefix <> ":[ " <> show id <> " ]"
