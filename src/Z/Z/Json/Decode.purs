@@ -72,10 +72,11 @@ import Z.Z.SorN (SorN)
 import Z.Z.Variant
   ( class Variant'Mk
   , class Variant'Mker
+  , var'case_
   , var'encode
   , var'inj
   , var'inj_
-  , var'match
+  , var'on
   , variant'mkers
   )
 import Z.Z.X.Core (Run)
@@ -213,7 +214,8 @@ type EitherJson l r = Variant (l :: l, r :: r)
 
 instance (XDecodeJson (EitherJson l r)) => XDecodeJson (Either l r) where
   xDecodeJson json = dec'wrapErrs (dec'named "Either") do
-    xDecodeJson @(EitherJson l r) json <#> var'match { l: Left, r: Right }
+    xDecodeJson @(EitherJson l r) json <#>
+      (var'case_ # var'on @"l" Left # var'on @"r" Right)
 
 instance (XDecodeJson { l :: l, r :: r }) => XDecodeJson (l /\ r) where
   xDecodeJson json = dec'wrapErrs (dec'named "Tuple") do
