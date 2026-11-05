@@ -7,6 +7,7 @@ module Z.XDom.FetchCache
   , domFetchCache'ensureRequested
   , domFetchCache'forceRequest
   , domFetchCache'lookup
+  , domFetchCache'lookupVal
   , domFetchCache'run
   , domFetchCache'run_
   ) where
@@ -175,3 +176,12 @@ domFetchCache'lookup id =
   domState'get'' @p <#> _.state <#> hm'lookup id <#> case _ of
     Nothing -> valState'default
     Just res -> res
+
+domFetchCache'lookupVal
+  :: forall @p id v x' x
+   . ConsSymbol p (X'FetchCache id v) x' x
+  => Identable id
+  => id
+  -> Run x (Maybe v)
+domFetchCache'lookupVal id =
+  domState'get'' @p <#> _.state <#> fetchCache'lookupVal id

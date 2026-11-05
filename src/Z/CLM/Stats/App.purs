@@ -357,8 +357,8 @@ defaultPlayerSearchProps =
 getSearchedPlayers :: forall dx x. String -> ClmDom dx x (Array AnyPlayer)
 getSearchedPlayers searchString = do
   seasonId <- x'extract @"route" <#> g_ @"!.seasonId"
-  domFetchCache'lookup @"clmSeasons" seasonId <#> case _ of
-    FetchCache'ValState'Val season ->
+  domFetchCache'lookupVal @"clmSeasons" seasonId <#> case _ of
+    Just season ->
       boxed'call @M'searchedPlayers season searchString
     _ -> []
 
@@ -760,9 +760,7 @@ page'stats sort filters = do
   dom'withKey "statsPage" $ dom'div do
     el'cn "relative"
     pure case seasonOr_ of
-      FetchCache'ValState'Error err _ -> do
-        domError'fail $ ClmDom'Err'LoadSeason seasonId err
-      FetchCache'ValState'Val season -> do
+      { value: Just season } -> do
         let sAndF = SandF sort.by sort.dir filters
         let ranksOrE = boxed'call @M'ranksOrESorted season sAndF
         ranks <- domError'ok $ mapL (ClmDom'Err'FullSeason seasonId) ranksOrE
@@ -830,6 +828,8 @@ page'stats sort filters = do
                   el'addCn "w-[100%] h-[100%] absolute top-0 left-0"
                   whenNot isInUse $ el'addCn "pointer-events-none"
                   pure $ when isInUse $ tablePlayerRow (rankInd + 1) rank
+      { error: Just err } -> do
+        domError'fail $ ClmDom'Err'LoadSeason seasonId err
       _ -> do
         forM_ (arr'range 1 17) \id -> tableSkelRow id
 
