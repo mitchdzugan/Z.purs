@@ -11,7 +11,7 @@ import Z.Z.Json.Decode
   , dec'missingValue
   , xDecodeJson
   )
-import Z.Z.X.Core (x'build)
+import Z.Z.X.Core (x_build)
 import Z.Z.X.Index (type (@@>), sync'x)
 
 data Action r
@@ -143,7 +143,7 @@ handleAction (Bulk { actions }) = forM_ actions handleAction
 handleAction (Undo _) = pure unit
 
 buildSpec :: Array PureAction -> Spec
-buildSpec actions = sync'x $ x'build (g @Spec'Evaluable) do
+buildSpec actions = sync'x $ x_build (g @Spec'Evaluable) do
   let impureActions = impurifyActions actions
   let revActions = arr'reverse impureActions
   forM_ revActions $ case _ of

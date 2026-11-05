@@ -60,10 +60,10 @@ import Z.Z.X.UtilPrelude
 import Data.Either (Either(..))
 import Data.Int (floor)
 import Z.Z.Core (Result, T'useAsSym)
-import Z.Z.DateTime (DateTime(..), dateTime'eff'now)
+import Z.Z.DateTime (DateTime(..), dateTime_eff'now)
 import Z.Z.It (forM_)
 import Z.Z.String (str'joinWith)
-import Z.Z.X.Core (Run, x'eval, x'eval_, x'exec, x'exec_, x'run, x'run_)
+import Z.Z.X.Core (Run, x'run, x'run_, x_eval, x_eval_, x_exec, x_exec_)
 import Z.Z.X.Index
   ( type (@@>)
   , A'
@@ -115,10 +115,10 @@ s'run :: forall x r a. r -> Run (S' r x) a -> Run x (a /\ r)
 s'run = x'run @"_'x'state"
 
 s'eval :: forall x r a. r -> Run (S' r x) a -> Run x a
-s'eval = x'eval @"_'x'state"
+s'eval = x_eval @"_'x'state"
 
 s'exec :: forall x r. r -> Run (S' r x) Unit -> Run x r
-s'exec = x'exec @"_'x'state"
+s'exec = x_exec @"_'x'state"
 
 ---------------------------------------
 
@@ -138,10 +138,10 @@ w'run :: forall x w a. Monoid w => Run (W' w x) a -> Run x (a /\ w)
 w'run = x'run_ @"_'x'writer"
 
 w'eval :: forall x w a. Monoid w => Run (W' w x) a -> Run x a
-w'eval = x'eval_ @"_'x'writer"
+w'eval = x_eval_ @"_'x'writer"
 
 w'exec :: forall x w. Monoid w => Run (W' w x) Unit -> Run x w
-w'exec = x'exec_ @"_'x'writer"
+w'exec = x_exec_ @"_'x'writer"
 
 --------------------------------------------
 
@@ -345,7 +345,7 @@ we'runResult = we'runResult'' @wp
 -------------------------------------
 
 x'now :: forall x. x @@> DateTime
-x'now = pure unit <#> \_ -> unsafePerformEffect dateTime'eff'now
+x'now = pure unit <#> \_ -> unsafePerformEffect dateTime_eff'now
 
 x'nowMS'number :: forall x. x @@> Number
 x'nowMS'number = x'now <#> unwrap

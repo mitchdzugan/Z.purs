@@ -88,7 +88,7 @@ getDefaultSlippiPlaybackBin slippiLauncherPath = x'withReturn \x'return -> do
 xRun :: forall x. Array String -> EA' Error x @$> Unit
 xRun args = do
   wd <- x'wd
-  envPaths <- x'envPaths "slp-rec" $ Just ""
+  envPaths <- x_envPaths "slp-rec" $ Just ""
   platform <- x'platform
   let
     cfgPath = envCfg envPaths

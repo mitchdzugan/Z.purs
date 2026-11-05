@@ -22,7 +22,7 @@ fuzzy'mkSnapshot = js_snapshot
 fuzzy'searchSnapshot
   :: forall a. FuzzySnapshot a -> String -> FuzzyOptEdits a -> FuzzyResults a
 fuzzy'searchSnapshot snapshot s =
-  js_goSnapshot snapshot s <<< js_encodeArrayOpts <<< mkFuzzyOpts'array
+  js_goSnapshot snapshot s <<< js_encodeArrayOpts <<< mkFuzzyOpts_array
 
 fuzzy'search
   :: forall a
@@ -32,7 +32,7 @@ fuzzy'search
   -> FuzzyOptEdits a
   -> FuzzyResults a
 fuzzy'search els keys s =
-  js_goRaw els keys s <<< js_encodeArrayOpts <<< mkFuzzyOpts'array
+  js_goRaw els keys s <<< js_encodeArrayOpts <<< mkFuzzyOpts_array
 
 type FuzzyResult a =
   { obj :: a
@@ -51,15 +51,15 @@ type FuzzyOpts'f f a =
 
 type FuzzyOpts a = FuzzyOpts'f Maybe a
 
-type FuzzyOpts'array a = FuzzyOpts'f Array a
+type FuzzyOpts_array a = FuzzyOpts'f Array a
 
 defaultFuzzyOpts :: forall a. FuzzyOpts a
 defaultFuzzyOpts = { limit: Just 0, threshold: Just 0.0, scoreFn: Nothing }
 
 type FuzzyOptEdits a = Edit (FuzzyOpts a)
 
-mkFuzzyOpts'array :: forall a. FuzzyOptEdits a -> FuzzyOpts'array a
-mkFuzzyOpts'array = edit defaultFuzzyOpts >>> case _ of
+mkFuzzyOpts_array :: forall a. FuzzyOptEdits a -> FuzzyOpts_array a
+mkFuzzyOpts_array = edit defaultFuzzyOpts >>> case _ of
   { limit, threshold, scoreFn } ->
     { limit: may'toArray limit
     , threshold: may'toArray threshold
@@ -82,4 +82,4 @@ foreign import js_goRaw
 foreign import js_goSnapshot
   :: forall a. FuzzySnapshot a -> String -> Json -> FuzzyResults a
 
-foreign import js_encodeArrayOpts :: forall a. FuzzyOpts'array a -> Json
+foreign import js_encodeArrayOpts :: forall a. FuzzyOpts_array a -> Json

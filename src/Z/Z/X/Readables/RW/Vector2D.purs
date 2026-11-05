@@ -38,8 +38,8 @@ import Z.Z.X.Core
   , RW'Tagged
   , W'Tagged
   , X'Evaluable
-  , x'evaluable
-  , x'evaluable_
+  , x_evaluable
+  , x_evaluable_
   )
 import Z.Z.X.Method
   ( class Eff'RW'Getter
@@ -193,16 +193,16 @@ type X'Vector2D a = RW'Tagged (R'Vector2D a)
 type X'Vector2D'w a = W'Tagged (R'Vector2D a)
 
 x'vector2D :: forall @a. Array2D a -> X'Evaluable (X'Vector2D a)
-x'vector2D t = x'evaluable t
+x'vector2D t = x_evaluable t
 
 x'vector2D'w :: forall @a. Array2D a -> X'Evaluable (X'Vector2D'w a)
-x'vector2D'w t = x'evaluable t
+x'vector2D'w t = x_evaluable t
 
 x'vector2D_ :: forall @a. X'Evaluable (X'Vector2D a)
-x'vector2D_ = x'evaluable_
+x'vector2D_ = x_evaluable_
 
 x'vector2D_'w :: forall @a. X'Evaluable (X'Vector2D'w a)
-x'vector2D_'w = x'evaluable_
+x'vector2D_'w = x_evaluable_
 
 ---------------------------------------------------------------------
 

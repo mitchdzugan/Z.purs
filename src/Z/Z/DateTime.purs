@@ -2,24 +2,24 @@ module Z.Z.DateTime
   ( (:+:)
   , (:~:)
   , DateTime(..)
-  , TS'hours(..)
-  , TS'milliseconds(..)
-  , TS'minutes(..)
-  , TS'seconds(..)
+  , TS_hours(..)
+  , TS_milliseconds(..)
+  , TS_minutes(..)
+  , TS_seconds(..)
   , class TimeSpan
-  , dateTime'alter
-  , dateTime'day
-  , dateTime'day'2dig
-  , dateTime'eff'now
-  , dateTime'fromMS
-  , dateTime'mkDate
-  , dateTime'month
-  , dateTime'month'2dig
-  , dateTime'month'i0
-  , dateTime'year
-  , ts'add
-  , ts'sub
-  , ts'toMS
+  , dateTime_alter
+  , dateTime_day
+  , dateTime_day'2dig
+  , dateTime_eff'now
+  , dateTime_fromMS
+  , dateTime_mkDate
+  , dateTime_month
+  , dateTime_month'2dig
+  , dateTime_month'i0
+  , dateTime_year
+  , ts_add
+  , ts_sub
+  , ts_toMS
   ) where
 
 import Prelude
@@ -43,38 +43,38 @@ derive newtype instance Identable DateTime
 derive newtype instance Ring DateTime
 derive newtype instance Enc.EncodeJson DateTime
 
-dateTime'fromMS :: forall num. Numberable num => num -> DateTime
-dateTime'fromMS num = wrap $ numberable'toNumber num
+dateTime_fromMS :: forall num. Numberable num => num -> DateTime
+dateTime_fromMS num = wrap $ numberable'toNumber num
 
-dateTime'mkDate :: Int -> Int -> Int -> Maybe String -> DateTime
-dateTime'mkDate year month day timeZone = wrap $ js_makeDate year month day $
+dateTime_mkDate :: Int -> Int -> Int -> Maybe String -> DateTime
+dateTime_mkDate year month day timeZone = wrap $ js_makeDate year month day $
   encodeOpts { timeZone }
 
-dateTime'eff'now :: Effect DateTime
-dateTime'eff'now = js_effNow <#> wrap
+dateTime_eff'now :: Effect DateTime
+dateTime_eff'now = js_effNow <#> wrap
 
-dateTime'alter :: forall ts. TimeSpan ts => DateTime -> ts -> DateTime
-dateTime'alter dt ts = wrap $ (unwrap dt) + (ts'toMS ts)
+dateTime_alter :: forall ts. TimeSpan ts => DateTime -> ts -> DateTime
+dateTime_alter dt ts = wrap $ (unwrap dt) + (ts_toMS ts)
 
-infixl 5 dateTime'alter as :~:
+infixl 5 dateTime_alter as :~:
 
-dateTime'month :: DateTime -> Maybe String -> Int
-dateTime'month dt tz = js_dateMonth (unwrap dt) (encodeOpts { timeZone: tz })
+dateTime_month :: DateTime -> Maybe String -> Int
+dateTime_month dt tz = js_dateMonth (unwrap dt) (encodeOpts { timeZone: tz })
 
-dateTime'month'i0 :: DateTime -> Maybe String -> Int
-dateTime'month'i0 dt tz = dateTime'month dt tz - 1
+dateTime_month'i0 :: DateTime -> Maybe String -> Int
+dateTime_month'i0 dt tz = dateTime_month dt tz - 1
 
-dateTime'year :: DateTime -> Maybe String -> Int
-dateTime'year dt tz = js_dateYear (unwrap dt) (encodeOpts { timeZone: tz })
+dateTime_year :: DateTime -> Maybe String -> Int
+dateTime_year dt tz = js_dateYear (unwrap dt) (encodeOpts { timeZone: tz })
 
-dateTime'day :: DateTime -> Maybe String -> Int
-dateTime'day dt tz = js_dateDay (unwrap dt) (encodeOpts { timeZone: tz })
+dateTime_day :: DateTime -> Maybe String -> Int
+dateTime_day dt tz = js_dateDay (unwrap dt) (encodeOpts { timeZone: tz })
 
-dateTime'day'2dig :: DateTime -> Maybe String -> String
-dateTime'day'2dig dt tz = mk'2dig (dateTime'day dt tz)
+dateTime_day'2dig :: DateTime -> Maybe String -> String
+dateTime_day'2dig dt tz = mk'2dig (dateTime_day dt tz)
 
-dateTime'month'2dig :: DateTime -> Maybe String -> String
-dateTime'month'2dig dt tz = mk'2dig (dateTime'month dt tz)
+dateTime_month'2dig :: DateTime -> Maybe String -> String
+dateTime_month'2dig dt tz = mk'2dig (dateTime_month dt tz)
 
 mk'2dig :: Int -> String
 mk'2dig i = (if i < 10 then "0" else "") <> show i
@@ -82,51 +82,51 @@ mk'2dig i = (if i < 10 then "0" else "") <> show i
 ---------------------------------------------------------
 
 class TimeSpan ts where
-  ts'toMS :: ts -> Number
+  ts_toMS :: ts -> Number
 
 instance TimeSpan DateTime where
-  ts'toMS = ts'helper 1.0
+  ts_toMS = ts'helper 1.0
 
-type TS'op2'fn ts1 ts2 = ts1 -> ts2 -> TS'milliseconds Number
-type TS'op2 = forall ts1 ts2. TimeSpan ts1 => TimeSpan ts2 => TS'op2'fn ts1 ts2
+type TS_op2'fn ts1 ts2 = ts1 -> ts2 -> TS_milliseconds Number
+type TS_op2 = forall ts1 ts2. TimeSpan ts1 => TimeSpan ts2 => TS_op2'fn ts1 ts2
 
-ts'add :: TS'op2
-ts'add ts1 ts2 = wrap $ (ts'toMS ts1) + (ts'toMS ts2)
+ts_add :: TS_op2
+ts_add ts1 ts2 = wrap $ (ts_toMS ts1) + (ts_toMS ts2)
 
-ts'sub :: TS'op2
-ts'sub ts1 ts2 = wrap $ (ts'toMS ts1) - (ts'toMS ts2)
+ts_sub :: TS_op2
+ts_sub ts1 ts2 = wrap $ (ts_toMS ts1) - (ts_toMS ts2)
 
-infixl 6 ts'add as :+:
+infixl 6 ts_add as :+:
 
-infixl 6 ts'sub as :-:
+infixl 6 ts_sub as :-:
 
 ts'helper
   :: forall num nt. Numberable num => Newtype nt num => Number -> nt -> Number
 ts'helper mult nt = mult * (numberable'toNumber $ unwrap nt)
 
-newtype TS'milliseconds num = TS'milliseconds num
+newtype TS_milliseconds num = TS_milliseconds num
 
-derive instance Newtype (TS'milliseconds num) _
-instance (Numberable num) => TimeSpan (TS'milliseconds num) where
-  ts'toMS = ts'helper 1.0
+derive instance Newtype (TS_milliseconds num) _
+instance (Numberable num) => TimeSpan (TS_milliseconds num) where
+  ts_toMS = ts'helper 1.0
 
-newtype TS'seconds num = TS'seconds num
+newtype TS_seconds num = TS_seconds num
 
-derive instance Newtype (TS'seconds num) _
-instance (Numberable num) => TimeSpan (TS'seconds num) where
-  ts'toMS = ts'helper 1000.0
+derive instance Newtype (TS_seconds num) _
+instance (Numberable num) => TimeSpan (TS_seconds num) where
+  ts_toMS = ts'helper 1000.0
 
-newtype TS'minutes num = TS'minutes num
+newtype TS_minutes num = TS_minutes num
 
-derive instance Newtype (TS'minutes num) _
-instance (Numberable num) => TimeSpan (TS'minutes num) where
-  ts'toMS = ts'helper (1000.0 * 60.0)
+derive instance Newtype (TS_minutes num) _
+instance (Numberable num) => TimeSpan (TS_minutes num) where
+  ts_toMS = ts'helper (1000.0 * 60.0)
 
-newtype TS'hours num = TS'hours num
+newtype TS_hours num = TS_hours num
 
-derive instance Newtype (TS'hours num) _
-instance (Numberable num) => TimeSpan (TS'hours num) where
-  ts'toMS = ts'helper (1000.0 * 60.0 * 60.0)
+derive instance Newtype (TS_hours num) _
+instance (Numberable num) => TimeSpan (TS_hours num) where
+  ts_toMS = ts'helper (1000.0 * 60.0 * 60.0)
 
 ---------------------------------------------------------
 

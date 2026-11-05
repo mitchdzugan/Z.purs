@@ -35,8 +35,8 @@ import Z.Z.X.Core
   , RW'Tagged
   , W'Tagged
   , X'Evaluable
-  , x'evaluable
-  , x'evaluable_
+  , x_evaluable
+  , x_evaluable_
   )
 import Z.Z.X.Method
   ( class Eff'RW'Getter
@@ -216,16 +216,16 @@ type X'Vector a = RW'Tagged (R'Vector a)
 type X'Vector'w a = W'Tagged (R'Vector a)
 
 x'vector :: forall @a. Array a -> X'Evaluable (X'Vector a)
-x'vector t = x'evaluable t
+x'vector t = x_evaluable t
 
 x'vector'w :: forall @a. Array a -> X'Evaluable (X'Vector'w a)
-x'vector'w t = x'evaluable t
+x'vector'w t = x_evaluable t
 
 x'vector_ :: forall @a. X'Evaluable (X'Vector a)
-x'vector_ = x'evaluable_
+x'vector_ = x_evaluable_
 
 x'vector_'w :: forall @a. X'Evaluable (X'Vector'w a)
-x'vector_'w = x'evaluable_
+x'vector_'w = x_evaluable_
 
 ---------------------------------------------------------------------
 
@@ -254,7 +254,7 @@ instance XM'type (R'Writer a) XMt'value a
 type X'Writer a = RW'Tagged (R'Writer a)
 
 x'writer :: forall @monoid. Monoid monoid => X'Evaluable (X'Writer monoid)
-x'writer = x'evaluable_
+x'writer = x_evaluable_
 
 ---------------------------------------------------------------------
 

@@ -333,8 +333,8 @@ periodMenu ulCn = do
       liEl (s'set'b @"!.page" H2hGrid) icon'tableCells "H2h"
   where
   liEl edits icon text = do
-    currRoute <- x'extract @"route"
-    editRoute <- x'extract @"editRoute"
+    currRoute <- x_extract @"route"
+    editRoute <- x_extract @"editRoute"
     let linkedRoute = editRoute edits
     let isActive = route'isSamePage currRoute linkedRoute
     dom'li do
@@ -356,7 +356,7 @@ defaultPlayerSearchProps =
 
 getSearchedPlayers :: forall dx x. String -> ClmDom dx x (Array AnyPlayer)
 getSearchedPlayers searchString = do
-  seasonId <- x'extract @"route" <#> g_ @"!.seasonId"
+  seasonId <- x_extract @"route" <#> g_ @"!.seasonId"
   domFetchCache'lookup @"clmSeasons" seasonId <#> case _ of
     FetchCache'ValState'Val season ->
       boxed'call @M'searchedPlayers season searchString
@@ -366,7 +366,7 @@ playerSearch :: forall dx x. Edit PlayerSearchProps -> ClmDom dx x Unit
 playerSearch edits = do
   let props = edit defaultPlayerSearchProps edits
   let { dropdownStart, dropdownTop, outsideNav } = props
-  route <- x'extract @"route"
+  route <- x_extract @"route"
   let isStatsPage = route'isStatsPage route
   let initialState = { input: "", highlightedInd: 0 }
   dom'withNewRef Nothing \getEl setEl -> do
@@ -500,7 +500,7 @@ tableContentRow clmIdOr_ props = do
         el'cn "font-extrabold text-4xl"
         pure props.ord
     , do
-        editRoute <- x'extract @"editRoute"
+        editRoute <- x_extract @"editRoute"
         let
           topCn = w'str'sp \w -> do
             w "flex items-center justify-start flex-1"
@@ -562,7 +562,7 @@ tableContentRow clmIdOr_ props = do
 
 getClmRng :: forall dx x. String -> ClmDom dx x (Array String -> Number)
 getClmRng key = do
-  { clmIds, seasonId } <- x'extract @"route" <#> unwrap
+  { clmIds, seasonId } <- x_extract @"route" <#> unwrap
   let rngEls a = arr'concat [ a, [ key, show seasonId ], map show clmIds ]
   pure $ pseudoRng <<< rngEls
 
@@ -632,9 +632,9 @@ eventUrl { source: { site, slug } } = (#) site
 
 eventDateString :: ClmSeason'Event -> String
 eventDateString { date } = str'joinWith "/" $ (#) date <$>
-  [ flip dateTime'month'2dig tz'chicago
-  , flip dateTime'day'2dig tz'chicago
-  , show <<< flip dateTime'year tz'chicago
+  [ flip dateTime_month'2dig tz'chicago
+  , flip dateTime_day'2dig tz'chicago
+  , show <<< flip dateTime_year tz'chicago
   ]
 
 getSocialHref :: H2h.SocialType -> String -> Maybe String
@@ -683,7 +683,7 @@ charImages { chars } cnExtra = do
 
 tablePlayerRow :: forall dx x. Int -> ClmSeason'Player'Full -> ClmDom dx x Unit
 tablePlayerRow sortedInd p = do
-  isSortByQual <- x'extract @"route" <#> route'isSortByQual
+  isSortByQual <- x_extract @"route" <#> route'isSortByQual
   let canShowQual = p.hasRatingConfidence
   let canShowOrd = canShowQual || not isSortByQual
   tableContentRow (Just p.clmId)
@@ -741,7 +741,7 @@ clm'isInUse f p = p.hasReq'prEvents || not f.req'prEvents
 
 page'stats :: forall dx x. Sort -> Filters -> ClmDomE dx x Unit
 page'stats sort filters = do
-  seasonId <- x'extract @"route" <#> g_ @"!.seasonId"
+  seasonId <- x_extract @"route" <#> g_ @"!.seasonId"
   seasonOr_ <- domFetchCache'lookup @"clmSeasons" seasonId
   animateInCn <- getAnimateInCn false "animate-flip-down"
   dom'div do
@@ -835,7 +835,7 @@ page'stats sort filters = do
 
   where
   tableHead sortBy = do
-    editRoute <- x'extract @"editRoute"
+    editRoute <- x_extract @"editRoute"
     let s4 = s'put Size4
     let isCurr = sort.by == sortBy
     let isPos = sort.dir == pos
@@ -875,8 +875,8 @@ page'h2h = do
 
 filterButton :: forall dx x. ClmDom dx x Unit
 filterButton = do
-  route <- x'extract @"route"
-  editRoute <- x'extract @"editRoute"
+  route <- x_extract @"route"
+  editRoute <- x_extract @"editRoute"
   let isStatsPage = route'isStatsPage route
   let anyChangedFilters = route'anyChangedFilters route
   let hasFilter'att = route'getFilter Filters'att route
@@ -943,13 +943,13 @@ filterButton = do
 
 app'body :: forall dx x. ClmDom dx x Unit
 app'body = do
-  allSeasonIds <- x'extract @"buildOutputs"
+  allSeasonIds <- x_extract @"buildOutputs"
     <#> _.timeline
     <#> (\tl -> [ tl.preDefault, [ tl.defaultSeasonId ], tl.postDefault ])
     <#> arr'concat
     <#> arr'reverse
-  route <- x'extract @"route"
-  editRoute <- x'extract @"editRoute"
+  route <- x_extract @"route"
+  editRoute <- x_extract @"editRoute"
   let seasonId = g_ @"!.seasonId" route
   let title = seasonId'title seasonId
   let isH2hPage = route'isH2hPage route
@@ -1134,8 +1134,8 @@ app'mk buildOutputs = router'run urlEdits parseUrl mkTitleOr_ do
   mkClmSeasonFetchUrl id = "/db/" <:> dbHash <:> "/seasons/" <:> id <:> ".json"
   mkClmPlayerSeasonFetchUrl (clmId /\ seasonId) =
     "/db/" <:> dbHash <:> "/players/" <:> clmId <:> "/" <:> seasonId <:> ".json"
-  getClmSeasonIds = x'extract @"route" <#> g_ @"!.seasonId" <#> pure
-  getClmPlayerSeasonIds = x'extract @"route" <#> \r ->
+  getClmSeasonIds = x_extract @"route" <#> g_ @"!.seasonId" <#> pure
+  getClmPlayerSeasonIds = x_extract @"route" <#> \r ->
     g_ @"!.clmIds" r <#> flip (/\) (g_ @"!.seasonId" r)
   mkTitleOr_ = Just <<< url'toString <<< _.url
   dbHash = buildOutputs.dbHash

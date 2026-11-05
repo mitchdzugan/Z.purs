@@ -30,7 +30,7 @@ getEventData = B.adaptBuilder $ x'withReturn \xReturn -> do
   writeToCache _ Nothing _ = pure unit
   writeToCache slug (Just path) res =
     we'tellMappedHush (var'inj @"gql" <<< var'inj @"cacheWrite") $
-      x'encodeTextFileP (fullPath slug path) res
+      x_encodeTextFileP (fullPath slug path) res
   getCached _ Nothing _ = pure Nothing
   getCached _ _ Gql.ForceFetch = pure Nothing
   getCached slug (Just path) _ = we'tellMappedMHush mapMDecodeErr $ Just
@@ -56,8 +56,8 @@ getEventDataImpl = do
     pWaitFor page ".title #title"
     pWaitFor page ".bracket-svg .match .match--player"
     s'eval initialState
-      $ x'eval_ @"baseSets" @(X'HashMap Int BaseSet)
-      $ x'eval_ @"entrants" @(X'HashMap SorN H2h.Entrant)
+      $ x_eval_ @"baseSets" @(X'HashMap Int BaseSet)
+      $ x_eval_ @"entrants" @(X'HashMap SorN H2h.Entrant)
       $ readPageData page
   where
   initialState =
@@ -86,7 +86,7 @@ getEventDataImpl = do
     bracketEls <- pEls page ".bracket-svg"
     forM_ bracketEls $ \bracketEl -> do
       matchEls <- pEls bracketEl ".match"
-      forM_ matchEls \matchEl -> x'eval_ @"winnerId" @(X'Ref (Maybe SorN)) do
+      forM_ matchEls \matchEl -> x_eval_ @"winnerId" @(X'Ref (Maybe SorN)) do
         setId <- pReadDataAttr matchEl "match" >>=
           \matchAttr -> H2hE.parseMatchId !$! e'runParser matchAttr parseInt
         playerEls <- pEls matchEl ".match--player"
@@ -125,7 +125,7 @@ getEventDataImpl = do
         let emptySlot = { entrantId: Nothing, score: H2h.noScore }
         let slotA = jOr emptySlot (nth slots 0)
         let slotB = jOr emptySlot (nth slots 1)
-        winnerId <- x'extract @"winnerId"
+        winnerId <- x_extract @"winnerId"
         let
           winner =
             if isNothing winnerId then Nothing
@@ -133,7 +133,7 @@ getEventDataImpl = do
             else Just neg
         let baseSet = { winner, id: setId, slots: slotA ~ slotB }
         x'insert @"baseSets" setId baseSet
-    baseSetList <- x'extract @"baseSets"
+    baseSetList <- x_extract @"baseSets"
       <#> arr'reverse
       <<< arr'sortWith (g_ @"id")
       <<< hm'vals
@@ -143,17 +143,17 @@ getEventDataImpl = do
       pure true
     let
       runSetsLoop =
-        x'eval_ @"prev" @(X'Ref (Maybe { base :: BaseSet, round :: Round.T }))
-          <<< x'eval @"depth" @(X'Ref Int) 0
-          <<< x'eval @"roundInd" @(X'Ref Int) 0
-          <<< x'eval @"isDropRound" @(X'Ref Boolean) true
-          <<< x'eval @"hasReset" @(X'Ref Boolean) false
-          <<< x'eval_ @"gfEIds" @(X'HashSet SorN)
-          <<< x'eval_ @"nonGfEIds" @(X'HashSet SorN)
+        x_eval_ @"prev" @(X'Ref (Maybe { base :: BaseSet, round :: Round.T }))
+          <<< x_eval @"depth" @(X'Ref Int) 0
+          <<< x_eval @"roundInd" @(X'Ref Int) 0
+          <<< x_eval @"isDropRound" @(X'Ref Boolean) true
+          <<< x_eval @"hasReset" @(X'Ref Boolean) false
+          <<< x_eval_ @"gfEIds" @(X'HashSet SorN)
+          <<< x_eval_ @"nonGfEIds" @(X'HashSet SorN)
     roundSets <- runSetsLoop do
       roundSets' <- forM baseSetList $ \baseSet -> do
-        prev <- x'extract @"prev"
-        isDropRound <- x'extract @"isDropRound"
+        prev <- x_extract @"prev"
+        isDropRound <- x_extract @"isDropRound"
         let prevSet = prev <#> \p -> p.base
         let prevRound = prev <#> \p -> p.round
         let wasGrands = jOrF $ prevRound <#> Round.isGrands
@@ -165,8 +165,8 @@ getEventDataImpl = do
           whenJust slot.entrantId $ \entrantId -> do
             (if isGrands then x'cons @"gfEIds" else x'cons @"nonGfEIds")
               entrantId
-        gfEIds <- x'extract @"gfEIds"
-        nonGfEIds <- x'extract @"nonGfEIds"
+        gfEIds <- x_extract @"gfEIds"
+        nonGfEIds <- x_extract @"nonGfEIds"
         seenAllGFEntrants <- x'withReturn \xReturn -> do
           forM_ (hs'vals gfEIds) $ \id -> do
             when (not (hs'has id nonGfEIds)) (xReturn false)
@@ -175,7 +175,7 @@ getEventDataImpl = do
         let isLosers = nowLosers && not seenAllGFEntrants
         when ((not isLosers && wasLosers) || (not isGrands && wasGrands)) do
           x_assign @"depth" 0
-        setDepth <- x'extract @"depth"
+        setDepth <- x_extract @"depth"
         let round = elimRound isDE setDepth isGrands isLosers isDropRound
         let slotA ~ slotB = baseSet.slots
         whenJust slotA.entrantId \eA -> whenJust slotB.entrantId \eB -> do
@@ -197,8 +197,8 @@ getEventDataImpl = do
               setFinStanding lId $ inc $ p2 setDepth
             else pure unit
         x'update @"roundInd" inc
-        depth <- x'extract @"depth"
-        roundInd <- x'extract @"roundInd"
+        depth <- x_extract @"depth"
+        roundInd <- x_extract @"roundInd"
         when (p2 depth <= roundInd) do
           x_assign @"roundInd" 0
           if (isDropRound && isLosers) then do x_assign @"isDropRound" false
@@ -222,14 +222,14 @@ getEventDataImpl = do
               , games: []
               }
           }
-      hasReset <- x'extract @"hasReset"
+      hasReset <- x_extract @"hasReset"
       if (not hasReset) then pure roundSets'
       else pure $ set (ix 0 # o_ @"round") (Round.Grands true) roundSets'
     let lSets = arr'filter (Round.isLosers <<< g_ @"round") roundSets
     let wSets = arr'filter (Round.isWinners <<< g_ @"round") roundSets
     let maxWR = jOr0 $ it'maximum $ wSets <#> Round.roundTypeInd <<< g_ @"round"
     let maxLR = jOr0 $ it'maximum $ lSets <#> Round.roundTypeInd <<< g_ @"round"
-    entrants <- x'extract @"entrants"
+    entrants <- x_extract @"entrants"
     let profileImageUrl = "https://i.imgur.com/7MsdKge.jpeg"
     let
       mkSet = \rs -> rs.set `(~.) @"roundText"` roundLabel rs.round maxWR maxLR
@@ -361,13 +361,13 @@ parseDate = do
   year <- parseInt
   parseString_ " at "
   hour <- parseInt
-  let baseDate = dateTime'mkDate year month day tz'chicago
+  let baseDate = dateTime_mkDate year month day tz'chicago
   parseString_ ":"
   minute <- parseInt
-  let timeSpan = TS'hours hour :+: TS'minutes minute
+  let timeSpan = TS_hours hour :+: TS_minutes minute
   parseString_ " "
   isPM <- parseAMorPM
-  let pmTimeSpan = TS'hours $ toNumber $ if isPM then 12 else 0
+  let pmTimeSpan = TS_hours $ toNumber $ if isPM then 12 else 0
   pure $ baseDate :~: timeSpan :+: pmTimeSpan
 
 type BaseSet =

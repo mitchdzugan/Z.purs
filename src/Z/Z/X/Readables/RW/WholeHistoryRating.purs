@@ -22,8 +22,8 @@ import Z.Z.Eff.WholeHistoryRating
   , eff'whr'new
   , eff'whr'ratingsForPlayer
   )
-import Z.Z.X.Core (class X'Readable, Reader, Run, x'eval)
-import Z.Z.X.Method (x'effCall)
+import Z.Z.X.Core (class X'Readable, Reader, Run, x_eval)
+import Z.Z.X.Method (x_effCall)
 import Z.Z.X.Nicknames (Edit)
 
 ---------------------------------------------------------------------
@@ -66,7 +66,7 @@ type T'whr'eval t p =
   -> Run x' a
 
 whr'eval'' :: forall @p @t. T'whr'eval t p
-whr'eval'' toKey optsEdit = x'eval @p $ optsEdit /\ toKey
+whr'eval'' toKey optsEdit = x_eval @p $ optsEdit /\ toKey
 
 whr'eval :: forall @t p. T'use'whr'AsSym p (T'whr'eval t)
 whr'eval = whr'eval'' @p @t
@@ -80,7 +80,7 @@ type T'whr'createGame p =
 
 whr'createGame'' :: forall @p. T'whr'createGame p
 whr'createGame'' winner loser timestep handicap =
-  x'effCall @p @"createGame"
+  x_effCall @p @"createGame"
     (winner /\ loser /\ timestep /\ handicap)
 
 whr'createGame :: forall p. T'use'whr'AsSym p T'whr'createGame
@@ -92,7 +92,7 @@ type T'whr'iterate p =
   forall t x' x. ConsSymbol p (X'Whr t) x' x => Int -> Run x Unit
 
 whr'iterate'' :: forall @p. T'whr'iterate p
-whr'iterate'' = x'effCall @p @"iterate"
+whr'iterate'' = x_effCall @p @"iterate"
 
 whr'iterate :: forall p. T'use'whr'AsSym p T'whr'iterate
 whr'iterate = whr'iterate'' @p
@@ -103,7 +103,7 @@ type T'whr'ratingsForPlayer p =
   forall t x' x. ConsSymbol p (X'Whr t) x' x => t -> Run x Whr'Ratings
 
 whr'ratingsForPlayer'' :: forall @p. T'whr'ratingsForPlayer p
-whr'ratingsForPlayer'' = x'effCall @p @"ratingsForPlayer"
+whr'ratingsForPlayer'' = x_effCall @p @"ratingsForPlayer"
 
 whr'ratingsForPlayer :: forall p. T'use'whr'AsSym p T'whr'ratingsForPlayer
 whr'ratingsForPlayer = whr'ratingsForPlayer'' @p

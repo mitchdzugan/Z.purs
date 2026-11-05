@@ -224,8 +224,8 @@ getActions newActions usePrevAuto = do
 seasonIdByDate :: DateTime -> Int
 seasonIdByDate dt = seasonYearContrib + seasonMonthContrib
   where
-  seasonYearContrib = 2 + (3 * (dateTime'year dt tz'chicago - 2022))
-  seasonMonthContrib = dateTime'month'i0 dt tz'chicago / 4
+  seasonYearContrib = 2 + (3 * (dateTime_year dt tz'chicago - 2022))
+  seasonMonthContrib = dateTime_month'i0 dt tz'chicago / 4
 
 getH2hData
   :: forall r x
@@ -233,7 +233,7 @@ getH2hData
   -> Boolean
   -> ClmV r x @@> Array (Int /\ HashMap SorN H2h.Event)
 getH2hData spec allowRefetch =
-  x'eval_ @"seasonH2hEvents" @(X'HashMap2D Int SorN H2h.Event) do
+  x_eval_ @"seasonH2hEvents" @(X'HashMap2D Int SorN H2h.Event) do
     { client } <- r'ask
     forM_ (hs'vals spec.eventSlugs) \slug -> do
       let
@@ -297,26 +297,26 @@ type XSeason x =
 
 runSeason :: forall x a. Run (XSeason x) a -> Run x a
 runSeason = id
-  <<< x'eval_ @"clmIdByEntrantId"
-  <<< x'eval_ @"wins"
-  <<< x'eval_ @"losses"
-  <<< x'eval_ @"lastEventId"
-  <<< x'eval_ @"allEventIds"
-  <<< x'eval_ @"prEventIds"
-  <<< x'eval_ @"ratingData"
-  <<< x'eval_ @"eventPlacing"
-  <<< x'eval_ @"eventWins"
-  <<< x'eval_ @"eventLosses"
-  <<< x'eval_ @"eventSetIds"
-  <<< x'eval_ @"eventDidDQ"
-  <<< x'eval_ @"h2hOpps"
-  <<< x'eval_ @"h2hSetIds"
-  <<< x'eval_ @"setGroups"
-  <<< x'eval_ @"sets"
-  <<< x'eval_ @"eventIdBySetId"
-  <<< x'eval_ @"participants"
-  <<< x'eval_ @"charUsedGames"
-  <<< x'eval_ @"charColorUsedGames"
+  <<< x_eval_ @"clmIdByEntrantId"
+  <<< x_eval_ @"wins"
+  <<< x_eval_ @"losses"
+  <<< x_eval_ @"lastEventId"
+  <<< x_eval_ @"allEventIds"
+  <<< x_eval_ @"prEventIds"
+  <<< x_eval_ @"ratingData"
+  <<< x_eval_ @"eventPlacing"
+  <<< x_eval_ @"eventWins"
+  <<< x_eval_ @"eventLosses"
+  <<< x_eval_ @"eventSetIds"
+  <<< x_eval_ @"eventDidDQ"
+  <<< x_eval_ @"h2hOpps"
+  <<< x_eval_ @"h2hSetIds"
+  <<< x_eval_ @"setGroups"
+  <<< x_eval_ @"sets"
+  <<< x_eval_ @"eventIdBySetId"
+  <<< x_eval_ @"participants"
+  <<< x_eval_ @"charUsedGames"
+  <<< x_eval_ @"charColorUsedGames"
 
 addPlayerIdToClmId :: forall x. SorN -> Int -> ClmV () x @@> Unit
 addPlayerIdToClmId playerId clmId = do
@@ -356,16 +356,16 @@ runClm m = do
   let buildMetaPath = pagesCOPath /./ "build.json"
   lastBuildMeta <- x'decodeTextFile @ClmBuildMeta buildMetaPath # e'try <#> hush
   we'runResult
-    $ x'eval_ @"clmRanks"
-    $ x'eval_ @"clmEvents"
-    $ x'eval_ @"clmPlayers"
-    $ x'eval_ @"clmPlayerSeasons"
-    $ x'eval_ @"orderByClmIdAndSeasonId"
-    $ x'eval_ @"usedTags"
-    $ x'eval_ @"tagDataByEntrantId"
-    $ x'eval @"playerIdsByClmId" playerIdsByClmId
-    $ x'eval @"clmIdByPlayerId" clmIdByPlayerId
-    $ x'eval @"nextClmId" legacyBlob.nextIdTry
+    $ x_eval_ @"clmRanks"
+    $ x_eval_ @"clmEvents"
+    $ x_eval_ @"clmPlayers"
+    $ x_eval_ @"clmPlayerSeasons"
+    $ x_eval_ @"orderByClmIdAndSeasonId"
+    $ x_eval_ @"usedTags"
+    $ x_eval_ @"tagDataByEntrantId"
+    $ x_eval @"playerIdsByClmId" playerIdsByClmId
+    $ x_eval @"clmIdByPlayerId" clmIdByPlayerId
+    $ x_eval @"nextClmId" legacyBlob.nextIdTry
     $ flip r'run m
         { isProdEnv
         , ggAuth
@@ -401,7 +401,7 @@ getClmId :: forall x. SorN -> ClmV () x @@> Int
 getClmId playerId = x'withReturn \x'return -> do
   knownClmId <- x'lookup @"clmIdByPlayerId" playerId
   whenJust knownClmId x'return
-  nextClmId <- x'extract @"nextClmId"
+  nextClmId <- x_extract @"nextClmId"
   clmId <- flip tailRecM nextClmId \tryId -> do
     exitingsPlayers <- x'sizeAt @"playerIdsByClmId" tryId
     pure $ if exitingsPlayers == 0 then Done tryId else Loop $ inc tryId
@@ -498,7 +498,7 @@ buildCurrentSeasons spec = do
         , eventId: event.id
         }
     s'eval 0 $ whr'eval @Int show (s'setPure'b @"w2" 20) do
-      x'extract @"setGroups" >>= flip forM_ \sets -> do
+      x_extract @"setGroups" >>= flip forM_ \sets -> do
         groupCount <- s'get
         anyCounted <- s'exec false do
           forM_ sets \set -> x'withReturn_ \x'return_ -> do
@@ -552,7 +552,7 @@ buildCurrentSeasons spec = do
             whr'createGame clmIdW clmIdL groupCount 0
         when anyCounted $ s'update inc
       whr'iterate 100
-      participants <- x'extract @"participants"
+      participants <- x_extract @"participants"
       forM_ (hm'entries participants) \(clmId /\ participant) -> do
         let { player } = participant
         let { gamerTag, prefix, pronouns, socials } = player
@@ -560,13 +560,13 @@ buildCurrentSeasons spec = do
         let image = hm'lookup H2h.imageType'profile player.images
         ratings <- whr'ratingsForPlayer clmId
         let rawRating = (+) 1000.0 <$> (arr'last ratings >>= flip nth 1)
-        prEvents <- x'extractAt @"prEventIds" clmId
+        prEvents <- x_extractAt @"prEventIds" clmId
           <#> hs'vals
           <#> map (\id -> hm'lookup id h2hEvents <#> \e -> e.tournament.id)
           <#> arr'concatMaybes
           <#> hs'collect
           <#> hs'size
-        charUsedGames <- x'extractAt @"charUsedGames" clmId
+        charUsedGames <- x_extractAt @"charUsedGames" clmId
           <#> (arr'reverse <<< arr'sortWith snd <<< hm'entries)
         let totGames = toNumber $ it'sumBy snd charUsedGames
         let mostGames = ceil $ totGames * 2.0 / 3.0
@@ -574,7 +574,7 @@ buildCurrentSeasons spec = do
           forM_ charUsedGames \(charId /\ usedGames) -> do
             addedGames <- s'get
             when (addedGames <= mostGames) do
-              color <- x'extractAt @"charColorUsedGames" (clmId /\ charId)
+              color <- x_extractAt @"charColorUsedGames" (clmId /\ charId)
                 <#> (hm'entries >>> it'maximumWith snd >>> map fst >>> may'or 0)
               _'cons { charId, usage: toNumber usedGames / totGames, color }
         x'lookup @"lastEventId" clmId >>= flip whenJust \lastEventId -> do
@@ -602,12 +602,12 @@ buildCurrentSeasons spec = do
           , pronouns
           , clmId
           }
-      x'extract @"ratingData" >>= addRanks seasonId <<< hm'vals
-      seasonOrds <- x'extractAt @"orderByClmIdAndSeasonId" seasonId
-      seasonSets <- x'extract @"sets"
+      x_extract @"ratingData" >>= addRanks seasonId <<< hm'vals
+      seasonOrds <- x_extractAt @"orderByClmIdAndSeasonId" seasonId
+      seasonSets <- x_extract @"sets"
       let setOrder = \setId -> hm'lookup setId seasonSets <#> _.eventOrder
       forM_ (hm'keys participants) \clmId -> do
-        eventIds <- x'extractAt @"allEventIds" clmId
+        eventIds <- x_extractAt @"allEventIds" clmId
           <#> hs'vals
         events <- _'exec_ @(X'Vector ClmPlayer'Season'Event) do
           forM_ eventIds \eventId -> do
@@ -620,7 +620,7 @@ buildCurrentSeasons spec = do
               <#> may'or 0
             didDQ <- x'lookup @"eventDidDQ" (clmId /\ eventId)
               <#> may'or false
-            setIds <- x'extractAt @"eventSetIds" (clmId /\ eventId)
+            setIds <- x_extractAt @"eventSetIds" (clmId /\ eventId)
               <#> (arr'sortWith setOrder <<< hs'vals)
             let placingString = if didDQ then "DQ" else ordinal placing
             _'cons
@@ -632,11 +632,11 @@ buildCurrentSeasons spec = do
               , placingString
               }
 
-        opps <- x'extractAt @"h2hOpps" clmId
+        opps <- x_extractAt @"h2hOpps" clmId
           <#> (arr'sortWith (flip hm'lookup seasonOrds) <<< hs'vals)
         h2hs <- _'exec_ @(X'Vector ClmPlayer'Season'H2h) do
           forM_ opps \oppId -> do
-            setIds <- x'extractAt @"h2hSetIds" (clmId /\ oppId)
+            setIds <- x_extractAt @"h2hSetIds" (clmId /\ oppId)
               <#> hs'vals
             _'cons { opponent: Right oppId, setIds }
         let
@@ -756,7 +756,7 @@ buildLegacySeasons = do
       let
         insertEvent = \event -> do
           let trueEventId = sOrN event.eventId
-          let date = dateTime'fromMS (event.date * 1000)
+          let date = dateTime_fromMS (event.date * 1000)
           eventName <- (event.eventName >|> event.name) #
             e'unwrap (ClmStE.MissingLegacyEventName seasonId event.slug)
           _'insert trueEventId
@@ -856,7 +856,7 @@ buildLegacySeasons = do
                   }
                 pure setId
               _'cons { opponent, setIds }
-          setByEventAndRound <- x'extract @"sets" <#>
+          setByEventAndRound <- x_extract @"sets" <#>
             (keyBy (\s -> s.eventId /\ s.round) <<< hm'vals)
           events <- _'exec_ @(X'Vector ClmPlayer'Season'Event) do
             forM_ (arr'withInd playerSeason.events) \(eventInd /\ event) -> do
@@ -914,7 +914,7 @@ buildSeasonJson
   -> ClmV () x @@> ClmSeason'Json
 buildSeasonJson allSeasonIds allPlayerSeasons otherPlayerTags seasonId = do
   ranks <- x'lookup @"clmRanks" seasonId <#> may'or []
-  events <- x'extractAt @"clmEvents" seasonId <#> hm'vals
+  events <- x_extractAt @"clmEvents" seasonId <#> hm'vals
   players <- forM ranks \{ clmId } -> do
     player <- x'lookup @"clmPlayers" clmId >>=
       e'unwrap (ClmStE.MissingPlayer clmId)
@@ -965,7 +965,7 @@ buildClm newActions = runClm do
     addPlayerIdToClmId clmId playerId
   buildLegacySeasons
   buildCurrentSeasons spec
-  clmSeasonRanks <- x'extract @"clmRanks" <#> hm'entries
+  clmSeasonRanks <- x_extract @"clmRanks" <#> hm'entries
   let filtered = arr'filter ((<) 1 <<< arr'size <<< snd) clmSeasonRanks
   let allSeasonIds = arr'sort $ map fst filtered
   allPlayerSeasons <- map hs'vals <$> _'exec_ @(X'HashSet2D Int Int) do
@@ -974,7 +974,7 @@ buildClm newActions = runClm do
   otherPlayerTags <- map hs'vals <$> _'exec_ @(X'HashSet2D Int String) do
     forM_ (hm'keys allPlayerSeasons) \clmId -> do
       mainTag <- x'lookup @"clmPlayers" clmId <#> map _.gamerTag
-      usedTags <- x'extractAt @"usedTags" clmId <#> hs'vals
+      usedTags <- x_extractAt @"usedTags" clmId <#> hs'vals
       forM_ usedTags \tag -> when (Just tag /= mainTag) do _'consAt clmId tag
   git'ensureCleanLatest GitClient'Pages
   git'ensureCleanLatest GitClient'App
@@ -990,14 +990,14 @@ buildClm newActions = runClm do
     seasonJson <-
       buildSeasonJson allSeasonIds allPlayerSeasons otherPlayerTags seasonId
     e'map (ClmStE.WriteSeasonJson seasonId) $
-      x'encodeTextFileP (seasonPath seasonId) seasonJson
+      x_encodeTextFileP (seasonPath seasonId) seasonJson
   x'out "Saving Players"
   forM_ (hm'entries allPlayerSeasons) \(clmId /\ seasonIds) -> do
     forM_ seasonIds \seasonId -> do
       playerSeasonJson <-
         buildPlayerSeasonJson seasonId clmId
       e'map (ClmStE.WritePlayerSeasonJson seasonId clmId) $
-        x'encodeTextFileP (playerSeasonPath seasonId clmId) playerSeasonJson
+        x_encodeTextFileP (playerSeasonPath seasonId clmId) playerSeasonJson
   x'out "Managing Git For Database"
   hasDBChanges <- usePagesGit git'isClean <#> not
   nowS <- r'ask <#> \r -> floor (r.nowMS'number / 1000.0)
@@ -1028,7 +1028,7 @@ buildClm newActions = runClm do
     buildOutputs = { timeline: clmTimeline, dbHash }
   e'map ClmStE.RimrafDB $ x'rimraf docsPath
   buildMetaPath <- r'ask <#> _.buildMetaPath
-  x'encodeTextFileP buildMetaPath (clmBuildMeta actionData buildOutputs) !!-
+  x_encodeTextFileP buildMetaPath (clmBuildMeta actionData buildOutputs) !!-
     ClmStE.WriteBuildMeta
   let configPath = docsPath /./ "_config.yml"
   ClmStE.WriteJekyllConfig -!! x'writeTextFileP configPath $ w'str'nl \w -> do

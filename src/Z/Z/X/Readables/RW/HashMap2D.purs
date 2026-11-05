@@ -40,8 +40,8 @@ import Z.Z.X.Core
   , RW'Tagged
   , W'Tagged
   , X'Evaluable
-  , x'evaluable
-  , x'evaluable_
+  , x_evaluable
+  , x_evaluable_
   )
 import Z.Z.X.Method
   ( class Eff'RW'Getter
@@ -359,7 +359,7 @@ x'hashmap2D
   => Identable k2
   => HashMap k1 (HashMap k2 v)
   -> X'Evaluable (X'HashMap2D k1 k2 v)
-x'hashmap2D t = x'evaluable t
+x'hashmap2D t = x_evaluable t
 
 x'hashmap2D'w
   :: forall @k1 @k2 @v
@@ -367,21 +367,21 @@ x'hashmap2D'w
   => Identable k2
   => HashMap k1 (HashMap k2 v)
   -> X'Evaluable (X'HashMap2D'w k1 k2 v)
-x'hashmap2D'w t = x'evaluable t
+x'hashmap2D'w t = x_evaluable t
 
 x'hashmap2D_
   :: forall @k1 @k2 @v
    . Identable k1
   => Identable k2
   => X'Evaluable (X'HashMap2D k1 k2 v)
-x'hashmap2D_ = x'evaluable_
+x'hashmap2D_ = x_evaluable_
 
 x'hashmap2D_'w
   :: forall @k1 @k2 @v
    . Identable k1
   => Identable k2
   => X'Evaluable (X'HashMap2D k1 k2 v)
-x'hashmap2D_'w = x'evaluable_
+x'hashmap2D_'w = x_evaluable_
 
 ---------------------------------------------------------------------
 

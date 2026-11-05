@@ -62,12 +62,12 @@ ggPageSpecHandleImpl
   -> XPageSpecHandle x v r
 ggPageSpecHandleImpl (GGPageSpecF pageL dataL) = do
   { client, networkControl, op } <- r'ask
-  x'eval_ @"seenIds" @(X'HashSet Int) $ loop op client networkControl
+  x_eval_ @"seenIds" @(X'HashSet Int) $ loop op client networkControl
   where
   loop op client networkControl = do
     s'get <#> _.res <#> view dataL <#> _.nodes <#> map _.id >>= \ids -> do
       x_assign @"seenIds" (hs'collect ids)
-    seenIds <- x'extract @"seenIds"
+    seenIds <- x_extract @"seenIds"
     total <- s'view (_o_ @"res" @"pageInfo.total" dataL)
     when (hs'size seenIds < total) do
       s'over (_o @"vars" pageL) inc

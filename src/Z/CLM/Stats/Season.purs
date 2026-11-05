@@ -17,8 +17,8 @@ tz'chicago = Just "America/Chicago"
 seasonId'fromDateTime :: DateTime -> Int
 seasonId'fromDateTime dt = periodMonthContrib + periodYearContrib
   where
-  periodYearContrib = (((dateTime'year dt tz'chicago) - 2022) * 3) + 2
-  periodMonthContrib = floor $ toNumber (dateTime'month'i0 dt tz'chicago) / 4.0
+  periodYearContrib = (((dateTime_year dt tz'chicago) - 2022) * 3) + 2
+  periodMonthContrib = floor $ toNumber (dateTime_month'i0 dt tz'chicago) / 4.0
 
 seasonId'active :: forall x. x @@> Int
 seasonId'active = x'now <#> seasonId'fromDateTime

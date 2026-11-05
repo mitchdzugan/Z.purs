@@ -22,9 +22,9 @@ module Node.Z.Sys.SysImpl
   , x'decodeAnyYamlExt
   , x'decodeTextFile
   , x'decodeYamlFile
-  , x'encodeTextFile
-  , x'encodeTextFileP
-  , x'envPaths
+  , x_encodeTextFile
+  , x_encodeTextFileP
+  , x_envPaths
   , x'isDirectory
   , x'lookupEnv
   , x'mkdir
@@ -182,23 +182,23 @@ x'writeTextFileP p s = do
   x'mkdirP $ dirname p
   x'writeTextFile p s
 
-x'encodeTextFile
+x_encodeTextFile
   :: forall x p d
    . Pathlike p
   => EncodeJson d
   => p
   -> d
   -> EA' JsError x @@> Unit
-x'encodeTextFile p d = x'writeTextFile p $ encode d
+x_encodeTextFile p d = x'writeTextFile p $ encode d
 
-x'encodeTextFileP
+x_encodeTextFileP
   :: forall x p d
    . Pathlike p
   => EncodeJson d
   => p
   -> d
   -> EA' JsError x @@> Unit
-x'encodeTextFileP p d = x'writeTextFileP p $ encode d
+x_encodeTextFileP p d = x'writeTextFileP p $ encode d
 
 foreign import js_lookupEnv
   :: (String -> Maybe String)
@@ -263,20 +263,20 @@ toPlatform "openbsd" = OpenBSD
 toPlatform _ = Unknown
 
 x_argv :: forall x. X'Node x @@> Array String
-x_argv = x'effGet @P'X'Node @"fullArgv" <#> arr'drop 2
+x_argv = x_effGet @P'X'Node @"fullArgv" <#> arr'drop 2
 
 x'pid :: forall x. X'Node x @@> Int
-x'pid = x'effGet @P'X'Node @"pid"
+x'pid = x_effGet @P'X'Node @"pid"
 
 x'wd :: forall x. X'Node x @@> Path
-x'wd = x'effGet @P'X'Node @"wd" <#> Path
+x'wd = x_effGet @P'X'Node @"wd" <#> Path
 
-x'envPaths :: forall x. String -> Maybe String -> X'Node x @@> EnvPaths
-x'envPaths appName suffix =
-  x'effCall @P'X'Node @"envPaths" $ appName /\ suffix
+x_envPaths :: forall x. String -> Maybe String -> X'Node x @@> EnvPaths
+x_envPaths appName suffix =
+  x_effCall @P'X'Node @"envPaths" $ appName /\ suffix
 
 x'platform :: forall x. X'Node x @@> Platform
-x'platform = x'effGet @P'X'Node @"platform" <#> toPlatform
+x'platform = x_effGet @P'X'Node @"platform" <#> toPlatform
 
 envData :: EnvPaths -> Path
 envData = Path <<< js_envData
@@ -339,7 +339,7 @@ type X'Node x = (_'x'node :: XNodeR | x)
 type P'X'Node = "_'x'node"
 
 runXNode :: forall x a. Run (X'Node x) a -> Run x a
-runXNode = x'eval_ @P'X'Node
+runXNode = x_eval_ @P'X'Node
 
 dirname :: forall p. Pathlike p => p -> Path
 dirname p = Path $ js_pathDirname $ pathStr p

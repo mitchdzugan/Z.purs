@@ -93,7 +93,7 @@ import Z.Z.X.Index
   , r'run''
   , sync'x
   )
-import Z.Z.X.Method (x'extract)
+import Z.Z.X.Method (x_extract)
 
 type JsonDecodeError'row =
   ( typeMismatch :: String
@@ -296,7 +296,7 @@ instance
   ) =>
   Row'Mk Rec''XDecode (Maybe focus) X''XDecode where
   row'mk key = do
-    jsonObj <- x'extract @"obj"
+    jsonObj <- x_extract @"obj"
     dec'wrapErrs (dec'atKey key) do
       let jsonOr_ = obj'lookup key jsonObj
       may'_ (pure Nothing) (map Just <<< xDecodeJson @focus) jsonOr_
@@ -305,7 +305,7 @@ else instance
   ) =>
   Row'Mk Rec''XDecode focus X''XDecode where
   row'mk key = do
-    jsonObj <- x'extract @"obj"
+    jsonObj <- x_extract @"obj"
     dec'wrapErrs (dec'atKey key) do
       let jsonOr_ = obj'lookup key jsonObj
       may'_ (dec'fail dec'missingValue) (xDecodeJson @focus) jsonOr_

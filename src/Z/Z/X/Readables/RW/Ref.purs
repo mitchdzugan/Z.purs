@@ -26,7 +26,7 @@ import Z.Z.X.Core
   , RW'Tagged
   , W'Tagged
   , X'Evaluable
-  , x'evaluable
+  , x_evaluable
   )
 import Z.Z.X.Method
   ( class Eff'RW'Getter
@@ -74,16 +74,16 @@ type X'Ref t = RW'Tagged (R'Ref t)
 type X'Ref'w t = W'Tagged (R'Ref t)
 
 x'ref :: forall t. t -> X'Evaluable (X'Ref t)
-x'ref t = x'evaluable t
+x'ref t = x_evaluable t
 
 x'ref'w :: forall t. t -> X'Evaluable (X'Ref'w t)
-x'ref'w t = x'evaluable t
+x'ref'w t = x_evaluable t
 
 x'ref_ :: forall t. Generable t GDefault t => X'Evaluable (X'Ref t)
-x'ref_ = x'evaluable @(X'Ref t) $ g @t
+x'ref_ = x_evaluable @(X'Ref t) $ g @t
 
 x'ref_'w :: forall t. Generable t GDefault t => X'Evaluable (X'Ref'w t)
-x'ref_'w = x'evaluable @(X'Ref'w t) $ g @t
+x'ref_'w = x_evaluable @(X'Ref'w t) $ g @t
 
 ---------------------------------------------------------------------
 
@@ -136,14 +136,14 @@ x'ref'nt
    . Newtype nt t
   => Generable nt GDefault nt
   => X'Evaluable (X'Ref'nt nt)
-x'ref'nt = x'evaluable @(X'Ref'nt nt) unit
+x'ref'nt = x_evaluable @(X'Ref'nt nt) unit
 
 x'ref'nt'w
   :: forall @nt t
    . Newtype nt t
   => Generable nt GDefault nt
   => X'Evaluable (X'Ref'nt'w nt)
-x'ref'nt'w = x'evaluable @(X'Ref'nt'w nt) unit
+x'ref'nt'w = x_evaluable @(X'Ref'nt'w nt) unit
 
 type B'Ref'nt :: forall k1 k2. (Type -> k1 -> k2) -> Type -> k1 -> k2
 type B'Ref'nt sel nt t = sel (X'Ref'nt nt) t

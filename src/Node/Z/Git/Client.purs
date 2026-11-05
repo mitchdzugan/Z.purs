@@ -103,9 +103,9 @@ git'push :: Git'Fn Opts'push Unit
 git'push o c = err'push c !$! git'fn_ "push" o c
 
 -------------------------
-type Opts'status = { porcelain :: Maybe Boolean }
+type Opts_status = { porcelain :: Maybe Boolean }
 
-git'status :: Git'Fn Opts'status String
+git'status :: Git'Fn Opts_status String
 git'status o c = err'status c !$! git'fn "status" o c
 
 git'isClean :: forall x. GitClient -> EA' GitError x @@> Boolean
@@ -125,9 +125,9 @@ git'currentBranch =
   git'revParse $ s'setPure'b @"abbrev-ref" true *> w'say "HEAD"
 
 -------------------------
-type Opts'add = { all :: Maybe Boolean }
+type Opts_add = { all :: Maybe Boolean }
 
-git'add :: Git'Fn Opts'add Unit
+git'add :: Git'Fn Opts_add Unit
 git'add o c = err'add c !$! git'fn_ "add" o c
 
 git'addAll :: forall x. GitClient -> EA' GitError x @@> Unit
