@@ -1,5 +1,6 @@
 module Z.XDom.FetchCache
-  ( FetchCache'Action(..)
+  ( FetchCache'Action'row
+  , FetchCache'Action(..)
   , FetchCache'R
   , FetchCache'State
   , FetchCache'ValState(..)
@@ -31,11 +32,17 @@ type FetchCache'ValState v =
 
 type FetchCache'State id v = HashMap id (FetchCache'ValState v)
 
-data FetchCache'Action id v
-  = FetchCache'Action'MarkRequesting id
-  | FetchCache'Action'SetVal id v
-  | FetchCache'Action'SetError id JsError
-  | FetchCache'Action'ImportVals (HashMap id v)
+type FetchCache'Action'row id v =
+  ( markRequesting :: id
+  , setVal :: id /\ v
+  , setError :: id /\ JsError
+  , importVals :: (HashMap id v)
+  )
+
+newtype FetchCache'Action id v =
+  FetchCache'Action (Variant (FetchCache'Action'row id v))
+
+derive instance Newtype (FetchCache'Action id v) _
 
 fetchCache'lookupVal
   :: forall id v. Identable id => id -> FetchCache'State id v -> Maybe v
@@ -75,15 +82,18 @@ fetchCache'xUpdate
   => Eq v
   => FetchCache'Action id v
   -> Edit (FetchCache'State id v)
-fetchCache'xUpdate (FetchCache'Action'MarkRequesting id) = do
-  s'update $ fetchCache'alter id $ s'set'b @"isLoading" true
-fetchCache'xUpdate (FetchCache'Action'SetVal id v) = do
-  s'update $ hm'insert id $ valState'fromVal v
-fetchCache'xUpdate (FetchCache'Action'SetError id e) = do
-  s'update $ fetchCache'alter id do
-    s'set'b @"isLoading" false *> s'setPure'b @"error" e
-fetchCache'xUpdate (FetchCache'Action'ImportVals hm'new) = do
-  s'update \hm'curr -> hm'merge [ hm'curr, map valState'fromVal hm'new ]
+fetchCache'xUpdate = var'case_
+  # var'on @"markRequesting"
+      (\id -> s'update $ fetchCache'alter id $ s'set'b @"isLoading" true)
+  # var'on @"setVal"
+      (\(id /\ v) -> s'update $ hm'insert id $ valState'fromVal v)
+  # var'on @"setError"
+      ( \(id /\ e) -> s'update $ fetchCache'alter id do
+          s'set'b @"isLoading" false *> s'setPure'b @"error" e
+      )
+  # var'on @"importVals"
+      \hm'new -> s'update \hm'curr -> hm'merge
+        [ hm'curr, map valState'fromVal hm'new ]
 
 fetchCache'update
   :: forall id v
@@ -129,14 +139,14 @@ domFetchCache'forceRequest
 domFetchCache'forceRequest id = do
   { mkFetchUrl } <- domState'get'' @p
   domEff'async do
-    domState'dispatch'' @p $ FetchCache'Action'MarkRequesting id
+    domState'dispatch'' @p $ var'inj @"markRequesting" id
     vOrE <- e'try $ do
       fetchRes <- x'fetch (mkFetchUrl id) pass
       decoded <- x'decodeFetched @v fetchRes
       e'ok $ constL (jsError "decode error" "") decoded
     vOrE # eOr'_
-      (domState'dispatch'' @p <<< FetchCache'Action'SetError id)
-      (domState'dispatch'' @p <<< FetchCache'Action'SetVal id)
+      (domState'dispatch'' @p <<< \v -> var'inj @"setError" $ id /\ v)
+      (domState'dispatch'' @p <<< \v -> var'inj @"setVal" $ id /\ v)
 
 type T'domFetchCache'run'helper'fn dr x' x id =
   (id -> String) -> MDom dr x' (Array id) -> MDom dr x Unit -> MDom dr x' Unit
