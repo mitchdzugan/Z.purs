@@ -50,6 +50,7 @@ import Data.Newtype (class Newtype, wrap)
 import Data.Tuple (curry)
 import Data.Tuple.Nested (type (/\), (/\))
 import Data.Variant (Variant)
+import Debug (traceM)
 import Foreign (Foreign)
 import Foreign.Object (Object)
 import Z.Z.Core
@@ -62,6 +63,7 @@ import Z.Z.Core
   , jsonFromForeign
   , mapL
   , may'_
+  , may'filter
   , obj'lookup
   )
 import Z.Z.Core as Z
@@ -229,10 +231,13 @@ instance XDecodeJson el => XDecodeJson (Maybe el) where
 
 type EitherJson l r = Variant (l :: l, r :: r)
 
-instance (XDecodeJson (EitherJson l r)) => XDecodeJson (Either l r) where
+instance (XDecodeJson l, XDecodeJson r) => XDecodeJson (Either l r) where
   xDecodeJson json = dec'wrapErrs (dec'named "Either") do
-    xDecodeJson @(EitherJson l r) json <#>
-      (var'case_ # var'on @"l" Left # var'on @"r" Right)
+    xDecodeJson @{ tag :: String, value :: Json } json >>= \i ->
+      case i.tag of
+        "Left" -> Left <$> xDecodeJson @l i.value
+        "Right" -> Right <$> xDecodeJson @r i.value
+        _ -> dec'fail $ dec'unexpectedValue json
 
 instance (XDecodeJson { l :: l, r :: r }) => XDecodeJson (l /\ r) where
   xDecodeJson json = dec'wrapErrs (dec'named "Tuple") do
@@ -302,7 +307,8 @@ instance
   row'mk key = do
     jsonObj <- x'extract @"obj"
     dec'wrapErrs (dec'atKey key) do
-      let jsonOr_ = obj'lookup key jsonObj
+      let removeNull = caseJsonNull true (const false)
+      let jsonOr_ = may'filter removeNull $ obj'lookup key jsonObj
       may'_ (pure Nothing) (map Just <<< xDecodeJson @focus) jsonOr_
 else instance
   ( XDecodeJson focus

@@ -68,7 +68,7 @@ ctxR'runAt
   => v
   -> Run' rt x a
   -> Run' rt x' a
-ctxR'runAt = js_ctx_runReaderAt (reflectSymbol (Proxy @p))
+ctxR'runAt = js_ctx_runReaderAt map (reflectSymbol (Proxy @p))
 
 ctxE'runAt
   :: forall @p @e rt x' x a
@@ -77,7 +77,7 @@ ctxE'runAt
   -> Run' rt x' (Either e a)
 ctxE'runAt m = do
   let symK = reflectSymbol (Proxy @p)
-  js_ctx_runExceptAt symK do
+  js_ctx_runExceptAt map symK do
     r <- thenableR'ask
     mapL (js_ctx_unwrapErrorAt symK r) <$> thenableR'try m
 
@@ -125,12 +125,21 @@ ctxA'adapt
 ctxA'adapt = unsafeCoerce
 
 foreign import js_ctx_runReaderAt
-  :: forall rt v x' x a. String -> v -> Run' rt x a -> Run' rt x' a
+  :: forall rt v x' x a b c
+   . ((b -> c) -> Run' rt x' b -> Run' rt x' c)
+  -> String
+  -> v
+  -> Run' rt x a
+  -> Run' rt x' a
 
 foreign import js_ctx_at :: forall x v. String -> Ctx x -> v
 
 foreign import js_ctx_runExceptAt
-  :: forall rt x' x a. String -> Run' rt x a -> Run' rt x' a
+  :: forall rt x' x a b c
+   . ((b -> c) -> Run' rt x' b -> Run' rt x' c)
+  -> String
+  -> Run' rt x a
+  -> Run' rt x' a
 
 foreign import js_ctx_unwrapErrorAt
   :: forall x e. String -> Ctx x -> JsError -> e

@@ -5,6 +5,7 @@ module Node.Z.CLM.Stats.Manager.Build
 import Node.Z.Prelude
 
 import Control.Monad.Rec.Class (Step(..), tailRecM)
+import Debug (trace)
 import Node.Z.CLM.Stats.App.HtmlDoc (mkHtmlDoc)
 import Node.Z.CLM.Stats.Manager.Action as Act
 import Node.Z.CLM.Stats.Manager.Constants
@@ -341,7 +342,8 @@ runClm m = do
     s'setPure'b @"cachePath" $ pathStr cachePath
   activeSeasonId <- seasonId'active
   let tryDecode = x'decodeTextFile $ dataRoot /./ "FULL_LEGACY.json"
-  legacyBlob <- e'try tryDecode >>= e'ok <<< constL (jsError "legacy read" "")
+  legacyBlob <- e'try tryDecode >>= e'ok <<< mapL
+    (\e -> trace (encode e) \_ -> jsError "legacy read" "")
   clmIdByPlayerId <- hm'collect <$> forM
     (obj'entries legacyBlob.nameDataByPlayerId)
     \(ggIdS /\ { ident }) -> do

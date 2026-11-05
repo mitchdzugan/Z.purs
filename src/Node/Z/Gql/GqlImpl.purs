@@ -10,6 +10,7 @@ module Node.Z.Gql.GqlImpl
 
 import Node.Z.Prelude
 
+import Debug (trace)
 import Z.Gql.Error as GqlE
 import Z.Gql.Module as Gql
 import Z.Gql.Warning as GqlW
@@ -115,7 +116,7 @@ xOperateUnknown opString vars client nc = x'withReturn \xReturn -> do
     parsed <- we'tellMappedMHush mapMDecodeErr $ x'decodeTextFile filename
     handleParsed parsed
     where
-    mapMDecodeErr e = (#) e
+    mapMDecodeErr e = trace (encode e) \_ -> (#) e
       $ var'default []
       # var'on @"decodeError" (\_ -> [ var'inj @"cacheDecode" e ])
     handleParsed Nothing = pure $ collisionCount /\ Nothing
