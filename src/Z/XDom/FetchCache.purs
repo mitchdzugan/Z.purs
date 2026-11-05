@@ -42,7 +42,7 @@ fetchCache'lookupVal
 fetchCache'lookupVal id hm = hm'lookup id hm >>= _.value
 
 fetchCache'valState'shouldFetch :: forall v. FetchCache'ValState v -> Boolean
-fetchCache'valState'shouldFetch { isLoading: false, error: Just _ } = true
+fetchCache'valState'shouldFetch { isLoading: false, error } = isJust error
 fetchCache'valState'shouldFetch _ = false
 
 fetchCache'shouldFetch
@@ -134,11 +134,9 @@ domFetchCache'forceRequest id = do
       fetchRes <- x'fetch (mkFetchUrl id) pass
       decoded <- x'decodeFetched @v fetchRes
       e'ok $ constL (jsError "decode error" "") decoded
-    case vOrE of
-      Left e -> do
-        domState'dispatch'' @p $ FetchCache'Action'SetError id e
-      Right v -> do
-        domState'dispatch'' @p $ FetchCache'Action'SetVal id v
+    vOrE # eOr'_
+      (domState'dispatch'' @p <<< FetchCache'Action'SetError id)
+      (domState'dispatch'' @p <<< FetchCache'Action'SetVal id)
 
 type T'domFetchCache'run'helper'fn dr x' x id =
   (id -> String) -> MDom dr x' (Array id) -> MDom dr x Unit -> MDom dr x' Unit
@@ -173,9 +171,7 @@ domFetchCache'lookup
   => id
   -> Run x (FetchCache'ValState v)
 domFetchCache'lookup id =
-  domState'get'' @p <#> _.state <#> hm'lookup id <#> case _ of
-    Nothing -> valState'default
-    Just res -> res
+  domState'get'' @p <#> _.state <#> hm'lookup id <#> may'or valState'default
 
 domFetchCache'lookupVal
   :: forall @p id v x' x
