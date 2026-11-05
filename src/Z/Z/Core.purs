@@ -11,6 +11,7 @@ module Z.Z.Core
   , P
   , ParseError
   , PureJsError
+  , PureParseError
   , Result
   , T'Related
   , T'RelatedBy
@@ -56,6 +57,7 @@ module Z.Z.Core
   , ffmap
   , ffmapFlipped
   , fromPureJsError
+  , fromPureParseError
   , idLens
   , inc
   , ini'stringify

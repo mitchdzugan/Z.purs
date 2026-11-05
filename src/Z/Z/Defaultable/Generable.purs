@@ -6,7 +6,7 @@ module Z.Z.Defaultable.Generable
   , GDefault
   , Int'Default0(..)
   , Int'Default1(..)
-  , class DefaultValueRecord
+  , Rec''GDefault
   , class G2OrDefault
   , class GOrDefault
   , class Generable
@@ -14,7 +14,6 @@ module Z.Z.Defaultable.Generable
   , g'
   , g1
   , g2
-  , mkDefaultRecord
   , mkGenerable
   ) where
 
@@ -24,13 +23,10 @@ import Data.Either (Either(..))
 import Data.Identity (Identity(..))
 import Data.List (List(..))
 import Data.Maybe as May
-import Data.Newtype (class Newtype)
-import Data.Symbol (class IsSymbol, reflectSymbol)
+import Data.Newtype (class Newtype, unwrap)
 import Data.Tuple.Nested (type (/\), (/\))
-import Prim.Row (class Cons)
-import Prim.RowList as RL
-import Record.Unsafe (unsafeSet)
 import Type.Proxy (Proxy(..))
+import Z.Z.Row (class Row'Mk, class Row'Mker, row'mker)
 
 data G2 :: forall @k1 @k2. k1 -> k2 -> Type
 data G2 t1 t2 = G2
@@ -114,32 +110,19 @@ derive instance Newtype Int'Default1 _
 instance Generable Int'Default1 _gdesc Int'Default1 where
   mkGenerable = Int'Default1 1
 
-class DefaultValueRecord :: RL.RowList Type -> Row Type -> Constraint
-class DefaultValueRecord rowList row | rowList -> row where
-  mkDefaultRecord :: Proxy rowList -> Record row
-
-instance DefaultValueRecord RL.Nil () where
-  mkDefaultRecord _ = {}
-
 instance
-  ( IsSymbol key
-  , Generable focus GDefault focus
-  , Cons key focus rowTail row
-  , DefaultValueRecord rowListTail rowTail
-  ) =>
-  DefaultValueRecord (RL.Cons key focus rowListTail) row where
-  mkDefaultRecord _ = insert (mkGenerable @focus @GDefault) tail
-    where
-    key = reflectSymbol (Proxy :: Proxy key)
-    insert = unsafeSet key :: focus -> Record rowTail -> Record row
-    tail = mkDefaultRecord (Proxy :: Proxy rowListTail)
-
-instance
-  ( RL.RowToList row list
-  , DefaultValueRecord list row
+  ( Row'Mker Rec''GDefault (Record row) Unit Identity
   ) =>
   Generable (Record row) gdesc (Record row) where
-  mkGenerable = mkDefaultRecord (Proxy :: Proxy list)
+  mkGenerable = unwrap $ row'mker @Rec''GDefault @(Record row) unit
+
+foreign import data Rec''GDefault :: Type
+
+instance
+  ( Generable focus GDefault focus
+  ) =>
+  Row'Mk Rec''GDefault focus Unit Identity where
+  row'mk _ _ = Identity (mkGenerable @focus @GDefault)
 
 g
   :: forall @tag v

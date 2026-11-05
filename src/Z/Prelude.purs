@@ -159,8 +159,7 @@ import Z.Z.Buffer (Buffer, ofArrayBuffer, sha256BytesOfBuffer, sha256OfBuffer) a
 import Z.Z.Core as ZCore
 import Z.Z.DateTime as ZDateTime
 import Z.Z.Defaultable
-  ( class DefaultValueRecord
-  , class G2OrDefault
+  ( class G2OrDefault
   , class GOrDefault
   , class Generable
   , D'Int'0
@@ -176,7 +175,6 @@ import Z.Z.Defaultable
   , g'
   , g1
   , g2
-  , mkDefaultRecord
   , mkGenerable
   , orDefault
   , whenJust

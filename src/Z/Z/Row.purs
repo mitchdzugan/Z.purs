@@ -17,10 +17,8 @@ import Data.Variant (Variant)
 import Foreign.Object (Object)
 import Prim.Row (class Cons, class Lacks, class Union)
 import Prim.RowList as RL
+import Record as Rec
 import Type.Proxy (Proxy(..))
-import Z.Z.Core (rec'insert, rec'set)
-import Z.Z.It (obj'collect)
-import Z.Z.Variant (var'inj)
 
 class Row'Mk tag to from m | tag to -> from m where
   row'mk :: String -> from -> m to
@@ -46,7 +44,7 @@ instance
   row'mker'rows _ from = do
     rest <- row'mker'rows @tag (Proxy @rowListTail) from
     currEl <- row'mk @tag @focus (reflectSymbol $ Proxy @key) from
-    pure (rec'insert @key currEl rest)
+    pure (Rec.insert (Proxy @key) currEl rest)
 
 instance
   ( RL.RowToList row rowList

@@ -54,8 +54,10 @@ import Foreign.Object (Object)
 import Z.Z.Core
   ( JsError
   , PureJsError
+  , PureParseError
   , eOr'_
   , fromPureJsError
+  , fromPureParseError
   , jsonFromForeign
   , mapL
   , may'_
@@ -70,11 +72,10 @@ import Z.Z.SorN (SorN)
 import Z.Z.Variant
   ( class Variant'Mk
   , class Variant'Mker
-  , var'case_
   , var'encode
   , var'inj
   , var'inj_
-  , var'on
+  , var'match
   , variant'mkers
   )
 import Z.Z.X.Core (Run)
@@ -202,26 +203,21 @@ instance XDecodeJson JsError where
   xDecodeJson json = map fromPureJsError $ xDecodeJson @PureJsError json
 
 instance XDecodeJson Z.ParseError where
-  xDecodeJson _ = dec'fail $ dec'typeMismatch "ParseError"
+  xDecodeJson json = xDecodeJson @PureParseError json <#> fromPureParseError
 
 instance XDecodeJson el => XDecodeJson (Maybe el) where
   xDecodeJson json = dec'wrapErrs (dec'named "Maybe") do
     caseJsonNull (Just <$> xDecodeJson @el json) (const pass) json
 
-type EitherJson = Variant (l :: Json, r :: Json)
+type EitherJson l r = Variant (l :: l, r :: r)
 
-instance (XDecodeJson l, XDecodeJson r) => XDecodeJson (Either l r) where
+instance (XDecodeJson (EitherJson l r)) => XDecodeJson (Either l r) where
   xDecodeJson json = dec'wrapErrs (dec'named "Either") do
-    xDecodeJson @EitherJson json >>= \var -> (#) var $ var'case_
-      # var'on @"l" (map Left <<< xDecodeJson @l)
-      # var'on @"r" (map Right <<< xDecodeJson @r)
+    xDecodeJson @(EitherJson l r) json <#> var'match { l: Left, r: Right }
 
-instance (XDecodeJson l, XDecodeJson r) => XDecodeJson (l /\ r) where
+instance (XDecodeJson { l :: l, r :: r }) => XDecodeJson (l /\ r) where
   xDecodeJson json = dec'wrapErrs (dec'named "Tuple") do
-    xDecodeJson @{ l :: Json, r :: Json } json >>= \t -> do
-      l <- xDecodeJson @l t.l
-      r <- xDecodeJson @r t.r
-      pure $ l /\ r
+    xDecodeJson @{ l :: l, r :: r } json <#> \t -> t.l /\ t.r
 
 instance XDecodeJson el => XDecodeJson (Object el) where
   xDecodeJson json = dec'wrapErrs (dec'named "ForeignObject") do
