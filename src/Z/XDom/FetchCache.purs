@@ -25,12 +25,8 @@ import Z.XDom.Core
   , domState'runReducer''
   )
 
-data FetchCache'ValState v
-  = FetchCache'ValState'Loading (Maybe v)
-  | FetchCache'ValState'Error JsError (Maybe v)
-  | FetchCache'ValState'Val v
-
-derive instance Eq v => Eq (FetchCache'ValState v)
+type FetchCache'ValState v =
+  { isLoading :: Boolean, value :: Maybe v, error :: Maybe JsError }
 
 type FetchCache'State id v = HashMap id (FetchCache'ValState v)
 
@@ -42,20 +38,35 @@ data FetchCache'Action id v
 
 fetchCache'lookupVal
   :: forall id v. Identable id => id -> FetchCache'State id v -> Maybe v
-fetchCache'lookupVal id hm = case hm'lookup id hm of
-  Just (FetchCache'ValState'Loading res) -> res
-  Just (FetchCache'ValState'Error _ res) -> res
-  Just (FetchCache'ValState'Val v) -> Just v
-  _ -> Nothing
+fetchCache'lookupVal id hm = hm'lookup id hm >>= _.value
 
 fetchCache'valState'shouldFetch :: forall v. FetchCache'ValState v -> Boolean
-fetchCache'valState'shouldFetch (FetchCache'ValState'Error _ _) = true
+fetchCache'valState'shouldFetch { isLoading: false, error: Just _ } = true
 fetchCache'valState'shouldFetch _ = false
 
 fetchCache'shouldFetch
   :: forall id v. Identable id => id -> FetchCache'State id v -> Boolean
 fetchCache'shouldFetch id hm =
   may'or true $ hm'lookup id hm <#> fetchCache'valState'shouldFetch
+
+valState'default :: forall v. FetchCache'ValState v
+valState'default = { isLoading: true, value: Nothing, error: Nothing }
+
+valState'fromVal :: forall v. v -> FetchCache'ValState v
+valState'fromVal v = { isLoading: false, error: Nothing, value: Just v }
+
+fetchCache'alter
+  :: forall id v
+   . Identable id
+  => Eq v
+  => id
+  -> Edit (FetchCache'ValState v)
+  -> FetchCache'State id v
+  -> FetchCache'State id v
+fetchCache'alter id edits stateHm = hm'insert id (edit curr edits) stateHm
+  where
+  currOr_ = hm'lookup id stateHm
+  curr = may'or valState'default currOr_
 
 fetchCache'xUpdate
   :: forall id v
@@ -64,15 +75,14 @@ fetchCache'xUpdate
   => FetchCache'Action id v
   -> Edit (FetchCache'State id v)
 fetchCache'xUpdate (FetchCache'Action'MarkRequesting id) = do
-  currVal <- s'get <#> fetchCache'lookupVal id
-  s'update $ hm'insert id $ FetchCache'ValState'Loading currVal
+  s'update $ fetchCache'alter id $ s'set'b @"isLoading" true
 fetchCache'xUpdate (FetchCache'Action'SetVal id v) = do
-  s'update $ hm'insert id $ FetchCache'ValState'Val v
+  s'update $ hm'insert id $ valState'fromVal v
 fetchCache'xUpdate (FetchCache'Action'SetError id e) = do
-  currVal <- s'get <#> fetchCache'lookupVal id
-  s'update $ hm'insert id $ FetchCache'ValState'Error e currVal
+  s'update $ fetchCache'alter id do
+    s'set'b @"isLoading" false *> s'setPure'b @"error" e
 fetchCache'xUpdate (FetchCache'Action'ImportVals hm'new) = do
-  s'update \hm'curr -> hm'merge [ hm'curr, map FetchCache'ValState'Val hm'new ]
+  s'update \hm'curr -> hm'merge [ hm'curr, map valState'fromVal hm'new ]
 
 fetchCache'update
   :: forall id v
@@ -144,7 +154,7 @@ domFetchCache'run
   :: forall @p @id @v. T'domFetchCache'run'helper p id v $ (->) $ HashMap id v
 domFetchCache'run cachePreload mkFetchUrl getId m = do
   currIds <- getId
-  let init = { mkFetchUrl, state: cachePreload <#> FetchCache'ValState'Val }
+  let init = { mkFetchUrl, state: cachePreload <#> valState'fromVal }
   domState'runReducer'' @p init fetchCache'update do
     domEff'onNew'lead (map ident'key currIds) (onNew currIds) *> m
   where
@@ -163,5 +173,5 @@ domFetchCache'lookup
   -> Run x (FetchCache'ValState v)
 domFetchCache'lookup id =
   domState'get'' @p <#> _.state <#> hm'lookup id <#> case _ of
-    Nothing -> FetchCache'ValState'Loading Nothing
+    Nothing -> valState'default
     Just res -> res
