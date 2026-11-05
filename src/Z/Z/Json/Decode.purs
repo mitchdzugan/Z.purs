@@ -65,7 +65,6 @@ import Z.Z.Core
   , obj'lookup
   )
 import Z.Z.Core as Z
-import Z.Z.DateTime (DateTime)
 import Z.Z.It (forM, iterable'kv'mk, list'collect, obj'collect)
 import Z.Z.Passable (pass)
 import Z.Z.Row (class Row'Mk, class Row'Mker, row'mker)
@@ -190,17 +189,22 @@ instance XDecodeJson Unit where
     s <- caseJsonString (dec'fail nullFail) pure json
     when (s /= "") (dec'fail nullFail)
 
+caseAble
+  :: forall x a
+   . ((DecoderX x @@> a) -> (a -> DecoderX x @@> a) -> Json -> DecoderX x @@> a)
+  -> String
+  -> Json
+  -> DecoderX x @@> a
+caseAble caser tname = caser (dec'fail $ dec'typeMismatch tname) pure
+
 instance XDecodeJson String where
-  xDecodeJson = caseJsonString (dec'fail $ dec'typeMismatch "String") pure
+  xDecodeJson = caseAble caseJsonString "String"
 
 instance XDecodeJson Boolean where
-  xDecodeJson = caseJsonBoolean (dec'fail $ dec'typeMismatch "Boolean") pure
+  xDecodeJson = caseAble caseJsonBoolean "Boolean"
 
 instance XDecodeJson Number where
-  xDecodeJson = caseJsonNumber (dec'fail $ dec'typeMismatch "Number") pure
-
-instance XDecodeJson DateTime where
-  xDecodeJson json = wrap <$> xDecodeJson @Number json
+  xDecodeJson = caseAble caseJsonNumber "Number"
 
 instance XDecodeJson SorN where
   xDecodeJson json = wrap <$> do

@@ -31,6 +31,7 @@ import Data.Newtype (class Newtype, unwrap, wrap)
 import Effect (Effect)
 import Z.Z.Core (class Numberable, encodeOpts, numberable'toNumber)
 import Z.Z.Id (class Identable)
+import Z.Z.Json.Decode (class XDecodeJson)
 
 newtype DateTime = DateTime Number
 
@@ -41,6 +42,7 @@ derive newtype instance Show DateTime
 derive newtype instance Semiring DateTime
 derive newtype instance Identable DateTime
 derive newtype instance Ring DateTime
+derive newtype instance XDecodeJson DateTime
 derive newtype instance Enc.EncodeJson DateTime
 
 dateTime'fromMS :: forall num. Numberable num => num -> DateTime
