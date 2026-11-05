@@ -130,7 +130,7 @@ xOperateUnknown opString vars client nc = x'withReturn \xReturn -> do
   writeToCache (Just cachePath) collisionCount toCache = do
     let filename = cacheFilename cachePath collisionCount
     we'tellMappedHush (var'inj @"cacheWrite") $
-      x_encodeTextFileP filename toCache
+      x'encodeTextFileP filename toCache
 
 type JsonEncodeFn v = v -> Json
 type JsonDecodeFn v = Json -> Either JsonDecodeError v

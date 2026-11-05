@@ -11,7 +11,7 @@ import Z.Z.Json.Decode
   , dec'missingValue
   , xDecodeJson
   )
-import Z.Z.X.Core (x_build)
+import Z.Z.X.Core (x'build)
 import Z.Z.X.Index (type (@@>), sync'x)
 
 data Action r
@@ -134,7 +134,7 @@ handleAction (SetIsPrEligible { slug, isEligible }) = slug #
 handleAction (MarkDoneUpdating { slug }) = x'cons @"doneUpdating" slug
 handleAction (BustCache { slug }) = x'cons @"eventsToRefetch" slug
 handleAction (SetDefaultSeasonId { seasonId }) =
-  x_assign @"defaultSeasonId" seasonId
+  x'assign @"defaultSeasonId" seasonId
 handleAction (SetClmId { clmId, playerSorN }) =
   x'insert @"clmIdByPlayerId" (sOrN playerSorN) clmId
 handleAction (SetClmIdForEvent { slug, clmId, playerSorN }) =
@@ -143,7 +143,7 @@ handleAction (Bulk { actions }) = forM_ actions handleAction
 handleAction (Undo _) = pure unit
 
 buildSpec :: Array PureAction -> Spec
-buildSpec actions = sync'x $ x_build (g @Spec'Evaluable) do
+buildSpec actions = sync'x $ x'build (g @Spec'Evaluable) do
   let impureActions = impurifyActions actions
   let revActions = arr'reverse impureActions
   forM_ revActions $ case _ of

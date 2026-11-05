@@ -20,37 +20,37 @@ import Prim.RowList as RL
 import Record as Rec
 import Type.Proxy (Proxy(..))
 
-class Row'Mk tag to m | tag to -> m where
-  row'mk :: String -> m to
+class Row'Mk tag to from m | tag to -> from m where
+  row'mk :: String -> from -> m to
 
-class Row'Mker tag to m | tag to -> m where
-  row'mker :: m to
+class Row'Mker tag to from m | tag to -> from m where
+  row'mker :: from -> m to
 
-class Row'Mker'rows tag rowList row m | tag rowList -> row m where
-  row'mker'rows :: Proxy rowList -> m (Record row)
+class Row'Mker'rows tag rowList row from m | tag rowList -> from row m where
+  row'mker'rows :: Proxy rowList -> from -> m (Record row)
 
-instance Monad m => Row'Mker'rows tag RL.Nil () m where
-  row'mker'rows _ = pure {}
+instance Monad m => Row'Mker'rows tag RL.Nil () from m where
+  row'mker'rows _ _ = pure {}
 
 instance
   ( IsSymbol key
-  , Row'Mk tag focus m
+  , Row'Mk tag focus from m
   , Lacks key rowTail
   , Cons key focus rowTail row
-  , Row'Mker'rows tag rowListTail rowTail m
+  , Row'Mker'rows tag rowListTail rowTail from m
   , Monad m
   ) =>
-  Row'Mker'rows tag (RL.Cons key focus rowListTail) row m where
-  row'mker'rows _ = do
-    rest <- row'mker'rows @tag (Proxy @rowListTail)
-    currEl <- row'mk @tag @focus (reflectSymbol $ Proxy @key)
+  Row'Mker'rows tag (RL.Cons key focus rowListTail) row from m where
+  row'mker'rows _ from = do
+    rest <- row'mker'rows @tag (Proxy @rowListTail) from
+    currEl <- row'mk @tag @focus (reflectSymbol $ Proxy @key) from
     pure (Rec.insert (Proxy @key) currEl rest)
 
 instance
   ( RL.RowToList row rowList
-  , Row'Mker'rows tag rowList row m
+  , Row'Mker'rows tag rowList row from m
   ) =>
-  Row'Mker tag (Record row) m where
+  Row'Mker tag (Record row) from m where
   row'mker = row'mker'rows @tag (Proxy @rowList)
 
 {-

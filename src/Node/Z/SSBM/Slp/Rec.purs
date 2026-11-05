@@ -88,7 +88,7 @@ getDefaultSlippiPlaybackBin slippiLauncherPath = x'withReturn \x'return -> do
 xRun :: forall x. Array String -> EA' Error x @$> Unit
 xRun args = do
   wd <- x'wd
-  envPaths <- x_envPaths "slp-rec" $ Just ""
+  envPaths <- x'envPaths "slp-rec" $ Just ""
   platform <- x'platform
   let
     cfgPath = envCfg envPaths
@@ -116,7 +116,7 @@ xRun args = do
       , slippiPlaybackBin: defaultSlippiPlaybackBin
       , ffmpegBin: "ffmpeg"
       }
-  x_argParse "slp-rec" (slpRecInfo wd) args \opts -> do
+  x'argParse "slp-rec" (slpRecInfo wd) args \opts -> do
     let optConfigs = arr'collect $ g_ @"!.configPaths" opts
     let noOptConfigs = arr'size optConfigs == 0
     let baseConfigPath = show $ cfgPath /./ "config"

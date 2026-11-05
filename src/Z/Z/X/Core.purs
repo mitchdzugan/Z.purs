@@ -34,17 +34,17 @@ module Z.Z.X.Core
   , class X'Results'R'Eff
   , class X'Results'R'rw
   , evaluable'run
-  , x_build
-  , x_buildable'eval
-  , x_buildable'rl'run
-  , x_buildable'run
+  , x'build
+  , x'buildable'eval
+  , x'buildable'rl'run
+  , x'buildable'run
   , x'consable'impl
-  , x_eval
-  , x_eval_
-  , x_evaluable
-  , x_evaluable_
-  , x_exec
-  , x_exec_
+  , x'eval
+  , x'eval_
+  , x'evaluable
+  , x'evaluable_
+  , x'exec
+  , x'exec_
   , x'readable'mk
   , x'readable'rw'mk
   , x'results'impl
@@ -128,22 +128,22 @@ instance
   , Generable param GDefault param
   ) =>
   Generable (X'Evaluable m) GDefault (X'Evaluable m) where
-  mkGenerable = x_evaluable_ @m @param
+  mkGenerable = x'evaluable_ @m @param
 
-x_evaluable
+x'evaluable
   :: forall @m param
    . X'Consable m param Identity
   => param
   -> X'Evaluable m
-x_evaluable param =
+x'evaluable param =
   X'Evaluable \p m -> x'consable'impl @m p param m <#> \(Identity v) -> v
 
-x_evaluable_
+x'evaluable_
   :: forall @m @param
    . X'Consable m param Identity
   => Generable param GDefault param
   => X'Evaluable m
-x_evaluable_ = x_evaluable @m $ g @param
+x'evaluable_ = x'evaluable @m $ g @param
 
 evaluable'run
   :: forall @p @m x' x @param a
@@ -154,7 +154,7 @@ evaluable'run
   -> Run x' a
 evaluable'run (X'Evaluable mf) = mf (Proxy @p)
 
-type T'x_eval m p =
+type T'x'eval m p =
   forall x' x param a
    . ConsSymbol p m x' x
   => X'Consable m param Identity
@@ -162,8 +162,8 @@ type T'x_eval m p =
   -> Run x a
   -> Run x' a
 
-x_eval :: forall @p @m. T'x_eval m p
-x_eval param m = pure unit >>= \_ ->
+x'eval :: forall @p @m. T'x'eval m p
+x'eval param m = pure unit >>= \_ ->
   x'consable'impl @m (Proxy @p) param m <#> \(Identity v) -> v
 
 type T'x'run m p =
@@ -176,12 +176,12 @@ type T'x'run m p =
   -> Run x' (a /\ result)
 
 x'run :: forall @p @m. T'x'run m p
-x'run param m = x_eval @p param do
+x'run param m = x'eval @p param do
   a <- m
   result <- x'results'impl @m (Proxy @p)
   pure $ a /\ result
 
-type T'x_exec m p =
+type T'x'exec m p =
   forall x' x param result
    . ConsSymbol p m x' x
   => X'Consable m param Identity
@@ -190,10 +190,10 @@ type T'x_exec m p =
   -> Run x Unit
   -> Run x' result
 
-x_exec :: forall @p @m. T'x_exec m p
-x_exec param m = x_eval @p param $ m *> x'results'impl @m (Proxy @p)
+x'exec :: forall @p @m. T'x'exec m p
+x'exec param m = x'eval @p param $ m *> x'results'impl @m (Proxy @p)
 
-type T'x_eval_ m p =
+type T'x'eval_ m p =
   forall x' x param a
    . ConsSymbol p m x' x
   => X'Consable m param Identity
@@ -201,8 +201,8 @@ type T'x_eval_ m p =
   => Run x a
   -> Run x' a
 
-x_eval_ :: forall @p @m. T'x_eval_ m p
-x_eval_ m = x_eval @p @m default m
+x'eval_ :: forall @p @m. T'x'eval_ m p
+x'eval_ m = x'eval @p @m default m
 
 type T'x'run_ m p =
   forall x' x param result a
@@ -216,7 +216,7 @@ type T'x'run_ m p =
 x'run_ :: forall @p @m. T'x'run_ m p
 x'run_ m = x'run @p @m default m
 
-type T'x_exec_ m p =
+type T'x'exec_ m p =
   forall param x' x result
    . ConsSymbol p m x' x
   => X'Consable m param Identity
@@ -225,8 +225,8 @@ type T'x_exec_ m p =
   => Run x Unit
   -> Run x' result
 
-x_exec_ :: forall @p @m. T'x_exec_ m p
-x_exec_ m = x_exec @p @m default m
+x'exec_ :: forall @p @m. T'x'exec_ m p
+x'exec_ m = x'exec @p @m default m
 
 ---------------------------------------------------------------------
 
@@ -235,20 +235,20 @@ type T'use'_'AsSym p f = T'useAsSym "_" p f
 _'run :: forall @m p. T'use'_'AsSym p (T'x'run m)
 _'run = x'run @p
 
-_'exec :: forall @m p. T'use'_'AsSym p (T'x_exec m)
-_'exec = x_exec @p
+_'exec :: forall @m p. T'use'_'AsSym p (T'x'exec m)
+_'exec = x'exec @p
 
-_'eval :: forall @m p. T'use'_'AsSym p (T'x_eval m)
-_'eval = x_eval @p
+_'eval :: forall @m p. T'use'_'AsSym p (T'x'eval m)
+_'eval = x'eval @p
 
 _'run_ :: forall @m p. T'use'_'AsSym p (T'x'run_ m)
 _'run_ = x'run_ @p
 
-_'exec_ :: forall @m p. T'use'_'AsSym p (T'x_exec_ m)
-_'exec_ = x_exec_ @p
+_'exec_ :: forall @m p. T'use'_'AsSym p (T'x'exec_ m)
+_'exec_ = x'exec_ @p
 
-_'eval_ :: forall @m p. T'use'_'AsSym p (T'x_eval_ m)
-_'eval_ = x_eval_ @p
+_'eval_ :: forall @m p. T'use'_'AsSym p (T'x'eval_ m)
+_'eval_ = x'eval_ @p
 
 ------------------------------------------------------------------------------
 
@@ -315,30 +315,30 @@ instance X'Readable'rw r param => X'Readable (WithRWTag tag r) param where
 ---------------------------------------------------------------------
 
 class X'Buildable spec x' x result | spec x' -> x result where
-  x_buildable'run :: forall a. spec -> Run x a -> Run x' (a /\ result)
+  x'buildable'run :: forall a. spec -> Run x a -> Run x' (a /\ result)
 
-x_buildable'eval
+x'buildable'eval
   :: forall a spec x' x result
    . X'Buildable spec x' x result
   => spec
   -> Run x a
   -> Run x' a
-x_buildable'eval spec m = x_buildable'run @spec @x' spec m <#> fst
+x'buildable'eval spec m = x'buildable'run @spec @x' spec m <#> fst
 
-x_build
+x'build
   :: forall spec x' x result
    . X'Buildable spec x' x result
   => spec
   -> Run x Unit
   -> Run x' result
-x_build spec m = x_buildable'run @spec @x' spec m <#> snd
+x'build spec m = x'buildable'run @spec @x' spec m <#> snd
 
 instance
   ( RL.RowToList spec'row spec'rl
   , X'Buildable'RL spec'row spec'rl x' x result'row
   ) =>
   X'Buildable (Record spec'row) x' x (Record result'row) where
-  x_buildable'run = x_buildable'rl'run @spec'row @spec'rl
+  x'buildable'run = x'buildable'rl'run @spec'row @spec'rl
 
 ---------------------------------------------------------------------
 
@@ -353,11 +353,11 @@ class X'Buildable'RL
 class
   X'Buildable'RL spec'row spec'rl x' x result'row
   | spec'rl -> spec'row x' x result'row where
-  x_buildable'rl'run
+  x'buildable'rl'run
     :: forall a. Record spec'row -> Run x a -> Run x' (a /\ Record result'row)
 
 instance X'Buildable'RL () RL.Nil x x () where
-  x_buildable'rl'run _ m = m <#> flip (/\) {}
+  x'buildable'rl'run _ m = m <#> flip (/\) {}
 
 instance
   ( IsSymbol k
@@ -374,9 +374,9 @@ instance
     x''
     x
     result'row where
-  x_buildable'rl'run r m = do
+  x'buildable'rl'run r m = do
     (a /\ nxt) /\ prt <-
-      x_buildable'rl'run @spec'row'tail @spec'rl'tail (unsafeCoerce r)
+      x'buildable'rl'run @spec'row'tail @spec'rl'tail (unsafeCoerce r)
         $ evaluable'run @k @m @param (rec'get @k r) do
             a <- m
             nxt <- x'results'impl @m $ Proxy @k

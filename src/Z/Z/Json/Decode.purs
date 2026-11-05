@@ -7,7 +7,6 @@ module Z.Z.Json.Decode
   , Rec''XDecode
   , RunDecodeX
   , Var''XDecode
-  , X''XDecode
   , class XDecodeJson
   , dec'atIndex
   , dec'atKey
@@ -81,19 +80,7 @@ import Z.Z.Variant
   , variant'mkers
   )
 import Z.Z.X.Core (Run)
-import Z.Z.X.Index
-  ( type (@@>)
-  , E'
-  , R'
-  , X'R
-  , e'fail
-  , e'try
-  , r'ask
-  , r'run
-  , r'run''
-  , sync'x
-  )
-import Z.Z.X.Method (x_extract)
+import Z.Z.X.Index (type (@@>), E', R', e'fail, e'try, r'ask, r'run, sync'x)
 
 type JsonDecodeError'row =
   ( typeMismatch :: String
@@ -261,11 +248,11 @@ instance XDecodeJson el => XDecodeJson (List el) where
   xDecodeJson = decodeViaArray (list'collect) "List"
 
 instance
-  Row'Mker Rec''XDecode (Record r) X''XDecode =>
+  Row'Mker Rec''XDecode (Record r) (Object Json) (Either JsonDecodeError) =>
   XDecodeJson (Record r) where
   xDecodeJson json = do
     obj <- caseJsonObject (dec'fail $ dec'typeMismatch "Object") pure json
-    dec'ok $ sync'XDecode obj $ row'mker @Rec''XDecode
+    dec'ok (row'mker @Rec''XDecode obj)
 
 instance
   Variant'Mker Var''XDecode (Variant r) Json (Either JsonDecodeError) =>
@@ -285,30 +272,20 @@ instance Show JsonDecodeError where
 
 foreign import data Rec''XDecode :: Type
 
-type X''XDecode = (@@>) (DecoderX (obj :: X'R (Object Json)))
-
-sync'XDecode
-  :: forall t. Object Json -> X''XDecode t -> Either JsonDecodeError t
-sync'XDecode r = decodeJson'sync <<< r'run'' @"obj" r
-
 instance
   ( XDecodeJson focus
   ) =>
-  Row'Mk Rec''XDecode (Maybe focus) X''XDecode where
-  row'mk key = do
-    jsonObj <- x_extract @"obj"
-    dec'wrapErrs (dec'atKey key) do
-      let jsonOr_ = obj'lookup key jsonObj
-      may'_ (pure Nothing) (map Just <<< xDecodeJson @focus) jsonOr_
+  Row'Mk Rec''XDecode (Maybe focus) (Object Json) (Either JsonDecodeError) where
+  row'mk key jsonObj = decodeJson'sync $ dec'wrapErrs (dec'atKey key) do
+    let jsonOr_ = obj'lookup key jsonObj
+    may'_ (pure Nothing) (map Just <<< xDecodeJson @focus) jsonOr_
 else instance
   ( XDecodeJson focus
   ) =>
-  Row'Mk Rec''XDecode focus X''XDecode where
-  row'mk key = do
-    jsonObj <- x_extract @"obj"
-    dec'wrapErrs (dec'atKey key) do
-      let jsonOr_ = obj'lookup key jsonObj
-      may'_ (dec'fail dec'missingValue) (xDecodeJson @focus) jsonOr_
+  Row'Mk Rec''XDecode focus (Object Json) (Either JsonDecodeError) where
+  row'mk key jsonObj = decodeJson'sync $ dec'wrapErrs (dec'atKey key) do
+    let jsonOr_ = obj'lookup key jsonObj
+    may'_ (dec'fail dec'missingValue) (xDecodeJson @focus) jsonOr_
 
 foreign import data Var''XDecode :: Type
 

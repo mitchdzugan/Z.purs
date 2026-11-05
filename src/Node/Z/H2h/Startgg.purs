@@ -49,7 +49,7 @@ toImageMap = hm'mapSomeKeys toImageType
 
 getEventData :: forall x. B.GetDataFn x
 getEventData = B.adaptBuilder do
-  x_eval_ @"entrants" @(X'HashMap SorN H2h.Entrant) do
+  x'eval_ @"entrants" @(X'HashMap SorN H2h.Entrant) do
     { slug } <- r'ask
     { event } <- fetchRawEventData
     let entrantNodes = event.entrants.nodes
@@ -91,7 +91,7 @@ getEventData = B.adaptBuilder do
         { placement: standing.placement, isFinal: standing.isFinal }
 
     let rawPgs = arr'sortWith (g_ @"id") event.phaseGroups
-    pgs <- forM rawPgs \pg -> x_eval_ @"sets" @(X'HashMap SorN H2h.H2hSet) do
+    pgs <- forM rawPgs \pg -> x'eval_ @"sets" @(X'HashMap SorN H2h.H2hSet) do
       pgRes <- fetchRawPhaseGroupData pg.id
       forM_ (g_ @"phaseGroup!.sets.nodes" pgRes) $ \set -> do
         let
@@ -165,7 +165,7 @@ getEventData = B.adaptBuilder do
           , eventOrder: setId
           , games: games <#> toH2hGame
           }
-      sets <- x_extract @"sets"
+      sets <- x'extract @"sets"
       pure
         { id: sOrN pg.id
         , displayIdentifier: pg.displayIdentifier
@@ -176,10 +176,10 @@ getEventData = B.adaptBuilder do
             , phaseOrder: pg.phase.phaseOrder
             }
         }
-    entrants <- x_extract @"entrants"
+    entrants <- x'extract @"entrants"
     let { endAt } = event.tournament
     let endAtMS = (toNumber endAt) * 1000.0
-    let date = dateTime_fromMS endAtMS
+    let date = dateTime'fromMS endAtMS
     pure
       { id: sOrN event.id
       , name: event.name

@@ -131,7 +131,7 @@ import Z.Z.It (reduceM)
 import Z.Z.Promise (EffPromise)
 import Z.Z.Run
   ( Ctx'Except
-  , Ctx'x_async
+  , Ctx'x'async
   , Future
   , ctxA'adapt
   , ctxA'fromEff
@@ -147,11 +147,12 @@ import Z.Z.X.Core
   ( class X'Buildable
   , Reader
   , Run
-  , x_eval
-  , x_eval_
+  , x'eval
+  , x'eval_
   )
 import Z.Z.X.Method
-  ( T'x'over
+  ( T'x'extract
+  , T'x'over
   , T'x'over'b
   , T'x'preview
   , T'x'preview'b
@@ -163,7 +164,6 @@ import Z.Z.X.Method
   , T'x'toArrayOf'b
   , T'x'view
   , T'x'view'b
-  , T'x_extract
   , x'over
   , x'over'b
   , x'preview
@@ -181,7 +181,7 @@ import Z.Z.X.Method
 import Z.Z.X.Readables.Base (LogLevel(..), X'BaseM, x'out'')
 import Z.Z.X.Util (js_timeout)
 
-type X'Base x = (_'x_base :: X'BaseM | x)
+type X'Base x = (_'x'base :: X'BaseM | x)
 
 type X x = Run (X'Base x)
 
@@ -194,13 +194,13 @@ infixr 0 type X'flipped as <@@
 infixr 0 type X as @@>
 
 x'out :: forall x a. a -> Unit <@< x
-x'out a = x'out'' @"_'x_base" LogLevel'Info a
+x'out a = x'out'' @"_'x'base" LogLevel'Info a
 
 x'outErr :: forall x a. a -> Unit <@< x
-x'outErr a = x'out'' @"_'x_base" LogLevel'Error a
+x'outErr a = x'out'' @"_'x'base" LogLevel'Error a
 
 x'outWarn :: forall x a. a -> Unit <@< x
-x'outWarn a = x'out'' @"_'x_base" LogLevel'Warning a
+x'outWarn a = x'out'' @"_'x'base" LogLevel'Warning a
 
 x'info :: forall x a. a -> Unit <@< x
 x'info = x'out
@@ -218,16 +218,16 @@ type X'E e = Ctx'Except e
 
 type R' r x = (_'x'reader :: X'R r | x)
 
-type E' e x = (_'x_except :: X'E e | x)
+type E' e x = (_'x'except :: X'E e | x)
 
-type A' x = Ctx'x_async x
+type A' x = Ctx'x'async x
 
 type EA' e x = E' e $ A' x
 
 type REA' r e x = R' r $ E' e $ A' x
 
 x'permit :: forall @p x' x a. ConsSymbol p X'Permit x' x => Run x a -> Run x' a
-x'permit = x_eval_ @p
+x'permit = x'eval_ @p
 
 x'do :: forall @p x' x a. ConsSymbol p X'Permit x' x => Eff'At p a -> Run x a
 x'do (Eff'At eff) = pure unit <#> \_ -> unsafePerformEffect eff
@@ -235,10 +235,10 @@ x'do (Eff'At eff) = pure unit <#> \_ -> unsafePerformEffect eff
 ---------------------------------------------------------------
 
 sync'x :: forall a. () @@> a -> a
-sync'x = ctxS'run <<< x_eval_ @"_'x_base" @X'BaseM
+sync'x = ctxS'run <<< x'eval_ @"_'x'base" @X'BaseM
 
 async'x :: forall a. A' () @@> a -> Future a
-async'x = ctxA'run <<< x_eval_ @"_'x_base" @X'BaseM
+async'x = ctxA'run <<< x'eval_ @"_'x'base" @X'BaseM
 
 ---------------------------------------------------------------------
 
@@ -248,7 +248,7 @@ newtype Runner't x x' = Runner (RunMW x x')
 type Runner x = Runner't x ()
 
 instance X'Buildable (Runner't x x') x' x Unit where
-  x_buildable'run (Runner r) m = r m <#> flip (/\) unit
+  x'buildable'run (Runner r) m = r m <#> flip (/\) unit
 
 runner'eval :: forall x a. Runner x -> Run x a -> a
 runner'eval (Runner r) = ctxS'run <<< r
@@ -278,7 +278,7 @@ type T'r'run p =
   forall x' x r a. ConsSymbol p (X'R r) x' x => r -> Run x a -> Run x' a
 
 r'run'' :: forall @p. T'r'run p
-r'run'' = x_eval @p
+r'run'' = x'eval @p
 
 r'run :: forall p. T'use'r'AsSym p T'r'run
 r'run = r'run'' @p
@@ -287,7 +287,7 @@ r'run = r'run'' @p
 
 type T'r'ask p = forall x' x r. ConsSymbol p (X'R r) x' x => Run x r
 
-r'ask :: forall p. T'use'r'AsSym p (T'x_extract T'id)
+r'ask :: forall p. T'use'r'AsSym p (T'x'extract T'id)
 r'ask = (@.) @p
 
 r'view :: forall p. T'use'r'AsSym p (T'x'view T'id)
@@ -310,7 +310,7 @@ r'toArrayOf'b = x'toArrayOf'b @p @sym
 
 ---------------------------------------------------------------------
 
-type T'use'e'AsSym p f = T'useAsSym "_'x_except" p f
+type T'use'e'AsSym p f = T'useAsSym "_'x'except" p f
 
 --------------------------------------------
 
@@ -623,7 +623,7 @@ type T'use's'AsSym p f = T'useAsSym "_'x'state" p f
 
 --------------------------------------------
 
-s'get :: forall p. T'use's'AsSym p (T'x_extract T'id)
+s'get :: forall p. T'use's'AsSym p (T'x'extract T'id)
 s'get = (@.) @p
 
 s'view :: forall p. T'use's'AsSym p (T'x'view T'id)

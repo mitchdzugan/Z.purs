@@ -111,18 +111,18 @@ instance Generable Int'Default1 _gdesc Int'Default1 where
   mkGenerable = Int'Default1 1
 
 instance
-  ( Row'Mker Rec''GDefault (Record row) Identity
+  ( Row'Mker Rec''GDefault (Record row) Unit Identity
   ) =>
   Generable (Record row) gdesc (Record row) where
-  mkGenerable = unwrap $ row'mker @Rec''GDefault @(Record row)
+  mkGenerable = unwrap $ row'mker @Rec''GDefault @(Record row) unit
 
 foreign import data Rec''GDefault :: Type
 
 instance
   ( Generable focus GDefault focus
   ) =>
-  Row'Mk Rec''GDefault focus Identity where
-  row'mk _ = Identity (mkGenerable @focus @GDefault)
+  Row'Mk Rec''GDefault focus Unit Identity where
+  row'mk _ _ = Identity (mkGenerable @focus @GDefault)
 
 g
   :: forall @tag v

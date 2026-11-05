@@ -17,14 +17,14 @@ module Node.Z.Sys.SysImpl
   , pathStr
   , runXAThenExit
   , runXAThenExitWithArgv
-  , x_argParse
-  , x_argv
+  , x'argParse
+  , x'argv
   , x'decodeAnyYamlExt
   , x'decodeTextFile
   , x'decodeYamlFile
-  , x_encodeTextFile
-  , x_encodeTextFileP
-  , x_envPaths
+  , x'encodeTextFile
+  , x'encodeTextFileP
+  , x'envPaths
   , x'isDirectory
   , x'lookupEnv
   , x'mkdir
@@ -182,23 +182,23 @@ x'writeTextFileP p s = do
   x'mkdirP $ dirname p
   x'writeTextFile p s
 
-x_encodeTextFile
+x'encodeTextFile
   :: forall x p d
    . Pathlike p
   => EncodeJson d
   => p
   -> d
   -> EA' JsError x @@> Unit
-x_encodeTextFile p d = x'writeTextFile p $ encode d
+x'encodeTextFile p d = x'writeTextFile p $ encode d
 
-x_encodeTextFileP
+x'encodeTextFileP
   :: forall x p d
    . Pathlike p
   => EncodeJson d
   => p
   -> d
   -> EA' JsError x @@> Unit
-x_encodeTextFileP p d = x'writeTextFileP p $ encode d
+x'encodeTextFileP p d = x'writeTextFileP p $ encode d
 
 foreign import js_lookupEnv
   :: (String -> Maybe String)
@@ -247,7 +247,7 @@ runXAThenExitWithArgv
    . RtError e
   => (Array String -> WaEA' w e (X'Node ()) @@> a)
   -> Effect Unit
-runXAThenExitWithArgv fm = runXAThenExit $ x_argv >>= fm
+runXAThenExitWithArgv fm = runXAThenExit $ x'argv >>= fm
 
 data Platform = Win32 | Darwin | Linux | Android | FreeBSD | OpenBSD | Unknown
 
@@ -262,21 +262,21 @@ toPlatform "freebsd" = FreeBSD
 toPlatform "openbsd" = OpenBSD
 toPlatform _ = Unknown
 
-x_argv :: forall x. X'Node x @@> Array String
-x_argv = x_effGet @P'X'Node @"fullArgv" <#> arr'drop 2
+x'argv :: forall x. X'Node x @@> Array String
+x'argv = x'effGet @P'X'Node @"fullArgv" <#> arr'drop 2
 
 x'pid :: forall x. X'Node x @@> Int
-x'pid = x_effGet @P'X'Node @"pid"
+x'pid = x'effGet @P'X'Node @"pid"
 
 x'wd :: forall x. X'Node x @@> Path
-x'wd = x_effGet @P'X'Node @"wd" <#> Path
+x'wd = x'effGet @P'X'Node @"wd" <#> Path
 
-x_envPaths :: forall x. String -> Maybe String -> X'Node x @@> EnvPaths
-x_envPaths appName suffix =
-  x_effCall @P'X'Node @"envPaths" $ appName /\ suffix
+x'envPaths :: forall x. String -> Maybe String -> X'Node x @@> EnvPaths
+x'envPaths appName suffix =
+  x'effCall @P'X'Node @"envPaths" $ appName /\ suffix
 
 x'platform :: forall x. X'Node x @@> Platform
-x'platform = x_effGet @P'X'Node @"platform" <#> toPlatform
+x'platform = x'effGet @P'X'Node @"platform" <#> toPlatform
 
 envData :: EnvPaths -> Path
 envData = Path <<< js_envData
@@ -339,7 +339,7 @@ type X'Node x = (_'x'node :: XNodeR | x)
 type P'X'Node = "_'x'node"
 
 runXNode :: forall x a. Run (X'Node x) a -> Run x a
-runXNode = x_eval_ @P'X'Node
+runXNode = x'eval_ @P'X'Node
 
 dirname :: forall p. Pathlike p => p -> Path
 dirname p = Path $ js_pathDirname $ pathStr p
@@ -358,14 +358,14 @@ infixr 0 pathJoin as /./
 -- join paths unless rightside is absolute in which case, use rightside
 infixr 0 pathJoinAbs as /.|//
 
-x_argParse
+x'argParse
   :: forall x a
    . String
   -> O.ParserInfo a
   -> Array String
   -> (a -> X'Node x @@> Unit)
   -> X'Node x @@> Unit
-x_argParse progName opts args fm =
+x'argParse progName opts args fm =
   handleParse $ O.execParserPure O.defaultPrefs opts args
   where
   handleParse (O.Success a) = fm a

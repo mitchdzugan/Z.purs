@@ -154,29 +154,29 @@ getDocumentHead :: HTMLDoc.HTMLDocument -> Effect (Maybe T.Element)
 getDocumentHead doc = HTMLDoc.head doc <#> map HTMLEl.toElement
 
 xWindow :: forall x. Run (X'Web x) Window.Window
-xWindow = x_effGet @T'_'x'web @"window"
+xWindow = x'effGet @T'_'x'web @"window"
 
 xLocationUrl :: forall x. Run (X'Web x) URL
-xLocationUrl = x_effGet @T'_'x'web @"locationUrl"
+xLocationUrl = x'effGet @T'_'x'web @"locationUrl"
 
 xDocument :: forall x. Run (X'Web x) HTMLDoc.HTMLDocument
-xDocument = x_effGet @T'_'x'web @"document"
+xDocument = x'effGet @T'_'x'web @"document"
 
 xBody :: forall x. Run (X'Web x) (Maybe T.Element)
-xBody = x_effGet @T'_'x'web @"body"
+xBody = x'effGet @T'_'x'web @"body"
 
 xHead :: forall x. Run (X'Web x) (Maybe T.Element)
-xHead = x_effGet @T'_'x'web @"head"
+xHead = x'effGet @T'_'x'web @"head"
 
 xGetElementById :: forall x. String -> Run (X'Web x) (Maybe T.Element)
-xGetElementById s = x_effCall @T'_'x'web @"getElementById" s
+xGetElementById s = x'effCall @T'_'x'web @"getElementById" s
 
 xClosest
   :: forall x. WET.EventTarget -> String -> Run (X'Web x) (Maybe T.Element)
-xClosest et qs = x_effCall @T'_'x'web @"closest" (qs /\ et)
+xClosest et qs = x'effCall @T'_'x'web @"closest" (qs /\ et)
 
 xGetAttribute :: forall x. T.Element -> String -> Run (X'Web x) (Maybe String)
-xGetAttribute el attr = x_effCall @T'_'x'web @"getAttribute" (attr /\ el)
+xGetAttribute el attr = x'effCall @T'_'x'web @"getAttribute" (attr /\ el)
 
 eventType
   :: { click :: WebEvent.EventType
@@ -207,9 +207,9 @@ xAddEventListener
 xAddEventListener eType target opts onE = do
   let o = edit defaultEventListenerOpts opts
   let tgt = toEventTarget target
-  el <- x_effCall @T'_'x'web @"addEventListener" (eType /\ tgt /\ o /\ onE)
+  el <- x'effCall @T'_'x'web @"addEventListener" (eType /\ tgt /\ o /\ onE)
   pure $
-    x_effCall @T'_'x'web @"rmEventListener" (eType /\ tgt /\ o.capture /\ el)
+    x'effCall @T'_'x'web @"rmEventListener" (eType /\ tgt /\ o.capture /\ el)
 
 xPushState
   :: forall x
@@ -225,20 +225,20 @@ xPushState url titleOr_ = do
   let hasTitle = isJust titleOr_
   let opts = if hasTitle then (encodeForeign { title }) else (encodeForeign {})
   -}
-  x_effCall @T'_'x'web @"pushState" (url /\ titleOr_)
+  x'effCall @T'_'x'web @"pushState" (url /\ titleOr_)
 
 xSetDocumentTitle
   :: forall x
    . String
   -> Run (X'Web x) Unit
 xSetDocumentTitle title = do
-  x_effCall @T'_'x'web @"setDocumentTitle" title
+  x'effCall @T'_'x'web @"setDocumentTitle" title
 
 xPreventDefault :: forall x. WET.Event -> Run (X'Web x) Unit
-xPreventDefault e = x_effCall @T'_'x'web @"preventDefault" e
+xPreventDefault e = x'effCall @T'_'x'web @"preventDefault" e
 
 xStopPropagation :: forall x. WET.Event -> Run (X'Web x) Unit
-xStopPropagation e = x_effCall @T'_'x'web @"stopPropagation" e
+xStopPropagation e = x'effCall @T'_'x'web @"stopPropagation" e
 
 raw_addEventListener
   :: WebEvent.EventType
@@ -272,7 +272,7 @@ raw_subToEvent eType target opts onE = do
   pure $ raw_rmEventListener eType tgt o.capture el
 
 runXWeb :: forall x a. Run (X'Web x) a -> Run x a
-runXWeb = x_eval_ @"_'x'web" @XWebR
+runXWeb = x'eval_ @"_'x'web" @XWebR
 
 foreign import js_errorLog :: forall a. a -> Effect Unit
 

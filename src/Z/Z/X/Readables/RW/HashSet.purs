@@ -33,8 +33,8 @@ import Z.Z.X.Core
   , RW'Tagged
   , W'Tagged
   , X'Evaluable
-  , x_evaluable
-  , x_evaluable_
+  , x'evaluable
+  , x'evaluable_
   )
 import Z.Z.X.Method
   ( class Eff'RW'Getter
@@ -159,17 +159,17 @@ type X'HashSet a = RW'Tagged (R'HashSet a)
 type X'HashSet'w a = W'Tagged (R'HashSet a)
 
 x'hashset :: forall @a. Identable a => HashSet a -> X'Evaluable (X'HashSet a)
-x'hashset t = x_evaluable t
+x'hashset t = x'evaluable t
 
 x'hashset'w
   :: forall @a. Identable a => HashSet a -> X'Evaluable (X'HashSet'w a)
-x'hashset'w t = x_evaluable t
+x'hashset'w t = x'evaluable t
 
 x'hashset_ :: forall @a. Identable a => X'Evaluable (X'HashSet a)
-x'hashset_ = x_evaluable_
+x'hashset_ = x'evaluable_
 
 x'hashset_'w :: forall @a. Identable a => X'Evaluable (X'HashSet'w a)
-x'hashset_'w = x_evaluable_
+x'hashset_'w = x'evaluable_
 
 ---------------------------------------------------------------------
 
