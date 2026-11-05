@@ -1,7 +1,3 @@
--- @inline Z.Z.Core.may'_ never
--- @inline Z.Z.Core.may'__ never
--- @inline Z.Z.Core.may'or_ never
--- @inline Z.Z.Core.eOr'_ never
 module Z.Z.Core
   ( (<##>)
   , (<$$>)
