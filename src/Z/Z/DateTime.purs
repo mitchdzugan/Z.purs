@@ -25,7 +25,6 @@ module Z.Z.DateTime
 import Prelude
 
 import Data.Argonaut.Core (Json)
-import Data.Argonaut.Decode (class DecodeJson) as Dec
 import Data.Argonaut.Encode (class EncodeJson) as Enc
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
@@ -42,7 +41,6 @@ derive newtype instance Show DateTime
 derive newtype instance Semiring DateTime
 derive newtype instance Identable DateTime
 derive newtype instance Ring DateTime
-derive newtype instance Dec.DecodeJson DateTime
 derive newtype instance Enc.EncodeJson DateTime
 
 dateTime'fromMS :: forall num. Numberable num => num -> DateTime

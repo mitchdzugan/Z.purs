@@ -10,6 +10,7 @@ module Z.Z.Core
   , Object
   , P
   , ParseError
+  , PureJsError
   , Result
   , T'Related
   , T'RelatedBy
@@ -54,6 +55,7 @@ module Z.Z.Core
   , fDiscard
   , ffmap
   , ffmapFlipped
+  , fromPureJsError
   , idLens
   , inc
   , ini'stringify
@@ -140,7 +142,6 @@ import Control.Applicative as Applicative
 import Control.Monad as Monad
 import Control.Monad.ST (ST)
 import Data.Argonaut.Core as Arg
-import Data.Argonaut.Decode (class DecodeJson, decodeJson)
 import Data.Argonaut.Encode (class EncodeJson, encodeJson)
 import Data.Array as Arr
 import Data.Either as Eor
@@ -408,9 +409,6 @@ type PureJsError =
 fromPureJsError :: PureJsError -> JsError
 fromPureJsError e = JsError $ Exc.errorWithName e.message e.name
 
-instance DecodeJson JsError where
-  decodeJson j = map fromPureJsError $ decodeJson j
-
 instance EncodeJson JsError where
   encodeJson (JsError e) = encodeJson
     { "_": "JsError", name: Exc.name e, message: Exc.message e }
@@ -621,9 +619,6 @@ type PureParseError =
 fromPureParseError :: PureParseError -> ParseError
 fromPureParseError e = ParseError $ Parsing.ParseError e.message $
   Parsing.Position { column: e.column, index: e.index, line: e.line }
-
-instance DecodeJson ParseError where
-  decodeJson j = map fromPureParseError $ decodeJson j
 
 instance EncodeJson ParseError where
   encodeJson

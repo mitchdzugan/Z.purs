@@ -6,35 +6,20 @@ module Z.Z.X.Index
   , A'
   , E'
   , EA'
-  , Edit
-  , Edit'v
   , R'
   , REA'
-  , RS'
-  , RWaEA'
-  , RWaSEA'
   , RunMW
   , Runner
   , Runner't(..)
-  , S'
-  , SEA'
-  , StrW
   , T'use'e'AsSym
   , T'use'r'AsSym
   , T'use's'AsSym
   , T'use'w'AsSym
-  , Wa'
-  , WaE'
-  , WaEA'
-  , WaS'
   , X
   , X'Base
   , X'E
   , X'Permit
   , X'R
-  , X'S
-  , X'W
-  , X'Wa
   , X'flipped
   , async'x
   , e'const
@@ -74,8 +59,6 @@ module Z.Z.X.Index
   , e'unwrap_''
   , e'withFinalizer
   , e'withFinalizer''
-  , edit
-  , edit'v
   , r'ask
   , r'preview
   , r'preview'b
@@ -91,22 +74,17 @@ module Z.Z.X.Index
   , runner'extend
   , runner'mk
   , runner'mkDeferred
-  , s'eval
-  , s'exec
   , s'get
   , s'over
   , s'over'b
   , s'preview
   , s'preview'b
-  , s'put
-  , s'run
   , s'set
   , s'set'b
   , s'setPure
   , s'setPure'b
   , s'toArrayOf
   , s'toArrayOf'b
-  , s'update
   , s'view
   , s'view'b
   , sc'unwrap
@@ -116,44 +94,10 @@ module Z.Z.X.Index
   , type (<@@)
   , type (>@>)
   , type (@@>)
-  , url'edit
-  , url'mk
-  , w'eval
-  , w'exec
-  , w'map
-  , w'map''
-  , w'run
-  , w'say
-  , w'say''
-  , w'str
-  , w'str''
-  , w'str'nl
-  , w'str'sp
-  , w'tell
-  , w'tell''
-  , we'map
-  , we'map''
-  , we'map'''
-  , we'runResult
-  , we'runResult''
-  , we'runResult'''
-  , we'tellMappedHush
-  , we'tellMappedHush''
-  , we'tellMappedHush'''
-  , we'tellMappedMHush
-  , we'tellMappedMHush'''
-  , we'unresult
-  , we'unresult''
-  , we'unresult'''
-  , x'decodeFetched
   , x'do
-  , x'fetch
   , x'info
   , x'logError
   , x'logWarning
-  , x'now
-  , x'nowMS
-  , x'nowMS'number
   , x'out
   , x'outErr
   , x'outWarn
@@ -167,7 +111,6 @@ module Z.Z.X.Index
 
 import Z.Z.X.UtilPrelude
 
-import Data.Argonaut.Decode (class DecodeJson)
 import Data.Either (Either(..))
 import Data.Int (floor)
 import Parsing (Parser)
@@ -176,20 +119,15 @@ import Z.Z.Core
   , Eff'At(..)
   , JsError
   , ParseError
-  , Result
   , T'useAsSym
   , eff'defer
   , fDiscard
   , invert
   , mapL
-  , rec'modify
   , resultVal
   , runParser
   )
-import Z.Z.DateTime (DateTime)
-import Z.Z.Defaultable.Util as D
-import Z.Z.Fetch (Fetch'RequestOptions, Fetch'Response, fetch, fetchRes'json)
-import Z.Z.It (forM_, reduceM)
+import Z.Z.It (reduceM)
 import Z.Z.Promise (EffPromise)
 import Z.Z.Run
   ( Ctx'Except
@@ -204,28 +142,13 @@ import Z.Z.Run
   , ctxE'throwAt
   , ctxS'run
   )
-import Z.Z.String (str'joinWith)
-import Z.Z.ThenableR (thenableR'sync)
-import Z.Z.Url (URL)
-import Z.Z.Util
-  ( JsonDecodeError
-  , UrlParts
-  , decodeJson
-  , url'fromParts
-  , url'parts
-  )
 import Z.Z.Variant (class IsVariant, var'inj)
 import Z.Z.X.Core
   ( class X'Buildable
   , Reader
   , Run
-  , evaluable'run
   , x'eval
   , x'eval_
-  , x'exec
-  , x'exec_
-  , x'run
-  , x'run_
   )
 import Z.Z.X.Method
   ( T'x'extract
@@ -241,8 +164,6 @@ import Z.Z.X.Method
   , T'x'toArrayOf'b
   , T'x'view
   , T'x'view'b
-  , x'assign
-  , x'cons
   , x'over
   , x'over'b
   , x'preview
@@ -253,19 +174,16 @@ import Z.Z.X.Method
   , x'setPure'b
   , x'toArrayOf
   , x'toArrayOf'b
-  , x'update
   , x'view
   , x'view'b
   , (@.)
   )
-import Z.Z.X.Readables.Base (LogLevel(..), X'BaseM, x'base, x'now'', x'out'')
-import Z.Z.X.Readables.RW.Ref (X'Ref)
-import Z.Z.X.Readables.RW.Vector (X'Writer)
+import Z.Z.X.Readables.Base (LogLevel(..), X'BaseM, x'out'')
 import Z.Z.X.Util (js_timeout)
 
 type X'Base x = (_'x'base :: X'BaseM | x)
 
-type X x res = Run (X'Base x) res
+type X x = Run (X'Base x)
 
 type X'flipped res x = X x res
 
@@ -274,15 +192,6 @@ infixr 0 type X as >@>
 
 infixr 0 type X'flipped as <@@
 infixr 0 type X as @@>
-
-x'now :: forall x. DateTime <@< x
-x'now = x'now'' @"_'x'base"
-
-x'nowMS'number :: forall x. Number <@< x
-x'nowMS'number = x'now <#> unwrap
-
-x'nowMS :: forall x. Int <@< x
-x'nowMS = x'nowMS'number <#> floor
 
 x'out :: forall x a. a -> Unit <@< x
 x'out a = x'out'' @"_'x'base" LogLevel'Info a
@@ -304,59 +213,24 @@ x'logError = x'outErr
 
 type X'Permit = Reader Unit
 type X'R t = Reader t
-type X'W t = X'Writer t
-type X'Wa t = X'Writer (Array t)
-type X'S t = X'Ref t
 
 type X'E e = Ctx'Except e
 
 type R' r x = (_'x'reader :: X'R r | x)
-type W' w x = (_'x'writer :: X'W w | x)
-type Wa' w x = (_'x'writer :: X'Wa w | x)
-type S' s x = (_'x'state :: X'S s | x)
 
 type E' e x = (_'x'except :: X'E e | x)
 
 type A' x = Ctx'x'async x
 
-type RS' r s x = R' r $ S' s x
-
 type EA' e x = E' e $ A' x
 
-type WaS' w s x = Wa' w $ S' s x
-
-type WaE' w e x = Wa' w $ E' e x
-
-type WaEA' w e x = Wa' w $ E' e $ A' x
-
-type RWaEA' r w e x = R' r $ Wa' w $ E' e $ A' x
-
-type RWaSEA' r w s e x = R' r $ Wa' w $ S' s $ E' e $ A' x
-
 type REA' r e x = R' r $ E' e $ A' x
-
-type SEA' s e x = S' s $ E' e $ A' x
 
 x'permit :: forall @p x' x a. ConsSymbol p X'Permit x' x => Run x a -> Run x' a
 x'permit = x'eval_ @p
 
 x'do :: forall @p x' x a. ConsSymbol p X'Permit x' x => Eff'At p a -> Run x a
 x'do (Eff'At eff) = pure unit <#> \_ -> unsafePerformEffect eff
-
-s'put :: forall x s. s -> Run (S' s x) Unit
-s'put = x'assign @"_'x'state"
-
-s'update :: forall x s. (s -> s) -> Run (S' s x) Unit
-s'update = x'update @"_'x'state"
-
-s'run :: forall x r a. r -> Run (S' r x) a -> Run x (a /\ r)
-s'run = x'run @"_'x'state"
-
-s'eval :: forall x r a. r -> Run (S' r x) a -> Run x a
-s'eval = x'eval @"_'x'state"
-
-s'exec :: forall x r. r -> Run (S' r x) Unit -> Run x r
-s'exec = x'exec @"_'x'state"
 
 ---------------------------------------------------------------
 
@@ -743,66 +617,6 @@ e'runEffA = e'runEffA'' @p
 
 type T'use'w'AsSym p f = T'useAsSym "_'x'writer" p f
 
---------------------------------------------
-
-w'run :: forall x w a. Monoid w => Run (W' w x) a -> Run x (a /\ w)
-w'run = x'run_ @"_'x'writer"
-
-w'eval :: forall x w a. Monoid w => Run (W' w x) a -> Run x a
-w'eval = x'eval_ @"_'x'writer"
-
-w'exec :: forall x w. Monoid w => Run (W' w x) Unit -> Run x w
-w'exec = x'exec_ @"_'x'writer"
-
---------------------------------------------
-
-type T'w'tell p =
-  forall w x' x. ConsSymbol p (X'W w) x' x => Monoid w => w -> Run x Unit
-
-w'tell'' :: forall @p. T'w'tell p
-w'tell'' w = x'cons @p w
-
-w'tell :: forall p. T'use'w'AsSym p T'w'tell
-w'tell = w'tell'' @p
-
---------------------------------------------
-
-type T'w'say p =
-  forall m w x' x
-   . ConsSymbol p (X'W (m w)) x' x
-  => Monoid (m w)
-  => Monad m
-  => w
-  -> Run x Unit
-
-w'say'' :: forall @p. T'w'say p
-w'say'' w = x'cons @p (pure w)
-
-w'say :: forall p. T'use'w'AsSym p T'w'say
-w'say = w'say'' @p
-
---------------------------------------------
-
-type T'w'map p =
-  forall m w1 w2 x'' x' x a
-   . ConsSymbol p (X'W (m w1)) x'' x'
-  => ConsSymbol p (X'W (m w2)) x' x
-  => Monoid (m w1)
-  => Monoid (m w2)
-  => Monad m
-  => (w2 -> w1)
-  -> Run x a
-  -> Run x' a
-
-w'map'' :: forall @p. T'w'map p
-w'map'' f m = do
-  a /\ tells <- x'run_ @p m
-  w'tell'' @p $ map f tells
-  pure a
-
-w'map :: forall p. T'use'w'AsSym p T'w'map
-w'map = w'map'' @p
-
 ---------------------------------------------------------------------
 
 type T'use's'AsSym p f = T'useAsSym "_'x'state" p f
@@ -848,169 +662,6 @@ s'over = x'over @p
 s'over'b :: forall @sym p. T'use's'AsSym p (T'x'over'b T'id sym)
 s'over'b = x'over'b @p @sym
 
---------------------------------------------
-
-type Edit'v t v = S' t () @@> v
-
-type Edit t = Edit'v t Unit
-
-edit'v :: forall t v. t -> Edit'v t v -> v /\ t
-edit'v init m = sync'x $ s'run init m
-
-edit :: forall t. t -> Edit t -> t
-edit init m = sync'x $ s'exec init m
-
----------------------------------------------------------------------
-
-type StrW = Wa' String () @@> Unit
-
-type T'w'str sep = IsSymbol sep => ((String -> StrW) -> StrW) -> String
-
-w'str''impl :: String -> ((String -> StrW) -> StrW) -> String
-w'str''impl sep fm = str'joinWith sep $ sync'x $ w'exec $ fm w'say
-
-w'str'' :: forall @sep. T'w'str sep
-w'str'' = w'str''impl (reflectSymbol $ Proxy @sep)
-
-w'str :: forall @sep. T'useAsSym "" sep T'w'str
-w'str = w'str'' @sep
-
-w'str'sp :: forall @sep. T'useAsSym " " sep T'w'str
-w'str'sp = w'str'' @sep
-
-w'str'nl :: forall @sep. T'useAsSym "" sep T'w'str
-w'str'nl = w'str''impl "\n" -- TODO use os specific newline
-
----------------------------------------------------------------------
-
-type T'we'map' wp ep =
-  forall m w1 w2 e1 e2 x''''' x'''' x''' x'' x' x a
-   . ConsSymbol wp (X'W (m w1)) x'''' x''
-  => ConsSymbol wp (X'W (m w1)) x''''' x'
-  => ConsSymbol ep (X'E e1) x''' x''
-  => ConsSymbol wp (X'W (m w2)) x' x
-  => ConsSymbol ep (X'E e2) x'' x'
-  => Monoid (m w1)
-  => Monoid (m w2)
-  => Monad m
-  => (w2 -> w1)
-  -> (e2 -> e1)
-  -> Run x a
-  -> Run x'' a
-
-type T'we'map wp =
-  forall ep. T'use'e'AsSym ep (T'we'map' wp)
-
-we'map''' :: forall @wp @ep. T'we'map' wp ep
-we'map''' mapW mapE m = e'map'' @ep mapE $ w'map'' @wp mapW m
-
-we'map''
-  :: forall @wp ep. T'use'e'AsSym ep (T'we'map' wp)
-we'map'' = we'map''' @wp @ep
-
-we'map :: forall @wp. T'use'w'AsSym wp T'we'map
-we'map = we'map'' @wp
-
---------------------------------------------
-
-type T'we'tellMappedMHush' wp ep =
-  forall w e x'' x' x m a
-   . ConsSymbol wp (X'W (m w)) x'' x'
-  => ConsSymbol ep (X'E e) x' x
-  => Monad m
-  => Monoid (m w)
-  => Generable a GDefault a
-  => (e -> m w)
-  -> Run x a
-  -> Run x' a
-
-type T'we'tellMappedMHush wp =
-  forall ep. T'use'e'AsSym ep (T'we'tellMappedMHush' wp)
-
-we'tellMappedMHush''' :: forall @wp @ep. T'we'tellMappedMHush' wp ep
-we'tellMappedMHush''' mapW m = e'try'' @ep m >>= case _ of
-  Left e -> w'tell'' @wp (mapW e) <#> const D.default
-  Right a -> pure a
-
-we'tellMappedMHush''
-  :: forall @wp ep. T'use'e'AsSym ep (T'we'tellMappedMHush' wp)
-we'tellMappedMHush'' = we'tellMappedMHush''' @wp @ep
-
-we'tellMappedMHush :: forall @wp. T'use'w'AsSym wp T'we'tellMappedMHush
-we'tellMappedMHush = we'tellMappedMHush'' @wp
-
---------------------------------------------
-
-type T'we'tellMappedHush' wp ep =
-  forall w e x'' x' x m a
-   . ConsSymbol wp (X'W (m w)) x'' x'
-  => ConsSymbol ep (X'E e) x' x
-  => Monoid (m w)
-  => Monad m
-  => Generable a GDefault a
-  => (e -> w)
-  -> Run x a
-  -> Run x' a
-
-type T'we'tellMappedHush wp =
-  forall ep. T'use'e'AsSym ep (T'we'tellMappedHush' wp)
-
-we'tellMappedHush''' :: forall @wp @ep. T'we'tellMappedHush' wp ep
-we'tellMappedHush''' mapW m = e'try'' @ep m >>= case _ of
-  Left e -> w'say'' @wp (mapW e) <#> const D.default
-  Right a -> pure a
-
-we'tellMappedHush''
-  :: forall @wp ep. T'use'e'AsSym ep (T'we'tellMappedHush' wp)
-we'tellMappedHush'' = we'tellMappedHush''' @wp @ep
-
-we'tellMappedHush :: forall @wp. T'use'w'AsSym wp T'we'tellMappedHush
-we'tellMappedHush = we'tellMappedHush'' @wp
-
---------------------------------------------
-
-type T'we'unresult' wp ep =
-  forall w e x'' x' x a
-   . ConsSymbol wp (X'Wa w) x'' x
-  => ConsSymbol ep (X'E e) x' x
-  => Result w e a
-  -> Run x a
-
-type T'we'unresult wp =
-  forall ep. T'use'e'AsSym ep (T'we'unresult' wp)
-
-we'unresult''' :: forall @wp @ep. T'we'unresult' wp ep
-we'unresult''' { v, w } = do
-  forM_ w $ w'say'' @wp
-  e'ok'' @ep v
-
-we'unresult'' :: forall @wp ep. T'use'e'AsSym ep (T'we'unresult' wp)
-we'unresult'' = we'unresult''' @wp @ep
-
-we'unresult :: forall @wp. T'use'w'AsSym wp T'we'unresult
-we'unresult = we'unresult'' @wp
-
---------------------------------------------
-
-type T'we'runResult' wp ep =
-  forall w e x'' x' x a
-   . ConsSymbol wp (X'Wa w) x'' x'
-  => ConsSymbol ep (X'E e) x' x
-  => Run x a
-  -> Run x'' (Result w e a)
-
-type T'we'runResult wp =
-  forall ep. T'use'e'AsSym ep (T'we'runResult' wp)
-
-we'runResult''' :: forall @wp @ep. T'we'runResult' wp ep
-we'runResult''' m = (x'run @wp unit $ e'try'' @ep m) <#> \(v /\ w) -> { w, v }
-
-we'runResult'' :: forall @wp ep. T'use'e'AsSym ep (T'we'runResult' wp)
-we'runResult'' = we'runResult''' @wp @ep
-
-we'runResult :: forall @wp. T'use'w'AsSym wp T'we'runResult
-we'runResult = we'runResult'' @wp
-
 ---------------------------------------------------------------------
 
 type T'use'sc'AsSym p f = T'useAsSym "_'x'shortcircuit" p f
@@ -1052,26 +703,3 @@ x'withReturn_ = x'withReturn_'' @p @a
 
 x'timeout :: forall x. Int -> Run (A' x) Unit
 x'timeout ms = fDiscard $ e'try $ e'runEffPromise $ js_timeout ms
-
-x'fetch
-  :: forall x
-   . String
-  -> Edit Fetch'RequestOptions
-  -> Run (E' JsError (A' x)) Fetch'Response
-x'fetch url opts = e'runEffPromise $ fetch url $ edit default opts
-
-x'decodeFetched
-  :: forall @t x
-   . DecodeJson t
-  => Fetch'Response
-  -> Run (E' JsError (A' x)) (Either JsonDecodeError t)
-x'decodeFetched res = decodeJson @t <$> e'runEffPromise (fetchRes'json res)
-
-----------------------------------------------------------------
-
-url'mk :: Edit UrlParts -> URL
-url'mk edits = url'fromParts $ rec'modify @"query" Right $ edit default edits
-
-url'edit :: URL -> Edit UrlParts -> URL
-url'edit url edits =
-  url'fromParts $ rec'modify @"query" Right $ edit (url'parts url) edits

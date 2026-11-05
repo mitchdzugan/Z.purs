@@ -5,13 +5,13 @@ module Z.Gql.Warning
 import Z.Prelude
 
 import Z.Sys.Module (FSDataError)
+import Z.Z.Json.Decode (class XDecodeJson)
 
 newtype T = T (Variant (cacheDecode :: FSDataError, cacheWrite :: JsError))
 
 derive instance Newtype T _
 
-instance DecodeJson T where
-  decodeJson = var'decode
+derive newtype instance XDecodeJson T
 
 instance EncodeJson T where
   encodeJson = var'encode

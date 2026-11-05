@@ -10,7 +10,6 @@ module Z.Z.HashSet
 
 import Prelude
 
-import Data.Argonaut.Decode as Dec
 import Data.Maybe (isJust)
 import Data.Tuple.Nested ((/\))
 import Foreign.Object (Object)
@@ -26,10 +25,13 @@ import Z.Z.It
   , it'collect
   , iterable'mk
   )
+import Z.Z.Json.Decode (class XDecodeJson)
 
 newtype HashSet a = HashSet (Bin.Bin a)
 
 derive instance Newtype (HashSet a) _
+
+derive newtype instance (XDecodeJson a) => XDecodeJson (HashSet a)
 
 instance Identable'Functor HashSet where
   identable'map f hs = hs'collect $ hs'vals hs <#> f
@@ -39,9 +41,6 @@ instance Identable a => Generable (HashSet a) gdesc (HashSet a) where
 
 instance (Z.EncodeJson a) => Z.EncodeJson (HashSet a) where
   encodeJson = Z.encodeJson <<< Z.unwrap
-
-instance (Z.DecodeJson a) => Z.DecodeJson (HashSet a) where
-  decodeJson v = Z.wrap <$> Dec.decodeJson v
 
 instance Iterable (HashSet a) a where
   iterable'mk it = iterable'mk $ Z.unwrap $ Z.unwrap it

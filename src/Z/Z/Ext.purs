@@ -4,7 +4,6 @@ module Z.Z.Ext
   , module ByteString
   , module CA
   , module DC
-  , module Dec
   , module DecodeGeneric
   , module Dup
   , module DupP
@@ -53,7 +52,6 @@ import Data.Argonaut.Core
   , jsonEmptyObject
   , jsonNull
   ) as Arg
-import Data.Argonaut.Decode (class DecodeJson, fromJsonString) as Dec
 import Data.Argonaut.Decode.Generic (genericDecodeJson) as DecodeGeneric
 import Data.Argonaut.Encode (class EncodeJson, encodeJson) as Enc
 import Data.Argonaut.Encode.Generic (genericEncodeJson) as EncodeGeneric

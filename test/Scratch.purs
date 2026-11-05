@@ -21,7 +21,7 @@ import Z.Z.ThenableR
   , thenableR'ask
   , thenableR'runAsync
   )
-import Z.Z.Variant (Var''Decode, variant'handle, variant'mkers)
+import Z.Z.Variant (variant'handle, variant'mkers)
 
 runMain :: Future (Either String (Array Int))
 runMain = ctxA'run $ mapL jsErrorName <$> do
@@ -71,7 +71,3 @@ main = do
     pure c
   log "before or after"
   async'run (log <<< show) (log <<< show) runMain
-  let mkers = variant'mkers @Var''Decode @MyVar
-  forM_ (obj'entries mkers) \(k1 /\ mkV) -> do
-    let v1 = mkV jsonEmptyObject
-    traceM { k1, v1 }

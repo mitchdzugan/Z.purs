@@ -1,5 +1,6 @@
 module Z.Z.HashMap
-  ( HashMap(..)
+  ( HM'El
+  , HashMap(..)
   , hm'alter
   , hm'collect
   , hm'empty
@@ -19,14 +20,12 @@ module Z.Z.HashMap
 
 import Prelude
 
-import Data.Argonaut.Decode as Dec
 import Data.Maybe (Maybe(..), isJust, isNothing)
 import Data.Tuple.Nested (type (/\), (/\))
 import Foreign.Object (Object)
 import Z.Z.Bin as Bin
 import Z.Z.Core (arr'concat, arr'remove)
 import Z.Z.Defaultable (class Generable)
-import Z.Z.Ext (class Newtype)
 import Z.Z.Ext as Z
 import Z.Z.Id (class Identable, ident'key)
 import Z.Z.It
@@ -36,10 +35,15 @@ import Z.Z.It
   , it'collect
   , iterable'mk
   )
+import Z.Z.Json.Decode (class XDecodeJson)
 
-newtype HashMap k v = HashMap (Bin.Bin { k :: k, v :: v })
+type HM'El k v = { k :: k, v :: v }
 
-derive instance Newtype (HashMap k v) _
+newtype HashMap k v = HashMap (Bin.Bin (HM'El k v))
+
+derive instance Z.Newtype (HashMap k v) _
+
+derive newtype instance XDecodeJson (HM'El k v) => XDecodeJson (HashMap k v)
 
 instance Eq v => Eq (HashMap k v) where
   eq hm1 hm2 = false
@@ -50,11 +54,8 @@ instance Functor (HashMap k) where
 instance Identable k => Generable (HashMap k v) gdesc (HashMap k v) where
   mkGenerable = hm'empty
 
-instance (Z.EncodeJson { k :: k, v :: v }) => Z.EncodeJson (HashMap k v) where
+instance (Z.EncodeJson (HM'El k v)) => Z.EncodeJson (HashMap k v) where
   encodeJson = Z.encodeJson <<< Z.unwrap
-
-instance (Z.DecodeJson { k :: k, v :: v }) => Z.DecodeJson (HashMap k v) where
-  decodeJson v = Z.wrap <$> Dec.decodeJson v
 
 instance Iterable (HashMap k v) (k /\ v) where
   iterable'mk it =

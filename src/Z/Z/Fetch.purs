@@ -6,24 +6,51 @@ module Z.Z.Fetch
   , fetch
   , fetchRes'json
   , fetchRes'text
+  , x'decodeFetched
+  , x'fetch
   ) where
 
 import Prelude
 
 import Data.Argonaut.Core (Json)
-import Data.Argonaut.Decode (class DecodeJson, decodeJson)
 import Data.Argonaut.Encode (class EncodeJson, encodeJson)
 import Data.Either (Either, note)
 import Data.Maybe (Maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Tuple.Nested ((/\))
-import Z.Z.Core (encodeOpts)
+import Z.Z.Core (JsError(..), encodeOpts)
 import Z.Z.Defaultable (class Generable, GDefault, default)
 import Z.Z.HashMap (HashMap, hm'collect, hm'lookup)
+import Z.Z.Json.Decode
+  ( class XDecodeJson
+  , JsonDecodeError(..)
+  , decodeJson
+  , xDecodeViaString
+  )
 import Z.Z.Promise (EffPromise)
-import Z.Z.Util (decodeViaString)
+import Z.Z.X.Core (Run)
+import Z.Z.X.Index (A', E', e'runEffPromise)
+import Z.Z.X.Nicknames (Edit, edit)
 
 foreign import data Fetch'Response :: Type
+
+----------------------------
+
+x'fetch
+  :: forall x
+   . String
+  -> Edit Fetch'RequestOptions
+  -> Run (E' JsError (A' x)) Fetch'Response
+x'fetch url opts = e'runEffPromise $ fetch url $ edit default opts
+
+x'decodeFetched
+  :: forall @t x
+   . XDecodeJson t
+  => Fetch'Response
+  -> Run (E' JsError (A' x)) (Either JsonDecodeError t)
+x'decodeFetched res = decodeJson @t <$> e'runEffPromise (fetchRes'json res)
+
+-----------------------------
 
 fetch :: String -> Fetch'RequestOptions -> EffPromise Fetch'Response
 fetch url = js_fetch url <<< encodeOpts
@@ -84,8 +111,8 @@ parseHttpMethod s =
 instance EncodeJson Http'Method where
   encodeJson = encodeJson <<< show
 
-instance DecodeJson Http'Method where
-  decodeJson = decodeViaString parseHttpMethod
+instance XDecodeJson Http'Method where
+  xDecodeJson = xDecodeViaString parseHttpMethod
 
 newtype Fetch'RequestHeaders = Fetch'RequestHeaders
   { "Content-Type" :: Maybe String
@@ -93,11 +120,9 @@ newtype Fetch'RequestHeaders = Fetch'RequestHeaders
 
 derive instance Newtype Fetch'RequestHeaders _
 
-instance EncodeJson Fetch'RequestHeaders where
-  encodeJson = encodeOpts <<< unwrap
+derive newtype instance EncodeJson Fetch'RequestHeaders
 
-instance DecodeJson Fetch'RequestHeaders where
-  decodeJson = map wrap <<< decodeJson
+derive newtype instance XDecodeJson Fetch'RequestHeaders
 
 instance Generable Fetch'RequestHeaders GDefault Fetch'RequestHeaders where
   mkGenerable = Fetch'RequestHeaders default

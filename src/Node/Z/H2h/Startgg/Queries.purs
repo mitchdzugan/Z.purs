@@ -24,6 +24,7 @@ import Node.Z.Gql as Gql
 import Node.Z.H2h.Startgg.Queries.PhaseGroupData as PGDQ
 import Node.Z.H2h.Startgg.Queries.TourneyData as TDQ
 import Node.Z.H2h.Startgg.Queries.TourneyDataSmall as TDSQ
+import Z.Z.Json.Decode (class XDecodeJson, xDecodeJson)
 
 eventMaxDataPerReq :: Gql.Operation EventDataVars EventDataRes
 eventMaxDataPerReq = Gql.defOperation TDQ.q Proxy Proxy
@@ -138,18 +139,14 @@ type PhaseGroupDataRes =
   { phaseGroup :: PhaseGroupDataResW }
 
 derive instance Newtype PhaseGroupDataResW _
-derive instance Generic PhaseGroupDataResW _
-
 instance EncodeJson PhaseGroupDataResW where
   encodeJson (PhaseGroupDataResW pg) = encodeJson pg
 
-instance DecodeJson PhaseGroupDataResW where
-  decodeJson j = case baseDecodeJson @PhaseGroupDataResWfull j of
-    Right pg -> pure $ PhaseGroupDataResW pg
-    Left _ -> case baseDecodeJson @PhaseGroupDataResWmin j of
-      Right pg -> pure $ PhaseGroupDataResW $ rec'merge pg
-        { sets: { pageInfo: { total: 0 }, nodes: [] } }
-      Left e -> Left e
+instance XDecodeJson PhaseGroupDataResW where
+  xDecodeJson j = (>>=) (e'try $ xDecodeJson @PhaseGroupDataResWfull j)
+    $ flip eOr'_ (pure <<< PhaseGroupDataResW) \_ -> do
+        xDecodeJson @PhaseGroupDataResWmin j <#> wrap <<<
+          flip rec'merge { sets: { pageInfo: { total: 0 }, nodes: [] } }
 
 type ImagesStub = Array { url :: Maybe String, type :: String }
 

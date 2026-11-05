@@ -17,6 +17,7 @@ module Z.H2h.Error
 import Z.Prelude
 
 import Z.Gql.Module as Gql
+import Z.Z.Json.Decode (class XDecodeJson)
 
 type T'row =
   ( gql :: Gql.Error
@@ -36,8 +37,7 @@ newtype T = T (Variant T'row)
 
 derive instance Newtype T _
 
-instance DecodeJson T where
-  decodeJson = var'decode
+derive newtype instance XDecodeJson T
 
 instance EncodeJson T where
   encodeJson = var'encode

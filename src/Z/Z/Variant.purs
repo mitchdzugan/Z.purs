@@ -1,6 +1,5 @@
 module Z.Z.Variant
-  ( Var''Decode
-  , Var''Encode
+  ( Var''Encode
   , Var''Key
   , Var''Shown
   , class IsVariant
@@ -13,7 +12,6 @@ module Z.Z.Variant
   , fromVariant
   , toVariant
   , var'case_
-  , var'decode
   , var'default
   , var'encode
   , var'inj
@@ -34,7 +32,6 @@ module Z.Z.Variant
 import Prelude
 
 import Data.Argonaut.Core (Json)
-import Data.Argonaut.Decode (class DecodeJson, JsonDecodeError(..), decodeJson)
 import Data.Argonaut.Encode (class EncodeJson, encodeJson)
 import Data.Either (Either(..))
 import Data.List (List(..))
@@ -210,29 +207,6 @@ variant'mkers
    . Variant'Mker tag to from m
   => Object (from -> m to)
 variant'mkers = obj'collect (variant'mker @tag @to)
-
-foreign import data Var''Decode :: Type
-
-instance
-  ( DecodeJson focus
-  ) =>
-  Variant'Mk Var''Decode focus Json (Either JsonDecodeError) where
-  variant'mk json = decodeJson json
-
-var'decode
-  :: forall @to
-   . Variant'Mker Var''Decode to Json (Either JsonDecodeError)
-  => Json
-  -> Either JsonDecodeError to
-var'decode json = do
-  decodeJson json >>= onDecodeGeneric
-  where
-  onDecodeGeneric :: { inj :: Json, at :: String } -> Either JsonDecodeError to
-  onDecodeGeneric { inj, at } = may'_
-    (Left $ AtKey at $ UnexpectedValue inj)
-    ((#) inj)
-    (obj'lookup at decoders)
-  decoders = variant'mkers @Var''Decode @to
 
 var'encode :: forall @from. Variant'handle Var''Encode from Json => from -> Json
 var'encode = variant'handle @Var''Encode

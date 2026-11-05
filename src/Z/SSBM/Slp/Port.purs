@@ -25,8 +25,6 @@ asInt (NonOEM n) = n
 derive instance Eq T
 derive instance Ord T
 derive instance Generic T _
-instance DecodeJson T where
-  decodeJson x = genericDecodeJson x
 
 instance EncodeJson T where
   encodeJson x = genericEncodeJson x

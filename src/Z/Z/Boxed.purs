@@ -2,12 +2,12 @@ module Z.Z.Boxed where
 
 import Prelude
 
-import Data.Argonaut.Decode (class DecodeJson, decodeJson)
 import Data.Argonaut.Encode (class EncodeJson, encodeJson)
 import Effect (Effect)
 import Z.Z.Core (eff'defer)
 import Z.Z.Defaultable (class Generable, GDefault, default)
 import Z.Z.Id (class Identable, ident'key)
+import Z.Z.Json.Decode (class XDecodeJson, xDecodeJson)
 import Z.Z.Method (class Method, call, method'id)
 
 foreign import data Boxed :: Type -> Type
@@ -48,8 +48,8 @@ instance (Eq value) => Eq (Boxed value) where
 instance (EncodeJson value) => EncodeJson (Boxed value) where
   encodeJson = encodeJson <<< boxed'v
 
-instance (DecodeJson value) => DecodeJson (Boxed value) where
-  decodeJson = map boxed'mk <<< decodeJson
+instance (XDecodeJson value) => XDecodeJson (Boxed value) where
+  xDecodeJson = map boxed'mk <<< xDecodeJson @value
 
 foreign import js_newBoxed
   :: forall value. value -> Boxed value

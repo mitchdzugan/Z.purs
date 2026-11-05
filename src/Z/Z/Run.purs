@@ -51,13 +51,13 @@ foreign import data Ctx'Async :: Type
 
 type Ctx'x'async x = (_'x'async :: Ctx'Async | x)
 
-type Run' rt x a = ThenableR rt (Ctx x) a
+type Run' rt x = ThenableR rt (Ctx x)
 
-type RunS x a = Run' Tag'Sync x a
+type RunS x = Run' Tag'Sync x
 
-type RunA x a = Run' Tag'Async x a
+type RunA x = Run' Tag'Async x
 
-type Future a = ThenableR Tag'Async Unit a
+type Future = ThenableR Tag'Async Unit
 
 ctxR'askAt :: forall @p rt v x' x. ConsSymbol p v x' x => Run' rt x v
 ctxR'askAt = thenableR'ask <#> js_ctx_at (reflectSymbol (Proxy @p))

@@ -102,7 +102,7 @@ x'readTextFile = e'runEffPromise <<< js_readTextFile <<< pathStr
 x'decodeTextFile
   :: forall x p @d
    . Pathlike p
-  => DecodeJson d
+  => XDecodeJson d
   => p
   -> EA' Sys.FSDataError x @@> d
 x'decodeTextFile p = do
@@ -111,7 +111,7 @@ x'decodeTextFile p = do
 
 x'decodeYamlString
   :: forall x @d
-   . DecodeJson d
+   . XDecodeJson d
   => String
   -> EA' Sys.FSDataError x @@> d
 x'decodeYamlString contents = do
@@ -121,7 +121,7 @@ x'decodeYamlString contents = do
 x'decodeYamlFile
   :: forall x p @d
    . Pathlike p
-  => DecodeJson d
+  => XDecodeJson d
   => p
   -> EA' Sys.FSDataError x @@> d
 x'decodeYamlFile p = do
@@ -131,7 +131,7 @@ x'decodeYamlFile p = do
 x'decodeAnyYamlExt
   :: forall x p @d
    . Pathlike p
-  => DecodeJson d
+  => XDecodeJson d
   => p
   -> EA' Sys.FSDataError x @@> d
 x'decodeAnyYamlExt p = do

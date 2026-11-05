@@ -10,11 +10,12 @@ module Z.Z.Pair
 
 import Prelude
 
-import Data.Argonaut.Decode (decodeJson)
 import Data.Tuple.Nested (type (/\), (/\))
 import Z.Z.Ext (encodeJson)
 import Z.Z.Ext as Z
+import Z.Z.Id (class Identable, id'of, ident'get)
 import Z.Z.It (class Iterable, iterable'mk)
+import Z.Z.Json.Decode (class XDecodeJson, xDecodeJson)
 import Z.Z.PairKey as PK
 
 data Pair p = Pair p p
@@ -48,14 +49,12 @@ pair'getOppo pk p = pair'get (PK.pairKey'inv pk) p
 
 derive instance Eq a => Eq (Pair a)
 derive instance Ord a => Ord (Pair a)
-instance Z.DecodeJson p => Z.DecodeJson (Pair p) where
-  decodeJson x = decodeJson x <#> onDecodedTuple
-    where
-    onDecodedTuple :: (p /\ p) -> Pair p
-    onDecodedTuple (l /\ r) = l ~ r
 
 instance Z.EncodeJson p => Z.EncodeJson (Pair p) where
   encodeJson (x ~ y) = encodeJson (x /\ y)
+
+instance XDecodeJson (p /\ p) => XDecodeJson (Pair p) where
+  xDecodeJson json = xDecodeJson @(p /\ p) json <#> \(l /\ r) -> l ~ r
 
 instance Show a ⇒ Show (Pair a) where
   show (x ~ y) = "(" <> show x <> " ~ " <> show y <> ")"
@@ -83,3 +82,5 @@ instance Monoid a ⇒ Monoid (Pair a) where
 instance Iterable (Pair a) a where
   iterable'mk (Pair x y) = iterable'mk [ x, y ]
 
+instance (Identable t) => Identable (Pair t) where
+  ident'get (l ~ r) = id'of $ ident'get l /\ ident'get r

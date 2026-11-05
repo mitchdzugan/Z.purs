@@ -1,5 +1,7 @@
 module Z.Z.Bin
   ( Bin(..)
+  , EncodedBin
+  , JsonEncodedBin(..)
   , bin'empty
   , bin'insert
   , bin'lookup
@@ -9,12 +11,15 @@ module Z.Z.Bin
 
 import Prelude
 
+import Control.Monad.Rec.Class (class MonadRec)
 import Data.Argonaut.Decode (decodeJson)
 import Foreign.Object as Fo
 import Z.Z.Defaultable (class Generable)
+import Z.Z.Ext (wrap)
 import Z.Z.Ext as Z
 import Z.Z.Id (class Identable, ident'key)
-import Z.Z.It (mapM, obj'collect)
+import Z.Z.It (forM, mapM, obj'collect)
+import Z.Z.Json.Decode (class XDecodeJson, xDecodeJson)
 
 newtype Bin a = Bin (Fo.Object a)
 
@@ -41,18 +46,15 @@ bin'vals = Fo.values <<< Z.unwrap
 
 derive instance Z.Newtype JsonEncodedBin _
 
-derive newtype instance Z.DecodeJson JsonEncodedBin
-
 derive newtype instance Z.EncodeJson JsonEncodedBin
 
-instance Z.DecodeJson v => Z.DecodeJson (Bin v) where
-  decodeJson x = do
-    partial <- decodeJson x
-    ty <- flip mapM (decodedKVs partial) $ \e -> decodeJson e.v <#> \f ->
-      e.k Z./\ f
+derive newtype instance XDecodeJson JsonEncodedBin
+
+instance XDecodeJson el => XDecodeJson (Bin el) where
+  xDecodeJson json = do
+    partial <- xDecodeJson @JsonEncodedBin json
+    ty <- forM (Z.unwrap partial) \e -> xDecodeJson @el e.v <#> \f -> e.k Z./\ f
     pure $ Z.wrap $ obj'collect ty
-    where
-    decodedKVs (JsonEncodedBin els) = els
 
 instance Z.EncodeJson v => Z.EncodeJson (Bin v) where
   encodeJson (Bin x) = Z.encodeJson $ JsonEncodedBin $

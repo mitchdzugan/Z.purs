@@ -14,7 +14,7 @@ import Prelude
 import Data.Argonaut.Core (Json)
 import Data.Maybe (Maybe(..))
 import Z.Z.Core (may'toArray)
-import Z.Z.X.Index (Edit, edit)
+import Z.Z.X.Nicknames (Edit, edit)
 
 fuzzy'mkSnapshot :: forall a. Array a -> Array (a -> String) -> FuzzySnapshot a
 fuzzy'mkSnapshot = js_snapshot

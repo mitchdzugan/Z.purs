@@ -3,6 +3,14 @@ module Node.Z.CLM.Stats.Manager.Action where
 import Z.Prelude
 
 import Node.Z.CLM.Stats.Manager.Spec (Spec, Spec'Evaluable, Spec'M)
+import Z.Z.Json.Decode
+  ( class XDecodeJson
+  , DecoderX
+  , dec'custom
+  , dec'fail
+  , dec'missingValue
+  , xDecodeJson
+  )
 import Z.Z.X.Core (x'build)
 import Z.Z.X.Index (type (@@>), sync'x)
 
@@ -28,8 +36,8 @@ derive instance Newtype PureAction _
 instance EncodeJson PureAction where
   encodeJson a = encodeJson $ encodePureAction a
 
-instance DecodeJson PureAction where
-  decodeJson j = baseDecodeJson j >>= decodePureAction
+instance XDecodeJson PureAction where
+  xDecodeJson j = xDecodeJson j >>= xDecodePureAction
 
 encodePureAction :: PureAction -> String /\ Json
 encodePureAction action = case action of
@@ -46,8 +54,8 @@ encodePureAction action = case action of
   (PureAction (SetClmIdForEvent p)) -> "SetClmIdForEvent" /\ encodeJson p
   (PureAction (Bulk p)) -> (/\) "Bulk" $ encodeJson (PureAction <$> p.actions)
 
-decodePureAction :: String /\ Json -> Either RawJsonDecodeError PureAction
-decodePureAction = case _ of
+xDecodePureAction :: forall x. String /\ Json -> DecoderX x @@> PureAction
+xDecodePureAction = case _ of
   ("Undo" /\ p) -> d p <#> PureAction <<< Undo
   ("OverrideName" /\ p) -> d p <#> PureAction <<< OverrideName
   ("MarkChallonge" /\ p) -> d p <#> PureAction <<< MarkChallonge
@@ -59,11 +67,11 @@ decodePureAction = case _ of
   ("SetClmId" /\ p) -> d p <#> PureAction <<< SetClmId
   ("SetClmIdForEvent" /\ p) -> d p <#> PureAction <<< SetClmIdForEvent
   ("Bulk" /\ p) -> d p <#> finishBulk
-  (actionLbl /\ _) -> decodeFailTypeMismatch $ "Unknown Action: " <> actionLbl
+  (actionLbl /\ _) -> dec'fail $ dec'custom $ "Unknown Action: " <> actionLbl
   where
   finishBulk :: Array PureAction -> PureAction
   finishBulk actions = PureAction $ Bulk { actions: actions <#> un' }
-  d = baseDecodeJson
+  d = xDecodeJson
 
 type T'plusId_h p r' r = Cons p String r' r => { | r' } -> Int -> { | r }
 type T'plusId p = forall r' r. Lacks p r' => IsSymbol p => T'plusId_h p r' r

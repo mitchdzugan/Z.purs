@@ -13,6 +13,7 @@ import Node.Z.Prelude
 import Z.Gql.Error as GqlE
 import Z.Gql.Module as Gql
 import Z.Gql.Warning as GqlW
+import Z.Z.Json.Decode (class XDecodeJson)
 
 type Client =
   { url :: String
@@ -78,12 +79,8 @@ cacheVal :: Either GqlE.GqlResponseError Json -> String -> CacheVal
 cacheVal res queryId = CacheVal { res, queryId }
 
 derive instance Newtype CacheVal _
-derive instance Generic CacheVal _
-instance EncodeJson CacheVal where
-  encodeJson = genericEncodeJson
-
-instance DecodeJson CacheVal where
-  decodeJson = genericDecodeJson
+derive newtype instance EncodeJson CacheVal
+derive newtype instance XDecodeJson CacheVal
 
 xOperateUnknown
   :: forall x
@@ -135,12 +132,15 @@ xOperateUnknown opString vars client nc = x'withReturn \xReturn -> do
     we'tellMappedHush (var'inj @"cacheWrite") $
       x'encodeTextFileP filename toCache
 
+type JsonEncodeFn v = v -> Json
+type JsonDecodeFn v = Json -> Either JsonDecodeError v
+
 data Operation v r = Operation String (JsonEncodeFn v) (JsonDecodeFn r)
 
 defOperation
   :: forall vars res
    . EncodeJson vars
-  => DecodeJson res
+  => XDecodeJson res
   => String
   -> Proxy vars
   -> Proxy res

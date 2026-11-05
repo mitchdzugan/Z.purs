@@ -4,6 +4,7 @@ import Node.Z.Prelude
 
 import Z.SSBM.Slp.Port as Port
 import Z.SSBM.Slp.Rec.Ini as Ini
+import Z.Z.Json.Decode (class XDecodeJson, xDecodeJson, xDecodeViaString)
 import Z.Z.Opt as O
 
 launchAndRecord :: forall x. REA' RecordEnv Error x @$> Unit
@@ -264,8 +265,8 @@ portCostumeOfStr s = do
   where
   emsg = "Expected `$port=$costume` => `[1|2|3|4]=[1|2|3|4|5|6]"
 
-instance DecodeJson PortCostume where
-  decodeJson = decodeViaString portCostumeOfStr
+instance XDecodeJson PortCostume where
+  xDecodeJson = xDecodeViaString portCostumeOfStr
 
 instance EncodeJson PortCostume where
   encodeJson x = encodeJson $ portCostumeToStr x
@@ -291,8 +292,8 @@ frameNumSpecOfStr s = do
   where
   emsg = "Expected `$frameNum | @$mins:$secs.$ms`"
 
-instance DecodeJson FrameNumSpec where
-  decodeJson = decodeViaString frameNumSpecOfStr
+instance XDecodeJson FrameNumSpec where
+  xDecodeJson = xDecodeViaString frameNumSpecOfStr
 
 instance EncodeJson FrameNumSpec where
   encodeJson x = encodeJson $ frameNumSpecToStr x
@@ -301,22 +302,22 @@ data ListOp a = LReset | LCons a
 
 derive instance Functor ListOp
 
-instance DecodeJson a => DecodeJson (ListOp a) where
-  decodeJson x = do
+instance XDecodeJson a => XDecodeJson (ListOp a) where
+  xDecodeJson x = do
     caseJsonString decodeCons onString x
     where
     onString "=" = pure LReset
     onString _ = decodeCons
-    decodeCons = baseDecodeJson x <#> LCons
+    decodeCons = xDecodeJson @a x <#> LCons
 
 instance EncodeJson a => EncodeJson (ListOp a) where
   encodeJson LReset = encodeJson "="
   encodeJson (LCons a) = encodeJson a
 
-optJson :: forall @a. DecodeJson a => O.ReadM a
+optJson :: forall @a. XDecodeJson a => O.ReadM a
 optJson = O.eitherReader \s -> mapL show $ decode @a ("\"" <> s <> "\"")
 
-optJsonListOp :: forall @a. DecodeJson a => O.ReadM (ListOp a)
+optJsonListOp :: forall @a. XDecodeJson a => O.ReadM (ListOp a)
 optJsonListOp = optJson @(ListOp a)
 
 cliOpts :: Path -> O.Parser CliOpts

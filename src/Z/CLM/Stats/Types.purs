@@ -27,6 +27,7 @@ import Z.Prelude
 
 import Node.Z.CLM.Stats.Manager.Action (PureAction)
 import Z.H2h.Module as H2h
+import Z.Z.Json.Decode (class XDecodeJson)
 
 type ClmSeason'Event =
   { eventName :: String
@@ -168,7 +169,7 @@ newtype ClmBuildMeta = ClmBuildMeta
   }
 
 derive instance Newtype ClmBuildMeta _
-derive newtype instance DecodeJson ClmBuildMeta
+derive newtype instance XDecodeJson ClmBuildMeta
 derive newtype instance EncodeJson ClmBuildMeta
 
 clmBuildMeta :: ClmActionData -> ClmBuildOutputs -> ClmBuildMeta

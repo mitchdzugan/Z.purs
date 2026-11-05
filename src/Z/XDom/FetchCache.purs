@@ -100,7 +100,7 @@ domFetchCache'ensureRequested
    . Dom'ConsSymbol p (X'FetchCache id v) x' x
   => Identable id
   => Eq v
-  => DecodeJson v
+  => XDecodeJson v
   => id
   -> MDomEff x Unit
 domFetchCache'ensureRequested id = do
@@ -112,7 +112,7 @@ domFetchCache'forceRequest
    . Dom'ConsSymbol p (X'FetchCache id v) x' x
   => Identable id
   => Eq v
-  => DecodeJson v
+  => XDecodeJson v
   => id
   -> MDomEff x Unit
 domFetchCache'forceRequest id = do
@@ -136,7 +136,7 @@ type T'domFetchCache'run'helper p id v t'useResult =
   forall dr x' x
    . Identable id
   => Eq v
-  => DecodeJson v
+  => XDecodeJson v
   => Dom'ConsSymbol p (X'FetchCache id v) x' x
   => t'useResult (T'domFetchCache'run'helper'fn dr x' x id)
 

@@ -62,7 +62,7 @@ import Unsafe.Coerce (unsafeCoerce)
 import Z.Z.Core (T'useAsSym, rec'get, rec'insert)
 import Z.Z.Run (RunS, ctxR'askAt, ctxR'runAt)
 
-type Run x a = RunS x a
+type Run x = RunS x
 
 newtype Reader r = Reader r
 

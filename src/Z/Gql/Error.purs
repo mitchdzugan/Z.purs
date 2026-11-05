@@ -12,6 +12,8 @@ module Z.Gql.Error
 
 import Z.Prelude
 
+import Z.Z.Json.Decode (class XDecodeJson)
+
 type GqlResponseError =
   { response ::
       { data :: Json
@@ -36,8 +38,7 @@ newtype T = T (Variant T'row)
 
 derive instance Newtype T _
 
-instance DecodeJson T where
-  decodeJson = var'decode
+derive newtype instance XDecodeJson T
 
 instance EncodeJson T where
   encodeJson = var'encode

@@ -39,7 +39,8 @@ import Z.Prelude
 
 import Z.H2h.Error as H2hE
 import Z.H2h.Warning as H2hW
-import Z.Z.Variant (var'decode, var'encode)
+import Z.Z.Json.Decode (class XDecodeJson)
+import Z.Z.Variant (var'encode)
 
 type Error = H2hE.T
 
@@ -52,8 +53,7 @@ derive instance Newtype BracketingSite _
 
 derive newtype instance Eq BracketingSite
 
-instance DecodeJson BracketingSite where
-  decodeJson = var'decode
+derive newtype instance XDecodeJson BracketingSite
 
 instance EncodeJson BracketingSite where
   encodeJson = var'encode
@@ -82,8 +82,7 @@ noScore = var'inj @"noScore" unit
 
 derive instance Newtype Score _
 
-instance DecodeJson Score where
-  decodeJson = var'decode
+derive newtype instance XDecodeJson Score
 
 instance EncodeJson Score where
   encodeJson = var'encode
@@ -155,14 +154,13 @@ newtype SocialType = SocialType
 
 derive instance Newtype SocialType _
 
+derive newtype instance XDecodeJson SocialType
+
 instance Identable SocialType where
   ident'get = id'of <<< var'key
 
 instance EncodeJson SocialType where
   encodeJson = var'encode
-
-instance DecodeJson SocialType where
-  decodeJson = var'decode
 
 socialType'discord :: SocialType
 socialType'discord = var'inj @"discord" unit
@@ -184,14 +182,13 @@ newtype ImageType = ImageType
 
 derive instance Newtype ImageType _
 
+derive newtype instance XDecodeJson ImageType
+
 instance Identable ImageType where
   ident'get = id'of <<< var'key
 
 instance EncodeJson ImageType where
   encodeJson = var'encode
-
-instance DecodeJson ImageType where
-  decodeJson = var'decode
 
 imageType'banner :: ImageType
 imageType'banner = var'inj @"banner" unit

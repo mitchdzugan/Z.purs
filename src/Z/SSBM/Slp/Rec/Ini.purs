@@ -9,6 +9,8 @@ module Z.SSBM.Slp.Rec.Ini
 
 import Z.Prelude
 
+import Z.Z.Json.Decode (class XDecodeJson, xDecodeViaString)
+
 type IniFilename = String
 type IniPropGroup = String
 type IniPropKey = String
@@ -39,12 +41,8 @@ iniModOfStr s = do
   where
   emsg = "Expected `$ini:$propGroup.$propKey=$val`"
 
-instance DecodeJson IniMod where
-  decodeJson x = do
-    (baseDecodeJson x <#> iniModOfStr) >>= onEor
-    where
-    onEor (Right v) = pure v
-    onEor (Left msg) = decodeFailTypeMismatch msg
+instance XDecodeJson IniMod where
+  xDecodeJson = xDecodeViaString iniModOfStr
 
 instance EncodeJson IniMod where
   encodeJson x = encodeJson $ iniModToStr x
@@ -72,8 +70,8 @@ mkInis addedMods = sync'x do
     forM_ mods \mod -> _'insert (iniModGroupWithK mod) (iniModV mod)
   fileDataByFile <- _'exec_ @(X'HashMap2D String String (Object String)) do
     forM_ (hm'entries dataByModGroup) \(modGroup /\ groupData) -> do
-      _'insert (modGroupKey modGroup) $ obj'fromHM groupData
-  pure $ obj'fromHM $ fileDataByFile <#> obj'fromHM
+      _'insert (modGroupKey modGroup) $ obj'collect groupData
+  pure $ obj'collect $ fileDataByFile <#> obj'collect
 
 baseInis :: Array IniMod
 baseInis =

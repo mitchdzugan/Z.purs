@@ -23,8 +23,8 @@ import Z.Z.Eff.WholeHistoryRating
   , eff'whr'ratingsForPlayer
   )
 import Z.Z.X.Core (class X'Readable, Reader, Run, x'eval)
-import Z.Z.X.Index (Edit)
 import Z.Z.X.Method (x'effCall)
+import Z.Z.X.Nicknames (Edit)
 
 ---------------------------------------------------------------------
 

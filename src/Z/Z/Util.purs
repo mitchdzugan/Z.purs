@@ -1,13 +1,6 @@
 module Z.Z.Util
-  ( JsonDecodeError(..)
-  , JsonDecodeFn
-  , JsonEncodeFn
-  , RawJsonDecodeError
-  , ResourceStage(..)
-  , SorN(..)
-  , Type_Ap
+  ( Type_Ap
   , Type_Ap_R
-  , UrlParts
   , arg2'
   , arg3'
   , arg4'
@@ -19,53 +12,28 @@ module Z.Z.Util
   , arr'sortWith
   , arr'splitHead
   , arr'splitTail
-  , baseDecodeJson
-  , class IsStringOrNum
   , class RevSym
   , class SplitSp1
   , class SplitSp1Impl
   , class UpCat
   , class UpCf
   , class UpCt
-  , decode
-  , decode'
-  , decodeErrTypeMismatch
-  , decodeFailTypeMismatch
-  , decodeForeign
-  , decodeJson
-  , decodeJson'
-  , decodeViaString
   , encode
   , id
-  , jsonDecode
   , jsonKeys
   , jsonLookup
   , jsonPairs
   , jsonSortedPairs
   , jsonVals
   , nth
-  , obj'fromHM
-  , sOrN
   , type (#)
   , type ($)
-  , url'fromParts
-  , url'fromString
-  , url'hash
-  , url'origin
-  , url'parts
-  , url'pathSegments
-  , url'pathSegmentsFromPathname
-  , url'pathname
-  , url'query
-  , url'relative
-  , url'toString
   ) where
 
 import Prelude
 
 import Data.Argonaut.Core (stringify) as AArg
 import Data.Argonaut.Core as Arg
-import Data.Argonaut.Decode (class DecodeJson, fromJsonString) as Dec
 import Data.Argonaut.Decode (JsonDecodeError(..)) as JDE
 import Data.Argonaut.Decode as ADec
 import Data.Argonaut.Encode (class EncodeJson, encodeJson) as Enc
@@ -83,58 +51,17 @@ import Foreign as Foreign
 import Foreign.Object as FO
 import Prim.Symbol as Symbol
 import Type.Proxy as Proxy
-import Z.Z.Core (arr'drop, arr'size, arr'take)
+import Z.Z.Core (arr'drop, arr'size, arr'take, eOr'_)
 import Z.Z.Core as Z
-import Z.Z.HashMap (HashMap, hm'entries)
 import Z.Z.Id (class Identable, id'of)
 import Z.Z.It (arr'collect, iterable'kv'mk, obj'collect)
-import Z.Z.Url as Url
 import Z.Z.Variant
-  ( var'decode
-  , var'default
+  ( var'default
   , var'encode
   , var'inj
   , var'inj_
   , var'on
   )
-
-type UrlParts = Url.Parts
-
-url'fromParts :: Url.Parts'from -> Url.URL
-url'fromParts = Url.fromParts
-
-url'fromString :: String -> Maybe.Maybe Url.URL
-url'fromString = Url.fromString
-
-url'query :: Url.URL -> HashMap String (Array String)
-url'query = Url.query
-
-url'pathSegmentsFromPathname :: String -> Array String
-url'pathSegmentsFromPathname = Url.pathSegmentsFromPathname
-
-url'toString :: Url.URL -> String
-url'toString = Url.toString
-
-url'origin :: Url.URL -> String
-url'origin url = Url.protocol url <> "://" <> rest (Url.port url)
-  where
-  rest (Maybe.Just n) = Url.host url <> ":" <> show n
-  rest _ = Url.host url
-
-url'pathSegments :: Url.URL -> Array String
-url'pathSegments = Url.path
-
-url'hash :: Url.URL -> Maybe.Maybe String
-url'hash = Url.hash
-
-url'pathname :: Url.URL -> String
-url'pathname = Url.pathname
-
-url'relative :: Url.URL -> String
-url'relative = Url.relative
-
-url'parts :: Url.URL -> UrlParts
-url'parts = Url.parts
 
 nth :: forall a. Array a -> Int -> Maybe.Maybe a
 nth = Array.index
@@ -181,124 +108,6 @@ jsonLookup k = Arg.caseJsonObject Maybe.Nothing (FO.lookup k)
 id :: forall a. a -> a
 id a = a
 
-type RawJsonDecodeError = JDE.JsonDecodeError
-
-newtype JsonDecodeError = JsonDecodeError JDE.JsonDecodeError
-
-type JsonDecodeErrorInt'row =
-  ( typeMismatch :: String
-  , unexpectedValue :: Arg.Json
-  , atIndex :: Int /\ JsonDecodeErrorInt
-  , atKey :: String /\ JsonDecodeErrorInt
-  , named :: String /\ JsonDecodeErrorInt
-  , missingValue :: Unit
-  )
-
-newtype JsonDecodeErrorInt = JsonDecodeErrorInt (Variant JsonDecodeErrorInt'row)
-
-derive instance Newtype JsonDecodeErrorInt _
-
-decodeErrTypeMismatch :: String -> JDE.JsonDecodeError
-decodeErrTypeMismatch = JDE.TypeMismatch
-
-decodeFailTypeMismatch
-  :: forall x. String -> Either.Either JDE.JsonDecodeError x
-decodeFailTypeMismatch = Either.Left <<< JDE.TypeMismatch
-
-instance Show JsonDecodeError where
-  show (JsonDecodeError jde) = show jde
-
-decodeRtoI :: JDE.JsonDecodeError -> JsonDecodeErrorInt
-decodeRtoI (JDE.TypeMismatch s) = var'inj @"typeMismatch" s
-decodeRtoI (JDE.UnexpectedValue j) = var'inj @"unexpectedValue" j
-decodeRtoI (JDE.AtIndex i e) = var'inj @"atIndex" $ i /\ decodeRtoI e
-decodeRtoI (JDE.AtKey s e) = var'inj @"atKey" $ s /\ decodeRtoI e
-decodeRtoI (JDE.Named s e) = var'inj @"named" $ s /\ decodeRtoI e
-decodeRtoI _ = var'inj_ @"missingValue"
-
-decodeItoR :: JsonDecodeErrorInt -> JDE.JsonDecodeError
-decodeItoR = var'default JDE.MissingValue
-  # var'on @"typeMismatch" JDE.TypeMismatch
-  # var'on @"unexpectedValue" JDE.UnexpectedValue
-  # var'on @"atIndex" (\(i /\ e) -> JDE.AtIndex i $ decodeItoR e)
-  # var'on @"atKey" (\(s /\ e) -> JDE.AtKey s $ decodeItoR e)
-  # var'on @"named" (\(s /\ e) -> JDE.Named s $ decodeItoR e)
-
-decodeViaString
-  :: forall a
-   . (String -> Either.Either String a)
-  -> Arg.Json
-  -> Either.Either JDE.JsonDecodeError a
-decodeViaString ofString x = do
-  (baseDecodeJson x <#> ofString) >>= onEor
-  where
-  onEor (Either.Right v) = pure v
-  onEor (Either.Left msg) = decodeFailTypeMismatch msg
-
-instance Dec.DecodeJson JsonDecodeErrorInt where
-  decodeJson x = var'decode x
-
-instance Enc.EncodeJson JsonDecodeErrorInt where
-  encodeJson x = var'encode x
-
-instance Dec.DecodeJson JsonDecodeError where
-  decodeJson x = do
-    j :: JsonDecodeErrorInt <- ADec.decodeJson x
-    pure $ JsonDecodeError $ decodeItoR j
-
-instance Enc.EncodeJson JsonDecodeError where
-  encodeJson (JsonDecodeError x) = Enc.encodeJson $ decodeRtoI x
-
-type JsonDecodeFn t = Arg.Json -> Either.Either JsonDecodeError t
-type JsonEncodeFn t = t -> Arg.Json
-
-jsonDecode :: String -> Either.Either JsonDecodeError Arg.Json
-jsonDecode = Dec.fromJsonString >>> Z.mapL JsonDecodeError
-
-decodeForeign
-  :: forall @v
-   . Dec.DecodeJson v
-  => Foreign.Foreign
-  -> Either.Either JsonDecodeError v
-decodeForeign = Z.jsonFromForeign >>> ADec.decodeJson >>> Z.mapL JsonDecodeError
-
-decodeJson'
-  :: forall v
-   . Dec.DecodeJson v
-  => Proxy.Proxy v
-  -> Arg.Json
-  -> Either.Either JsonDecodeError v
-decodeJson' _ = ADec.decodeJson >>> Z.mapL JsonDecodeError
-
-decode'
-  :: forall v
-   . Dec.DecodeJson v
-  => Proxy.Proxy v
-  -> String
-  -> Either.Either JsonDecodeError v
-decode' _ = Dec.fromJsonString >>> Z.mapL JsonDecodeError
-
-decodeJson
-  :: forall @v
-   . Dec.DecodeJson v
-  => Arg.Json
-  -> Either.Either JsonDecodeError v
-decodeJson = ADec.decodeJson >>> Z.mapL JsonDecodeError
-
-baseDecodeJson
-  :: forall @v
-   . Dec.DecodeJson v
-  => Arg.Json
-  -> Either.Either ADec.JsonDecodeError v
-baseDecodeJson = ADec.decodeJson
-
-decode
-  :: forall @v
-   . Dec.DecodeJson v
-  => String
-  -> Either.Either JsonDecodeError v
-decode = Dec.fromJsonString >>> Z.mapL JsonDecodeError
-
 encode
   :: forall v
    . Enc.EncodeJson v
@@ -315,39 +124,6 @@ type Type_Ap_R x f = f x
 infixr 0 type Type_Ap as $
 infixr 0 type Type_Ap_R as #
 
-newtype SorN = SorN (Either.Either String Int)
-
-derive instance Newtype SorN _
-
-class IsStringOrNum a where
-  sOrN :: a -> SorN
-
-derive instance Eq SorN
-derive instance Ord SorN
-
-instance Dec.DecodeJson SorN where
-  decodeJson x = case ADec.decodeJson x of
-    Either.Right v -> pure $ wrap $ Either.Left v
-    _ -> ADec.decodeJson x <#> wrap <<< Either.Right
-
-instance Enc.EncodeJson SorN where
-  encodeJson = unwrap >>> Either.either Enc.encodeJson Enc.encodeJson
-
-instance IsStringOrNum String where
-  sOrN = wrap <<< Either.Left
-
-instance IsStringOrNum Int where
-  sOrN = wrap <<< Either.Right
-
-instance IsStringOrNum SorN where
-  sOrN = identity
-
-instance Show SorN where
-  show = unwrap >>> Either.either identity show
-
-instance Identable SorN where
-  ident'get = id'of <<< show
-
 arg2' :: forall a1 a2 r. a2 -> (a1 -> a2 -> r) -> (a1 -> r)
 arg2' a2 f a1 = f a1 a2
 
@@ -360,17 +136,6 @@ arg4'
   -> (a1 -> a2 -> a3 -> a4 -> r)
   -> (a1 -> a2 -> a3 -> r)
 arg4' a4 f a1 a2 a3 = f a1 a2 a3 a4
-
-newtype ResourceStage =
-  ResourceStage (Variant (acquire :: Unit, release :: Unit))
-
-derive instance Newtype ResourceStage _
-
-instance Dec.DecodeJson ResourceStage where
-  decodeJson = var'decode
-
-instance Enc.EncodeJson ResourceStage where
-  encodeJson = var'encode
 
 class SplitSp1 :: forall k1 k2 k3. k1 -> k2 -> k3 -> Constraint
 class SplitSp1 i o1 o2 | i -> o1 o2
@@ -425,5 +190,3 @@ else instance
   ) =>
   SplitSp1Impl s cat cf ct tat tf
 
-obj'fromHM :: forall @a. HashMap String a -> FO.Object a
-obj'fromHM = obj'collect <<< hm'entries

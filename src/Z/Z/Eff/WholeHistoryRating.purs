@@ -14,7 +14,7 @@ import Data.Argonaut.Core (Json)
 import Data.Maybe (Maybe(..))
 import Effect (Effect)
 import Z.Z.Core (encodeOpts)
-import Z.Z.X.Index (Edit, edit)
+import Z.Z.X.Nicknames (Edit, edit)
 
 foreign import data Eff'Whr :: Type
 

@@ -7,18 +7,22 @@ module Z.Prelude
   , module ZDateTime
   , module ZDefaultable
   , module ZExt
+  , module ZFetch
   , module ZFoldable
   , module ZMashMap
   , module ZMashSet
   , module ZId
   , module ZIt
+  , module ZJsonDecode
   , module ZMethod
   , module ZPair
   , module ZPairKey
   , module ZString
   , module ZUrl
+  , module ZUrlExp
   , module ZUtil
   , module ZShorthand
+  , module ZSorN
   , module ZWraps
   , module ZPassable
   , module ZPromise
@@ -178,6 +182,7 @@ import Z.Z.Defaultable
   , whenJust
   ) as ZDefaultable
 import Z.Z.Ext as ZExt
+import Z.Z.Fetch as ZFetch
 import Z.Z.Foldable as ZFoldable
 import Z.Z.Fuzzy as ZFuzzy
 import Z.Z.HashMap as ZMashMap
@@ -214,14 +219,17 @@ import Z.Z.Id
   , idented'v
   ) as ZId
 import Z.Z.It as ZIt
+import Z.Z.Json.Decode as ZJsonDecode
 import Z.Z.Method as ZMethod
 import Z.Z.Pair (Pair(..), pair'get, pair'getOppo, pair'swap, (~)) as ZPair
 import Z.Z.PairKey as ZPairKey
 import Z.Z.Passable (pass) as ZPassable
 import Z.Z.Promise (EffPromise) as ZPromise
 import Z.Z.Shorthand as ZShorthand
+import Z.Z.SorN as ZSorN
 import Z.Z.String as ZString
 import Z.Z.Url (URL) as ZUrl
+import Z.Z.UrlExp as ZUrlExp
 import Z.Z.Util as ZUtil
 import Z.Z.Variant as ZVariant
 import Z.Z.Wraps

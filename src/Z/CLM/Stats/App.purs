@@ -64,6 +64,7 @@ import Z.CLM.Stats.Types
   )
 import Z.H2h.Module as H2h
 import Z.XDom.UrlState as UrlSt
+import Z.Z.Json.Decode (class XDecodeJson)
 
 -----------------------------------------------------------------------
 
@@ -72,7 +73,7 @@ newtype ClmSeason'Data = ClmSeason'Data ClmSeason'Json
 derive instance Newtype ClmSeason'Data _
 derive newtype instance Eq ClmSeason'Data
 derive newtype instance EncodeJson ClmSeason'Data
-derive newtype instance DecodeJson ClmSeason'Data
+derive newtype instance XDecodeJson ClmSeason'Data
 
 type ClmSeason'Boxed = Boxed ClmSeason'Data
 
@@ -239,7 +240,7 @@ newtype ClmPlayerSeason'Data = ClmPlayerSeason'Data ClmPlayerSeason'Json
 derive instance Newtype ClmPlayerSeason'Data _
 derive newtype instance Eq ClmPlayerSeason'Data
 derive newtype instance EncodeJson ClmPlayerSeason'Data
-derive newtype instance DecodeJson ClmPlayerSeason'Data
+derive newtype instance XDecodeJson ClmPlayerSeason'Data
 
 type ClmPlayerSeason'Boxed = Boxed ClmPlayerSeason'Data
 

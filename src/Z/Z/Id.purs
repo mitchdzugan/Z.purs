@@ -30,8 +30,6 @@ import Data.String.CodeUnits (singleton)
 import Z.Z.Core (arr'concat)
 import Z.Z.Ext (Exists, mkExists, runExists)
 import Z.Z.Ext as Z
-import Z.Z.Pair as ZP
-import Z.Z.PairKey (PairKey(..), pos)
 import Z.Z.String (str'joinWith)
 
 foreign import js_bytesOfInt :: (Int -> Z.Byte) -> Int -> Array Z.Byte
@@ -98,11 +96,6 @@ instance IsId String where
   id'keyImpl = identity
   id'bytesImpl = js_bytesOfString Z.byte
 
-instance IsId PairKey where
-  id'char _ = 'P'
-  id'keyImpl pk = if pk == pos then "+" else "-"
-  id'bytesImpl pk = js_bytesOfInt Z.byte $ if pk == pos then 1 else 0
-
 instance IsId Number where
   id'char _ = 'n'
   id'keyImpl = show
@@ -120,11 +113,6 @@ instance (IsId l, IsId r) => IsId (l Z./\ r) where
   id'char _ = 'p'
   id'keyImpl (l Z./\ r) = id'key l <> id'key r
   id'bytesImpl (l Z./\ r) = id'bytes l <> id'bytes r
-
-instance (IsId t) => IsId (ZP.Pair t) where
-  id'char _ = 'p'
-  id'keyImpl (l ZP.~ r) = id'key l <> id'key r
-  id'bytesImpl (l ZP.~ r) = id'bytes l <> id'bytes r
 
 instance IsId (Array Z.Byte) where
   id'char _ = 'b'
@@ -159,9 +147,6 @@ instance Identable Int where
 instance Identable String where
   ident'get = id'of
 
-instance Identable PairKey where
-  ident'get = id'of
-
 instance Identable Number where
   ident'get = id'of
 
@@ -170,9 +155,6 @@ instance Identable t => Identable (Z.Maybe t) where
 
 instance (Identable l, Identable r) => Identable (l Z./\ r) where
   ident'get (l Z./\ r) = id'of $ ident'get l Z./\ ident'get r
-
-instance (Identable t) => Identable (ZP.Pair t) where
-  ident'get (l ZP.~ r) = id'of $ ident'get l ZP.~ ident'get r
 
 instance Identable (Array Z.Byte) where
   ident'get = id'of
