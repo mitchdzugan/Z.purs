@@ -116,7 +116,7 @@ xRun args = do
       , slippiPlaybackBin: defaultSlippiPlaybackBin
       , ffmpegBin: "ffmpeg"
       }
-  x'argParse "slp-rec" (slpRecInfo wd) args \opts -> do
+  x_argParse "slp-rec" (slpRecInfo wd) args \opts -> do
     let optConfigs = arr'collect $ g_ @"!.configPaths" opts
     let noOptConfigs = arr'size optConfigs == 0
     let baseConfigPath = show $ cfgPath /./ "config"

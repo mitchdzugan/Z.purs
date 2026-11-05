@@ -77,7 +77,7 @@ import Z.Z.X.Index
   , e'try''
   , sync'x
   )
-import Z.Z.X.Method (x'assign, x'cons, x'update)
+import Z.Z.X.Method (x'cons, x'update, x_assign)
 import Z.Z.X.Readables.RW.Ref (X'Ref)
 import Z.Z.X.Readables.RW.Vector (X'Writer)
 
@@ -106,7 +106,7 @@ type SEA' s e x = S' s $ E' e $ A' x
 ------------------------------------------------
 
 s'put :: forall x s. s -> Run (S' s x) Unit
-s'put = x'assign @"_'x'state"
+s'put = x_assign @"_'x'state"
 
 s'update :: forall x s. (s -> s) -> Run (S' s x) Unit
 s'update = x'update @"_'x'state"

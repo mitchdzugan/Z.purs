@@ -3,12 +3,12 @@ module Z.Z.X.Method
   , (@.)
   , (@<=>)
   , (@=)
-  , T'x'add
-  , T'x'addAt
-  , T'x'alter
-  , T'x'assign
-  , T'x'assignAt
-  , T'x'assignPure
+  , T'x_add
+  , T'x_addAt
+  , T'x_alter
+  , T'x_assign
+  , T'x_assignAt
+  , T'x_assignPure
   , T'x'clear
   , T'x'clearAt
   , T'x'cons
@@ -109,12 +109,12 @@ module Z.Z.X.Method
   , eff'get
   , eff'rw'call
   , eff'rw'get
-  , x'add
-  , x'addAt
-  , x'alter
-  , x'assign
-  , x'assignAt
-  , x'assignPure
+  , x_add
+  , x_addAt
+  , x_alter
+  , x_assign
+  , x_assignAt
+  , x_assignPure
   , x'call
   , x'clear
   , x'clearAt
@@ -319,22 +319,22 @@ class (X'Method XM'assign m t Unit, XM'type m XMt'self t) <= XC'assign m t
 
 instance (X'Method XM'assign m t Unit, XM'type m XMt'self t) => XC'assign m t
 
-type T'x'assign use p =
+type T'x_assign use p =
   forall x' x m t
    . XC'assign m t
   => ConsSymbol p m x' x
   => use (t -> Run x Unit)
 
-x'assign :: forall @p. T'x'assign T'id p
-x'assign = xAt'call @p @XM'assign
+x_assign :: forall @p. T'x_assign T'id p
+x_assign = xAt'call @p @XM'assign
 
-infixl 6 x'assign as @=
+infixl 6 x_assign as @=
 
 -----------------------------------------
 
 foreign import data XM'assignAt :: Type
 
-type T'x'assignAt use p =
+type T'x_assignAt use p =
   forall x' x m k v
    . X'Method XM'assignAt m (k /\ v) Unit
   => XM'type m XMt'd1'key k
@@ -342,22 +342,22 @@ type T'x'assignAt use p =
   => ConsSymbol p m x' x
   => use (k -> v -> Run x Unit)
 
-x'assignAt :: forall @p. T'x'assignAt T'id p
-x'assignAt = curry (xAt'call @p @XM'assignAt)
+x_assignAt :: forall @p. T'x_assignAt T'id p
+x_assignAt = curry (xAt'call @p @XM'assignAt)
 
 -----------------------------------------
 
-type T'x'assignPure use p =
+type T'x_assignPure use p =
   forall x' x m t a
    . XC'assign m (a t)
   => ConsSymbol p m x' x
   => Applicative a
   => use (t -> Run x Unit)
 
-x'assignPure :: forall @p. T'x'assignPure T'id p
-x'assignPure v = xAt'call @p @XM'assign (pure v)
+x_assignPure :: forall @p. T'x_assignPure T'id p
+x_assignPure v = xAt'call @p @XM'assign (pure v)
 
-infixl 6 x'assignPure as @<=>
+infixl 6 x_assignPure as @<=>
 
 -----------------------------------------
 
@@ -590,21 +590,21 @@ x'clearAt = xAt'call @p @XM'clearAt
 
 foreign import data XM'add :: Type
 
-type T'x'add use p =
+type T'x_add use p =
   forall x' x m t
    . X'Method XM'add m t Unit
   => XM'type m XMt'self t
   => ConsSymbol p m x' x
   => use (t -> Run x Unit)
 
-x'add :: forall @p. T'x'add T'id p
-x'add = xAt'call @p @XM'add
+x_add :: forall @p. T'x_add T'id p
+x_add = xAt'call @p @XM'add
 
 -----------------------------------------
 
 foreign import data XM'addAt :: Type
 
-type T'x'addAt use p =
+type T'x_addAt use p =
   forall x' x m k v
    . X'Method XM'addAt m (k /\ v) Unit
   => XM'type m XMt'd1'key k
@@ -612,8 +612,8 @@ type T'x'addAt use p =
   => ConsSymbol p m x' x
   => use (k -> v -> Run x Unit)
 
-x'addAt :: forall @p. T'x'addAt T'id p
-x'addAt = curry (xAt'call @p @XM'addAt)
+x_addAt :: forall @p. T'x_addAt T'id p
+x_addAt = curry (xAt'call @p @XM'addAt)
 
 -----------------------------------------
 
@@ -759,7 +759,7 @@ x'replace k v = x'has @p k >>= flip when (x'insert @p k v)
 
 -----------------------------------------
 
-type T'x'alter use p =
+type T'x_alter use p =
   forall x' x m k v
    . X'Method XM'insert m (k /\ v) Unit
   => X'Method XM'remove m k Unit
@@ -769,8 +769,8 @@ type T'x'alter use p =
   => ConsSymbol p m x' x
   => use (k -> (Maybe v -> Maybe v) -> Run x Unit)
 
-x'alter :: forall @p. T'x'alter T'id p
-x'alter k f = x'lookup @p k <#> f >>= may'__
+x_alter :: forall @p. T'x_alter T'id p
+x_alter k f = x'lookup @p k <#> f >>= may'__
   (\_ -> x'remove @p k)
   (\v -> x'insert @p k v)
 
@@ -861,7 +861,7 @@ type T'x'update use p =
   => use ((t -> t) -> Run x Unit)
 
 x'update :: forall @p. T'x'update T'id p
-x'update f = f <$> x'extract @p >>= x'assign @p
+x'update f = f <$> x'extract @p >>= x_assign @p
 
 infixl 6 x'update as @#
 
@@ -1034,8 +1034,8 @@ _'extract = x'extract @p
 _'consAt :: forall p. T'use'_'AsSym p (T'x'consAt T'id)
 _'consAt = x'consAt @p
 
-_'alter :: forall p. T'use'_'AsSym p (T'x'alter T'id)
-_'alter = x'alter @p
+_'alter :: forall p. T'use'_'AsSym p (T'x_alter T'id)
+_'alter = x_alter @p
 
 _'modify :: forall p. T'use'_'AsSym p (T'x'modify T'id)
 _'modify = x'modify @p

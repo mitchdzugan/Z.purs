@@ -99,7 +99,7 @@ getEventDataImpl = do
           score <- H2hE.parseScore !$! do
             e'runParser scoreS parseInt <#> H2h.mkScoreCount
           forM_ (str'split (Pattern " ") scoreClass) $ \cn -> do
-            when (cn == "-winner") $ x'assignPure @"winnerId" entrantId
+            when (cn == "-winner") $ x_assignPure @"winnerId" entrantId
           let
             participant =
               { prefix: Nothing
@@ -160,7 +160,7 @@ getEventDataImpl = do
         let wasLosers = jOrF $ prevRound <#> Round.isLosers
         let sameSlots = (slotsKey baseSet) == mSlotsKey prevSet
         let isGrands = isNothing prev && isDE || (wasGrands && sameSlots)
-        when (isGrands && wasGrands) $ x'assign @"hasReset" true
+        when (isGrands && wasGrands) $ x_assign @"hasReset" true
         forM_ (arr'collect baseSet.slots) $ \slot -> do
           whenJust slot.entrantId $ \entrantId -> do
             (if isGrands then x'cons @"gfEIds" else x'cons @"nonGfEIds")
@@ -174,7 +174,7 @@ getEventDataImpl = do
         let nowLosers = (not isGrands) && (wasGrands || wasLosers)
         let isLosers = nowLosers && not seenAllGFEntrants
         when ((not isLosers && wasLosers) || (not isGrands && wasGrands)) do
-          x'assign @"depth" 0
+          x_assign @"depth" 0
         setDepth <- x'extract @"depth"
         let round = elimRound isDE setDepth isGrands isLosers isDropRound
         let slotA ~ slotB = baseSet.slots
@@ -200,13 +200,13 @@ getEventDataImpl = do
         depth <- x'extract @"depth"
         roundInd <- x'extract @"roundInd"
         when (p2 depth <= roundInd) do
-          x'assign @"roundInd" 0
-          if (isDropRound && isLosers) then do x'assign @"isDropRound" false
+          x_assign @"roundInd" 0
+          if (isDropRound && isLosers) then do x_assign @"isDropRound" false
           else do
-            x'assign @"isDropRound" true
+            x_assign @"isDropRound" true
             x'update @"depth" inc
-        x'assignPure @"prev" { base: baseSet, round }
-        x'assignPure @"prev" { base: baseSet, round }
+        x_assignPure @"prev" { base: baseSet, round }
+        x_assignPure @"prev" { base: baseSet, round }
         pure $
           { round
           , set:

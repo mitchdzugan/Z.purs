@@ -7,7 +7,7 @@ import Z.Z.Opt as O
 
 xRun :: forall x. Array String -> EA' JsError x @$> Unit
 xRun args = do
-  x'argParse "slp-id" cliInfo args \(CliOpts opts) -> do
+  x_argParse "slp-id" cliInfo args \(CliOpts opts) -> do
     buffer <- x'readFile opts.filename
     parsed <- un' !$! SlpRead.xParse buffer
     x'out $ ident'key parsed

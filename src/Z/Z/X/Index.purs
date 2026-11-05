@@ -131,7 +131,7 @@ import Z.Z.It (reduceM)
 import Z.Z.Promise (EffPromise)
 import Z.Z.Run
   ( Ctx'Except
-  , Ctx'x'async
+  , Ctx'x_async
   , Future
   , ctxA'adapt
   , ctxA'fromEff
@@ -220,7 +220,7 @@ type R' r x = (_'x'reader :: X'R r | x)
 
 type E' e x = (_'x'except :: X'E e | x)
 
-type A' x = Ctx'x'async x
+type A' x = Ctx'x_async x
 
 type EA' e x = E' e $ A' x
 

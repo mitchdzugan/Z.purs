@@ -740,8 +740,8 @@ type XDom dx x a = MDom dx (XDomR' $ X'Base $ DomPermit x) a
 type XDomEl dx x a = MDomEl dx (XDomR' $ X'Base $ DomPermit x) a
 type XDomEff x a = MDomEff (XDomR' $ X'Base $ DomPermit x) a
 type XDomE e dx x a = XDom (_'x'except :: (DomE e) | dx) x a
-type XDomA dx x a = XDom (_'x'async :: DomA | dx) x a
-type XDomEA e dx x a = XDom (_'x'except :: (DomE e), _'x'async :: DomA | dx) x a
+type XDomA dx x a = XDom (_'x_async :: DomA | dx) x a
+type XDomEA e dx x a = XDom (_'x'except :: (DomE e), _'x_async :: DomA | dx) x a
 
 type DomE' e dx = (_'x'except :: DomE e | dx)
 type XDomR' x = (_'xdom'reader :: X'R XDom'Reader | x)

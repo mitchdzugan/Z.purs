@@ -405,7 +405,7 @@ getClmId playerId = x'withReturn \x'return -> do
   clmId <- flip tailRecM nextClmId \tryId -> do
     exitingsPlayers <- x'sizeAt @"playerIdsByClmId" tryId
     pure $ if exitingsPlayers == 0 then Done tryId else Loop $ inc tryId
-  x'assign @"nextClmId" (inc clmId)
+  x_assign @"nextClmId" (inc clmId)
   addPlayerIdToClmId playerId clmId
   pure clmId
 
@@ -515,8 +515,8 @@ buildCurrentSeasons spec = do
             clmIdW /\ clmIdL <- sc'unwrap_ set.winner <#> \pk ->
               if pk == pos then clmId1 /\ clmId2 else clmId2 /\ clmId1
             let incFrom0 = Just <<< inc <<< fromMaybe 0
-            x'alter @"eventWins" (clmIdW /\ eventId) incFrom0
-            x'alter @"eventLosses" (clmIdL /\ eventId) incFrom0
+            x_alter @"eventWins" (clmIdW /\ eventId) incFrom0
+            x_alter @"eventLosses" (clmIdL /\ eventId) incFrom0
             x'insert @"eventDidDQ" (clmIdL /\ eventId) false
             x'insert @"eventDidDQ" (clmIdL /\ eventId) set.isDQ
             x'consAt @"h2hOpps" clmIdW clmIdL
@@ -540,15 +540,15 @@ buildCurrentSeasons spec = do
                 let may'score = pair'get pkey $ entrant1Score ~ entrant2Score
                 let sggCharId = selection.character.id
                 whenJust (hm'lookup sggCharId sggSlippiCharIdMap) \chId -> do
-                  x'alter @"charUsedGames" (clmId /\ chId) incFrom0
+                  x_alter @"charUsedGames" (clmId /\ chId) incFrom0
                   whenJust may'score \score -> do
                     when (score >= 100) do
                       let colorId = (score / 100) - 1
-                      x'alter @"charColorUsedGames"
+                      x_alter @"charColorUsedGames"
                         ((clmId /\ chId) /\ colorId)
                         incFrom0
-            x'alter @"wins" clmIdW incFrom0
-            x'alter @"losses" clmIdL incFrom0
+            x_alter @"wins" clmIdW incFrom0
+            x_alter @"losses" clmIdL incFrom0
             whr'createGame clmIdW clmIdL groupCount 0
         when anyCounted $ s'update inc
       whr'iterate 100
@@ -902,7 +902,7 @@ buildLegacySeasons = do
           pure { events, h2hs }
         let { events, h2hs } = res
         x'insert @"clmPlayerSeasons" (seasonId /\ clmId) { events, h2hs, sets }
-    x'assignAt @"clmEvents" seasonId seasonEvents
+    x_assignAt @"clmEvents" seasonId seasonEvents
   pure unit
 
 buildSeasonJson

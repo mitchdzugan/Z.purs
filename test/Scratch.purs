@@ -48,6 +48,7 @@ var'unwrap
   :: forall v' v l a
    . IsSymbol l
   => Cons l a v' v
+  => Show a
   => Variant v
   -> Proxy l
 var'unwrap _ = Proxy @l

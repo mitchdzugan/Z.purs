@@ -134,7 +134,7 @@ handleAction (SetIsPrEligible { slug, isEligible }) = slug #
 handleAction (MarkDoneUpdating { slug }) = x'cons @"doneUpdating" slug
 handleAction (BustCache { slug }) = x'cons @"eventsToRefetch" slug
 handleAction (SetDefaultSeasonId { seasonId }) =
-  x'assign @"defaultSeasonId" seasonId
+  x_assign @"defaultSeasonId" seasonId
 handleAction (SetClmId { clmId, playerSorN }) =
   x'insert @"clmIdByPlayerId" (sOrN playerSorN) clmId
 handleAction (SetClmIdForEvent { slug, clmId, playerSorN }) =

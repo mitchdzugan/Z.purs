@@ -17,8 +17,8 @@ module Node.Z.Sys.SysImpl
   , pathStr
   , runXAThenExit
   , runXAThenExitWithArgv
-  , x'argParse
-  , x'argv
+  , x_argParse
+  , x_argv
   , x'decodeAnyYamlExt
   , x'decodeTextFile
   , x'decodeYamlFile
@@ -247,7 +247,7 @@ runXAThenExitWithArgv
    . RtError e
   => (Array String -> WaEA' w e (X'Node ()) @@> a)
   -> Effect Unit
-runXAThenExitWithArgv fm = runXAThenExit $ x'argv >>= fm
+runXAThenExitWithArgv fm = runXAThenExit $ x_argv >>= fm
 
 data Platform = Win32 | Darwin | Linux | Android | FreeBSD | OpenBSD | Unknown
 
@@ -262,8 +262,8 @@ toPlatform "freebsd" = FreeBSD
 toPlatform "openbsd" = OpenBSD
 toPlatform _ = Unknown
 
-x'argv :: forall x. X'Node x @@> Array String
-x'argv = x'effGet @P'X'Node @"fullArgv" <#> arr'drop 2
+x_argv :: forall x. X'Node x @@> Array String
+x_argv = x'effGet @P'X'Node @"fullArgv" <#> arr'drop 2
 
 x'pid :: forall x. X'Node x @@> Int
 x'pid = x'effGet @P'X'Node @"pid"
@@ -358,14 +358,14 @@ infixr 0 pathJoin as /./
 -- join paths unless rightside is absolute in which case, use rightside
 infixr 0 pathJoinAbs as /.|//
 
-x'argParse
+x_argParse
   :: forall x a
    . String
   -> O.ParserInfo a
   -> Array String
   -> (a -> X'Node x @@> Unit)
   -> X'Node x @@> Unit
-x'argParse progName opts args fm =
+x_argParse progName opts args fm =
   handleParse $ O.execParserPure O.defaultPrefs opts args
   where
   handleParse (O.Success a) = fm a
