@@ -29,6 +29,10 @@ clm-stats-build:
 clm-stats-web-vite-preview:
     vite preview test/Web/ClmStats
 
+clm-stats-web-dev:
+    spago build
+    vite dev test/Web/ClmStats
+
 clm-stats-jekyll-serve:
     cd $CLM_STATS_PAGES_CO/docs && jekyll serve
 

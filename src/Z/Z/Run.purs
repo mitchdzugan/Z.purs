@@ -7,6 +7,7 @@ module Z.Z.Run
   , Run'
   , RunA
   , RunS
+  , ctx'expand
   , ctxA'adapt
   , ctxA'fromEff
   , ctxA'fromEffPromise
@@ -26,6 +27,7 @@ import Prelude
 import Data.Either (Either)
 import Data.Symbol (reflectSymbol)
 import Effect (Effect)
+import Prim.Row (class Union)
 import Type.Proxy (Proxy(..))
 import Unsafe.Coerce (unsafeCoerce)
 import Z.Z.Core (class ConsSymbol, JsError, eOr'_, mapL)
@@ -59,6 +61,10 @@ type RunA x = Run' Tag'Async x
 
 type Future = ThenableR Tag'Async Unit
 
+ctx'expand
+  :: forall rt x' x_ x a. Union x' x_ x => Run' rt x' a -> Run' rt x a
+ctx'expand = unsafeCoerce
+
 ctxR'askAt :: forall @p rt v x' x. ConsSymbol p v x' x => Run' rt x v
 ctxR'askAt = thenableR'ask <#> js_ctx_at (reflectSymbol (Proxy @p))
 
@@ -68,7 +74,11 @@ ctxR'runAt
   => v
   -> Run' rt x a
   -> Run' rt x' a
-ctxR'runAt = js_ctx_runReaderAt map (reflectSymbol (Proxy @p))
+ctxR'runAt v m = do
+  let k = reflectSymbol (Proxy @p)
+  ctx <- thenableR'ask
+  res <- js_ctx_initReaderAt ctx k v m
+  js_ctx_completeReaderAt ctx k $ pure res
 
 ctxE'runAt
   :: forall @p @e rt x' x a
@@ -77,7 +87,8 @@ ctxE'runAt
   -> Run' rt x' (Either e a)
 ctxE'runAt m = do
   let symK = reflectSymbol (Proxy @p)
-  js_ctx_runExceptAt map symK do
+  exc <- thenableR'ask <#> js_ctx_mkExceptAt
+  ctxR'runAt @p exc do
     r <- thenableR'ask
     mapL (js_ctx_unwrapErrorAt symK r) <$> thenableR'try m
 
@@ -122,24 +133,28 @@ ctxA'adapt
   :: forall x x' a
    . (RunS x a -> RunS x' a)
   -> (RunS (Ctx'x'async x) a -> RunS (Ctx'x'async x') a)
-ctxA'adapt = unsafeCoerce
+ctxA'adapt fm m = do
+  (unsafeCoerce fm) $ ctxA'fromEff (pure unit) >>= \_ -> m
 
-foreign import js_ctx_runReaderAt
-  :: forall rt v x' x a b c
-   . ((b -> c) -> Run' rt x' b -> Run' rt x' c)
+foreign import js_ctx_initReaderAt
+  :: forall rt v x' x a
+   . Ctx x'
   -> String
   -> v
   -> Run' rt x a
   -> Run' rt x' a
 
-foreign import js_ctx_at :: forall x v. String -> Ctx x -> v
-
-foreign import js_ctx_runExceptAt
-  :: forall rt x' x a b c
-   . ((b -> c) -> Run' rt x' b -> Run' rt x' c)
+foreign import js_ctx_completeReaderAt
+  :: forall rt x a
+   . Ctx x
   -> String
   -> Run' rt x a
-  -> Run' rt x' a
+  -> Run' rt x a
+
+foreign import js_ctx_at :: forall x v. String -> Ctx x -> v
+
+foreign import js_ctx_mkExceptAt
+  :: forall x e. Ctx x -> Ctx'Except e
 
 foreign import js_ctx_unwrapErrorAt
   :: forall x e. String -> Ctx x -> JsError -> e

@@ -222,7 +222,8 @@ evalA'self
    . Self dx x
   -> Run (A' (SELF dx x)) a
   -> Future a
-evalA'self self@(Self _ rn) m = runner'evalA rn $ r'run'' @"self" self $ m
+evalA'self self@(Self _ rn) m = do
+  runner'evalA rn $ r'run'' @"self" self $ m
 
 selfExtend :: forall dx x' x. RunMW x x' -> Self dx x' -> Self dx x
 selfExtend fm (Self dxn xn) = Self dxn (runner'extend fm xn)

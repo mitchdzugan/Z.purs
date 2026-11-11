@@ -90,7 +90,7 @@ xOperateUnknown
   -> Client
   -> NetworkControl
   -> WaEA' GqlW.T GqlE.T x @@> Json
-xOperateUnknown opString vars client nc = x'withReturn \xReturn -> do
+xOperateUnknown opString vars client nc = x'withReturn'' @"xr.8" \xReturn -> do
   (collisionCount /\ cached) <- getCached cachePath nc
   whenJust cached xReturn
   when (nc == CacheOnly) $ e'fail GqlE.cacheOnlyEmpty
@@ -116,9 +116,10 @@ xOperateUnknown opString vars client nc = x'withReturn \xReturn -> do
     parsed <- we'tellMappedMHush mapMDecodeErr $ x'decodeTextFile filename
     handleParsed parsed
     where
-    mapMDecodeErr e = trace (encode e) \_ -> (#) e
+    mapMDecodeErr e = (#) e
       $ var'default []
-      # var'on @"decodeError" (\_ -> [ var'inj @"cacheDecode" e ])
+      # var'on @"decodeError"
+          (\_ -> [ var'inj @"cacheDecode" e ])
     handleParsed Nothing = pure $ collisionCount /\ Nothing
     handleParsed (Just (CacheVal { res, queryId })) = do
       let isSelf = eq opKeyStr queryId
@@ -129,6 +130,11 @@ xOperateUnknown opString vars client nc = x'withReturn \xReturn -> do
   getCached (Just p) _ = getCachedRec p 0
   writeToCache Nothing _ _ = pass
   writeToCache (Just cachePath) collisionCount toCache = do
+    case (decode @CacheVal $ encode toCache) of
+      Left e -> do
+        x'out "CACHE ERR [ENC <-> DEC]"
+        x'out $ encode e
+      Right _ -> pure unit
     let filename = cacheFilename cachePath collisionCount
     we'tellMappedHush (var'inj @"cacheWrite") $
       x'encodeTextFileP filename toCache

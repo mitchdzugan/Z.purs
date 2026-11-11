@@ -42,8 +42,8 @@ instance
   ) =>
   Row'Mker'rows tag (RL.Cons key focus rowListTail) row m where
   row'mker'rows _ = do
-    rest <- row'mker'rows @tag (Proxy @rowListTail)
-    currEl <- row'mk @tag @focus (reflectSymbol $ Proxy @key)
+    rest <- row'mker'rows @tag @rowListTail (Proxy @rowListTail)
+    currEl <- row'mk @tag @focus @m (reflectSymbol $ Proxy @key)
     pure (Rec.insert (Proxy @key) currEl rest)
 
 instance
@@ -51,4 +51,4 @@ instance
   , Row'Mker'rows tag rowList row m
   ) =>
   Row'Mker tag (Record row) m where
-  row'mker = row'mker'rows @tag (Proxy @rowList)
+  row'mker = row'mker'rows @tag @rowList (Proxy @rowList)

@@ -59,6 +59,11 @@ mkMyVar = var'inj @"a" (Just 123)
 
 main :: Effect Unit
 main = do
+  traceM $ encode $ [ Left 1234, Right "asdf" ]
+  traceM $ encode $ 1234 /\ "asdf"
+  traceM $ encode $ jsError "title" "message"
+  traceM $ encode $ dec'custom "hello!"
+  {-}
   thenableR'runAsync 37 (log <<< show) (log <<< show) do
     a <- do
       a1 <- thenableR'ask
@@ -71,3 +76,16 @@ main = do
     pure c
   log "before or after"
   async'run (log <<< show) (log <<< show) runMain
+  -}
+  traceM $ arr'collect [ 1, 2, 3 ]
+  traceM $ list'collect [ 1, 2, 3 ]
+  traceM $ arr'collect $ list'collect [ 1, 2, 3 ]
+  traceM $ list'collect $ arr'collect $ list'collect [ 1, 2, 3 ]
+  traceM $ arr'collect $ list'collect $ arr'collect $ list'collect [ 1, 2, 3 ]
+  traceM $ decode @({ a :: Maybe (Maybe Int) }) $ "{ \"a\": null }"
+  traceM $ decode @(Int /\ String) $ "[1234,\"asdf\"]"
+  traceM $ decode @JsonDecodeError "{\"inj\":\"hello!\",\"at\":\"custom\"}"
+  traceM $ jsErrorName <$> decode @JsError
+    "{\"name\":\"title\",\"message\":\"message\",\"_\":\"JsError\"}"
+  traceM $ decode @(Array (Either Int String)) $
+    "[{\"tag\":\"Left\",\"value\":1234},{\"tag\":\"Right\",\"value\":\"asdf\"}]"

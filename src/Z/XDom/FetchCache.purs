@@ -144,11 +144,10 @@ domFetchCache'run cachePreload mkFetchUrl getId m = do
   currIds <- getId
   let init = { mkFetchUrl, state: cachePreload <#> FetchCache'ValState'Val }
   domState'runReducer'' @p init fetchCache'update do
-    domEff'onNew'lead (map ident'key currIds) (onNew currIds) *> m
+    domEff'onNew'lead (map ident'key currIds) (onNew currIds)
+    m
   where
-  onNew currIds = do
-    forM_ currIds \currId -> do
-      domFetchCache'ensureRequested @p currId
+  onNew currIds = forM_ currIds (domFetchCache'ensureRequested @p)
 
 domFetchCache'run_ :: forall @p @id @v. T'domFetchCache'run'helper p id v T'id
 domFetchCache'run_ = domFetchCache'run @p hm'empty

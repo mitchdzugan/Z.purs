@@ -21,15 +21,17 @@ const ensurePromise = (t) => (t instanceof Promise ? t : Promise.resolve(t.v));
 
 export const js_thenableR_map = (f) => (thR) => (r) => _th(thR(r))(f);
 
-export const js_thenableR_apply = (fThnblR) => (vThnblR) => (r) =>
-  _th(fThnblR(r))((f) => _th(vThnblR(r))(f));
+export const js_thenableR_apply = (fThnblR) => (vThnblR) => (r) => {
+  return _th(fThnblR(r))((f) => _th(vThnblR(r))(f));
+};
 
 export const js_thenableR_pure = (v) => () => Thenable(v);
 
 export const js_thenableR_ask = (r) => Thenable(r);
 
-export const js_thenableR_bind = (vThnblR) => (fvThnblR) => (r) =>
-  _th(vThnblR(r))((v) => fvThnblR(v)(r));
+export const js_thenableR_bind = (vThnblR) => (fvThnblR) => (r) => {
+  return _th(vThnblR(r))((v) => fvThnblR(v)(r));
+};
 
 const tailRecM_async = async (s0P, useL, useD, ref, useS, nThR, getA, r) => {
   let isInitial = true;
@@ -63,10 +65,9 @@ export const js_thenableR_tailRecM = (useStep) => (nThR) => (a1) => (r) => {
 
 export const js_thenableR_sync = (r) => (thnblR) => thnblR(r).v;
 
-export const js_thenableR_runA = (r) => (onDone) => (onE) => (thnblR) => () =>
-  ensurePromise(thnblR(r))
-    .then((v) => onDone(v)())
-    .catch((e) => onE(e)());
+export const js_thenableR_runA = (r) => (onDone) => (onE) => (thnblR) => () => {
+  _th(ensurePromise(thnblR(r)))((v) => onDone(v)()).catch((e) => onE(e)());
+};
 
 export const js_thenableR_asyncFromEff = (eff) => async () => eff();
 

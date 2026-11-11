@@ -110,7 +110,7 @@ instance Collectable Object (String /\ a) (Object a) where
   collect = js_it_toObj <<< map (uncurry js_obj_entry)
 
 instance Collectable List a (List a) where
-  collect = it'reduce (flip Cons) Nil
+  collect = js_it_toList Cons Nil
 
 rawIt'start :: forall a. Iterator a -> Effect (Raw'Iterator a)
 rawIt'start = unsafeCoerce
@@ -144,7 +144,7 @@ it'process
   -> carry
   -> it
   -> m res
-it'process onEl onDone init it =
+it'process onEl onDone init it = do
   rawIt'process onEl onDone init
     (unsafePerformEffect $ rawIt'start $ iterable'mk it)
 
@@ -343,6 +343,9 @@ foreign import js_rawIt_next
 foreign import js_it_toArray :: forall a. Iterator a -> Array a
 
 foreign import js_it_toObj :: forall a. Iterator (Obj'Entry a) -> Object a
+
+foreign import js_it_toList
+  :: forall a. (a -> List a -> List a) -> List a -> Iterator a -> List a
 
 foreign import js_obj_entry :: forall a. String -> a -> Obj'Entry a
 

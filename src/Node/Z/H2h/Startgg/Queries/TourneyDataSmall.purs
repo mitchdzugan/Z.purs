@@ -4,7 +4,7 @@ module Node.Z.H2h.Startgg.Queries.TourneyDataSmall
 
 q :: String
 q =
-  """query GetTournamentData($slug: String!, $pageE: Int!, $pageS: Int!) {
+  """query GetTournamentDataSmall($slug: String!, $pageE: Int!, $pageS: Int!) {
   event(slug: $slug) {
     id
     numEntrants

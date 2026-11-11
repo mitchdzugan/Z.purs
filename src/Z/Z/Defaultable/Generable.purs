@@ -114,7 +114,7 @@ instance
   ( Row'Mker Rec''GDefault (Record row) Identity
   ) =>
   Generable (Record row) gdesc (Record row) where
-  mkGenerable = unwrap $ row'mker @Rec''GDefault @(Record row)
+  mkGenerable = unwrap $ row'mker @Rec''GDefault @(Record row) @Identity
 
 foreign import data Rec''GDefault :: Type
 
