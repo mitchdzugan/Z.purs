@@ -793,8 +793,7 @@ page'stats sort filters = do
         dom'withKey (show seasonId) $ domRefHm'run @"rankEls" @String do
           domEff'every'lead do
             domRefHm'entries @"rankEls" >>= mapM_ \(elKey /\ elData) -> do
-              let el /\ rank /\ hasRendered = elData
-              let isInUse = clm'isInUse filters rank
+              let el /\ isInUse /\ hasRendered = elData
               if isInUse then do
                 domEff'el'classList'rm el "hidden"
                 domEff'el'classList'rm el "animate-jump-out"
@@ -815,18 +814,16 @@ page'stats sort filters = do
                   domEff'el'classList'rm pEl "transition-transform"
                   domEff'el'classList'rm pEl "duration-300"
                   domEff'el'classList'rm pEl "ease-in-out"
-              domRefHm'insert @"rankEls" elKey $ el /\ rank /\ isInUse
+              domRefHm'insert @"rankEls" elKey $ el /\ isInUse /\ isInUse
             domEff'async do
               domEffA'animationFrame
               domEffA'sync do
                 domRefHm'entries @"rankEls" >>= mapM_ \(_ /\ elData) -> do
-                  let el /\ rank /\ _ = elData
-                  let isInUse = clm'isInUse filters rank
+                  let el /\ isInUse /\ _ = elData
                   domEff'el'parentElement el >>= flip whenJust \pEl -> do
                     when isInUse do
                       domEff'el'classList'add pEl "transition"
-                      domEff'el'classList'add pEl
-                        "transition-transform"
+                      domEff'el'classList'add pEl "transition-transform"
                       domEff'el'classList'add pEl "duration-300"
                       domEff'el'classList'add pEl "ease-in-out"
           forM_ ranks \(rank) -> do
@@ -848,7 +845,7 @@ page'stats sort filters = do
                       <#> map snd
                       <#> may'or false
                     domRefHm'insert @"rankEls" absRankKey
-                      (el /\ rank /\ hasRendered)
+                      (el /\ isInUse /\ hasRendered)
                   el'onAnimationEnd \_ -> do
                     domRefHm'lookup @"rankEls" absRankKey >>= flip whenJust
                       \(el /\ _) -> do

@@ -90,7 +90,7 @@ xOperateUnknown
   -> Client
   -> NetworkControl
   -> WaE' GqlW.T GqlE.T x @@^-> Json
-xOperateUnknown opString vars client nc = x'withReturn'' @"xr.8" \xReturn -> do
+xOperateUnknown opString vars client nc = x'withReturn \xReturn -> do
   (collisionCount /\ cached) <- getCached cachePath nc
   whenJust cached xReturn
   when (nc == CacheOnly) $ e'fail GqlE.cacheOnlyEmpty

@@ -394,14 +394,14 @@ getClmIdForEvent
   -> H2h.Event
   -> H2h.Player
   -> ClmV () x @@^-> Boolean /\ Int
-getClmIdForEvent spec { slug } player = x'withReturn'' @"xr.1" \x'return -> do
+getClmIdForEvent spec { slug } player = x'withReturn \x'return -> do
   let maskedId = hm'lookup slug spec.eventPlayerIdMasks >>= hm'lookup player.id
   knownClmId <- x'lookup @"clmIdByPlayerId" player.id <#> (>|>) maskedId
   whenJust (knownClmId <#> (/\) (isJust maskedId)) x'return
   getClmId player.id <#> (/\) false
 
 getClmId :: forall x. SorN -> ClmV () x @@^-> Int
-getClmId playerId = x'withReturn'' @"xr.2" \x'return -> do
+getClmId playerId = x'withReturn \x'return -> do
   knownClmId <- x'lookup @"clmIdByPlayerId" playerId
   whenJust knownClmId x'return
   nextClmId <- x'extract @"nextClmId"
@@ -457,8 +457,8 @@ buildCurrentSeasons spec = do
   seasonH2hEvents <- getH2hData spec true
   forM_ seasonH2hEvents \(seasonId /\ h2hEvents) -> runSeason do
     let eventList = arr'sortWith (\e -> e.tournament.date) $ hm'vals h2hEvents
-    forM_ eventList \event -> x'withReturn'' @"xr.outer" \xReturn'outer -> do
-      isSingles <- x'withReturn'' @"xr.inner" \xReturn -> do
+    forM_ eventList \event -> x'withReturn \xReturn'outer -> do
+      isSingles <- x'withReturn \xReturn -> do
         forM_ (hm'vals event.entrants) \entrant -> do
           when (arr'size entrant.participants > 1) $ xReturn false
         pure true
@@ -504,20 +504,18 @@ buildCurrentSeasons spec = do
       x'extract @"setGroups" >>= flip forM_ \sets -> do
         groupCount <- s'get
         anyCounted <- s'exec false do
-          forM_ sets \set -> x'withReturn'' @"xr.3" \x'return_ -> do
-            eventId <- x'lookup @"eventIdBySetId" set.id >>= e'unwrap_'' @"xr.3"
-            event <- x'lookup @"clmEvents" (seasonId /\ eventId) >>= e'unwrap_''
-              @"xr.3"
+          forM_ sets \set -> x'withReturn \x'return_ -> do
+            eventId <- x'lookup @"eventIdBySetId" set.id >>= sc'unwrap_
+            event <- x'lookup @"clmEvents" (seasonId /\ eventId) >>= sc'unwrap_
             let
               getSlotClmId slot = do
-                entrantId <- e'unwrap_'' @"xr.3" slot.entrantId
-                clmId <- x'lookup @"clmIdByEntrantId" entrantId >>= e'unwrap_''
-                  @"xr.3"
+                entrantId <- sc'unwrap_ slot.entrantId
+                clmId <- x'lookup @"clmIdByEntrantId" entrantId >>= sc'unwrap_
                 pure $ clmId
             let slot1 ~ slot2 = set.slots
             clmId1 <- getSlotClmId slot1
             clmId2 <- getSlotClmId slot2
-            clmIdW /\ clmIdL <- e'unwrap_'' @"xr.3" set.winner <#> \pk ->
+            clmIdW /\ clmIdL <- sc'unwrap_ set.winner <#> \pk ->
               if pk == pos then clmId1 /\ clmId2 else clmId2 /\ clmId1
             let incFrom0 = Just <<< inc <<< fromMaybe 0
             x'alter @"eventWins" (clmIdW /\ eventId) incFrom0
@@ -735,12 +733,12 @@ buildLegacySeasons = do
     forM_ allPlayerSeasons \(playerSeason) -> do
       forM_ playerSeason.h2hs \h2h -> do
         may'oppId <- r'run'' @"asdf" 0 do
-          x'withReturn'' @"xr.5" \_ -> do
+          x'withReturn \x'return -> do
             forM_ h2h.sets \{ setInfo } -> do
               whenJust setInfo.id \setId -> do
                 let oppResult = if setInfo.won then neg else pos
                 may'may'oppId <- _'lookup (setId /\ oppResult) <#> Just
-                whenJust may'may'oppId (e'fail'' @"xr.5")
+                whenJust may'may'oppId x'return
             pure Nothing
         whenJust may'oppId \oppId -> do
           forM_ h2h.sets \{ setInfo } -> do
@@ -817,7 +815,7 @@ buildLegacySeasons = do
         res /\ sets <- x'run_ @"sets" @(X'HashMap SorN ClmPlayer'Season'Set) do
           h2hs <- _'exec_ @(X'Vector ClmPlayer'Season'H2h) do
             forM_ (arr'withInd playerSeason.h2hs) \(h2hInd /\ h2h) -> do
-              opponent <- x'withReturn'' @"xr.6" \x'return -> do
+              opponent <- x'withReturn \x'return -> do
                 forM_ h2h.sets \setData -> do
                   let { setInfo } = setData
                   whenJust setInfo.id \setId -> do
@@ -868,7 +866,7 @@ buildLegacySeasons = do
             forM_ (arr'withInd playerSeason.events) \(eventInd /\ event) -> do
               let eventSetSumsWithInd = arr'withInd event.setSummaries
               setIds <- forM eventSetSumsWithInd \(setInd /\ setSummary) -> do
-                setId <- x'withReturn'' @"xr.7" \x'return -> do
+                setId <- x'withReturn \x'return -> do
                   whenJust (setSummary.id <#> sOrN) x'return
                   let setKey = sOrN event.event.eventId /\ setSummary.round
                   let currSetId = hm'lookup setKey setByEventAndRound <#> _.id

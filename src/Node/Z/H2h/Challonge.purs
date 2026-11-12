@@ -15,7 +15,7 @@ import Z.H2h.Error as H2hE
 import Z.H2h.Module as H2h
 
 getEventData :: forall x. B.GetDataFn x
-getEventData = B.adaptBuilder $ x'withReturn'' @"xr.9" \xReturn -> do
+getEventData = B.adaptBuilder $ x'withReturn \xReturn -> do
   { client, networkControl, slug } <- r'ask
   let { cachePath } = client
   let eCacheOnlyEmpty = H2hE.gql GqlE.cacheOnlyEmpty
@@ -142,7 +142,7 @@ getEventDataImpl = do
       <#> arr'reverse
       <<< arr'sortWith (g_ @"id")
       <<< hm'vals
-    isComplete <- x'withReturn'' @"xr.10" \xReturn -> do
+    isComplete <- x'withReturn \xReturn -> do
       forM_ baseSetList $ \baseSet -> do
         when (isNothing baseSet.winner) (xReturn false)
       pure true
@@ -172,7 +172,7 @@ getEventDataImpl = do
               entrantId
         gfEIds <- x'extract @"gfEIds"
         nonGfEIds <- x'extract @"nonGfEIds"
-        seenAllGFEntrants <- x'withReturn'' @"xr.11" \xReturn -> do
+        seenAllGFEntrants <- x'withReturn \xReturn -> do
           forM_ (hs'vals gfEIds) $ \id -> do
             when (not (hs'has id nonGfEIds)) (xReturn false)
           pure true

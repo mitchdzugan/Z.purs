@@ -107,7 +107,7 @@ getEventData = B.adaptBuilder do
             else if isWinA then Just pos
             else Just neg
         let games = orDefault set.games
-        slotScoreA /\ slotScoreB <- x'withReturn'' @"xr.12" \xReturn -> do
+        slotScoreA /\ slotScoreB <- x'withReturn \xReturn -> do
           let winnerIds = games <#> _.winnerId
           let doneGames = arr'size $ arr'filter isJust winnerIds
           when (arr'size games == doneGames && doneGames > 0) do
