@@ -1,6 +1,27 @@
 export const js_ctx_provideInitial = (f) => () => f({ x: {}, s: { c: 0 } });
 
+export const js_ctx_provideInitialFrom = (ctx) => (f) => () => f(ctx);
+
 export const js_ctx_at = (k) => (ctx) => ctx.x[k].v;
+
+export const js_ctx_clone = (cloners) => (ctx) => {
+  let maxC = 0;
+  let maxK = null;
+  const resX = {};
+  const ctxX = ctx.x;
+  for (const k in cloners) {
+    const { c, v } = ctxX[k];
+    if (c > maxC) {
+      maxC = c;
+      maxK = k;
+    }
+    resX[k] = cloners[k](v);
+  }
+  return {
+    x: resX,
+    s: { c: maxC, k: maxK },
+  };
+};
 
 export const js_ctx_initReaderAt = (ctx) => (k) => (v) => (m) => {
   const cs = ctx.s;

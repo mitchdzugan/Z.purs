@@ -232,7 +232,7 @@ effAffThenExit = async'run onDone onError
 
 runXAThenExit
   :: forall @w @e. RtError e => (WaE' w e (X'Node ()) @@^-> Unit) -> Effect Unit
-runXAThenExit m = effAffThenExit $ asyncFut'x do
+runXAThenExit m = effAffThenExit $ async'x do
   res /\ w <- w'run $ e'try $ runXNode m
   when (arr'size w > 0) do
     x'logWarning "collected warnings ⌄"

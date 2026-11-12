@@ -195,7 +195,7 @@ import Z.XDom.X
   , attrW'resetStyles
   , attrW'run
   )
-import Z.Z.Run (Future, RunS, ctxA'liftFut)
+import Z.Z.Run (Future, RunS, ctxA'lift)
 import Z.Z.ThenableR (async'run_)
 
 type DomW' x = (domW :: X'Wa ReactEl | x)
@@ -219,7 +219,7 @@ evalA'self
   -> SELF dx x @^-> a
   -> Future a
 evalA'self self@(Self _ rn) m = do
-  runner'evalFutA rn $ r'run'' @"self" self $ m
+  runner'evalA rn $ r'run'' @"self" self $ m
 
 selfExtend :: forall dx x' x. RunMW x x' -> Self dx x' -> Self dx x
 selfExtend fm (Self dxn xn) = Self dxn (runner'extend fm xn)
@@ -679,7 +679,7 @@ domEff'el'boundingRect el = do
 domEffA'animationFrame :: forall x. MDomEff'a (XDomR' x) Unit
 domEffA'animationFrame = do
   f <- x'extract @"_'xdom'reader" >>= \r -> x'do r.future'animationFrame
-  ctxA'liftFut f
+  ctxA'lift f
 
 domEff'doc'pxPerRem :: forall x. MDomEff (XDomR' x) Number
 domEff'doc'pxPerRem = do

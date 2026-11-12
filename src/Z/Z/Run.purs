@@ -2,6 +2,7 @@ module Z.Z.Run
   ( Ctx
   , Ctx'Async
   , Ctx'Except
+  , Ctx'Extract
   , Future
   , Run'
   , RunA
@@ -9,10 +10,12 @@ module Z.Z.Run
   , RunG1
   , RunJoin
   , RunS
+  , ctx'clone
   , ctx'expand
-  , ctxA'adaptFut
-  , ctxA'fut
-  , ctxA'liftFut
+  , ctxA'adapt
+  , ctxA'lift
+  , ctxA'run
+  , ctxA'runFrom
   , ctxE'failAt
   , ctxE'okAt
   , ctxE'runAt
@@ -20,6 +23,7 @@ module Z.Z.Run
   , ctxR'askAt
   , ctxR'runAt
   , ctxS'run
+  , ctxS'runFrom
   , type (*->)
   , type (@*->)
   , type (@->)
@@ -31,10 +35,11 @@ import Prelude
 
 import Data.Either (Either)
 import Data.Symbol (reflectSymbol)
+import Foreign.Object (Object)
 import Prim.Row (class Union)
 import Type.Proxy (Proxy(..))
 import Unsafe.Coerce (unsafeCoerce)
-import Z.Z.Core (class ConsSymbol, JsError, eOr'_, mapL)
+import Z.Z.Core (class ConsSymbol, JsError, eOr'_, mapL, obj'empty)
 import Z.Z.ThenableR
   ( Tag'Async
   , Tag'Sync
@@ -47,6 +52,8 @@ import Z.Z.ThenableR
 -----------------------------------------------------------
 
 foreign import data Ctx :: Row Type -> Type
+
+foreign import data Ctx'Extract :: Row Type -> Type
 
 foreign import data Ctx'Except :: Type -> Type
 
@@ -128,15 +135,21 @@ ctxE'okAt = eOr'_ (ctxE'throwAt @p) pure
 ctxS'run :: forall a. RunS () a -> a
 ctxS'run = thenableR'sync unit <<< js_ctx_provideInitial
 
-ctxA'fut :: forall a. RunA () a -> Future a
-ctxA'fut = js_ctx_provideInitial
+ctxA'run :: forall a. RunA () a -> Future a
+ctxA'run = js_ctx_provideInitial
 
-ctxA'liftFut :: forall x a. ThenableR Tag'Async Unit a -> RunA x a
-ctxA'liftFut = unsafeCoerce
+ctxS'runFrom :: forall x a. Ctx'Extract x -> RunS x a -> a
+ctxS'runFrom x = thenableR'sync unit <<< js_ctx_provideInitialFrom x
 
-ctxA'adaptFut
+ctxA'runFrom :: forall x a. Ctx'Extract x -> RunA x a -> Future a
+ctxA'runFrom = js_ctx_provideInitialFrom
+
+ctxA'lift :: forall x a. ThenableR Tag'Async Unit a -> RunA x a
+ctxA'lift = unsafeCoerce
+
+ctxA'adapt
   :: forall x x' a. (RunS x a -> RunS x' a) -> (RunA x a -> RunA x' a)
-ctxA'adaptFut = unsafeCoerce
+ctxA'adapt = unsafeCoerce
 
 foreign import js_ctx_initReaderAt
   :: forall rt v x' x a
@@ -165,3 +178,12 @@ foreign import js_ctx_throwAt :: forall e x a. String -> e -> Ctx x -> a
 
 foreign import js_ctx_provideInitial
   :: forall rt a. Run' rt () a -> ThenableR rt Unit a
+
+foreign import js_ctx_provideInitialFrom
+  :: forall x rt a. Ctx'Extract x -> Run' rt x a -> ThenableR rt Unit a
+
+foreign import js_ctx_clone
+  :: forall x' x. Object (forall a. Ctx x' -> a) -> Ctx x' -> Ctx'Extract x
+
+ctx'clone :: forall @x x'. Ctx x' -> Ctx'Extract x
+ctx'clone = js_ctx_clone obj'empty

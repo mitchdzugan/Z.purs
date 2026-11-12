@@ -4,6 +4,7 @@ module Z.Z.X.Index
   , (!$!)
   , (-!!)
   , E'
+  , Extract(..)
   , R'
   , RE'
   , RunMW
@@ -21,7 +22,7 @@ module Z.Z.X.Index
   , Xasync
   , Xgeneric
   , Xsync
-  , asyncFut'x
+  , async'x
   , e'const
   , e'const''
   , e'const'flipped
@@ -59,6 +60,8 @@ module Z.Z.X.Index
   , e'unwrap_''
   , e'withFinalizer
   , e'withFinalizer''
+  , extract'_
+  , extract'out
   , r'ask
   , r'preview
   , r'preview'b
@@ -70,7 +73,7 @@ module Z.Z.X.Index
   , r'view'b
   , runner'_
   , runner'eval
-  , runner'evalFutA
+  , runner'evalA
   , runner'extend
   , runner'mk
   , runner'mkDeferred
@@ -128,19 +131,22 @@ import Z.Z.Core
 import Z.Z.It (reduceM)
 import Z.Z.Promise (EffPromise)
 import Z.Z.Run
-  ( Ctx'Except
+  ( Ctx
+  , Ctx'Except
+  , Ctx'Extract
   , Future
   , Run'
   , RunA
   , RunS
-  , ctxA'adaptFut
-  , ctxA'fut
+  , ctx'clone
+  , ctxA'adapt
+  , ctxA'run
   , ctxE'okAt
   , ctxE'runAt
   , ctxE'throwAt
   , ctxS'run
   )
-import Z.Z.ThenableR (async'fromEff, async'fromEffPromise)
+import Z.Z.ThenableR (async'fromEff, async'fromEffPromise, thenableR'ask)
 import Z.Z.Variant (class IsVariant, var'inj)
 import Z.Z.X.Core (class X'Buildable, Reader, x'eval, x'eval_)
 import Z.Z.X.Method
@@ -230,10 +236,26 @@ x'do (Eff'At eff) = pure unit <#> \_ -> unsafePerformEffect eff
 sync'x :: forall a. () @@-> a -> a
 sync'x = ctxS'run <<< x'eval_ @"_'x'base" @X'BaseM
 
-asyncFut'x :: forall a. () @@^-> a -> Future a
-asyncFut'x = ctxA'fut <<< x'eval_ @"_'x'base" @X'BaseM
+async'x :: forall a. () @@^-> a -> Future a
+async'x = ctxA'run <<< x'eval_ @"_'x'base" @X'BaseM
 
 ---------------------------------------------------------------------
+
+newtype Extract :: Row Type -> Type
+newtype Extract x = Extract (Proxy x)
+
+extract'clone
+  :: forall x x' x''. Union x x' x'' => Extract x -> Ctx x'' -> Ctx'Extract x
+extract'clone _ = ctx'clone @x
+
+extract'out
+  :: forall x x' x''. Union x x' x'' => Extract x -> x'' @*-> Ctx'Extract x
+extract'out e = thenableR'ask <#> extract'clone e
+
+extract'_ :: forall @x. Extract x
+extract'_ = Extract Proxy
+
+-----------------------------------------------------
 
 type RunMW x x' = forall a. RunS x a -> RunS x' a
 
@@ -246,8 +268,8 @@ instance X'Buildable (Runner't x x') x' x Unit where
 runner'eval :: forall x a. Runner x -> RunS x a -> a
 runner'eval (Runner r) = ctxS'run <<< r
 
-runner'evalFutA :: forall x a. Runner x -> RunA x a -> Future a
-runner'evalFutA (Runner r) = ctxA'fut <<< ctxA'adaptFut r
+runner'evalA :: forall x a. Runner x -> RunA x a -> Future a
+runner'evalA (Runner r) = ctxA'run <<< ctxA'adapt r
 
 runner'mkDeferred :: forall x a. Runner x -> RunS x a -> Effect a
 runner'mkDeferred runner m = eff'defer \_ -> runner'eval runner m

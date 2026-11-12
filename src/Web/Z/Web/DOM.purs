@@ -292,7 +292,7 @@ effAffThenExit = async'run onDone onError
 
 runXAThenExit
   :: forall @w @e a. RtError e => (WaE' w e (X'Web ()) @@^-> a) -> Effect Unit
-runXAThenExit m = effAffThenExit $ asyncFut'x $ do
+runXAThenExit m = effAffThenExit $ async'x $ do
   res /\ w <- w'run $ e'try $ runXWeb m
   when (arr'size w > 0) do
     x'logWarning "collected warnings ⌄"
