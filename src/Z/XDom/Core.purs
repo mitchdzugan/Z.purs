@@ -195,7 +195,7 @@ import Z.XDom.X
   , attrW'resetStyles
   , attrW'run
   )
-import Z.Z.Run (Future, ctxA'liftFut)
+import Z.Z.Run (Future, RunS, ctxA'liftFut)
 import Z.Z.ThenableR (async'run_)
 
 type DomW' x = (domW :: X'Wa ReactEl | x)
@@ -210,7 +210,7 @@ type SELF dx x = SELF'x dx x x
 
 type EFFSELF x = SELF () x
 
-eval'self :: forall dx x a. Self dx x -> Run (self :: R'Self dx x | x) a -> a
+eval'self :: forall dx x a. Self dx x -> RunS (self :: R'Self dx x | x) a -> a
 eval'self self@(Self _ rn) m = runner'eval rn $ r'run'' @"self" self $ m
 
 evalA'self
@@ -234,17 +234,17 @@ type DomEffPermit x = (domEff :: X'Permit | x)
 
 type DomPermit x = (dom :: X'Permit | x)
 
-type MDom dx x a = Run (DomW' (SELF dx x)) a
+type MDom dx x a = RunS (DomW' (SELF dx x)) a
 
-type MDomEl dx x a = Run (domW :: X'R Unit | AttrW' (DomW' (SELF dx x))) a
+type MDomEl dx x a = RunS (domW :: X'R Unit | AttrW' (DomW' (SELF dx x))) a
 
 type MDOMEFF x = (self :: R'Self () (DomEffPermit x) | DomEffPermit x)
 
 type MDOMEFF'delta x' x = (self :: R'Self () (DomEffPermit x) | DomEffPermit x')
 
-type MDomEff x a = Run (MDOMEFF x) a
+type MDomEff x a = RunS (MDOMEFF x) a
 
-type MDomEff'delta x' x a = Run (MDOMEFF'delta x' x) a
+type MDomEff'delta x' x a = RunS (MDOMEFF'delta x' x) a
 
 type MDomEff'a x a = MDOMEFF x @^-> a
 
@@ -259,24 +259,24 @@ renderMEl self = js_renderFragment <<< renderM self
 
 --------------------------------------------------------------------------------
 
-domEff'do :: forall x a. Eff'At "domEff" a -> Run (DomEffPermit x) a
+domEff'do :: forall x a. Eff'At "domEff" a -> RunS (DomEffPermit x) a
 domEff'do = x'do
 
-dom'do :: forall x a. Eff'At "dom" a -> Run (DomPermit x) a
+dom'do :: forall x a. Eff'At "dom" a -> RunS (DomPermit x) a
 dom'do = x'do
 
 dom'getSelf :: forall dx x x'. SELF'x dx x x' @*-> Self dx x
 dom'getSelf = x'extract @"self"
 
-dom'getRunner :: forall dx x x'. Run (SELF'x dx x x') (Runner (SELF dx x))
+dom'getRunner :: forall dx x x'. RunS (SELF'x dx x x') (Runner (SELF dx x))
 dom'getRunner = x'extract @"self" <#> \s -> runner'mk (pure <<< eval'self s)
 
 dom'getEffSelf
-  :: forall dx x x'. Run (SELF'x dx x x') (Self () (DomEffPermit x))
+  :: forall dx x x'. RunS (SELF'x dx x x') (Self () (DomEffPermit x))
 dom'getEffSelf =
   dom'getSelf <#> selfDomless <#> selfExtend (x'permit @"domEff")
 
-dom'getDomSelf :: forall dx x x'. Run (SELF'x dx x x') (Self () x)
+dom'getDomSelf :: forall dx x x'. RunS (SELF'x dx x x') (Self () x)
 dom'getDomSelf = dom'getSelf <#> selfDomless
 
 --------------------------------------------------------------------------------
@@ -295,7 +295,7 @@ instance
 
 --------------------------------------------------------------------------------
 
-domW'expand :: forall x a. Run (DomW' x) a -> Run (DomW' (DomW' x)) a
+domW'expand :: forall x a. RunS (DomW' x) a -> RunS (DomW' (DomW' x)) a
 domW'expand = unsafeCoerce
 
 dom'interceptChildren
@@ -338,7 +338,7 @@ dom'withNewState initalState fm = do
 
 dom'withAdapter
   :: forall dx x' x ret
-   . (forall a. Run x a -> Run x' a)
+   . (forall a. RunS x a -> RunS x' a)
   -> MDom dx x ret
   -> MDom dx x' ret
 dom'withAdapter fm m = do
@@ -420,7 +420,7 @@ type T'domError'fail p =
   forall e dx' dx x xx a
    . ConsSymbol p (DomE e) dx' dx
   => e
-  -> Run (self :: R'Self dx x | xx) a
+  -> RunS (self :: R'Self dx x | xx) a
 
 domError'fail'' :: forall @p. T'domError'fail p
 domError'fail'' e = x'extract @"self" <#> \_ ->
@@ -433,7 +433,7 @@ type T'domError'ok p =
   forall e dx' dx x xx a
    . ConsSymbol p (DomE e) dx' dx
   => Either e a
-  -> Run (self :: R'Self dx x | xx) a
+  -> RunS (self :: R'Self dx x | xx) a
 
 domError'ok'' :: forall @p. T'domError'ok p
 domError'ok'' (Left e) = domError'fail'' @p e
@@ -477,7 +477,7 @@ type T'domState'get p =
   forall s x' x r
    . IsSymbol p
   => Cons p (X'R $ Record (get :: s | r)) x' x
-  => Run x s
+  => x @*-> s
 
 domState'get'' :: forall @p. T'domState'get p
 domState'get'' = x'extract @p <#> _.get
@@ -552,7 +552,7 @@ type T'domRef'get p =
   forall s x' x r
    . IsSymbol p
   => Cons p (X'R $ Record (get :: Eff'At "dom" s | r)) x' x
-  => Run x s
+  => x @*-> s
 
 domRef'get'' :: forall @p. T'domRef'get p
 domRef'get'' = (x'extract @p <#> _.get) >>= x'permit @"dom" <<< x'do
@@ -564,7 +564,7 @@ type T'domRef'setable s a p =
   forall x' x r
    . ConsSymbol p (X'R $ Record $ RefReducerR s a r) x' x
   => a
-  -> Run x Unit
+  -> x @*-> Unit
 
 type T'domRef'dispatch p = forall s a. T'domRef'setable s a p
 
@@ -745,7 +745,7 @@ type XDomR' x = (_'xdom'reader :: X'R XDom'Reader | x)
 baseSelf :: Self () ()
 baseSelf = Self runner'_ runner'_
 
-xdom'reader'run :: forall x a. XDom'Eff'Reader -> Run (XDomR' x) a -> Run x a
+xdom'reader'run :: forall x a. XDom'Eff'Reader -> RunS (XDomR' x) a -> RunS x a
 xdom'reader'run = r'run'' @"_'xdom'reader" <<< adapt'eff'reader
   where
   adapt'eff'reader r =
@@ -893,7 +893,7 @@ el'onInput = el'on' "onInput"
 el'onKeyDown :: forall dx x. El'On dx x
 el'onKeyDown = el'on' "onKeyDown"
 
-el'ref :: forall dx x. (DomEl -> Run (SELF () x) Unit) -> MDomEl dx x Unit
+el'ref :: forall dx x. (DomEl -> RunS (SELF () x) Unit) -> MDomEl dx x Unit
 el'ref f =
   dom'getDomSelf >>= \self -> attrW'addAttr "ref" $ jsAny $ eval'self self <<< f
 

@@ -356,19 +356,19 @@ route'toggleFilter filtersKey = s'view'b @"!.page" >>= case _ of
     s'set'b @"!.page" $ Stats sort $ filters'toggle filters filtersKey
   _ -> pure unit
 
-route'setFilter :: forall x. Filters'Key -> Boolean -> Run (S' Route x) Unit
+route'setFilter :: forall x. Filters'Key -> Boolean -> S' Route x @*-> Unit
 route'setFilter filtersKey filtersVal = s'view'b @"!.page" >>= case _ of
   Stats sort filters ->
     s'set'b @"!.page" $ Stats sort $ filters'set filters filtersKey filtersVal
   _ -> pure unit
 
-route'setFilters :: forall x. Filters -> Run (S' Route x) Unit
+route'setFilters :: forall x. Filters -> S' Route x @*-> Unit
 route'setFilters filters = s'view'b @"!.page" >>= case _ of
   Stats sort _ ->
     s'set'b @"!.page" $ Stats sort filters
   _ -> pure unit
 
-route'setSort :: forall x. Sort -> Run (S' Route x) Unit
+route'setSort :: forall x. Sort -> S' Route x @*-> Unit
 route'setSort sort = s'view'b @"!.page" >>= case _ of
   Stats _ filters ->
     s'set'b @"!.page" $ Stats sort filters

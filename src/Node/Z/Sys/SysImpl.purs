@@ -43,10 +43,9 @@ module Node.Z.Sys.SysImpl
 
 import Z.Prelude
 
-import Effect.Unsafe as Unsafe
 import Z.Sys.Module as Sys
 import Z.Z.Opt as O
-import Z.Z.Run (Future, ctxA'fut)
+import Z.Z.Run (Future)
 import Z.Z.ThenableR (async'run)
 
 foreign import js_readTextFile
