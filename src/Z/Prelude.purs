@@ -17,6 +17,7 @@ module Z.Prelude
   , module ZMethod
   , module ZPair
   , module ZPairKey
+  , module ZRun
   , module ZString
   , module ZUrl
   , module ZUrlExp
@@ -224,6 +225,13 @@ import Z.Z.Pair (Pair(..), pair'get, pair'getOppo, pair'swap, (~)) as ZPair
 import Z.Z.PairKey as ZPairKey
 import Z.Z.Passable (pass) as ZPassable
 import Z.Z.Promise (EffPromise) as ZPromise
+import Z.Z.Run
+  ( type (*->)
+  , type (@*->)
+  , type (@->)
+  , type (@.->)
+  , type (@^->)
+  ) as ZRun
 import Z.Z.Shorthand as ZShorthand
 import Z.Z.SorN as ZSorN
 import Z.Z.String as ZString

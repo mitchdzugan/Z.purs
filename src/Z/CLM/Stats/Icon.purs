@@ -22,7 +22,7 @@ import Z.XDom.Prelude
 
 data IconSize = Size2 | Size3 | Size4 | Size6
 
-type RunIconProps = Unit <@@ Wa' String $ S' IconSize ()
+type RunIconProps = Wa' String (S' IconSize ()) @@-> Unit
 
 defIcon :: forall dx x. String -> RunIconProps -> MDom dx x Unit
 defIcon d iconProps = do

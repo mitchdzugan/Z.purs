@@ -6,6 +6,9 @@ module Z.Z.Run
   , Future
   , Run'
   , RunA
+  , RunG
+  , RunG1
+  , RunJoin
   , RunS
   , ctx'expand
   , ctxA'adapt
@@ -20,6 +23,11 @@ module Z.Z.Run
   , ctxR'askAt
   , ctxR'runAt
   , ctxS'run
+  , type (*->)
+  , type (@*->)
+  , type (@->)
+  , type (@.->)
+  , type (@^->)
   ) where
 
 import Prelude
@@ -59,10 +67,23 @@ type RunS x = Run' Tag'Sync x
 
 type RunA x = Run' Tag'Async x
 
+type RunG x a rt = Run' rt x a
+
+type RunG1 x a = forall rt. Run' rt x a
+
+type RunJoin :: forall k. (k -> Type) -> (k -> Type) -> Type
+type RunJoin f1 f2 = forall rt. f1 rt -> f2 rt
+
 type Future = ThenableR Tag'Async Unit
 
+infixl 3 type RunG as @->
+infixl 3 type RunG1 as @*->
+infixl 3 type RunS as @.->
+infixl 3 type RunA as @^->
+infixl 2 type RunJoin as *->
+
 ctx'expand
-  :: forall rt x' x_ x a. Union x' x_ x => Run' rt x' a -> Run' rt x a
+  :: forall x' @x_ x a. Union x' x_ x => x' @-> a *-> x @-> a
 ctx'expand = unsafeCoerce
 
 ctxR'askAt :: forall @p rt v x' x. ConsSymbol p v x' x => Run' rt x v

@@ -23,7 +23,6 @@ module Z.Z.Json.Decode
   , decode
   , decodeForeign
   , decodeJson
-  , decodeJson'sync
   , decodeViaArray
   , js_parseStringToJson
   , xDecodeJson
@@ -82,7 +81,7 @@ import Z.Z.Variant
   )
 import Z.Z.X.Core (Run)
 import Z.Z.X.Index
-  ( type (@@>)
+  ( type (@@->)
   , E'
   , R'
   , X'R
@@ -139,13 +138,10 @@ type JsonDecodeErrorMap = JsonDecodeError -> JsonDecodeError
 type DecoderX x = E' JsonDecodeError (R' JsonDecodeErrorMap x)
 
 class XDecodeJson t where
-  xDecodeJson :: forall x. Json -> DecoderX x @@> t
-
-decodeJson'sync :: forall t. DecoderX () @@> t -> Either JsonDecodeError t
-decodeJson'sync m = sync'x $ e'try $ r'run identity m
+  xDecodeJson :: forall x. Json -> DecoderX x @@-> t
 
 decodeJson :: forall @t. XDecodeJson t => Json -> Either JsonDecodeError t
-decodeJson json = decodeJson'sync $ xDecodeJson @t json
+decodeJson json = sync'x $ e'try $ r'run identity $ xDecodeJson @t json
 
 decode :: forall @t. XDecodeJson t => String -> Either JsonDecodeError t
 decode s =
@@ -160,7 +156,7 @@ xDecodeViaString
   :: forall a x
    . (String -> Either String a)
   -> Json
-  -> DecoderX x @@> a
+  -> DecoderX x @@-> a
 xDecodeViaString ofString json = do
   xDecodeJson @String json >>= dec'ok <<< mapL dec'custom <<< ofString
 
@@ -195,10 +191,14 @@ instance XDecodeJson Unit where
 
 caseAble
   :: forall x a
-   . ((DecoderX x @@> a) -> (a -> DecoderX x @@> a) -> Json -> DecoderX x @@> a)
+   . ( (DecoderX x @@-> a)
+       -> (a -> DecoderX x @@-> a)
+       -> Json
+       -> DecoderX x @@-> a
+     )
   -> String
   -> Json
-  -> DecoderX x @@> a
+  -> DecoderX x @@-> a
 caseAble caser tname = caser (dec'fail $ dec'typeMismatch tname) pure
 
 instance XDecodeJson String where
@@ -268,7 +268,7 @@ decodeViaArray
   => (Array el -> dest)
   -> String
   -> Json
-  -> DecoderX x @@> dest
+  -> DecoderX x @@-> dest
 decodeViaArray ofArr name json = dec'wrapErrs (dec'named name) do
   arr <- caseJsonArray (dec'fail $ dec'typeMismatch "Array") pure json
   ofArr <$> forM (iterable'kv'mk arr) \(ind /\ vJson) -> do
@@ -289,7 +289,7 @@ instance
       (ctx'expand (row'mker @(Rec''XDecode) @(Record r)))
 
 instance
-  Variant'Mker Var''XDecode (Variant r) Json ((@@>) (DecoderX ())) =>
+  Variant'Mker Var''XDecode (Variant r) Json ((@@->) (DecoderX ())) =>
   XDecodeJson (Variant r) where
   xDecodeJson json = var'decodeImpl json
 
@@ -306,7 +306,7 @@ instance Show JsonDecodeError where
 
 foreign import data Rec''XDecode :: Row Type -> Type
 
-type X''XDecode = (@@>) (DecoderX (obj :: X'R (Object Json)))
+type X''XDecode = (@@->) (DecoderX (obj :: X'R (Object Json)))
 
 instance
   ( XDecodeJson focus
@@ -333,17 +333,17 @@ else instance
 
 foreign import data Var''XDecode :: Type
 
-type RunDecodeX x = (@@>) (DecoderX x)
+type RunDecodeX x = (@@->) (DecoderX x)
 
 instance
   ( XDecodeJson focus
   ) =>
-  Variant'Mk Var''XDecode focus Json ((@@>) (DecoderX ())) where
+  Variant'Mk Var''XDecode focus Json ((@@->) (DecoderX ())) where
   variant'mk json = xDecodeJson @focus json
 
 var'decodeImpl
   :: forall @to x
-   . Variant'Mker Var''XDecode to Json ((@@>) (DecoderX ()))
+   . Variant'Mker Var''XDecode to Json ((@@->) (DecoderX ()))
   => Json
   -> RunDecodeX x to
 var'decodeImpl json = do

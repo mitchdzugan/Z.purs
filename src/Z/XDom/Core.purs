@@ -9,6 +9,7 @@ module Z.XDom.Core
   , DomETag
   , DomEffPermit
   , DomPermit
+  , DomW'
   , MDOMEFF
   , MDom
   , MDomEff
@@ -167,6 +168,7 @@ module Z.XDom.Core
 import Z.Prelude
 
 import Effect.Unsafe (unsafePerformEffect)
+import Unsafe.Coerce (unsafeCoerce)
 import Z.XDom.Preact
   ( DomEl
   , DomEvent
@@ -186,23 +188,18 @@ import Z.XDom.Preact
   )
 import Z.XDom.X
   ( AttrW'
-  , DomW'
   , attrW'addAttr
   , attrW'addClassname
   , attrW'addStyle
   , attrW'resetClassnames
   , attrW'resetStyles
   , attrW'run
-  , domW'concat
-  , domW'exec
-  , domW'finish
-  , domW'push
-  , domW'run
-  , domW'start
   )
 import Z.Z.Run (Future, ctxA'lift)
 import Z.Z.ThenableR (async'run_)
 import Z.Z.X.Index (runner'evalA)
+
+type DomW' x = (domW :: X'Wa ReactEl | x)
 
 data Self dx x = Self (Runner dx) (Runner x)
 
@@ -256,7 +253,7 @@ type MDomEff'a x a = Run (A' (MDOMEFF x)) a
 
 renderM
   :: forall dx x. Self dx x -> MDom dx x Unit -> Array ReactEl
-renderM self m = eval'self self $ domW'exec m
+renderM self m = eval'self self $ x'exec_ @"domW" m
 
 renderMEl :: forall dx x. Self dx x -> MDom dx x Unit -> ReactEl
 renderMEl self = js_renderFragment <<< renderM self
@@ -301,19 +298,22 @@ instance
 
 --------------------------------------------------------------------------------
 
+domW'expand :: forall x a. Run (DomW' x) a -> Run (DomW' (DomW' x)) a
+domW'expand = unsafeCoerce
+
+dom'interceptChildren
+  :: forall dx x. MDom dx x Unit -> MDom dx x (Array ReactEl)
+dom'interceptChildren m = x'exec_ @"domW" (domW'expand m)
+
 dom'withKey :: forall dx x. String -> MDom dx x Unit -> MDom dx x Unit
 dom'withKey k m = do
-  parentId <- domW'start
-  m
-  children <- domW'finish parentId
-  domW'push $ js_withKey k (js_renderFragment children)
+  children <- dom'interceptChildren m
+  w'say'' @"domW" $ js_withKey k (js_renderFragment children)
 
 dom'array :: forall dx x. MDom dx x Unit -> MDom dx x Unit
 dom'array m = do
-  parentId <- domW'start
-  m
-  children <- domW'finish parentId
-  domW'push $ js_renderArray children
+  children <- dom'interceptChildren m
+  w'say'' @"domW" $ js_renderArray children
 
 dom'withNewRef
   :: forall dx x s
@@ -322,7 +322,7 @@ dom'withNewRef
   -> MDom dx x Unit
 dom'withNewRef initalState fm = do
   self <- x'extract @"self"
-  domW'push $ js_withRef (renderFn self) initalState
+  w'say'' @"domW" $ js_withRef (renderFn self) initalState
   where
   renderFn self s ss = renderM self $ fm (eff'tag @"dom" s) (w ss)
   w ss s = eff'tag @"dom" $ ss s
@@ -334,7 +334,7 @@ dom'withNewState
   -> MDom dx x Unit
 dom'withNewState initalState fm = do
   self <- x'extract @"self"
-  domW'push $ js_withState (renderFn self) initalState
+  w'say'' @"domW" $ js_withState (renderFn self) initalState
   where
   renderFn self s ss = renderM self $ fm s (w ss)
   w ss s = eff'tag @"domEff" $ ss s
@@ -346,8 +346,8 @@ dom'withAdapter
   -> MDom dx x' ret
 dom'withAdapter fm m = do
   self <- x'extract @"self" <#> selfExtend fm
-  let res /\ els = eval'self self $ domW'run m
-  domW'concat els
+  let res /\ els = eval'self self $ x'run_ @"domW" m
+  w'tell'' @"domW" els
   pure res
 
 domx'eval
@@ -386,11 +386,9 @@ type MDom_domElement'Childless =
 
 dom'element :: String -> MDom_domElement
 dom'element s mattr = do
-  parentId <- domW'start
   mdom /\ attrs <- x'eval_ @"domW" $ attrW'run mattr
-  mdom
-  children <- domW'finish parentId
-  domW'push $ js_renderEl s attrs children
+  children <- dom'interceptChildren mdom
+  w'say'' @"domW" $ js_renderEl s attrs children
 
 dom'element_ :: String -> MDom_domElement'Childless
 dom'element_ s mattr = dom'element s $ mattr <#> pure
@@ -414,7 +412,7 @@ domError'bind'' :: forall @p e. T'domError'bind e p
 domError'bind'' em m = do
   oldSelf <- x'extract @"self"
   let self = selfExtendDom (r'run'' @p (Proxy @(DomETag /\ e))) oldSelf
-  domW'push $ js_withBoundedError (reflectSymbol $ p @p)
+  w'say'' @"domW" $ js_withBoundedError (reflectSymbol $ p @p)
     (\e -> eff'defer \_ -> renderMEl oldSelf $ em e)
     (eff'defer \_ -> renderMEl self m)
 
@@ -599,7 +597,7 @@ type MDomEffA_D x = MDomEff'a x (MDomEff'a x Unit)
 domEff'onNew :: forall a dx x. Eq a => a -> MDomEff_D x -> MDom dx x Unit
 domEff'onNew comp on = do
   self <- dom'getEffSelf
-  domW'push $ js_effComponent eq comp do
+  w'say'' @"domW" $ js_effComponent eq comp do
     r' <- eff'defer \_ -> eval'self self on
     pure $ eff'defer \_ -> eval'self self r'
 
@@ -808,7 +806,7 @@ x'renderToStringAsync = e'runEffPromise <<< js_renderToStringAsync
 ---------------------------------------------------------------------
 
 dom'text :: forall t dx x. SText t => t -> MDom dx x Unit
-dom'text = domW'push <<< js_textEl <<< stext
+dom'text = w'say'' @"domW" <<< js_textEl <<< stext
 
 el'key :: forall dx x. String -> MDomEl dx x Unit
 el'key = attrW'addAttr "key" <<< jsAny

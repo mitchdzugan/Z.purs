@@ -7,7 +7,7 @@ import Z.SSBM.Slp.Rec.Ini as Ini
 import Z.Z.Json.Decode (class XDecodeJson, xDecodeJson, xDecodeViaString)
 import Z.Z.Opt as O
 
-launchAndRecord :: forall x. REA' RecordEnv Error x @$> Unit
+launchAndRecord :: forall x. REA' RecordEnv Error x @@@-> Unit
 launchAndRecord = do
   ts <- x'nowMS
   pid <- x'pid
@@ -50,7 +50,7 @@ addConfigs
    . Boolean
   -> Path
   -> Array String
-  -> SEA' EnvBuildState Error x @@> Unit
+  -> SEA' EnvBuildState Error x @@-> Unit
 addConfigs allowFNF wd configPaths = do
   forM_ configPaths \configPath -> do
     let fullPath = wd /.|// configPath
@@ -68,7 +68,7 @@ addConfigs allowFNF wd configPaths = do
   onDecode fp _ = do
     when (not allowFNF) $ e'fail $ ConfigNotFound $ show fp
 
-getDefaultSlippiPlaybackBin :: forall x. Path -> A' x @$> String
+getDefaultSlippiPlaybackBin :: forall x. Path -> A' x @@@-> String
 getDefaultSlippiPlaybackBin slippiLauncherPath = x'withReturn \x'return -> do
   filenames <- x'readdir $ slippiLauncherPath /./ "playback"
   betaFilenames <- x'readdir $ slippiLauncherPath /./ "playback-beta"
@@ -85,7 +85,7 @@ getDefaultSlippiPlaybackBin slippiLauncherPath = x'withReturn \x'return -> do
       _ -> pure unit
   pure "slippi-playback"
 
-xRun :: forall x. Array String -> EA' Error x @$> Unit
+xRun :: forall x. Array String -> EA' Error x @@@-> Unit
 xRun args = do
   wd <- x'wd
   envPaths <- x'envPaths "slp-rec" $ Just ""
@@ -157,7 +157,7 @@ updateEnv path cfg st =
   }
 
 finalizeEnv
-  :: forall x. EnvBuildState -> CliOpts -> String -> E' Error x @@> RecordEnv
+  :: forall x. EnvBuildState -> CliOpts -> String -> E' Error x @@-> RecordEnv
 finalizeEnv st (CliOpts opts) defaultOutputPath = do
   isoPath <- e'ok $ jOrE NoIso $ opts.isoPath >|> st.isoPath
   pure

@@ -65,7 +65,7 @@ import Z.Z.It (forM_)
 import Z.Z.String (str'joinWith)
 import Z.Z.X.Core (Run, x'eval, x'eval_, x'exec, x'exec_, x'run, x'run_)
 import Z.Z.X.Index
-  ( type (@@>)
+  ( type (@@->)
   , A'
   , E'
   , R'
@@ -105,7 +105,7 @@ type SEA' s e x = S' s $ E' e $ A' x
 
 ------------------------------------------------
 
-s'put :: forall x s. s -> Run (S' s x) Unit
+s'put :: forall x s. s -> S' s x @*-> Unit
 s'put = x'assign @"_'x'state"
 
 s'update :: forall x s. (s -> s) -> Run (S' s x) Unit
@@ -122,7 +122,7 @@ s'exec = x'exec @"_'x'state"
 
 ---------------------------------------
 
-type Edit'v t v = S' t () @@> v
+type Edit'v t v = S' t () @@-> v
 
 type Edit t = Edit'v t Unit
 
@@ -194,7 +194,7 @@ w'map = w'map'' @p
 
 ---------------------------------------------------------------------
 
-type StrW = Wa' String () @@> Unit
+type StrW = Wa' String () @@-> Unit
 
 type T'w'str sep = IsSymbol sep => ((String -> StrW) -> StrW) -> String
 
@@ -344,11 +344,11 @@ we'runResult = we'runResult'' @wp
 
 -------------------------------------
 
-x'now :: forall x. x @@> DateTime
+x'now :: forall x. x @@-> DateTime
 x'now = pure unit <#> \_ -> unsafePerformEffect dateTime'eff'now
 
-x'nowMS'number :: forall x. x @@> Number
+x'nowMS'number :: forall x. x @@-> Number
 x'nowMS'number = x'now <#> unwrap
 
-x'nowMS :: forall x. x @@> Int
+x'nowMS :: forall x. x @@-> Int
 x'nowMS = x'nowMS'number <#> floor

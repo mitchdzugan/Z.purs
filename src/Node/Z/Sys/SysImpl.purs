@@ -93,10 +93,10 @@ instance Pathlike Path where
 instance Pathlike String where
   pathStr s = s
 
-x'readFile :: forall x p. Pathlike p => p -> EA' JsError x @@> Buffer
+x'readFile :: forall x p. Pathlike p => p -> EA' JsError x @@-> Buffer
 x'readFile = e'runEffPromise <<< js_readFile <<< pathStr
 
-x'readTextFile :: forall x p. Pathlike p => p -> EA' JsError x @@> String
+x'readTextFile :: forall x p. Pathlike p => p -> EA' JsError x @@-> String
 x'readTextFile = e'runEffPromise <<< js_readTextFile <<< pathStr
 
 x'decodeTextFile
@@ -104,7 +104,7 @@ x'decodeTextFile
    . Pathlike p
   => XDecodeJson d
   => p
-  -> EA' Sys.FSDataError x @@> d
+  -> EA' Sys.FSDataError x @@-> d
 x'decodeTextFile p = do
   contents <- e'liftAt @"readError" $ x'readTextFile p
   e'liftAt @"decodeError" $ e'ok $ decode contents
@@ -113,7 +113,7 @@ x'decodeYamlString
   :: forall x @d
    . XDecodeJson d
   => String
-  -> EA' Sys.FSDataError x @@> d
+  -> EA' Sys.FSDataError x @@-> d
 x'decodeYamlString contents = do
   json <- e'liftAt @"readError" $ e'ok $ js_loadYaml contents Left Right
   e'liftAt @"decodeError" $ e'ok $ decodeJson json
@@ -123,7 +123,7 @@ x'decodeYamlFile
    . Pathlike p
   => XDecodeJson d
   => p
-  -> EA' Sys.FSDataError x @@> d
+  -> EA' Sys.FSDataError x @@-> d
 x'decodeYamlFile p = do
   contents <- e'liftAt @"readError" $ x'readTextFile p
   x'decodeYamlString contents
@@ -133,7 +133,7 @@ x'decodeAnyYamlExt
    . Pathlike p
   => XDecodeJson d
   => p
-  -> EA' Sys.FSDataError x @@> d
+  -> EA' Sys.FSDataError x @@-> d
 x'decodeAnyYamlExt p = do
   contents <- e'tryUntil
     (e'liftAt @"readError" $ x'readTextFile $ (pathStr p) <> ".yaml")
@@ -142,16 +142,16 @@ x'decodeAnyYamlExt p = do
     ]
   x'decodeYamlString contents
 
-x'mkdir :: forall x p. Pathlike p => p -> EA' JsError x @@> Unit
+x'mkdir :: forall x p. Pathlike p => p -> EA' JsError x @@-> Unit
 x'mkdir = e'runEffPromise <<< js_mkdir <<< pathStr
 
-x'mkdirP :: forall x p. Pathlike p => p -> EA' JsError x @@> Unit
+x'mkdirP :: forall x p. Pathlike p => p -> EA' JsError x @@-> Unit
 x'mkdirP = e'runEffPromise <<< js_mkdirp <<< pathStr
 
-x'rimraf :: forall x p. Pathlike p => p -> EA' JsError x @@> Unit
+x'rimraf :: forall x p. Pathlike p => p -> EA' JsError x @@-> Unit
 x'rimraf = e'runEffPromise <<< js_rimraf <<< pathStr
 
-x'isDirectory :: forall x p. Pathlike p => p -> A' x @@> Boolean
+x'isDirectory :: forall x p. Pathlike p => p -> A' x @@-> Boolean
 x'isDirectory p =
   pathStr p # js_isDirectory # e'runEffPromise # e'try >>= case _ of
     Left _ -> pure false
@@ -163,21 +163,21 @@ x'symlink
   => Pathlike p2
   => p1
   -> p2
-  -> EA' JsError x @@> Unit
+  -> EA' JsError x @@-> Unit
 x'symlink p1 p2 =
   e'runEffPromise $ js_symlink (pathStr p1) (pathStr p2) "junction"
 
-x'readdir :: forall x p. Pathlike p => p -> A' x @@> Array Path
+x'readdir :: forall x p. Pathlike p => p -> A' x @@-> Array Path
 x'readdir p = pathStr p # js_readdir # e'runEffPromise # e'try >>= case _ of
   Left _ -> pure []
   Right res -> pure $ res <#> (/./) p
 
 x'writeTextFile
-  :: forall x p. Pathlike p => p -> String -> EA' JsError x @@> Unit
+  :: forall x p. Pathlike p => p -> String -> EA' JsError x @@-> Unit
 x'writeTextFile p = e'runEffPromise <<< js_writeTextFile (pathStr p)
 
 x'writeTextFileP
-  :: forall x p. Pathlike p => p -> String -> EA' JsError x @@> Unit
+  :: forall x p. Pathlike p => p -> String -> EA' JsError x @@-> Unit
 x'writeTextFileP p s = do
   x'mkdirP $ dirname p
   x'writeTextFile p s
@@ -188,7 +188,7 @@ x'encodeTextFile
   => EncodeJson d
   => p
   -> d
-  -> EA' JsError x @@> Unit
+  -> EA' JsError x @@-> Unit
 x'encodeTextFile p d = x'writeTextFile p $ encode d
 
 x'encodeTextFileP
@@ -197,7 +197,7 @@ x'encodeTextFileP
   => EncodeJson d
   => p
   -> d
-  -> EA' JsError x @@> Unit
+  -> EA' JsError x @@-> Unit
 x'encodeTextFileP p d = x'writeTextFileP p $ encode d
 
 foreign import js_lookupEnv
@@ -209,7 +209,7 @@ foreign import js_lookupEnv
 lookupEnv :: String -> Effect $ Maybe String
 lookupEnv = js_lookupEnv Just Nothing
 
-x'lookupEnv :: forall x. String -> A' x @@> Maybe String
+x'lookupEnv :: forall x. String -> A' x @@-> Maybe String
 x'lookupEnv k = e'try (e'runEffA $ lookupEnv k) <#> getRes
   where
   getRes (Right (Just v)) = Just v
@@ -234,7 +234,7 @@ effAffThenExit = async'run onDone onError
 type XNodeEA e x = EA' e (X'Node x)
 
 runXAThenExit
-  :: forall @w @e a. RtError e => (WaEA' w e (X'Node ()) @@> a) -> Effect Unit
+  :: forall @w @e a. RtError e => (WaEA' w e (X'Node ()) @@-> a) -> Effect Unit
 runXAThenExit m = effAffThenExit $ async'x $ do
   res /\ w <- w'run $ e'try $ runXNode m
   when (arr'size w > 0) do
@@ -245,7 +245,7 @@ runXAThenExit m = effAffThenExit $ async'x $ do
 runXAThenExitWithArgv
   :: forall @w @e a
    . RtError e
-  => (Array String -> WaEA' w e (X'Node ()) @@> a)
+  => (Array String -> WaEA' w e (X'Node ()) @@-> a)
   -> Effect Unit
 runXAThenExitWithArgv fm = runXAThenExit $ x'argv >>= fm
 
@@ -262,20 +262,20 @@ toPlatform "freebsd" = FreeBSD
 toPlatform "openbsd" = OpenBSD
 toPlatform _ = Unknown
 
-x'argv :: forall x. X'Node x @@> Array String
+x'argv :: forall x. X'Node x @@-> Array String
 x'argv = x'effGet @P'X'Node @"fullArgv" <#> arr'drop 2
 
-x'pid :: forall x. X'Node x @@> Int
+x'pid :: forall x. X'Node x @@-> Int
 x'pid = x'effGet @P'X'Node @"pid"
 
-x'wd :: forall x. X'Node x @@> Path
+x'wd :: forall x. X'Node x @@-> Path
 x'wd = x'effGet @P'X'Node @"wd" <#> Path
 
-x'envPaths :: forall x. String -> Maybe String -> X'Node x @@> EnvPaths
+x'envPaths :: forall x. String -> Maybe String -> X'Node x @@-> EnvPaths
 x'envPaths appName suffix =
   x'effCall @P'X'Node @"envPaths" $ appName /\ suffix
 
-x'platform :: forall x. X'Node x @@> Platform
+x'platform :: forall x. X'Node x @@-> Platform
 x'platform = x'effGet @P'X'Node @"platform" <#> toPlatform
 
 envData :: EnvPaths -> Path
@@ -363,8 +363,8 @@ x'argParse
    . String
   -> O.ParserInfo a
   -> Array String
-  -> (a -> X'Node x @@> Unit)
-  -> X'Node x @@> Unit
+  -> (a -> X'Node x @@-> Unit)
+  -> X'Node x @@-> Unit
 x'argParse progName opts args fm =
   handleParse $ O.execParserPure O.defaultPrefs opts args
   where

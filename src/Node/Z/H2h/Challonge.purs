@@ -45,7 +45,7 @@ getEventData = B.adaptBuilder $ x'withReturn'' @"xr.9" \xReturn -> do
     # var'on @"decodeError"
         (\_ -> [ var'inj @"gql" $ var'inj @"cacheDecode" e ])
 
-getEventDataImpl :: forall x. H2h.Event <@@ B.BuildX x
+getEventDataImpl :: forall x. B.RunBuild x H2h.Event
 getEventDataImpl = do
   P.xUseBrowser H2hE.puppeteerBrowserResource browserOpts $ \browser -> do
     x'info { op: "newPage" }
@@ -293,8 +293,8 @@ getEventDataImpl = do
     :: forall xx a
      . String
     -> String
-    -> E' JsError + EA' H2hE.T xx @@> a
-    -> EA' H2hE.T xx @@> a
+    -> E' JsError + EA' H2hE.T xx @@-> a
+    -> EA' H2hE.T xx @@-> a
   pDo s1 s2 m = H2hE.puppeteer s1 s2 !$! m
 
   pDoPorE
@@ -302,8 +302,8 @@ getEventDataImpl = do
      . P.IsPageOrElement pOrE
     => pOrE
     -> String
-    -> E' JsError + EA' H2hE.T xx @@> a
-    -> EA' H2hE.T xx @@> a
+    -> E' JsError + EA' H2hE.T xx @@-> a
+    -> EA' H2hE.T xx @@-> a
   pDoPorE pOrE s m = H2hE.puppeteer (P.context pOrE) s !$! m
 
   pEls
@@ -311,7 +311,7 @@ getEventDataImpl = do
      . P.IsPageOrElement pOrE
     => pOrE
     -> String
-    -> EA' H2hE.T xx @@> Array P.Element
+    -> EA' H2hE.T xx @@-> Array P.Element
   pEls pOrE sel = pDoPorE pOrE sel $ P.xEls pOrE sel
 
   pEl
@@ -319,7 +319,7 @@ getEventDataImpl = do
      . P.IsPageOrElement pOrE
     => pOrE
     -> String
-    -> EA' H2hE.T xx @@> P.Element
+    -> EA' H2hE.T xx @@-> P.Element
   pEl pOrE sel = pDoPorE pOrE sel $ P.xEl pOrE sel
 
   pInnerText pOrE = pDoPorE pOrE "innerText" $ P.xInnerText pOrE

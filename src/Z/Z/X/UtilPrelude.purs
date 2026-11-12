@@ -213,6 +213,13 @@ import Z.Z.Core
   , T2'1
   ) as M
 import Z.Z.Defaultable (class Generable, GDefault, default, g, mkGenerable) as M
+import Z.Z.Run
+  ( type (*->)
+  , type (@*->)
+  , type (@->)
+  , type (@.->)
+  , type (@^->)
+  ) as M
 import Z.Z.Util (type ($)) as M
 import Z.Z.Wraps
   ( class Unwraps

@@ -1,6 +1,6 @@
 module Web.Z.Prelude
   ( T'WebX
-  , T'WebXflipped
+  , T'WebXasync
   , WebEvent
   , WebEventType
   , module DOM
@@ -8,8 +8,8 @@ module Web.Z.Prelude
   , module HTMLDoc
   , module InternalT
   , module ZPrelude
-  , type (<^@)
-  , type (@^>)
+  , type (@@@->)
+  , type (@@@^->)
   ) where
 
 import Web.DOM.Internal.Types (Element) as InternalT
@@ -42,12 +42,13 @@ import Web.Z.Web.DOM
   ) as DOM
 import Z.Prelude as ZPrelude
 
-type T'WebX x a = DOM.X'Web x ZPrelude.@@> a
-type T'WebXflipped a x = T'WebX x a
+type T'WebX x a = DOM.X'Web x ZPrelude.@@-> a
 
-infixr 0 type T'WebX as @^>
+infixr 0 type T'WebX as @@@->
 
-infixr 0 type T'WebXflipped as <^@
+type T'WebXasync x a = DOM.X'Web x ZPrelude.@@^-> a
+
+infixr 0 type T'WebXasync as @@@^->
 
 type WebEvent = WebEvent.Event
 type WebEventType = WebEvent.EventType

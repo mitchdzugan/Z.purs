@@ -31,7 +31,7 @@ ggQueryAll
   -> Array (GGPageSpec v r)
   -> Gql.Client
   -> Gql.NetworkControl
-  -> WaEA' H2hW.T H2hE.T x @@> { | r }
+  -> WaEA' H2hW.T H2hE.T x @@-> { | r }
 ggQueryAll op initVars pageSpecs client networkControl = we'liftGql do
   let r = { client, networkControl, op }
   initRes <- Gql.xOperate op initVars client networkControl
@@ -51,7 +51,7 @@ type QAllR v r =
 type QAllS v r = { vars :: { | v }, res :: { | r } }
 
 type XPageSpecHandle x v r =
-  RWaSEA' (QAllR v r) Gql.Warning (QAllS v r) Gql.Error x @@> Unit
+  RWaSEA' (QAllR v r) Gql.Warning (QAllS v r) Gql.Error x @@-> Unit
 
 ggPageSpecHandle :: forall x v r. GGPageSpec v r -> XPageSpecHandle x v r
 ggPageSpecHandle = runExists ggPageSpecHandleImpl

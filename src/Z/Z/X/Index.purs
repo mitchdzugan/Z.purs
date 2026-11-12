@@ -20,7 +20,7 @@ module Z.Z.X.Index
   , X'E
   , X'Permit
   , X'R
-  , X'flipped
+  , Xasync
   , async'x
   , e'const
   , e'const''
@@ -90,10 +90,8 @@ module Z.Z.X.Index
   , sc'unwrap
   , sc'unwrap_
   , sync'x
-  , type (<@<)
-  , type (<@@)
-  , type (>@>)
-  , type (@@>)
+  , type (@@->)
+  , type (@@^->)
   , x'do
   , x'info
   , x'logError
@@ -112,7 +110,6 @@ module Z.Z.X.Index
 import Z.Z.X.UtilPrelude
 
 import Data.Either (Either(..))
-import Data.Int (floor)
 import Parsing (Parser)
 import Z.Z.Core
   ( class Resulting
@@ -133,6 +130,8 @@ import Z.Z.Run
   ( Ctx'Except
   , Ctx'x'async
   , Future
+  , RunA
+  , RunS
   , ctxA'adapt
   , ctxA'fromEff
   , ctxA'fromEffPromise
@@ -143,13 +142,7 @@ import Z.Z.Run
   , ctxS'run
   )
 import Z.Z.Variant (class IsVariant, var'inj)
-import Z.Z.X.Core
-  ( class X'Buildable
-  , Reader
-  , Run
-  , x'eval
-  , x'eval_
-  )
+import Z.Z.X.Core (class X'Buildable, Reader, Run, x'eval, x'eval_)
 import Z.Z.X.Method
   ( T'x'extract
   , T'x'over
@@ -183,32 +176,30 @@ import Z.Z.X.Util (js_timeout)
 
 type X'Base x = (_'x'base :: X'BaseM | x)
 
-type X x = Run (X'Base x)
+type X x = RunS (X'Base x)
 
-type X'flipped res x = X x res
+type Xasync x = RunA (X'Base x)
 
-infixr 0 type X'flipped as <@<
-infixr 0 type X as >@>
+infixr 0 type X as @@->
 
-infixr 0 type X'flipped as <@@
-infixr 0 type X as @@>
+infixr 0 type Xasync as @@^->
 
-x'out :: forall x a. a -> Unit <@< x
+x'out :: forall x a. a -> x @@-> Unit
 x'out a = x'out'' @"_'x'base" LogLevel'Info a
 
-x'outErr :: forall x a. a -> Unit <@< x
+x'outErr :: forall x a. a -> x @@-> Unit
 x'outErr a = x'out'' @"_'x'base" LogLevel'Error a
 
-x'outWarn :: forall x a. a -> Unit <@< x
+x'outWarn :: forall x a. a -> x @@-> Unit
 x'outWarn a = x'out'' @"_'x'base" LogLevel'Warning a
 
-x'info :: forall x a. a -> Unit <@< x
+x'info :: forall x a. a -> x @@-> Unit
 x'info = x'out
 
-x'logWarning :: forall x a. a -> Unit <@< x
+x'logWarning :: forall x a. a -> x @@-> Unit
 x'logWarning = x'outWarn
 
-x'logError :: forall x a. a -> Unit <@< x
+x'logError :: forall x a. a -> x @@-> Unit
 x'logError = x'outErr
 
 type X'Permit = Reader Unit
@@ -234,10 +225,10 @@ x'do (Eff'At eff) = pure unit <#> \_ -> unsafePerformEffect eff
 
 ---------------------------------------------------------------
 
-sync'x :: forall a. () @@> a -> a
+sync'x :: forall a. () @@-> a -> a
 sync'x = ctxS'run <<< x'eval_ @"_'x'base" @X'BaseM
 
-async'x :: forall a. A' () @@> a -> Future a
+async'x :: forall a. A' () @@-> a -> Future a
 async'x = ctxA'run <<< x'eval_ @"_'x'base" @X'BaseM
 
 ---------------------------------------------------------------------
@@ -275,7 +266,7 @@ type T'use'r'AsSym p f = T'useAsSym "_'x'reader" p f
 --------------------------------------------
 
 type T'r'run p =
-  forall x' x r a. ConsSymbol p (X'R r) x' x => r -> Run x a -> Run x' a
+  forall x' x r a. ConsSymbol p (X'R r) x' x => r -> x @-> a *-> x' @-> a
 
 r'run'' :: forall @p. T'r'run p
 r'run'' = x'eval @p

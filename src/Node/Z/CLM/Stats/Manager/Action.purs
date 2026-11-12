@@ -12,7 +12,7 @@ import Z.Z.Json.Decode
   , xDecodeJson
   )
 import Z.Z.X.Core (x'build)
-import Z.Z.X.Index (type (@@>), sync'x)
+import Z.Z.X.Index (type (@@->), sync'x)
 
 data Action r
   = Undo { targetId :: String | r }
@@ -54,7 +54,7 @@ encodePureAction action = case action of
   (PureAction (SetClmIdForEvent p)) -> "SetClmIdForEvent" /\ encodeJson p
   (PureAction (Bulk p)) -> (/\) "Bulk" $ encodeJson (PureAction <$> p.actions)
 
-xDecodePureAction :: forall x. String /\ Json -> DecoderX x @@> PureAction
+xDecodePureAction :: forall x. String /\ Json -> DecoderX x @@-> PureAction
 xDecodePureAction = case _ of
   ("Undo" /\ p) -> d p <#> PureAction <<< Undo
   ("OverrideName" /\ p) -> d p <#> PureAction <<< OverrideName
@@ -123,7 +123,7 @@ actionId (SetClmId props) = props.id
 actionId (SetClmIdForEvent props) = props.id
 actionId (Bulk props) = props.id
 
-handleAction :: forall x r. Action r -> Spec'M x @@> Unit
+handleAction :: forall x r. Action r -> Spec'M x @@-> Unit
 handleAction (OverrideName { slug, name }) =
   x'insert @"tournamentNameOverrides" slug name
 handleAction (MarkChallonge { slug }) = x'cons @"challongeSlugs" slug

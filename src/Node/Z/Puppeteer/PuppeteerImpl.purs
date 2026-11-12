@@ -31,8 +31,8 @@ xUseBrowser
   :: forall x e a
    . (ResourceStage -> JsError -> e)
   -> Edit BrowserOpts
-  -> (Browser -> EA' e + E' e x @@> a)
-  -> EA' e x @@> a
+  -> (Browser -> EA' e + E' e x @@-> a)
+  -> EA' e x @@-> a
 xUseBrowser mapE optsEdit fm = do
   let baseOpts = { exe: Nothing, args: [] }
   let opts = encodeOpts $ edit baseOpts optsEdit
@@ -44,24 +44,24 @@ xUseBrowser mapE optsEdit fm = do
 xUseBrowser'
   :: forall x e a
    . (ResourceStage -> JsError -> e)
-  -> (Browser -> EA' e + E' e x @@> a)
-  -> EA' e x @@> a
+  -> (Browser -> EA' e + E' e x @@-> a)
+  -> EA' e x @@-> a
 xUseBrowser' = arg2' pass xUseBrowser
 
-xNewPage :: forall x. Browser -> EA' JsError x @@> Page
+xNewPage :: forall x. Browser -> EA' JsError x @@-> Page
 xNewPage = e'runEffPromise <<< js_newPage
 
 xGoto
-  :: forall x. Page -> String -> Edit GotoOpts -> EA' JsError x @@> Unit
+  :: forall x. Page -> String -> Edit GotoOpts -> EA' JsError x @@-> Unit
 xGoto page url optsEdit = do
   let baseOpts = { waitUntil: Nothing }
   let opts = encodeOpts $ edit baseOpts optsEdit
   e'runEffPromise $ js_goto url opts page
 
-xGoto' :: forall x. Page -> String -> EA' JsError x @@> Unit
+xGoto' :: forall x. Page -> String -> EA' JsError x @@-> Unit
 xGoto' = arg3' pass xGoto
 
-xSetViewport :: forall x. Page -> Int -> Int -> EA' JsError x @@> Unit
+xSetViewport :: forall x. Page -> Int -> Int -> EA' JsError x @@-> Unit
 xSetViewport page width height = do
   e'runEffPromise $ js_setViewport width height page
 
@@ -70,7 +70,7 @@ xWaitForSelector
    . Page
   -> String
   -> Edit WaitForOpts
-  -> EA' JsError x @@> Unit
+  -> EA' JsError x @@-> Unit
 xWaitForSelector page sel optsEdit = do
   let baseOpts = { timeout: Nothing }
   let opts = encodeOpts $ edit baseOpts optsEdit
@@ -80,7 +80,7 @@ xWaitForSelector'
   :: forall x
    . Page
   -> String
-  -> EA' JsError x @@> Unit
+  -> EA' JsError x @@-> Unit
 xWaitForSelector' = arg3' pass xWaitForSelector
 
 xEls
@@ -88,23 +88,24 @@ xEls
    . IsPageOrElement o
   => o
   -> String
-  -> EA' JsError x @@> Array Element
+  -> EA' JsError x @@-> Array Element
 xEls pOrE sel = do
   els_ <- e'runEffPromise $ js_els sel (asPageOrElement pOrE)
   pure $ els_ <#> \el_ -> Element ("(" <> context pOrE <> ")[]") el_
 
-xEl :: forall x o. IsPageOrElement o => o -> String -> Element <@@ EA' JsError x
+xEl
+  :: forall x o. IsPageOrElement o => o -> String -> EA' JsError x @@-> Element
 xEl pOrE sel = do
   el_ <- e'runEffPromise $ js_el sel (asPageOrElement pOrE)
   pure $ Element (context pOrE <> " |> ") el_
 
-xInnerText :: forall x o. IsPageOrElement o => o -> EA' JsError x @@> String
+xInnerText :: forall x o. IsPageOrElement o => o -> EA' JsError x @@-> String
 xInnerText pOrE = e'runEffPromise $ js_innerText (asPageOrElement pOrE)
 
-xInnerHtml :: forall x o. IsPageOrElement o => o -> EA' JsError x @@> String
+xInnerHtml :: forall x o. IsPageOrElement o => o -> EA' JsError x @@-> String
 xInnerHtml pOrE = e'runEffPromise $ js_innerHtml (asPageOrElement pOrE)
 
-xGetAttribute :: forall x. Element -> String -> EA' JsError x @@> String
+xGetAttribute :: forall x. Element -> String -> EA' JsError x @@-> String
 xGetAttribute (Element _ e) attr = e'runEffPromise $ js_getAttribute e attr
 
 -------------- foreign data imports -----------------------------------
@@ -150,10 +151,10 @@ foreign import js_PageOrElement_E :: Element_ -> PageOrElement
 
 -------------- internal impls -----------------------------------------
 
-launch :: forall x. Json -> EA' JsError x @@> Browser
+launch :: forall x. Json -> EA' JsError x @@-> Browser
 launch = e'runEffPromise <<< js_launchPuppeteer
 
-close :: forall x. Browser -> EA' JsError x @@> Unit
+close :: forall x. Browser -> EA' JsError x @@-> Unit
 close = e'runEffPromise <<< js_browserClose
 
 -------------- internal types -----------------------------------------

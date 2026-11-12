@@ -60,7 +60,7 @@ requestGql
   -> Json
   -> String
   -> Json
-  -> EA' Gql.Error x @@> Either GqlE.GqlResponseError Json
+  -> EA' Gql.Error x @@-> Either GqlE.GqlResponseError Json
 requestGql apiUrl authToken query vars = doRequest
   where
   mkResponseError query' variables data' errors extensions status headers =
@@ -89,7 +89,7 @@ xOperateUnknown
   -> Json
   -> Client
   -> NetworkControl
-  -> WaEA' GqlW.T GqlE.T x @@> Json
+  -> WaEA' GqlW.T GqlE.T x @@-> Json
 xOperateUnknown opString vars client nc = x'withReturn'' @"xr.8" \xReturn -> do
   (collisionCount /\ cached) <- getCached cachePath nc
   whenJust cached xReturn
@@ -160,7 +160,7 @@ xOperate
   -> vars
   -> Client
   -> NetworkControl
-  -> WaEA' GqlW.T GqlE.T x @@> res
+  -> WaEA' GqlW.T GqlE.T x @@-> res
 xOperate (Operation opString encode decode) vars client networkControl = do
   json <- xOperateUnknown opString (encode vars) client networkControl
   GqlE.responseTypeError !$! e'ok $ decode json

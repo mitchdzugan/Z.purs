@@ -10,7 +10,7 @@ module Z.Z.X.Readables.Base
 import Z.Z.X.UtilPrelude
 
 import Unsafe.Coerce (unsafeCoerce)
-import Z.Z.X.Core (class X'Readable, Run, X'Evaluable, x'evaluable_)
+import Z.Z.X.Core (class X'Readable, X'Evaluable, x'evaluable_)
 import Z.Z.X.Method (x'effCall)
 
 data LogLevel = LogLevel'Info | LogLevel'Warning | LogLevel'Error
@@ -44,5 +44,5 @@ x'base :: X'Evaluable X'BaseM
 x'base = x'evaluable_ @X'BaseM
 
 x'out''
-  :: forall @p x' x a. ConsSymbol p X'BaseM x' x => LogLevel -> a -> Run x Unit
+  :: forall @p x' x a. ConsSymbol p X'BaseM x' x => LogLevel -> a -> x @*-> Unit
 x'out'' ll = x'effCall @p @"out" <<< (/\) ll <<< loggable

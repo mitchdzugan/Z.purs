@@ -291,7 +291,7 @@ effAffThenExit = async'run onDone onError
   onDone _ = pure unit
 
 runXAThenExit
-  :: forall @w @e a. RtError e => (WaEA' w e (X'Web ()) @@> a) -> Effect Unit
+  :: forall @w @e a. RtError e => (WaEA' w e (X'Web ()) @@-> a) -> Effect Unit
 runXAThenExit m = effAffThenExit $ async'x $ do
   res /\ w <- w'run $ e'try $ runXWeb m
   when (arr'size w > 0) do

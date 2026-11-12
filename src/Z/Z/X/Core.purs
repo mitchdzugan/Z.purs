@@ -76,8 +76,7 @@ type T'Consable p m param res'm =
   forall x' x a
    . ConsSymbol p m x' x
   => param
-  -> Run x a
-  -> Run x' (res'm a)
+  -> x @-> a *-> x' @-> (res'm a)
 
 class X'Consable m param res'm | m -> param res'm where
   x'consable'impl :: forall p. Proxy p -> T'Consable p m param res'm
@@ -86,7 +85,7 @@ class X'Consable m param res'm | m -> param res'm where
 
 class X'Results m result | m -> result where
   x'results'impl
-    :: forall p x' x. ConsSymbol p m x' x => Proxy p -> Run x result
+    :: forall p x' x. ConsSymbol p m x' x => Proxy p -> x @*-> result
 
 class X'Results'R r result where
   x'results'r'impl :: r -> result
@@ -104,11 +103,11 @@ instance
 
 instance X'Results'R r result => X'Results (Reader r) result where
   x'results'impl
-    :: forall p x' x. ConsSymbol p (Reader r) x' x => Proxy p -> Run x result
+    :: forall p x' x. ConsSymbol p (Reader r) x' x => Proxy p -> x @*-> result
   x'results'impl _ = ctxR'askAt @p <#> unwrap <#> x'results'r'impl @r
 else instance X'Results'R'Eff r result => X'Results r result where
   x'results'impl
-    :: forall p x' x. ConsSymbol p r x' x => Proxy p -> Run x result
+    :: forall p x' x. ConsSymbol p r x' x => Proxy p -> x @*-> result
   x'results'impl _ =
     ctxR'askAt @p <#> x'results'r'eff'impl <#> unsafePerformEffect
 
@@ -118,8 +117,7 @@ type T'Evaluable m =
   forall p x' x a
    . ConsSymbol p m x' x
   => Proxy p
-  -> Run x a
-  -> Run x' a
+  -> x @-> a *-> x' @-> a
 
 newtype X'Evaluable m = X'Evaluable (T'Evaluable m)
 
@@ -150,8 +148,7 @@ evaluable'run
    . ConsSymbol p m x' x
   => X'Consable m param Identity
   => X'Evaluable m
-  -> Run x a
-  -> Run x' a
+  -> x @-> a *-> x' @-> a
 evaluable'run (X'Evaluable mf) = mf (Proxy @p)
 
 type T'x'eval m p =
@@ -159,8 +156,7 @@ type T'x'eval m p =
    . ConsSymbol p m x' x
   => X'Consable m param Identity
   => param
-  -> Run x a
-  -> Run x' a
+  -> x @-> a *-> x' @-> a
 
 x'eval :: forall @p @m. T'x'eval m p
 x'eval param m = pure unit >>= \_ ->
@@ -172,8 +168,7 @@ type T'x'run m p =
   => X'Consable m param Identity
   => X'Results m result
   => param
-  -> Run x a
-  -> Run x' (a /\ result)
+  -> x @-> a *-> x' @-> (a /\ result)
 
 x'run :: forall @p @m. T'x'run m p
 x'run param m = x'eval @p param do
@@ -187,8 +182,7 @@ type T'x'exec m p =
   => X'Consable m param Identity
   => X'Results m result
   => param
-  -> Run x Unit
-  -> Run x' result
+  -> x @-> Unit *-> x' @-> result
 
 x'exec :: forall @p @m. T'x'exec m p
 x'exec param m = x'eval @p param $ m *> x'results'impl @m (Proxy @p)
@@ -198,8 +192,7 @@ type T'x'eval_ m p =
    . ConsSymbol p m x' x
   => X'Consable m param Identity
   => Generable param GDefault param
-  => Run x a
-  -> Run x' a
+  => x @-> a *-> x' @-> a
 
 x'eval_ :: forall @p @m. T'x'eval_ m p
 x'eval_ m = x'eval @p @m default m
@@ -210,8 +203,7 @@ type T'x'run_ m p =
   => X'Consable m param Identity
   => X'Results m result
   => Generable param GDefault param
-  => Run x a
-  -> Run x' (a /\ result)
+  => x @-> a *-> x' @-> (a /\ result)
 
 x'run_ :: forall @p @m. T'x'run_ m p
 x'run_ m = x'run @p @m default m
@@ -222,8 +214,7 @@ type T'x'exec_ m p =
   => X'Consable m param Identity
   => X'Results m result
   => Generable param GDefault param
-  => Run x Unit
-  -> Run x' result
+  => x @-> Unit *-> x' @-> result
 
 x'exec_ :: forall @p @m. T'x'exec_ m p
 x'exec_ m = x'exec @p @m default m
@@ -315,22 +306,22 @@ instance X'Readable'rw r param => X'Readable (WithRWTag tag r) param where
 ---------------------------------------------------------------------
 
 class X'Buildable spec x' x result | spec x' -> x result where
-  x'buildable'run :: forall a. spec -> Run x a -> Run x' (a /\ result)
+  x'buildable'run :: forall a. spec -> x @.-> a -> x' @.-> (a /\ result)
 
 x'buildable'eval
   :: forall a spec x' x result
    . X'Buildable spec x' x result
   => spec
-  -> Run x a
-  -> Run x' a
+  -> x @.-> a
+  -> x' @.-> a
 x'buildable'eval spec m = x'buildable'run @spec @x' spec m <#> fst
 
 x'build
   :: forall spec x' x result
    . X'Buildable spec x' x result
   => spec
-  -> Run x Unit
-  -> Run x' result
+  -> x @.-> Unit
+  -> x' @.-> result
 x'build spec m = x'buildable'run @spec @x' spec m <#> snd
 
 instance
@@ -354,7 +345,7 @@ class
   X'Buildable'RL spec'row spec'rl x' x result'row
   | spec'rl -> spec'row x' x result'row where
   x'buildable'rl'run
-    :: forall a. Record spec'row -> Run x a -> Run x' (a /\ Record result'row)
+    :: forall a. Record spec'row -> x @-> a *-> x' @-> (a /\ Record result'row)
 
 instance X'Buildable'RL () RL.Nil x x () where
   x'buildable'rl'run _ m = m <#> flip (/\) {}
