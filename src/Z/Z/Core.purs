@@ -721,6 +721,16 @@ newtype Eff'At p a = Eff'At (Eff.Effect a)
 
 derive instance Newtype (Eff'At p a) _
 
+derive newtype instance Functor (Eff'At p)
+
+derive newtype instance Apply (Eff'At p)
+
+derive newtype instance Bind (Eff'At p)
+
+derive newtype instance Applicative (Eff'At p)
+
+derive newtype instance Monad (Eff'At p)
+
 eff'tag :: forall @p a. Eff.Effect a -> Eff'At p a
 eff'tag = Eff'At
 

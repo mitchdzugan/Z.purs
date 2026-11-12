@@ -63,6 +63,7 @@ import Z.CLM.Stats.Types
   , clm'hasReq'prEvents
   )
 import Z.H2h.Module as H2h
+import Z.XDom.Preact (DomEl)
 import Z.XDom.UrlState as UrlSt
 import Z.Z.Json.Decode (class XDecodeJson)
 
@@ -789,44 +790,51 @@ page'stats sort filters = do
           el'cn "h-25 w-[100%] min-w-240 border-b-1 rounded-none" *> w'BorderG3
         let numShown = arr'size filtRanks
         let isDefaultDir = sort.dir == sortBy'defaultDir sort.by
-        forM_ ranks \(rank) -> do
-          let rankInd = rank.sortAndFilteredRank
-          let sortedInd = isDefaultDir ? rankInd $ numShown - rankInd - 1
-          let isInUse = clm'isInUse filters rank
-          dom'withKey (mkRankKey "abs" rank) do
-            dom'withNewRef Nothing \getRef setRef -> do
-              domEff'every'lead do
-                x'do getRef >>= flip whenJust \(el /\ hasRendered) -> do
-                  if isInUse then do
-                    domEff'el'classList'rm el "hidden"
-                    domEff'el'classList'rm el "animate-jump-out"
-                    if hasRendered then do
-                      domEff'el'classList'rm el "animate-once"
-                    else do
-                      domEff'el'classList'add el "animate-jump-in"
-                      domEff'el'classList'add el "animate-once"
-                    domEff'async do
-                      domEffA'animationFrame
-                      domEffA'sync do
-                        domEff'el'parentElement el >>= flip whenJust \pEl -> do
-                          when isInUse do
-                            domEff'el'classList'add pEl "transition"
-                            domEff'el'classList'add pEl "transition-transform"
-                            domEff'el'classList'add pEl "duration-300"
-                            domEff'el'classList'add pEl "ease-in-out"
-                  else do
-                    domEff'el'classList'rm el "animate-jump-in"
-                    if hasRendered then do
-                      domEff'el'classList'add el "animate-jump-out"
-                      domEff'el'classList'add el "animate-once"
-                    else do
-                      domEff'el'classList'add el "hidden"
-                    domEff'el'parentElement el >>= flip whenJust \pEl -> do
-                      domEff'el'classList'rm pEl "transition"
-                      domEff'el'classList'rm pEl "transition-transform"
-                      domEff'el'classList'rm pEl "duration-300"
-                      domEff'el'classList'rm pEl "ease-in-out"
-                  x'do $ setRef $ Just $ el /\ isInUse
+        dom'withKey (show seasonId) $ domRefHm'run @"rankEls" @String do
+          domEff'every'lead do
+            domRefHm'entries @"rankEls" >>= mapM_ \(elKey /\ elData) -> do
+              let el /\ rank /\ hasRendered = elData
+              let isInUse = clm'isInUse filters rank
+              if isInUse then do
+                domEff'el'classList'rm el "hidden"
+                domEff'el'classList'rm el "animate-jump-out"
+                if hasRendered then do
+                  domEff'el'classList'rm el "animate-once"
+                else do
+                  domEff'el'classList'add el "animate-jump-in"
+                  domEff'el'classList'add el "animate-once"
+              else do
+                domEff'el'classList'rm el "animate-jump-in"
+                if hasRendered then do
+                  domEff'el'classList'add el "animate-jump-out"
+                  domEff'el'classList'add el "animate-once"
+                else do
+                  domEff'el'classList'add el "hidden"
+                domEff'el'parentElement el >>= flip whenJust \pEl -> do
+                  domEff'el'classList'rm pEl "transition"
+                  domEff'el'classList'rm pEl "transition-transform"
+                  domEff'el'classList'rm pEl "duration-300"
+                  domEff'el'classList'rm pEl "ease-in-out"
+              domRefHm'insert @"rankEls" elKey $ el /\ rank /\ isInUse
+            domEff'async do
+              domEffA'animationFrame
+              domEffA'sync do
+                domRefHm'entries @"rankEls" >>= mapM_ \(_ /\ elData) -> do
+                  let el /\ rank /\ _ = elData
+                  let isInUse = clm'isInUse filters rank
+                  domEff'el'parentElement el >>= flip whenJust \pEl -> do
+                    when isInUse do
+                      domEff'el'classList'add pEl "transition"
+                      domEff'el'classList'add pEl
+                        "transition-transform"
+                      domEff'el'classList'add pEl "duration-300"
+                      domEff'el'classList'add pEl "ease-in-out"
+          forM_ ranks \(rank) -> do
+            let rankInd = rank.sortAndFilteredRank
+            let sortedInd = isDefaultDir ? rankInd $ numShown - rankInd - 1
+            let isInUse = clm'isInUse filters rank
+            let absRankKey = mkRankKey "abs" rank
+            dom'withKey absRankKey do
               dom'div do
                 let offset = (*) 6.25 $ toNumber $ min sortedInd $ dec numShown
                 el'addCn "w-[100%] h-[calc(6.25rem_-_1px)]"
@@ -835,15 +843,20 @@ page'stats sort filters = do
                 el'addStyle "transform" $ "translateY(" <:> offset <:> "rem)"
                 pure $ dom'div do
                   el'ref \el -> do
-                    hasRendered <- x'do getRef <#> map snd <#> may'or false
-                    x'do $ setRef $ Just $ el /\ hasRendered
+                    hasRendered <- domRefHm'lookup @"rankEls" absRankKey
+                      <#> map snd
+                      <#> map snd
+                      <#> may'or false
+                    domRefHm'insert @"rankEls" absRankKey
+                      (el /\ rank /\ hasRendered)
                   el'onAnimationEnd \_ -> do
-                    x'do getRef >>= flip whenJust \(el /\ _) -> do
-                      whenNot isInUse do
-                        domEff'el'classList'add el "hidden"
-                      domEff'el'classList'rm el "animate-jump-in"
-                      domEff'el'classList'rm el "animate-jump-out"
-                      domEff'el'classList'rm el "animate-once"
+                    domRefHm'lookup @"rankEls" absRankKey >>= flip whenJust
+                      \(el /\ _) -> do
+                        whenNot isInUse do
+                          domEff'el'classList'add el "hidden"
+                        domEff'el'classList'rm el "animate-jump-in"
+                        domEff'el'classList'rm el "animate-jump-out"
+                        domEff'el'classList'rm el "animate-once"
                   el'addCn "w-[100%] h-[100%] absolute top-0 left-0"
                   whenNot isInUse $ el'addCn "pointer-events-none"
                   pure $ when isInUse $ tablePlayerRow (rankInd + 1) rank

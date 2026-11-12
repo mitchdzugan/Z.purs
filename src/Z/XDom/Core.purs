@@ -10,6 +10,7 @@ module Z.XDom.Core
   , DomEffPermit
   , DomPermit
   , DomW'
+  , Eff'RefHM(..)
   , MDOMEFF
   , MDom
   , MDomEff
@@ -110,6 +111,10 @@ module Z.XDom.Core
   , domRef'runReducer''
   , domRef'set
   , domRef'set''
+  , domRefHm'entries
+  , domRefHm'insert
+  , domRefHm'lookup
+  , domRefHm'run
   , domState'dispatch
   , domState'dispatch''
   , domState'get
@@ -195,7 +200,14 @@ import Z.XDom.X
   , attrW'resetStyles
   , attrW'run
   )
-import Z.Z.Run (Future, RunS, ctxA'lift)
+import Z.Z.Eff.Bin
+  ( Eff'Bin
+  , eff'bin'insert
+  , eff'bin'lookup
+  , eff'bin'new
+  , eff'bin'vals
+  )
+import Z.Z.Run (Future, RunS, ctxA'lift, ctxR'askAt, ctxR'runAt)
 import Z.Z.ThenableR (async'run_)
 
 type DomW' x = (domW :: X'Wa ReactEl | x)
@@ -582,6 +594,52 @@ domRef'set'' = domRef'dispatch'' @p
 
 domRef'set :: forall p. T'use's'AsSym p T'domRef'set
 domRef'set = domRef'set'' @p
+
+--------------------------
+
+newtype Eff'RefHM k v = Eff'RefHM (Eff'At "dom" (Eff'Bin { k :: k, v :: v }))
+
+derive instance Newtype (Eff'RefHM k v) _
+
+domRefHm'run
+  :: forall @p @k @v dx x' x
+   . Identable k
+  => ConsSymbol p (Eff'RefHM k v) x' x
+  => MDom dx x Unit
+  -> MDom dx x' Unit
+domRefHm'run m = pure unit >>= \_ ->
+  dom'withNewRef (unsafePerformEffect eff'bin'new) \gets _ -> do
+    dom'withAdapter (ctxR'runAt @p (Eff'RefHM gets)) m
+
+domRefHm'lookup
+  :: forall @p @k @v x' x
+   . Identable k
+  => ConsSymbol p (Eff'RefHM k v) (DomPermit x') (DomPermit x)
+  => k
+  -> Run (DomPermit x) (Maybe v)
+domRefHm'lookup k = ctxR'askAt @p <#> unwrap
+  <#> flip bind (eff'tag @"dom" <<< ffmap _.v <<< eff'bin'lookup k)
+  >>= x'do
+
+domRefHm'insert
+  :: forall @p @k @v x' x
+   . Identable k
+  => ConsSymbol p (Eff'RefHM k v) (DomPermit x') (DomPermit x)
+  => k
+  -> v
+  -> Run (DomPermit x) Unit
+domRefHm'insert k v = ctxR'askAt @p <#> unwrap
+  <#> flip bind (eff'tag @"dom" <<< eff'bin'insert k { k, v })
+  >>= x'do
+
+domRefHm'entries
+  :: forall @p @k @v x' x
+   . Identable k
+  => ConsSymbol p (Eff'RefHM k v) (DomPermit x') (DomPermit x)
+  => Run (DomPermit x) (Array (k /\ v))
+domRefHm'entries = ctxR'askAt @p <#> unwrap
+  <#> flip bind (eff'tag @"dom" <<< ffmap (\e -> e.k /\ e.v) <<< eff'bin'vals)
+  >>= x'do
 
 ------------------------------------------------------------------------
 
