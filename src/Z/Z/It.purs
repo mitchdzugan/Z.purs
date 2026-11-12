@@ -1,9 +1,12 @@
 module Z.Z.It
   ( Iterator
+  , Object'Els
   , arr'collect
   , class Collectable
   , class Iterable
   , class Iterable'KV
+  , collM
+  , collSomeM
   , collect
   , forM
   , forM_
@@ -18,14 +21,17 @@ module Z.Z.It
   , it'minimumWith
   , it'process
   , it'reduce
+  , it'some
   , it'sum
   , it'sumBy
-  , iterable'mk
+  , it'withInd
   , iterable'kv'mk
+  , iterable'mk
   , list'collect
   , mapM
   , mapM_
   , obj'collect
+  , objEls'collect
   , reduce
   , reduceM
   ) where
@@ -35,7 +41,7 @@ import Prelude
 import Control.Monad.Rec.Class (class MonadRec, Step(..), tailRecM)
 import Data.Either (Either(..))
 import Data.Identity (Identity(..))
-import Data.List (List(..))
+import Data.List as L
 import Data.Maybe (Maybe(..))
 import Data.Newtype (unwrap, wrap)
 import Data.Tuple (fst, snd, uncurry)
@@ -44,7 +50,13 @@ import Effect (Effect)
 import Effect.Unsafe (unsafePerformEffect)
 import Foreign.Object (Object)
 import Unsafe.Coerce (unsafeCoerce)
-import Z.Z.Core (eOr'_, may'_, may'__, may'or)
+import Z.Z.Core (T'comp, arr'concatMaybes, eOr'_, may'_, may'__, may'or)
+import Z.Z.Eff.Array
+  ( Eff'PartialArray
+  , eff'array'cons
+  , eff'array'empty
+  , eff'array'getPartial
+  )
 
 foreign import data Iterator :: Type -> Type
 
@@ -70,32 +82,37 @@ instance Iterable (el /\ el) el where
 instance Iterable (Object el) el where
   iterable'mk obj = js_it_ofObj (/\) obj <#> snd
 
-instance Iterable (List el) el where
+instance Iterable (L.List el) el where
   iterable'mk = js_it_ofList useList
 
 type T'useList a =
   Effect Unit
-  -> (a -> List a -> Effect Unit)
-  -> List a
-  -> Effect Unit
+  -> (a -> L.List a -> Effect Unit)
+  -> (L.List a -> Effect Unit)
+
+type T'useJust a = (a -> Effect Unit) -> Maybe a -> Effect Unit
 
 useList :: forall a. T'useList a
-useList _ useCons (Cons head tail) = useCons head tail
+useList _ useCons (L.Cons head tail) = useCons head tail
 useList useNil _ _ = useNil
+
+useJust :: forall a. T'useJust a
+useJust useV (Just v) = useV v
+useJust _ _ = pure unit
 
 class Iterable'KV it k v where
   iterable'kv'mk :: it -> Iterator (k /\ v)
 
 instance Iterable'KV (Array a) Int a where
-  iterable'kv'mk = js_it_withInd (/\) <<< js_it_ofArray
-else instance Iterable'KV (List a) Int a where
-  iterable'kv'mk = js_it_withInd (/\) <<< js_it_ofList useList
+  iterable'kv'mk = it'withInd
+else instance Iterable'KV (L.List a) Int a where
+  iterable'kv'mk = iterator'withInd <<< js_it_ofList useList
 else instance Iterable'KV (Object a) String a where
   iterable'kv'mk = js_it_ofObj (/\)
 else instance Iterable'KV (Iterator (k /\ v)) k v where
   iterable'kv'mk = identity
 else instance Iterable'KV (Iterator a) Int a where
-  iterable'kv'mk = js_it_withInd (/\)
+  iterable'kv'mk = iterator'withInd
 else instance Iterable it (k /\ v) => Iterable'KV it k v where
   iterable'kv'mk = iterable'mk
 
@@ -109,13 +126,18 @@ instance Collectable Array a (Array a) where
 instance Collectable Object (String /\ a) (Object a) where
   collect = js_it_toObj <<< map (uncurry js_obj_entry)
 
-instance Collectable List a (List a) where
-  collect = js_it_toList Cons Nil
+foreign import data Object'Els :: Type
 
-rawIt'start :: forall a. Iterator a -> Effect (Raw'Iterator a)
+instance Collectable Object'Els (String /\ a) (Object (a /\ Array a)) where
+  collect = js_it_toObjEls (/\) snd <<< map (uncurry js_obj_entry)
+
+instance Collectable L.List a (L.List a) where
+  collect = L.reverse <<< it'reduce (flip L.Cons) L.Nil
+
+rawIt'start :: Iterator ~> T'comp Effect Raw'Iterator
 rawIt'start = unsafeCoerce
 
-rawIt'next :: forall a. Raw'Iterator a -> Effect (Maybe a)
+rawIt'next :: Raw'Iterator ~> T'comp Effect Maybe
 rawIt'next rawIt = js_rawIt_next rawIt <#> \r ->
   if r.done then Nothing else Just r.value
 
@@ -165,10 +187,12 @@ it'forM
   -> (el -> m a)
   -> m (Array a)
 it'forM it f = do
-  partial <- pure unit <#> \_ -> unsafePerformEffect js_arrayPartial_new
-  let cons a = unsafePerformEffect (js_arrayPartial_cons partial a <#> Left)
+  partial <- pure unit <#> \_ -> unsafePerformEffect eff'array'empty
+  let cons a = unsafePerformEffect (eff'array'cons a partial <#> Left)
   let impl fLoop fDone = it'process fLoop fDone unit it
-  impl (\_ el -> f el <#> cons) (\_ -> pure $ js_arrayPartial_complete partial)
+  impl
+    (\_ el -> f el <#> cons)
+    (\_ -> pure $ js_arrayPartial_complete $ eff'array'getPartial partial)
 
 it'reduce :: forall it a b. Iterable it a => (b -> a -> b) -> b -> it -> b
 it'reduce f s = unwrap <<< it'process (\c a -> wrap $ Left $ f c a) Identity s
@@ -246,6 +270,15 @@ it'intercalate
 it'intercalate inter = may'or mempty <<< flip it'reduce Nothing \carry el ->
   Just $ may'_ el (\els -> els <> inter <> el) carry
 
+it'some :: forall it el. Iterable it (Maybe el) => it -> Iterator el
+it'some it = js_it_takeSome useJust $ iterable'mk it
+
+iterator'withInd :: forall el. Iterator el -> Iterator (Int /\ el)
+iterator'withInd = js_it_withInd (/\)
+
+it'withInd :: forall it el. Iterable it el => it -> Iterator (Int /\ el)
+it'withInd = iterator'withInd <<< iterable'mk
+
 it'collect
   :: forall @tag it el full
    . Iterable it el
@@ -260,8 +293,12 @@ arr'collect = it'collect @Array
 obj'collect :: forall it el. Iterable it (String /\ el) => it -> Object el
 obj'collect = it'collect @Object
 
-list'collect :: forall it el. Iterable it el => it -> List el
-list'collect = it'collect @List
+objEls'collect
+  :: forall it el. Iterable it (String /\ el) => it -> Object (el /\ Array el)
+objEls'collect = it'collect @Object'Els
+
+list'collect :: forall it el. Iterable it el => it -> L.List el
+list'collect = it'collect @L.List
 
 -------------------------------------------------------------------------------
 
@@ -301,6 +338,39 @@ forM_
   -> m Unit
 forM_ = it'forM_
 
+type T'collectM :: forall k. k -> Type -> Type -> Type
+type T'collectM tag b coll =
+  forall it m a
+   . MonadRec m
+  => Iterable it a
+  => Collectable tag b coll
+  => it
+  -> (a -> m b)
+  -> m coll
+
+collM :: forall @tag b coll. T'collectM tag b coll
+collM it f = it'collect @tag <$> it'forM it f
+
+type T'collectSomeM :: forall k. k -> Type -> Type -> Type
+type T'collectSomeM tag b coll =
+  forall it m a
+   . MonadRec m
+  => Iterable it a
+  => Collectable tag b coll
+  => it
+  -> (a -> m (Maybe b))
+  -> m coll
+
+collSomeM
+  :: forall @tag it coll m a b
+   . MonadRec m
+  => Iterable it a
+  => Collectable tag b coll
+  => it
+  -> (a -> m (Maybe b))
+  -> m coll
+collSomeM it f = it'collect @tag <$> arr'concatMaybes <$> it'forM it f
+
 reduce
   :: forall it el b
    . Iterable it el
@@ -324,7 +394,10 @@ reduceM f s = it'process (\c a -> Left <$> f c a) pure s
 
 foreign import js_it_ofArray :: forall a. Array a -> Iterator a
 
-foreign import js_it_ofList :: forall a. T'useList a -> List a -> Iterator a
+foreign import js_it_ofList :: forall a. T'useList a -> L.List a -> Iterator a
+
+foreign import js_it_takeSome
+  :: forall a. T'useJust a -> Iterator (Maybe a) -> Iterator a
 
 foreign import js_it_ofObj
   :: forall a
@@ -344,17 +417,14 @@ foreign import js_it_toArray :: forall a. Iterator a -> Array a
 
 foreign import js_it_toObj :: forall a. Iterator (Obj'Entry a) -> Object a
 
-foreign import js_it_toList
-  :: forall a. (a -> List a -> List a) -> List a -> Iterator a -> List a
+foreign import js_it_toObjEls
+  :: forall a
+   . (a -> Array a -> a /\ Array a)
+  -> (a /\ Array a -> Array a)
+  -> Iterator (Obj'Entry a)
+  -> Object (a /\ Array a)
 
 foreign import js_obj_entry :: forall a. String -> a -> Obj'Entry a
 
-foreign import data JsArrayPartial :: Type -> Type
-
-foreign import js_arrayPartial_new :: forall a. Effect (JsArrayPartial a)
-
-foreign import js_arrayPartial_cons
-  :: forall a. JsArrayPartial a -> a -> Effect Unit
-
-js_arrayPartial_complete :: forall a. JsArrayPartial a -> Array a
+js_arrayPartial_complete :: forall a. Eff'PartialArray a -> Array a
 js_arrayPartial_complete = unsafeCoerce

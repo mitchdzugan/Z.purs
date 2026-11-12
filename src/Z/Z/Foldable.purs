@@ -1,7 +1,6 @@
 module Z.Z.Foldable
   ( Sorter
   , SorterF
-  , arr'fromTraversable
   , arr'idented
   , average
   , averageBy
@@ -26,7 +25,7 @@ import Prelude
 
 import Data.Exists (Exists, mkExists, runExists)
 import Data.List (List(..))
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe)
 import Data.Number (pow, sqrt)
 import Data.Tuple (snd, uncurry)
 import Data.Tuple.Nested (type (/\), (/\))
@@ -35,30 +34,32 @@ import Z.Z.Core
   , arr'concat
   , arr'size
   , arr'withInd
-  , ffmap
   , may'or
   , numberable'toNumber
   , zScoreToPercentile
+  , (<$$>)
   )
-import Z.Z.HashMap (HashMap, hm'collect, hm'entries, hm'lookup)
-import Z.Z.HashSet (HashSet, hs'collect, hs'has, hs'vals)
+import Z.Z.HashMap
+  ( HashMap
+  , hm'collect
+  , hm'entries
+  , hm'lookup
+  , hm'vals
+  , hm2d'collect
+  )
+import Z.Z.HashSet (HashSet, hs'collect, hs'has)
 import Z.Z.Id (class Identable, IdV, Idented, ident'get, idented'mk, idented'v)
 import Z.Z.It
   ( class Iterable
+  , arr'collect
   , collect
-  , forM_
+  , it'some
   , it'sum
+  , it'withInd
   , iterable'mk
   , list'collect
   )
-import Z.Z.Passable (pass)
 import Z.Z.Util (arr'sortBy)
-import Z.Z.X.Core (_'exec_)
-import Z.Z.X.Index (sync'x)
-import Z.Z.X.Method (_'cons, _'consAt, _'insert)
-import Z.Z.X.Readables.RW.HashMap (X'HashMap)
-import Z.Z.X.Readables.RW.HashSet2D (X'HashSet2D)
-import Z.Z.X.Readables.RW.Vector (X'Vector)
 
 keyBy
   :: forall it k v
@@ -67,15 +68,10 @@ keyBy
   => (v -> k)
   -> it
   -> HashMap k v
-keyBy toKey coll = sync'x $ _'exec_ @(X'HashMap k v) do
-  forM_ coll \v -> _'insert (toKey v) v
-
-arr'fromTraversable :: forall it v. Iterable it v => it -> Array v
-arr'fromTraversable coll = sync'x $ _'exec_ @(X'Vector v) do
-  forM_ coll \v -> _'cons v
+keyBy toKey coll = collect @HashMap $ iterable'mk coll <#> \v -> toKey v /\ v
 
 arr'idented :: forall it v. Iterable it v => it -> Array (Idented Int v)
-arr'idented a = uncurry idented'mk <$> (arr'withInd $ arr'fromTraversable a)
+arr'idented a = uncurry idented'mk <$> (arr'withInd $ arr'collect a)
 
 groupBy
   :: forall it k v
@@ -84,12 +80,7 @@ groupBy
   => (v -> k)
   -> it
   -> HashMap k (Array v)
-groupBy toKey coll =
-  ffmap idented'v
-    <$> map hs'vals
-    <$> sync'x $ _'exec_ @(X'HashSet2D k (Idented Int v)) do
-    forM_ (arr'idented coll) \idented -> do
-      _'consAt (toKey $ idented'v idented) idented
+groupBy k c = hm'vals <$$> hm2d'collect $ it'withInd c <#> \p -> k (snd p) /\ p
 
 hm'mapSomeKeys
   :: forall k1 k2 v
@@ -98,10 +89,8 @@ hm'mapSomeKeys
   => (k1 -> Maybe k2)
   -> HashMap k1 v
   -> HashMap k2 v
-hm'mapSomeKeys mapKey hm = sync'x $ _'exec_ @(X'HashMap k2 v) do
-  forM_ (hm'entries hm) \(k1 /\ v) -> case mapKey k1 of
-    Just k2 -> _'insert k2 v
-    Nothing -> pass
+hm'mapSomeKeys mapKey hm = collect @HashMap $ it'some $ iterable'mk hm <#>
+  \(k1 /\ v) -> mapKey k1 <#> \k2 -> k2 /\ v
 
 newtype SorterF a s = SorterF
   { toS :: a -> s
@@ -154,13 +143,13 @@ multisort'impl (Cons s s'rest) arr = arr'concat
 
 multisort :: forall it v. Iterable it v => Array (Sorter v) -> it -> Array v
 multisort sorters coll =
-  multisort'impl (list'collect sorters) $ arr'fromTraversable coll
+  multisort'impl (list'collect sorters) $ arr'collect coll
 
 withMultisortInd
   :: forall it v. Iterable it v => Array (Sorter v) -> it -> Array (Int /\ v)
 withMultisortInd sorters coll =
   let
-    arr = arr'fromTraversable coll
+    arr = arr'collect coll
   in
     js_withNewInds (/\) arr (multisort $ sorters <#> sorter'adapt _.el)
 
@@ -187,7 +176,7 @@ statsBy
   :: forall it v n. Iterable it v => Numberable n => (v -> n) -> it -> Stats
 statsBy toN coll =
   let
-    nums = arr'fromTraversable coll <#> numberable'toNumber <<< toN
+    nums = arr'collect coll <#> numberable'toNumber <<< toN
     size = numberable'toNumber (arr'size nums)
     avg = it'sum nums / size
     variances = nums <#> \n -> pow (n - avg) 2.0

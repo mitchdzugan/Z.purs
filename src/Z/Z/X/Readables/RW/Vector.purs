@@ -1,15 +1,12 @@
 module Z.Z.X.Readables.RW.Vector
   ( Eff'Vector
   , R'Vector(..)
-  , R'Writer(..)
   , X'Vector
   , X'Vector'w
-  , X'Writer
   , x'vector
   , x'vector'w
   , x'vector_
   , x'vector_'w
-  , x'writer
   ) where
 
 import Z.Z.X.UtilPrelude
@@ -226,35 +223,6 @@ x'vector_ = x'evaluable_
 
 x'vector_'w :: forall @a. X'Evaluable (X'Vector'w a)
 x'vector_'w = x'evaluable_
-
----------------------------------------------------------------------
-
-newtype R'Writer monoid = R'Writer (Eff'Vector monoid)
-
-instance Monoid monoid => X'Readable'rw (R'Writer monoid) Unit where
-  x'readable'rw'mk _ = R'Writer <$> eff'vec'init []
-
-instance Monoid monoid => X'Results'R'rw (R'Writer monoid) monoid where
-  x'results'r'rw'impl (R'Writer st) = eff'vec'freeze st <#> it'fold
-
-instance
-  ( RW'Tag'CanWrite rwTag
-  ) =>
-  Eff'RW'Method XM'cons (R'Writer a) rwTag a Unit where
-  eff'rw'call (R'Writer st) el = eff'vec'cons el st
-
-instance XM'type (R'Writer a) XMt'self (Array a)
-
-instance XM'type (R'Writer a) XMt'key Int
-
-instance XM'type (R'Writer a) XMt'value a
-
----------------------------------------------------------------------
-
-type X'Writer a = RW'Tagged (R'Writer a)
-
-x'writer :: forall @monoid. Monoid monoid => X'Evaluable (X'Writer monoid)
-x'writer = x'evaluable_
 
 ---------------------------------------------------------------------
 

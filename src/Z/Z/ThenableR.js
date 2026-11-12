@@ -21,27 +21,24 @@ const ensurePromise = (t) => (t instanceof Promise ? t : Promise.resolve(t.v));
 
 export const js_thenableR_map = (f) => (thR) => (r) => _th(thR(r))(f);
 
-export const js_thenableR_apply = (fThnblR) => (vThnblR) => (r) => {
-  return _th(fThnblR(r))((f) => _th(vThnblR(r))(f));
-};
+export const js_thenableR_apply = (fThnblR) => (vThnblR) => (r) =>
+  _th(fThnblR(r))((f) => _th(vThnblR(r))(f));
 
 export const js_thenableR_pure = (v) => () => Thenable(v);
 
 export const js_thenableR_ask = (r) => Thenable(r);
 
-export const js_thenableR_bind = (vThnblR) => (fvThnblR) => (r) => {
-  return _th(vThnblR(r))((v) => fvThnblR(v)(r));
-};
+export const js_thenableR_bind = (vThnblR) => (fvThnblR) => (r) =>
+  _th(vThnblR(r))((v) => fvThnblR(v)(r));
 
-const tailRecM_async = async (s0P, useL, useD, ref, useS, nThR, getA, r) => {
+const tailRecM_async = async (s0P, ref, useS, nThR, getA, r) => {
   let isInitial = true;
   while (ref.length == 0) {
-    const proc = (step) => useS(useL)(useD)(step)();
     if (isInitial) {
-      proc(await s0P);
+      useS(await s0P)();
     } else {
       const thnbl = nThR(getA())(r);
-      proc(thnbl instanceof Promise ? await thnbl : thnbl.v);
+      useS(thnbl instanceof Promise ? await thnbl : thnbl.v)();
     }
     isInitial = false;
   }
@@ -56,7 +53,7 @@ export const js_thenableR_tailRecM = (useStep) => (nThR) => (a1) => (r) => {
   while (ref.length == 0) {
     const thnbl = nThR(a)(r);
     if (thnbl instanceof Promise) {
-      return tailRecM_async(thnbl, useL, useD, ref, useStep, nThR, () => a, r);
+      return tailRecM_async(thnbl, ref, useStep(useL)(useD), nThR, () => a, r);
     }
     useStep(useL)(useD)(thnbl.v)();
   }
@@ -74,13 +71,14 @@ export const js_thenableR_asyncFromEff = (eff) => async () => eff();
 export const js_thenableR_asyncFromEffPromise = (effP) => effP;
 
 export const js_thenableR_parallel = (thnblRs) => (r) => {
-  let isAllSync = true;
-  const thnbls = thnblRs.map((thnblR) => {
+  let isSync = true;
+  const ths = thnblRs.map((thnblR) => {
     const thnbl = thnblR(r);
-    isAllSync &&= !(thnbl instanceof Promise);
-    return ensurePromise(thnbl);
+    isSync &&= !(thnbl instanceof Promise);
+    return { p: ensurePromise(thnbl), s: thnbl };
   });
-  return isAllSync ? Thenable(thnbls.map(({ v }) => v)) : Promise.all(thnbls);
+  const els = isSync ? ths.map((e) => e.s.v) : ths.map((e) => e.p);
+  return (isSync ? Thenable : Promise.all)(els);
 };
 
 class NonError extends Error {

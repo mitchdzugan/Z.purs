@@ -201,25 +201,24 @@ route'urlEdits defaultSeasonId route@(Route { seasonId }) = do
   s'set'b @"path" path
   s'set'b @"query" query
   where
-  path = sync'x $ _'exec_ @(X'Vector String) do
-    whenNot (seasonId == defaultSeasonId) do _'cons $ seasonId'slug seasonId
-    case getActualPage route of
-      Player _ -> _'cons "-"
-      Compare -> _'cons "compare"
-      H2hGrid -> _'cons "h2h"
-      _ -> pure unit
-  query = sync'x $ _'exec_ @(X'HashMap String (Array String)) do
+  pathL = if seasonId == defaultSeasonId then [] else [ seasonId'slug seasonId ]
+  path = pathL <> case getActualPage route of
+    Player _ -> [ "-" ]
+    Compare -> [ "compare" ]
+    H2hGrid -> [ "h2h" ]
+    _ -> []
+  query = hm'collect $ sync'x $ w'exec @(Array (String /\ Array String)) do
     case getActualPage route of
       Stats sort filters -> do
         let defaultFilters = getDefaultFilters seasonId
         forM_ (filters'pairs filters) \(filterKey /\ filterVal) -> do
           when (filterVal /= filters'get defaultFilters filterKey) do
-            _'insert (show filterKey) [ if filterVal then "y" else "n" ]
+            w'say $ show filterKey /\ [ if filterVal then "y" else "n" ]
         when (sort.by /= defaultSort.by) do
-          _'insert "by" [ show sort.by ]
+          w'say $ "by" /\ [ show sort.by ]
         when (sort.dir /= sortBy'defaultDir sort.by) do
-          _'insert "dir" [ sortDir'param sort.dir ]
-      Player PlayerTab'Tournaments -> _'insert "tab" [ "tournaments" ]
+          w'say $ "dir" /\ [ sortDir'param sort.dir ]
+      Player PlayerTab'Tournaments -> w'say $ "tab" /\ [ "tournaments" ]
       _ -> pure unit
   getHash [] = Nothing
   getHash ids = Just $ str'joinWith "~" $ ids <#> show

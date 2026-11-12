@@ -16,6 +16,7 @@ module Z.Z.HashMap
   , hm'set
   , hm'size
   , hm'vals
+  , hm2d'collect
   ) where
 
 import Prelude
@@ -26,14 +27,17 @@ import Foreign.Object (Object)
 import Z.Z.Bin as Bin
 import Z.Z.Core (arr'concat, arr'remove)
 import Z.Z.Defaultable (class Generable)
+import Z.Z.Ext (fst, snd)
 import Z.Z.Ext as Z
 import Z.Z.Id (class Identable, ident'key)
 import Z.Z.It
   ( class Collectable
   , class Iterable
+  , Object'Els
   , collect
   , it'collect
   , iterable'mk
+  , objEls'collect
   )
 import Z.Z.Json.Decode (class XDecodeJson)
 
@@ -67,6 +71,19 @@ instance
   collect it = Z.wrap $ Z.wrap $ collect @Object $
     it <#> \(k /\ v) -> ident'key k /\ { k, v }
 
+foreign import data HashMap'2D :: Type
+
+instance
+  ( Identable k1
+  , Identable k2
+  ) =>
+  Collectable HashMap'2D (k1 /\ k2 /\ v) (HashMap k1 (HashMap k2 v)) where
+  collect it = hm2d
+    where
+    objEls = objEls'collect $ it <#> \(k1 /\ p) -> ident'key k1 /\ (k1 /\ p)
+    hmEls = objEls <#> \((k /\ p1) /\ es) -> { k, v: [ p1 ] <> map snd es }
+    hm2d = Z.wrap (Z.wrap hmEls) <#> it'collect @HashMap
+
 hm'empty :: forall @k @v. Identable k => HashMap k v
 hm'empty = Z.wrap Bin.bin'empty
 
@@ -76,6 +93,15 @@ hm'set k v = Z.wrap <<< Bin.bin'insert k { k, v } <<< Z.unwrap
 hm'collect
   :: forall it k v. Iterable it (k /\ v) => Identable k => it -> HashMap k v
 hm'collect = it'collect @HashMap
+
+hm2d'collect
+  :: forall it k1 k2 v
+   . Iterable it (k1 /\ k2 /\ v)
+  => Identable k1
+  => Identable k2
+  => it
+  -> HashMap k1 (HashMap k2 v)
+hm2d'collect = it'collect @HashMap'2D
 
 hm'size :: forall @k @v. Identable k => HashMap k v -> Int
 hm'size = Bin.bin'size <<< Z.unwrap

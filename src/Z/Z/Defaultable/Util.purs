@@ -3,6 +3,7 @@ module Z.Z.Defaultable.Util
   , default
   , orDefault
   , whenJust
+  , whenTrue
   ) where
 
 import Prelude
@@ -24,6 +25,13 @@ whenJust
    . Monad m
   => WithDefaultable d (Maybe a -> (a -> m d) -> m d)
 whenJust m f = maybe (pure $ default @d) f m
+
+whenTrue
+  :: forall m d
+   . Monad m
+  => WithDefaultable d (Boolean -> m d -> m d)
+whenTrue true m = m
+whenTrue _ _ = pure $ default @d
 
 default :: forall @d. WithDefaultable d d
 default = mkGenerable @d @GDefault

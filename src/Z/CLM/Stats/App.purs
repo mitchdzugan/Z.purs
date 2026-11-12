@@ -68,6 +68,25 @@ import Z.Z.Json.Decode (class XDecodeJson)
 
 -----------------------------------------------------------------------
 
+newtype DT'Cache'Tag = DT'Cache'Tag Unit
+
+derive instance Newtype DT'Cache'Tag _
+derive newtype instance Eq DT'Cache'Tag
+
+type DT'Cache = Boxed DT'Cache'Tag
+
+foreign import data M'DTString :: Type
+
+instance
+  Method M'DTString DT'Cache DateTime String where
+  call b date = str'joinWith "/" $ (#) date <$>
+    [ flip dateTime'month'2dig tz'chicago
+    , flip dateTime'day'2dig tz'chicago
+    , show <<< flip dateTime'year tz'chicago
+    ]
+
+-----------------------------------------------------------------------
+
 newtype ClmSeason'Data = ClmSeason'Data ClmSeason'Json
 
 derive instance Newtype ClmSeason'Data _
@@ -194,16 +213,15 @@ instance Method M'allPlayers ClmSeason'Boxed Unit (Array AnyPlayer) where
     let ranksById = keyBy _.clmId ranks
     let otherPlayerTags = boxed'call_ @M'otherPlayerTags b
     let otherPlayerSeasons = boxed'call_ @M'otherPlayerSeasons b
-    outOfSeasonPlayers <- _'exec_ @(X'Vector OutOfSeasonPlayer) do
-      forM_ (hm'entries otherPlayerTags) \(clmId /\ allOtherTags) -> do
-        when (isNothing $ hm'lookup clmId ranksById) do
+    outOfSeasonPlayers <-
+      collSomeM @Array otherPlayerTags \(clmId /\ allOtherTags) -> do
+        whenTrue (isNothing $ hm'lookup clmId ranksById) do
           whenJust (arr'splitHead allOtherTags) \splitHeadTags -> do
             let (gamerTag /\ otherTags) = splitHeadTags
             let allSeasons = may'or [] $ hm'lookup clmId otherPlayerSeasons
             whenJust (arr'splitTail allSeasons) \splitHeadSeasons -> do
               let (latestSeason /\ otherSeasons) = splitHeadSeasons
-              _'cons
-                { clmId, gamerTag, otherTags, latestSeason, otherSeasons }
+              pure2 { clmId, gamerTag, otherTags, latestSeason, otherSeasons }
     pure $ arr'concat [ ranks <#> Right, outOfSeasonPlayers <#> Left ]
 
 instance
@@ -255,6 +273,7 @@ type ClmDom'X x = Router' String Route $ ClmBuildOutputs'X
   , routeErr :: X'R (Maybe String)
   , editRoute :: X'R (Edit Route -> Route)
   , pxPerRemOr_ :: XDom'Ref (Maybe Number)
+  , dtCache :: XDom'Ref (DT'Cache)
   , isInitials ::
       XDom'Ref
         { isInitialPage :: Boolean
@@ -630,12 +649,10 @@ eventUrl { source: { site, slug } } = (#) site
   # var'on @"startgg" (\_ -> "https://start.gg/" <> slug)
   # var'on @"challonge" (\_ -> "https://challonge.com/" <> slug)
 
-eventDateString :: ClmSeason'Event -> String
-eventDateString { date } = str'joinWith "/" $ (#) date <$>
-  [ flip dateTime'month'2dig tz'chicago
-  , flip dateTime'day'2dig tz'chicago
-  , show <<< flip dateTime'year tz'chicago
-  ]
+eventDateString :: forall dx x. ClmSeason'Event -> ClmDom dx x String
+eventDateString { date } = do
+  dtCache <- domRef'get'' @"dtCache"
+  pure $ boxed'call @M'DTString dtCache date
 
 getSocialHref :: H2h.SocialType -> String -> Maybe String
 getSocialHref stype sid = (#) stype
@@ -733,7 +750,7 @@ tablePlayerRow sortedInd p = do
         pure $ dom'text p.lastEvent.data.tournamentName
     , mruPlacing: dom'text $
         (ordinal p.lastEvent.placing <+> "of" <+> p.lastEvent.data.numEntrants)
-    , mruDate: dom'text $ eventDateString p.lastEvent.data
+    , mruDate: eventDateString p.lastEvent.data >>= dom'text
     }
 
 clm'isInUse :: Filters -> ClmSeason'Player'Full -> Boolean
@@ -1125,6 +1142,7 @@ app'mk buildOutputs = router'run urlEdits parseUrl mkTitleOr_ do
       $ dom'runReader @"routeErr" routeErr
       $ dom'runReader @"editRoute" editRoute
       $ domRef'run'' @"pxPerRemOr_" Nothing
+      $ domRef'run'' @"dtCache" (boxed'mk $ DT'Cache'Tag unit)
       $ domFetchCache'run_ @"clmSeasons" mkClmSeasonFetchUrl getClmSeasonIds
       $ domFetchCache'run_ @"clmPlayerSeasons"
           mkClmPlayerSeasonFetchUrl

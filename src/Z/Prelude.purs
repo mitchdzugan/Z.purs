@@ -178,6 +178,7 @@ import Z.Z.Defaultable
   , mkGenerable
   , orDefault
   , whenJust
+  , whenTrue
   ) as ZDefaultable
 import Z.Z.Ext as ZExt
 import Z.Z.Fetch as ZFetch

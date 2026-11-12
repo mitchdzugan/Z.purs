@@ -112,6 +112,7 @@ module Z.Z.Core
   , parseString_
   , parseTry
   , pseudoRng
+  , pure2
   , pureF
   , rec'get
   , rec'insert
@@ -733,3 +734,6 @@ tern :: forall a. Boolean -> a -> a -> a
 tern cond vthen velse = if cond then vthen else velse
 
 infixl 2 tern as ?
+
+pure2 :: forall a1 a2 v. Applicative a1 => Applicative a2 => v -> a1 (a2 v)
+pure2 v = pure (pure v)

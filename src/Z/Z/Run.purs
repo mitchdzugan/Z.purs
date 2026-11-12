@@ -133,8 +133,7 @@ ctxA'adapt
   :: forall x x' a
    . (RunS x a -> RunS x' a)
   -> (RunS (Ctx'x'async x) a -> RunS (Ctx'x'async x') a)
-ctxA'adapt fm m = do
-  (unsafeCoerce fm) $ ctxA'fromEff (pure unit) >>= \_ -> m
+ctxA'adapt = unsafeCoerce
 
 foreign import js_ctx_initReaderAt
   :: forall rt v x' x a

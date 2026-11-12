@@ -6,6 +6,10 @@ module Z.Z.Shorthand
   , (<|<)
   , (>|>)
   , (~.)
+  , Arr
+  , HM
+  , HS
+  , Obj
   , TPlus
   , _'
   , __
@@ -40,6 +44,7 @@ import Prelude
 
 import Data.List (List)
 import Data.Monoid.Endo (Endo)
+import Foreign.Object (Object)
 import Type.Row (type (+)) as TypeRow
 import Z.Z.Barlow
   ( class C'Barlow
@@ -64,6 +69,16 @@ import Z.Z.Ext
   , view
   ) as Z
 import Z.Z.Ext ((/\)) as ZExp
+import Z.Z.HashMap (HashMap)
+import Z.Z.HashSet (HashSet)
+
+type Arr = Array
+
+type HM = HashMap
+
+type HS = HashSet
+
+type Obj = Object
 
 stextConcat
   :: forall t1 t2. ZCore.SText t1 => ZCore.SText t2 => t1 -> t2 -> String

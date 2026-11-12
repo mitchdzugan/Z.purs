@@ -63,3 +63,4 @@ import Z.Z.X.Readables.RW.WholeHistoryRating
   , whr'ratingsForPlayer
   , whr'ratingsForPlayer''
   ) as ModuleReExports
+import Z.Z.X.Readables.RW.Writer as ModuleReExports

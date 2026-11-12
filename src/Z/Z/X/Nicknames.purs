@@ -79,7 +79,7 @@ import Z.Z.X.Index
   )
 import Z.Z.X.Method (x'assign, x'cons, x'update)
 import Z.Z.X.Readables.RW.Ref (X'Ref)
-import Z.Z.X.Readables.RW.Vector (X'Writer)
+import Z.Z.X.Readables.RW.Writer (X'Writer)
 
 type X'W t = X'Writer t
 type X'Wa t = X'Writer (Array t)
@@ -140,7 +140,7 @@ w'run = x'run_ @"_'x'writer"
 w'eval :: forall x w a. Monoid w => Run (W' w x) a -> Run x a
 w'eval = x'eval_ @"_'x'writer"
 
-w'exec :: forall x w. Monoid w => Run (W' w x) Unit -> Run x w
+w'exec :: forall x @w. Monoid w => Run (W' w x) Unit -> Run x w
 w'exec = x'exec_ @"_'x'writer"
 
 --------------------------------------------

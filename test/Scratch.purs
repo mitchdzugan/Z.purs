@@ -4,6 +4,7 @@ import Node.Z.Prelude
 
 import Debug (traceM)
 import Effect.Class.Console (log)
+import Z.Z.HashMap (hm2d'collect)
 import Z.Z.It (it'forM, it'forM_, it'maximum, it'minimum)
 import Z.Z.Run
   ( Future
@@ -79,6 +80,37 @@ main = do
   -}
   traceM $ arr'collect [ 1, 2, 3 ]
   traceM $ list'collect [ 1, 2, 3 ]
+  traceM $ hm2d'collect
+    [ "a" /\ 1 /\ "a1"
+    , "a" /\ 2 /\ "a2"
+    , "a" /\ 3 /\ "a3"
+    , "a" /\ 4 /\ "a4"
+    , "b" /\ 2 /\ "b2"
+    , "b" /\ 3 /\ "b3"
+    , "b" /\ 4 /\ "b4"
+    , "b" /\ 5 /\ "b5"
+    , "b" /\ 6 /\ "b6"
+    , "b" /\ 7 /\ "b7"
+    ]
+  traceM
+    [ ("a" /\ 1) /\ "a1"
+    , ("a" /\ 2) /\ "a2"
+    , ("a" /\ 3) /\ "a3"
+    ]
+  traceM $ arr'concat $ map (\(a /\ ps) -> map ((/\) a) ps) $ hm'entries
+    $ map hm'entries
+    $ hm2d'collect
+        [ "a" /\ 1 /\ "a1"
+        , "a" /\ 2 /\ "a2"
+        , "a" /\ 3 /\ "a3"
+        , "a" /\ 4 /\ "a4"
+        , "b" /\ 2 /\ "b2"
+        , "b" /\ 3 /\ "b3"
+        , "b" /\ 4 /\ "b4"
+        , "b" /\ 5 /\ "b5"
+        , "b" /\ 6 /\ "b6"
+        , "b" /\ 7 /\ "b7"
+        ]
   traceM $ arr'collect $ list'collect [ 1, 2, 3 ]
   traceM $ list'collect $ arr'collect $ list'collect [ 1, 2, 3 ]
   traceM $ arr'collect $ list'collect $ arr'collect $ list'collect [ 1, 2, 3 ]

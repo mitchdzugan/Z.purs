@@ -19,4 +19,10 @@ import Z.Z.Defaultable.Generable
   , g2
   , mkGenerable
   ) as ModuleReExports
-import Z.Z.Defaultable.Util (WithDefaultable, default, orDefault, whenJust) as ModuleReExports
+import Z.Z.Defaultable.Util
+  ( WithDefaultable
+  , default
+  , orDefault
+  , whenJust
+  , whenTrue
+  ) as ModuleReExports
