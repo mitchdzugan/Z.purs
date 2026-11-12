@@ -31,7 +31,7 @@ foreign import js_animationFramePromise :: EffPromise Unit
 
 foreign import js_eventCurrentTargetValue :: DomEvent -> Effect String
 
-xPreactHydrate :: forall x. Element -> XD.ReactEl -> EA' JsError x @@-> Unit
+xPreactHydrate :: forall x. Element -> XD.ReactEl -> E' JsError x @@^-> Unit
 xPreactHydrate d r = e'runEffPromise $ js_renderIn r d
 
 xDomRunWeb :: forall dr x. XD.MDom dr (X'Web x) Unit -> XD.MDom dr x Unit

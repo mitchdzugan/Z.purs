@@ -2,15 +2,14 @@ module Z.Z.X.Nicknames
   ( Edit
   , Edit'v
   , RS'
-  , RWaEA'
-  , RWaSEA'
+  , RWaE'
+  , RWaSE'
   , S'
-  , SEA'
+  , SE'
   , StrW
   , W'
   , Wa'
   , WaE'
-  , WaEA'
   , WaS'
   , X'S
   , X'W
@@ -60,13 +59,13 @@ import Z.Z.X.UtilPrelude
 import Data.Either (Either(..))
 import Data.Int (floor)
 import Z.Z.Core (Result, T'useAsSym)
-import Z.Z.DateTime (DateTime(..), dateTime'eff'now)
+import Z.Z.DateTime (DateTime, dateTime'eff'now)
 import Z.Z.It (forM_)
 import Z.Z.String (str'joinWith)
 import Z.Z.X.Core (Run, x'eval, x'eval_, x'exec, x'exec_, x'run, x'run_)
 import Z.Z.X.Index
-  ( type (@@->)
-  , A'
+  ( type (@@*->)
+  , type (@@->)
   , E'
   , R'
   , T'use'e'AsSym
@@ -95,29 +94,27 @@ type WaS' w s x = Wa' w $ S' s x
 
 type WaE' w e x = Wa' w $ E' e x
 
-type WaEA' w e x = Wa' w $ E' e $ A' x
+type RWaE' r w e x = R' r $ Wa' w $ E' e x
 
-type RWaEA' r w e x = R' r $ Wa' w $ E' e $ A' x
+type RWaSE' r w s e x = R' r $ Wa' w $ S' s $ E' e x
 
-type RWaSEA' r w s e x = R' r $ Wa' w $ S' s $ E' e $ A' x
-
-type SEA' s e x = S' s $ E' e $ A' x
+type SE' s e x = S' s $ E' e x
 
 ------------------------------------------------
 
 s'put :: forall x s. s -> S' s x @*-> Unit
 s'put = x'assign @"_'x'state"
 
-s'update :: forall x s. (s -> s) -> Run (S' s x) Unit
+s'update :: forall x s. (s -> s) -> S' s x @*-> Unit
 s'update = x'update @"_'x'state"
 
-s'run :: forall x r a. r -> Run (S' r x) a -> Run x (a /\ r)
+s'run :: forall x r a. r -> S' r x @-> a *-> x @-> a /\ r
 s'run = x'run @"_'x'state"
 
-s'eval :: forall x r a. r -> Run (S' r x) a -> Run x a
+s'eval :: forall x r a. r -> S' r x @-> a *-> x @-> a
 s'eval = x'eval @"_'x'state"
 
-s'exec :: forall x r. r -> Run (S' r x) Unit -> Run x r
+s'exec :: forall x r. r -> S' r x @-> Unit *-> x @-> r
 s'exec = x'exec @"_'x'state"
 
 ---------------------------------------
@@ -134,7 +131,7 @@ edit init m = sync'x $ s'exec init m
 
 --------------------------------------------
 
-w'run :: forall x w a. Monoid w => Run (W' w x) a -> Run x (a /\ w)
+w'run :: forall x w a. Monoid w => W' w x @-> a *-> x @-> a /\ w
 w'run = x'run_ @"_'x'writer"
 
 w'eval :: forall x w a. Monoid w => Run (W' w x) a -> Run x a
@@ -146,7 +143,7 @@ w'exec = x'exec_ @"_'x'writer"
 --------------------------------------------
 
 type T'w'tell p =
-  forall w x' x. ConsSymbol p (X'W w) x' x => Monoid w => w -> Run x Unit
+  forall w x' x. ConsSymbol p (X'W w) x' x => Monoid w => w -> x @*-> Unit
 
 w'tell'' :: forall @p. T'w'tell p
 w'tell'' w = x'cons @p w
@@ -162,7 +159,7 @@ type T'w'say p =
   => Monoid (m w)
   => Monad m
   => w
-  -> Run x Unit
+  -> x @*-> Unit
 
 w'say'' :: forall @p. T'w'say p
 w'say'' w = x'cons @p (pure w)
@@ -180,8 +177,7 @@ type T'w'map p =
   => Monoid (m w2)
   => Monad m
   => (w2 -> w1)
-  -> Run x a
-  -> Run x' a
+  -> x @-> a *-> x' @-> a
 
 w'map'' :: forall @p. T'w'map p
 w'map'' f m = do
@@ -227,8 +223,7 @@ type T'we'map' wp ep =
   => Monad m
   => (w2 -> w1)
   -> (e2 -> e1)
-  -> Run x a
-  -> Run x'' a
+  -> x @-> a *-> x'' @-> a
 
 type T'we'map wp =
   forall ep. T'use'e'AsSym ep (T'we'map' wp)
@@ -252,8 +247,7 @@ type T'we'tellMappedMHush' wp ep =
   => Monoid (m w)
   => Generable a GDefault a
   => (e -> m w)
-  -> Run x a
-  -> Run x' a
+  -> x @-> a *-> x' @-> a
 
 type T'we'tellMappedMHush wp =
   forall ep. T'use'e'AsSym ep (T'we'tellMappedMHush' wp)
@@ -280,8 +274,7 @@ type T'we'tellMappedHush' wp ep =
   => Monad m
   => Generable a GDefault a
   => (e -> w)
-  -> Run x a
-  -> Run x' a
+  -> x @-> a *-> x' @-> a
 
 type T'we'tellMappedHush wp =
   forall ep. T'use'e'AsSym ep (T'we'tellMappedHush' wp)
@@ -305,7 +298,7 @@ type T'we'unresult' wp ep =
    . ConsSymbol wp (X'Wa w) x'' x
   => ConsSymbol ep (X'E e) x' x
   => Result w e a
-  -> Run x a
+  -> x @*-> a
 
 type T'we'unresult wp =
   forall ep. T'use'e'AsSym ep (T'we'unresult' wp)
@@ -327,8 +320,7 @@ type T'we'runResult' wp ep =
   forall w e x'' x' x a
    . ConsSymbol wp (X'Wa w) x'' x'
   => ConsSymbol ep (X'E e) x' x
-  => Run x a
-  -> Run x'' (Result w e a)
+  => x @-> a *-> x'' @-> (Result w e a)
 
 type T'we'runResult wp =
   forall ep. T'use'e'AsSym ep (T'we'runResult' wp)
@@ -344,11 +336,11 @@ we'runResult = we'runResult'' @wp
 
 -------------------------------------
 
-x'now :: forall x. x @@-> DateTime
+x'now :: forall x. x @@*-> DateTime
 x'now = pure unit <#> \_ -> unsafePerformEffect dateTime'eff'now
 
-x'nowMS'number :: forall x. x @@-> Number
+x'nowMS'number :: forall x. x @@*-> Number
 x'nowMS'number = x'now <#> unwrap
 
-x'nowMS :: forall x. x @@-> Int
+x'nowMS :: forall x. x @@*-> Int
 x'nowMS = x'nowMS'number <#> floor

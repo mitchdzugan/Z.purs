@@ -16,20 +16,20 @@ import Data.Argonaut.Core (Json)
 import Data.Argonaut.Encode (class EncodeJson, encodeJson)
 import Data.Either (Either, note)
 import Data.Maybe (Maybe)
-import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Newtype (class Newtype)
 import Data.Tuple.Nested ((/\))
-import Z.Z.Core (JsError(..), encodeOpts)
+import Z.Z.Core (JsError, encodeOpts)
 import Z.Z.Defaultable (class Generable, GDefault, default)
 import Z.Z.HashMap (HashMap, hm'collect, hm'lookup)
 import Z.Z.Json.Decode
   ( class XDecodeJson
-  , JsonDecodeError(..)
+  , JsonDecodeError
   , decodeJson
   , xDecodeViaString
   )
 import Z.Z.Promise (EffPromise)
-import Z.Z.X.Core (Run)
-import Z.Z.X.Index (A', E', e'runEffPromise)
+import Z.Z.Run (type (@^->))
+import Z.Z.X.Index (E', e'runEffPromise)
 import Z.Z.X.Nicknames (Edit, edit)
 
 foreign import data Fetch'Response :: Type
@@ -40,14 +40,14 @@ x'fetch
   :: forall x
    . String
   -> Edit Fetch'RequestOptions
-  -> Run (E' JsError (A' x)) Fetch'Response
+  -> E' JsError x @^-> Fetch'Response
 x'fetch url opts = e'runEffPromise $ fetch url $ edit default opts
 
 x'decodeFetched
   :: forall @t x
    . XDecodeJson t
   => Fetch'Response
-  -> Run (E' JsError (A' x)) (Either JsonDecodeError t)
+  -> E' JsError x @^-> Either JsonDecodeError t
 x'decodeFetched res = decodeJson @t <$> e'runEffPromise (fetchRes'json res)
 
 -----------------------------

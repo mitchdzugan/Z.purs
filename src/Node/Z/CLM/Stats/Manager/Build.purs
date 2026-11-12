@@ -56,8 +56,8 @@ import Z.CLM.Stats.Types
 
 wrapH2hWE
   :: forall x a
-   . Run (WaE' H2h.Warning H2h.Error $ WaE' ClmStW.T ClmStE.T x) a
-  -> Run (WaE' ClmStW.T ClmStE.T x) a
+   . (WaE' H2h.Warning H2h.Error $ WaE' ClmStW.T ClmStE.T x) @-> a
+       *-> (WaE' ClmStW.T ClmStE.T x @-> a)
 wrapH2hWE = we'map ClmStW.H2h ClmStE.H2h
 
 data GitClientLabel = GitClient'App | GitClient'Pages
@@ -82,7 +82,7 @@ type EnvR r =
 type TagData = { gamerTag :: String, prefix :: Maybe String }
 
 type ClmV r x =
-  ( RWaEA' (EnvR r) ClmStW.T ClmStE.T
+  ( RWaE' (EnvR r) ClmStW.T ClmStE.T
       ( clmRanks :: X'HashMap Int (Array ClmSeason'Player)
       , clmEvents :: X'HashMap2D Int SorN ClmSeason'Event
       , clmPlayers :: X'HashMap Int ClmPlayer
@@ -151,14 +151,14 @@ initialManual = map Act.PureAction
   lastFudds = "fudds-house-17-last-fudds"
   ggD t e r = rec'insert @"slug" ("tournament/" <> t <> "/event/" <> e) r
 
-getGitClient :: forall r x. GitClientLabel -> ClmV r x @@-> GitClient
+getGitClient :: forall r x. GitClientLabel -> ClmV r x @@^-> GitClient
 getGitClient GitClient'App = r'ask <#> \r -> r.app'git
 getGitClient GitClient'Pages = r'ask <#> \r -> r.pages'git
 
 type T'useGit'fm'res =
   forall r x res
-   . (GitClient -> E' GitError (ClmV r x) @@-> res)
-  -> ClmV r x @@-> res
+   . (GitClient -> E' GitError (ClmV r x) @@^-> res)
+  -> ClmV r x @@^-> res
 
 useGit :: GitClientLabel -> T'useGit'fm'res
 useGit label fm = getGitClient label >>= \c -> ClmStE.GitClientError !$! fm c
@@ -169,7 +169,7 @@ useAppGit = useGit GitClient'App
 usePagesGit :: T'useGit'fm'res
 usePagesGit = useGit GitClient'Pages
 
-git'ensureClean :: forall r x. GitClientLabel -> ClmV r x @@-> Unit
+git'ensureClean :: forall r x. GitClientLabel -> ClmV r x @@^-> Unit
 git'ensureClean label = do
   baseDir <- getGitClient label <#> git'client'baseDir
   status <- useGit label $ git'status $ s'setPure'b @"porcelain" true
@@ -183,18 +183,18 @@ git'requiredBranch :: GitClientLabel -> String
 git'requiredBranch GitClient'App = "impl/purs"
 git'requiredBranch GitClient'Pages = "impl/purs"
 
-git'ensureCleanLatest :: forall r x. GitClientLabel -> ClmV r x @@-> Unit
+git'ensureCleanLatest :: forall r x. GitClientLabel -> ClmV r x @@^-> Unit
 git'ensureCleanLatest label = do
   git'ensureClean label
   useGit label $ git'pull pass
   git'ensureClean label
 
-get'nowMS'Rounded :: forall r x. ClmV r x @@-> Int
+get'nowMS'Rounded :: forall r x. ClmV r x @@^-> Int
 get'nowMS'Rounded = r'ask <#> _.nowMS'number <#> \n ->
   (60 * 60 * 24 * floor (n / 1000.0 / 24.0 / 60.0 / 60.0)) + (24 * 60 * 60)
 
 getActions
-  :: forall r x. Array Act.PureAction -> Boolean -> ClmV r x @@-> ClmActionData
+  :: forall r x. Array Act.PureAction -> Boolean -> ClmV r x @@^-> ClmActionData
 getActions newActions usePrevAuto = do
   baseRes <- r'ask <#> _.lastBuildMeta <#> case _ of
     Nothing -> { manual: initialManual <> newActions, auto: [] }
@@ -232,7 +232,7 @@ getH2hData
   :: forall r x
    . Spec.Spec
   -> Boolean
-  -> ClmV r x @@-> Array (Int /\ HashMap SorN H2h.Event)
+  -> ClmV r x @@^-> Array (Int /\ HashMap SorN H2h.Event)
 getH2hData spec allowRefetch =
   x'eval_ @"seasonH2hEvents" @(X'HashMap2D Int SorN H2h.Event) do
     { client } <- r'ask
@@ -296,7 +296,7 @@ type XSeason x =
   | x
   )
 
-runSeason :: forall x a. Run (XSeason x) a -> Run x a
+runSeason :: forall x a. XSeason x @-> a *-> x @-> a
 runSeason = id
   <<< x'eval_ @"clmIdByEntrantId"
   <<< x'eval_ @"wins"
@@ -319,15 +319,15 @@ runSeason = id
   <<< x'eval_ @"charUsedGames"
   <<< x'eval_ @"charColorUsedGames"
 
-addPlayerIdToClmId :: forall x. SorN -> Int -> ClmV () x @@-> Unit
+addPlayerIdToClmId :: forall x. SorN -> Int -> ClmV () x @@*-> Unit
 addPlayerIdToClmId playerId clmId = do
   x'consAt @"playerIdsByClmId" clmId playerId
   x'insert @"clmIdByPlayerId" playerId clmId
 
 runClm
   :: forall x a
-   . ClmV () (E' JsError x) @@-> a
-  -> EA' JsError x @@-> Result ClmStW.T ClmStE.T a
+   . ClmV () (E' JsError x) @@^-> a
+  -> E' JsError x @@^-> Result ClmStW.T ClmStE.T a
 runClm m = do
   let
     getEnv s = x'lookupEnv s >>= e'unwrap (jsError "Required Env Var Missing" s)
@@ -336,10 +336,11 @@ runClm m = do
   dataRoot <- getEnv "CLM_STATS_DATA_DIR"
   appCOPath <- getEnv "CLM_STATS_APP_CO"
   pagesCOPath <- getEnv "CLM_STATS_PAGES_CO"
-  client <- pure $ H2h.mkClient do
-    s'setPure'b @"authToken" ggAuth
-    let cachePath = dataRoot /./ "cache" /./ "startgg.gqlCache"
-    s'setPure'b @"cachePath" $ pathStr cachePath
+  let
+    client = H2h.mkClient do
+      s'setPure'b @"authToken" ggAuth
+      let cachePath = dataRoot /./ "cache" /./ "startgg.gqlCache"
+      s'setPure'b @"cachePath" $ pathStr cachePath
   activeSeasonId <- seasonId'active
   let tryDecode = x'decodeTextFile $ dataRoot /./ "FULL_LEGACY.json"
   legacyBlob <- e'try tryDecode >>= e'ok <<< mapL
@@ -392,14 +393,14 @@ getClmIdForEvent
    . Spec.Spec
   -> H2h.Event
   -> H2h.Player
-  -> ClmV () x @@-> Boolean /\ Int
+  -> ClmV () x @@^-> Boolean /\ Int
 getClmIdForEvent spec { slug } player = x'withReturn'' @"xr.1" \x'return -> do
   let maskedId = hm'lookup slug spec.eventPlayerIdMasks >>= hm'lookup player.id
   knownClmId <- x'lookup @"clmIdByPlayerId" player.id <#> (>|>) maskedId
   whenJust (knownClmId <#> (/\) (isJust maskedId)) x'return
   getClmId player.id <#> (/\) false
 
-getClmId :: forall x. SorN -> ClmV () x @@-> Int
+getClmId :: forall x. SorN -> ClmV () x @@^-> Int
 getClmId playerId = x'withReturn'' @"xr.2" \x'return -> do
   knownClmId <- x'lookup @"clmIdByPlayerId" playerId
   whenJust knownClmId x'return
@@ -411,7 +412,7 @@ getClmId playerId = x'withReturn'' @"xr.2" \x'return -> do
   addPlayerIdToClmId playerId clmId
   pure clmId
 
-addRanks :: forall x. Int -> Array RatingData -> ClmV () x @@-> Unit
+addRanks :: forall x. Int -> Array RatingData -> ClmV () x @@^-> Unit
 addRanks seasonId ratingData = do
   { activeSeasonId } <- r'ask
   let
@@ -451,7 +452,7 @@ addRanks seasonId ratingData = do
           }
     x'insert @"clmRanks" seasonId ranks
 
-buildCurrentSeasons :: forall x. Spec.Spec -> ClmV () x @@-> Unit
+buildCurrentSeasons :: forall x. Spec.Spec -> ClmV () x @@^-> Unit
 buildCurrentSeasons spec = do
   seasonH2hEvents <- getH2hData spec true
   forM_ seasonH2hEvents \(seasonId /\ h2hEvents) -> runSeason do
@@ -700,7 +701,7 @@ buildCurrentSeasons spec = do
 
         x'insert @"clmPlayerSeasons" (seasonId /\ clmId) { events, h2hs, sets }
 
-buildLegacySeasons :: forall x. ClmV () x @@-> Unit
+buildLegacySeasons :: forall x. ClmV () x @@^-> Unit
 buildLegacySeasons = do
   { legacyBlob } <- r'ask
   allPlayerSeasons <-
@@ -916,7 +917,7 @@ buildSeasonJson
   -> HashMap Int (Array Int)
   -> HashMap Int (Array String)
   -> Int
-  -> ClmV () x @@-> ClmSeason'Json
+  -> ClmV () x @@^-> ClmSeason'Json
 buildSeasonJson allSeasonIds allPlayerSeasons otherPlayerTags seasonId = do
   ranks <- x'lookup @"clmRanks" seasonId <#> may'or []
   events <- x'extractAt @"clmEvents" seasonId <#> hm'vals
@@ -949,7 +950,7 @@ buildSeasonJson allSeasonIds allPlayerSeasons otherPlayerTags seasonId = do
     }
 
 buildPlayerSeasonJson
-  :: forall x. Int -> Int -> ClmV () x @@-> ClmPlayerSeason'Json
+  :: forall x. Int -> Int -> ClmV () x @@^-> ClmPlayerSeason'Json
 buildPlayerSeasonJson seasonId clmId = do
   playerSeason <- x'lookup @"clmPlayerSeasons" (seasonId /\ clmId) >>=
     e'unwrap (ClmStE.MissingPlayerSeason seasonId clmId)
@@ -962,7 +963,7 @@ buildPlayerSeasonJson seasonId clmId = do
 buildClm
   :: forall x
    . Array Act.PureAction
-  -> EA' JsError x @@-> Result ClmStW.T ClmStE.T Unit
+  -> E' JsError x @@^-> Result ClmStW.T ClmStE.T Unit
 buildClm newActions = runClm do
   actionData <- getActions newActions false
   let spec = Act.buildSpec $ actionData.manual <> actionData.auto

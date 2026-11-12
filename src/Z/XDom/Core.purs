@@ -195,9 +195,8 @@ import Z.XDom.X
   , attrW'resetStyles
   , attrW'run
   )
-import Z.Z.Run (Future, ctxA'lift)
+import Z.Z.Run (Future, ctxA'liftFut)
 import Z.Z.ThenableR (async'run_)
-import Z.Z.X.Index (runner'evalA)
 
 type DomW' x = (domW :: X'Wa ReactEl | x)
 
@@ -217,10 +216,10 @@ eval'self self@(Self _ rn) m = runner'eval rn $ r'run'' @"self" self $ m
 evalA'self
   :: forall dx x a
    . Self dx x
-  -> Run (A' (SELF dx x)) a
+  -> SELF dx x @^-> a
   -> Future a
 evalA'self self@(Self _ rn) m = do
-  runner'evalA rn $ r'run'' @"self" self $ m
+  runner'evalFutA rn $ r'run'' @"self" self $ m
 
 selfExtend :: forall dx x' x. RunMW x x' -> Self dx x' -> Self dx x
 selfExtend fm (Self dxn xn) = Self dxn (runner'extend fm xn)
@@ -247,7 +246,7 @@ type MDomEff x a = Run (MDOMEFF x) a
 
 type MDomEff'delta x' x a = Run (MDOMEFF'delta x' x) a
 
-type MDomEff'a x a = Run (A' (MDOMEFF x)) a
+type MDomEff'a x a = MDOMEFF x @^-> a
 
 --------------------------------------------------------------------------------
 
@@ -266,7 +265,7 @@ domEff'do = x'do
 dom'do :: forall x a. Eff'At "dom" a -> Run (DomPermit x) a
 dom'do = x'do
 
-dom'getSelf :: forall dx x x'. Run (SELF'x dx x x') (Self dx x)
+dom'getSelf :: forall dx x x'. SELF'x dx x x' @*-> Self dx x
 dom'getSelf = x'extract @"self"
 
 dom'getRunner :: forall dx x x'. Run (SELF'x dx x x') (Runner (SELF dx x))
@@ -285,14 +284,12 @@ dom'getDomSelf = dom'getSelf <#> selfDomless
 class
   ( ConsSymbol p m x' x
   , ConsSymbol p m (MDOMEFF'delta x' x) (MDOMEFF x)
-  , ConsSymbol p m (MDOMEFF'delta (A' x') x) (A' (MDOMEFF x))
   ) <=
   Dom'ConsSymbol p m x' x
 
 instance
   ( ConsSymbol p m x' x
   , ConsSymbol p m (MDOMEFF'delta x' x) (MDOMEFF x)
-  , ConsSymbol p m (MDOMEFF'delta (A' x') x) (A' (MDOMEFF x))
   ) =>
   Dom'ConsSymbol p m x' x
 
@@ -493,7 +490,7 @@ type T'domState'setable s a p =
    . ConsSymbol p (X'R $ Record $ StateReducerR s a r) (domEff :: X'Permit | x')
        (domEff :: X'Permit | x)
   => a
-  -> Run (domEff :: X'Permit | x) Unit
+  -> (domEff :: X'Permit | x) @*-> Unit
 
 type T'domState'dispatch p = forall s a. T'domState'setable s a p
 
@@ -682,7 +679,7 @@ domEff'el'boundingRect el = do
 domEffA'animationFrame :: forall x. MDomEff'a (XDomR' x) Unit
 domEffA'animationFrame = do
   f <- x'extract @"_'xdom'reader" >>= \r -> x'do r.future'animationFrame
-  ctxA'lift f
+  ctxA'liftFut f
 
 domEff'doc'pxPerRem :: forall x. MDomEff (XDomR' x) Number
 domEff'doc'pxPerRem = do
@@ -800,7 +797,7 @@ el'renderToString = js_renderToString
 xdom'renderToString :: XDom () () Unit -> String
 xdom'renderToString = js_renderToString <<< exec'xdom'static
 
-x'renderToStringAsync :: forall x. ReactEl -> Run (EA' JsError x) String
+x'renderToStringAsync :: forall x. ReactEl -> E' JsError x @^-> String
 x'renderToStringAsync = e'runEffPromise <<< js_renderToStringAsync
 
 ---------------------------------------------------------------------

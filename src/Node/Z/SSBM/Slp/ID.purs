@@ -5,7 +5,7 @@ import Node.Z.Prelude
 import Z.SSBM.Slp.Read.Impl as SlpRead
 import Z.Z.Opt as O
 
-xRun :: forall x. Array String -> EA' JsError x @@@-> Unit
+xRun :: forall x. Array String -> E' JsError x @@@^-> Unit
 xRun args = do
   x'argParse "slp-id" cliInfo args \(CliOpts opts) -> do
     buffer <- x'readFile opts.filename

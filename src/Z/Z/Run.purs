@@ -2,7 +2,6 @@ module Z.Z.Run
   ( Ctx
   , Ctx'Async
   , Ctx'Except
-  , Ctx'x'async
   , Future
   , Run'
   , RunA
@@ -11,11 +10,9 @@ module Z.Z.Run
   , RunJoin
   , RunS
   , ctx'expand
-  , ctxA'adapt
-  , ctxA'fromEff
-  , ctxA'fromEffPromise
-  , ctxA'lift
-  , ctxA'run
+  , ctxA'adaptFut
+  , ctxA'fut
+  , ctxA'liftFut
   , ctxE'failAt
   , ctxE'okAt
   , ctxE'runAt
@@ -34,18 +31,14 @@ import Prelude
 
 import Data.Either (Either)
 import Data.Symbol (reflectSymbol)
-import Effect (Effect)
 import Prim.Row (class Union)
 import Type.Proxy (Proxy(..))
 import Unsafe.Coerce (unsafeCoerce)
 import Z.Z.Core (class ConsSymbol, JsError, eOr'_, mapL)
-import Z.Z.Promise (EffPromise)
 import Z.Z.ThenableR
   ( Tag'Async
   , Tag'Sync
   , ThenableR
-  , async'fromEff
-  , async'fromEffPromise
   , thenableR'ask
   , thenableR'sync
   , thenableR'try
@@ -58,8 +51,6 @@ foreign import data Ctx :: Row Type -> Type
 foreign import data Ctx'Except :: Type -> Type
 
 foreign import data Ctx'Async :: Type
-
-type Ctx'x'async x = (_'x'async :: Ctx'Async | x)
 
 type Run' rt x = ThenableR rt (Ctx x)
 
@@ -134,27 +125,18 @@ ctxE'okAt
   -> Run' rt x a
 ctxE'okAt = eOr'_ (ctxE'throwAt @p) pure
 
-ctxA'fromEff :: forall x a. Effect a -> RunS (Ctx'x'async x) (Either JsError a)
-ctxA'fromEff = ctx_asyncX_to_syncAX <<< async'fromEff
-
-ctxA'fromEffPromise
-  :: forall x a. EffPromise a -> RunS (Ctx'x'async x) (Either JsError a)
-ctxA'fromEffPromise = ctx_asyncX_to_syncAX <<< async'fromEffPromise
-
 ctxS'run :: forall a. RunS () a -> a
 ctxS'run = thenableR'sync unit <<< js_ctx_provideInitial
 
-ctxA'run :: forall a. RunS (Ctx'x'async ()) a -> ThenableR Tag'Async Unit a
-ctxA'run = js_ctx_provideInitial <<< ctx_syncAX_to_asyncX
+ctxA'fut :: forall a. RunA () a -> Future a
+ctxA'fut = js_ctx_provideInitial
 
-ctxA'lift :: forall x a. ThenableR Tag'Async Unit a -> RunS (Ctx'x'async x) a
-ctxA'lift = unsafeCoerce
+ctxA'liftFut :: forall x a. ThenableR Tag'Async Unit a -> RunA x a
+ctxA'liftFut = unsafeCoerce
 
-ctxA'adapt
-  :: forall x x' a
-   . (RunS x a -> RunS x' a)
-  -> (RunS (Ctx'x'async x) a -> RunS (Ctx'x'async x') a)
-ctxA'adapt = unsafeCoerce
+ctxA'adaptFut
+  :: forall x x' a. (RunS x a -> RunS x' a) -> (RunA x a -> RunA x' a)
+ctxA'adaptFut = unsafeCoerce
 
 foreign import js_ctx_initReaderAt
   :: forall rt v x' x a
@@ -183,9 +165,3 @@ foreign import js_ctx_throwAt :: forall e x a. String -> e -> Ctx x -> a
 
 foreign import js_ctx_provideInitial
   :: forall rt a. Run' rt () a -> ThenableR rt Unit a
-
-ctx_syncAX_to_asyncX :: forall x a. RunS (Ctx'x'async x) a -> RunA x a
-ctx_syncAX_to_asyncX = unsafeCoerce
-
-ctx_asyncX_to_syncAX :: forall x a. RunA x a -> RunS (Ctx'x'async x) a
-ctx_asyncX_to_syncAX = unsafeCoerce

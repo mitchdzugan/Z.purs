@@ -39,7 +39,7 @@ import Web.HTML.HTMLElement as HTMLEl
 import Web.HTML.History as History
 import Web.HTML.Location as Loc
 import Web.HTML.Window as Window
-import Z.Z.Run (Future)
+import Z.Z.Run (Future, Run')
 import Z.Z.ThenableR (async'run)
 
 type T'_'x'web = "_'x'web"
@@ -153,29 +153,29 @@ getDocumentBody doc = HTMLDoc.body doc <#> map HTMLEl.toElement
 getDocumentHead :: HTMLDoc.HTMLDocument -> Effect (Maybe T.Element)
 getDocumentHead doc = HTMLDoc.head doc <#> map HTMLEl.toElement
 
-xWindow :: forall x. Run (X'Web x) Window.Window
+xWindow :: forall x. X'Web x @*-> Window.Window
 xWindow = x'effGet @T'_'x'web @"window"
 
-xLocationUrl :: forall x. Run (X'Web x) URL
+xLocationUrl :: forall x. X'Web x @*-> URL
 xLocationUrl = x'effGet @T'_'x'web @"locationUrl"
 
-xDocument :: forall x. Run (X'Web x) HTMLDoc.HTMLDocument
+xDocument :: forall x. X'Web x @*-> HTMLDoc.HTMLDocument
 xDocument = x'effGet @T'_'x'web @"document"
 
-xBody :: forall x. Run (X'Web x) (Maybe T.Element)
+xBody :: forall x. X'Web x @*-> (Maybe T.Element)
 xBody = x'effGet @T'_'x'web @"body"
 
-xHead :: forall x. Run (X'Web x) (Maybe T.Element)
+xHead :: forall x. X'Web x @*-> (Maybe T.Element)
 xHead = x'effGet @T'_'x'web @"head"
 
-xGetElementById :: forall x. String -> Run (X'Web x) (Maybe T.Element)
+xGetElementById :: forall x. String -> X'Web x @*-> (Maybe T.Element)
 xGetElementById s = x'effCall @T'_'x'web @"getElementById" s
 
 xClosest
-  :: forall x. WET.EventTarget -> String -> Run (X'Web x) (Maybe T.Element)
+  :: forall x. WET.EventTarget -> String -> X'Web x @*-> (Maybe T.Element)
 xClosest et qs = x'effCall @T'_'x'web @"closest" (qs /\ et)
 
-xGetAttribute :: forall x. T.Element -> String -> Run (X'Web x) (Maybe String)
+xGetAttribute :: forall x. T.Element -> String -> X'Web x @*-> (Maybe String)
 xGetAttribute el attr = x'effCall @T'_'x'web @"getAttribute" (attr /\ el)
 
 eventType
@@ -197,13 +197,13 @@ defaultEventListenerOpts =
   { capture: false, once: false, passive: false }
 
 xAddEventListener
-  :: forall x t
+  :: forall rt x t
    . IsEventTarget t
   => WebEvent.EventType
   -> t
   -> Edit EventListenerOpts
   -> (WebEvent.Event -> Effect Unit)
-  -> Run (X'Web x) (Run (X'Web x) Unit)
+  -> Run' rt (X'Web x) (Run' rt (X'Web x) Unit)
 xAddEventListener eType target opts onE = do
   let o = edit defaultEventListenerOpts opts
   let tgt = toEventTarget target
@@ -215,7 +215,7 @@ xPushState
   :: forall x
    . String
   -> Maybe String
-  -> Run (X'Web x) Unit
+  -> X'Web x @*-> Unit
 xPushState url titleOr_ = do
   {-
     TODO
@@ -230,14 +230,14 @@ xPushState url titleOr_ = do
 xSetDocumentTitle
   :: forall x
    . String
-  -> Run (X'Web x) Unit
+  -> X'Web x @*-> Unit
 xSetDocumentTitle title = do
   x'effCall @T'_'x'web @"setDocumentTitle" title
 
-xPreventDefault :: forall x. WET.Event -> Run (X'Web x) Unit
+xPreventDefault :: forall x. WET.Event -> X'Web x @*-> Unit
 xPreventDefault e = x'effCall @T'_'x'web @"preventDefault" e
 
-xStopPropagation :: forall x. WET.Event -> Run (X'Web x) Unit
+xStopPropagation :: forall x. WET.Event -> X'Web x @*-> Unit
 xStopPropagation e = x'effCall @T'_'x'web @"stopPropagation" e
 
 raw_addEventListener
@@ -271,7 +271,7 @@ raw_subToEvent eType target opts onE = do
   el <- raw_addEventListener eType tgt o onE
   pure $ raw_rmEventListener eType tgt o.capture el
 
-runXWeb :: forall x a. Run (X'Web x) a -> Run x a
+runXWeb :: forall x a. X'Web x @-> a *-> x @-> a
 runXWeb = x'eval_ @"_'x'web" @XWebR
 
 foreign import js_errorLog :: forall a. a -> Effect Unit
@@ -291,8 +291,8 @@ effAffThenExit = async'run onDone onError
   onDone _ = pure unit
 
 runXAThenExit
-  :: forall @w @e a. RtError e => (WaEA' w e (X'Web ()) @@-> a) -> Effect Unit
-runXAThenExit m = effAffThenExit $ async'x $ do
+  :: forall @w @e a. RtError e => (WaE' w e (X'Web ()) @@^-> a) -> Effect Unit
+runXAThenExit m = effAffThenExit $ asyncFut'x $ do
   res /\ w <- w'run $ e'try $ runXWeb m
   when (arr'size w > 0) do
     x'logWarning "collected warnings ⌄"

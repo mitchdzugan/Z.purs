@@ -21,10 +21,10 @@ adaptBuilder b source client networkControl = we'runResult $ r'run env b
 type BuildXR =
   { client :: Gql.Client, slug :: String, networkControl :: Gql.NetworkControl }
 
-type RunBuild x a = RWaEA' BuildXR H2h.Warning H2h.Error x @@-> a
+type RunBuild x a = RWaE' BuildXR H2h.Warning H2h.Error x @@^-> a
 
 type GetDataFn x =
   H2h.EventSource
   -> Gql.Client
   -> Gql.NetworkControl
-  -> A' x @@-> Result H2h.Warning H2h.Error H2h.Event
+  -> x @@^-> Result H2h.Warning H2h.Error H2h.Event

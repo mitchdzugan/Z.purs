@@ -20,7 +20,7 @@ seasonId'fromDateTime dt = periodMonthContrib + periodYearContrib
   periodYearContrib = (((dateTime'year dt tz'chicago) - 2022) * 3) + 2
   periodMonthContrib = floor $ toNumber (dateTime'month'i0 dt tz'chicago) / 4.0
 
-seasonId'active :: forall x. x @@-> Int
+seasonId'active :: forall x. x @@*-> Int
 seasonId'active = x'now <#> seasonId'fromDateTime
 
 type ClmSeason'Props =

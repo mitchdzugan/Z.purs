@@ -8,8 +8,6 @@ import Z.Z.HashMap (hm2d'collect)
 import Z.Z.It (it'forM, it'forM_, it'maximum, it'minimum)
 import Z.Z.Run
   ( Future
-  , ctxA'fromEff
-  , ctxA'run
   , ctxE'failAt
   , ctxE'okAt
   , ctxE'runAt
@@ -24,19 +22,20 @@ import Z.Z.ThenableR
   )
 import Z.Z.Variant (variant'handle, variant'mkers)
 
+{-
 runMain :: Future (Either String (Array Int))
-runMain = ctxA'run $ mapL jsErrorName <$> do
+runMain = ctxA:':run $ mapL jsErrorName <$> do
   ctxR'runAt @"hi" "hi" do
     res <- ctxE'runAt @"e" do
       traceM $ it'maximum [ 1, 2, 8, -2, 4, 5 ]
       traceM $ it'minimum [ 1, 2, 8, -2, 4, 5 ]
       names <- it'forM [ 1, 2, 3 ] \id -> do
-        prefix <- ctxE'okAt @"e" =<< ctxA'fromEff (pure "Name")
+        prefix <- ctxE'okAt @"e" =<< ctxA:':fromEff (pure "Name")
         let name = prefix <> ":[ " <> show id <> " ]"
         pure name
       traceM $ "DONE!" /\ { names }
-      a1 <- ctxE'okAt @"e" =<< ctxA'fromEff (pure 420)
-      a2 <- ctxE'okAt @"e" =<< ctxA'fromEff (pure 69)
+      a1 <- ctxE'okAt @"e" =<< ctxA:':fromEff (pure 420)
+      a2 <- ctxE'okAt @"e" =<< ctxA:':fromEff (pure 69)
       ctxR'runAt @"hi" 42069 do
         ctxE'failAt @"e" $ jsError' "Hello Darkness"
         hi <- ctxR'askAt @"hi"
@@ -44,6 +43,7 @@ runMain = ctxA'run $ mapL jsErrorName <$> do
     currHi <- ctxR'askAt @"hi"
     traceM { currHi }
     pure res
+-}
 
 var'unwrap
   :: forall v' v l a

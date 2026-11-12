@@ -6,7 +6,7 @@ import Node.Z.Prelude
 
 import Node.Z.CLM.Stats.Manager.Build (buildClm)
 
-xRun :: forall x. Array String -> EA' JsError x @@-> Unit
+xRun :: forall x. Array String -> E' JsError x @@^-> Unit
 xRun args = do
   x'info args
   res <- buildClm []

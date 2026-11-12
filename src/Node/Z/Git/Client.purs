@@ -78,7 +78,7 @@ type Git'Fn'g opts res err =
   => EncodeJson opts
   => (WaS' String opts () @@-> Unit)
   -> GitClient
-  -> EA' err x @@-> res
+  -> E' err x @@^-> res
 
 type Git'Fn opts res = Git'Fn'g opts res GitError
 
@@ -108,7 +108,7 @@ type Opts'status = { porcelain :: Maybe Boolean }
 git'status :: Git'Fn Opts'status String
 git'status o c = err'status c !$! git'fn "status" o c
 
-git'isClean :: forall x. GitClient -> EA' GitError x @@-> Boolean
+git'isClean :: forall x. GitClient -> E' GitError x @@^-> Boolean
 git'isClean = map ((==) "") <<< git'status (s'setPure'b @"porcelain" true)
 
 -------------------------
@@ -117,10 +117,10 @@ type Opts'revParse = { short :: Maybe Boolean, "abbrev-ref" :: Maybe Boolean }
 git'revParse :: Git'Fn Opts'revParse String
 git'revParse o c = err'revParse c !$! git'fn "revParse" o c
 
-git'lastCommitShort :: forall x. GitClient -> EA' GitError x @@-> String
+git'lastCommitShort :: forall x. GitClient -> E' GitError x @@^-> String
 git'lastCommitShort = git'revParse $ s'setPure'b @"short" true *> w'say "HEAD"
 
-git'currentBranch :: forall x. GitClient -> EA' GitError x @@-> String
+git'currentBranch :: forall x. GitClient -> E' GitError x @@^-> String
 git'currentBranch =
   git'revParse $ s'setPure'b @"abbrev-ref" true *> w'say "HEAD"
 
@@ -130,7 +130,7 @@ type Opts'add = { all :: Maybe Boolean }
 git'add :: Git'Fn Opts'add Unit
 git'add o c = err'add c !$! git'fn_ "add" o c
 
-git'addAll :: forall x. GitClient -> EA' GitError x @@-> Unit
+git'addAll :: forall x. GitClient -> E' GitError x @@^-> Unit
 git'addAll = git'add $ s'setPure'b @"all" true
 
 -------------------------
@@ -139,7 +139,7 @@ type Opts'commit = { message :: Maybe String }
 git'commit :: Git'Fn Opts'commit Unit
 git'commit o c = err'commit c !$! git'fn_ "commit" o c
 
-git'commitM :: forall x. String -> GitClient -> EA' GitError x @@-> Unit
+git'commitM :: forall x. String -> GitClient -> E' GitError x @@^-> Unit
 git'commitM message = git'commit $ s'setPure'b @"message" message
 
 -------------------------
