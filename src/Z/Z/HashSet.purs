@@ -17,7 +17,7 @@ import Z.Z.Bin as Bin
 import Z.Z.Defaultable (class Generable)
 import Z.Z.Ext (class Newtype)
 import Z.Z.Ext as Z
-import Z.Z.Id (class Identable, class Identable'Functor, ident'key)
+import Z.Z.Id (class Identable, ident'key)
 import Z.Z.It
   ( class Collectable
   , class Iterable
@@ -32,9 +32,6 @@ newtype HashSet a = HashSet (Bin.Bin a)
 derive instance Newtype (HashSet a) _
 
 derive newtype instance (XDecodeJson a) => XDecodeJson (HashSet a)
-
-instance Identable'Functor HashSet where
-  identable'map f hs = hs'collect $ hs'vals hs <#> f
 
 instance Identable a => Generable (HashSet a) gdesc (HashSet a) where
   mkGenerable = hs'empty

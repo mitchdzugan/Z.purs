@@ -4,7 +4,22 @@ import Node.Z.Prelude
 
 import Debug (traceM)
 import Effect.Class.Console (log)
+import Z.Z.Eff.Dict
+  ( DictK'Hole(..)
+  , _0
+  , dict'addDim
+  , dict'collect
+  , dict'entriesAt
+  , dict'lookup
+  , dictK'fullEntry
+  , eff'dict'entriesAt
+  , eff'dict'insert
+  , eff'dict'keysAt
+  , eff'dict'new
+  , eff'dict'sizeAt
+  )
 import Z.Z.HashMap (hm2d'collect)
+import Z.Z.Id (identP'els)
 import Z.Z.It (it'forM, it'forM_, it'maximum, it'minimum)
 import Z.Z.Run
   ( Future
@@ -60,6 +75,8 @@ mkMyVar = var'inj @"a" (Just 123)
 
 main :: Effect Unit
 main = do
+  let x = unit
+  traceM { x }
   traceM $ encode $ [ Left 1234, Right "asdf" ]
   traceM $ encode $ 1234 /\ "asdf"
   traceM $ encode $ jsError "title" "message"
@@ -121,3 +138,43 @@ main = do
     "{\"name\":\"title\",\"message\":\"message\",\"_\":\"JsError\"}"
   traceM $ decode @(Array (Either Int String)) $
     "[{\"tag\":\"Left\",\"value\":1234},{\"tag\":\"Right\",\"value\":\"asdf\"}]"
+  traceM $ identP'els $ 123
+  traceM $ identP'els $ 123 /\ "asf"
+  traceM $ identP'els $ 123 /\ "asf" /\ true
+  traceM $ identP'els $ 123 /\ "asf" /\ true /\ 1.77
+  d <- eff'dict'new @(Int /\ Boolean /\ String) @{ name :: String }
+  eff'dict'insert (123 /\ true /\ "asdf") { name: "Jimmy" } d
+  eff'dict'insert (123 /\ false /\ "fdsa") { name: "Bob" } d
+  eff'dict'insert (123 /\ false /\ "oooo") { name: "Oscar" } d
+  eff'dict'insert (123 /\ false /\ "nnnn") { name: "Nick" } d
+  eff'dict'insert (321 /\ false /\ "jjjj") { name: "Josh" } d
+  eff'dict'insert (555 /\ false /\ "rrrr") { name: "Ron" } d
+  eff'dict'insert (666 /\ false /\ "ssss") { name: "Steve" } d
+  eff'dict'insert (666 /\ true /\ "ffff") { name: "Frank" } d
+  traceM $ "a" /\ "b"
+  traceM $ "a" /\ "b" /\ "c"
+  traceM $ "a" /\ "b" /\ "c" /\ "d"
+  traceM =<< eff'dict'entriesAt (1000023 /\ false /\ _0) d
+  traceM =<< eff'dict'entriesAt (123 /\ false /\ _0) d
+  traceM =<< eff'dict'sizeAt (100003 /\ false /\ "oooo") d
+  traceM =<< eff'dict'sizeAt (123 /\ false /\ "oooo") d
+  traceM =<< eff'dict'sizeAt (123 /\ false /\ _0) d
+  traceM =<< eff'dict'sizeAt (123 /\ _0) d
+  traceM =<< eff'dict'sizeAt (_0) d
+  traceM =<< map ((<>) "_:") <$> eff'dict'keysAt (1000023 /\ false /\ _0) d
+  traceM =<< map ((<>) "_:") <$> eff'dict'keysAt (123 /\ false /\ _0) d
+  traceM =<< map ((==) false) <$> eff'dict'keysAt (123 /\ _0) d
+  traceM =<< map ((+) 1) <$> eff'dict'keysAt (_0) d
+  let
+    d2 = dict'collect
+      [ (123 /\ true /\ "oooo") /\ { name: "Oscar" }
+      , (123 /\ true /\ "jjjj") /\ { name: "Josh" }
+      ]
+    dtE = dict'entriesAt (123 /\ _0) d2 <#>
+      dictK'fullEntry @(Int /\ DictK'Hole) @(Int /\ Boolean /\ String)
+        (123 /\ _0)
+  traceM dtE
+  traceM $ dict'lookup (123 /\ true /\ "oooo") d2
+  -- let d2d = dict'addDim d2
+  -- traceM d2d
+  traceM $ dict'lookup (12 /\ true /\ "oooo") d2

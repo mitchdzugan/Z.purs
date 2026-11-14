@@ -197,7 +197,6 @@ import Z.Z.HashSet
   ) as ZMashSet
 import Z.Z.Id
   ( class Identable
-  , class Identable'Functor
   , class IsId
   , IdV
   , IdVF(..)
@@ -213,7 +212,6 @@ import Z.Z.Id
   , ident'get
   , ident'key
   , ident'uuid
-  , identable'map
   , idented'id
   , idented'mk
   , idented'v

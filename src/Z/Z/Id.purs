@@ -1,13 +1,16 @@
 module Z.Z.Id
   ( IdV
   , IdVF(..)
+  , IdentP'End
   , Idented
+  , class IdentP
+  , class IdentP'Head
   , class Identable
-  , class Identable'Functor
   , class IsId
   , id'bytes
   , id'bytesImpl
   , id'char
+  , id'jsVal
   , id'key
   , id'keyImpl
   , id'of
@@ -16,7 +19,8 @@ module Z.Z.Id
   , ident'get
   , ident'key
   , ident'uuid
-  , identable'map
+  , identP'els
+  , identP'head
   , idented'id
   , idented'mk
   , idented'v
@@ -27,8 +31,7 @@ import Prelude
 import Data.ByteString (fromByte)
 import Data.Char (toCharCode)
 import Data.String.CodeUnits (singleton)
-import Z.Z.Core (arr'concat)
-import Z.Z.Ext (Exists, mkExists, runExists)
+import Z.Z.Core (JsAny, arr'concat, jsAny)
 import Z.Z.Ext as Z
 import Z.Z.String (str'joinWith)
 
@@ -46,13 +49,23 @@ newtype IdVF a = IdVF
   , v :: a
   }
 
-type IdV = Exists IdVF
+derive instance Z.Newtype (IdVF a) _
+
+type IdV = Z.Exists IdVF
 
 id'of :: forall i. IsId i => i -> IdV
-id'of v = mkExists $ IdVF { id'char, id'keyImpl, id'bytesImpl, v }
+id'of v = Z.mkExists $ IdVF { id'char, id'keyImpl, id'bytesImpl, v }
 
 id'via :: forall t. Identable t => t -> IdV
-id'via = id'of <<< ident'get
+id'via v = Z.mkExists $ IdVF
+  { id'char: id'char <<< ident'get
+  , id'keyImpl: id'keyImpl <<< ident'get
+  , id'bytesImpl: id'bytesImpl <<< ident'get
+  , v
+  }
+
+id'jsVal :: IdV -> JsAny
+id'jsVal = Z.runExists (jsAny <<< _.v <<< Z.unwrap)
 
 class IsId a where
   id'char :: a -> Char
@@ -60,15 +73,15 @@ class IsId a where
   id'bytesImpl :: a -> Array Z.Byte
 
 instance IsId IdV where
-  id'char = runExists handleIdVF
+  id'char = Z.runExists handleIdVF
     where
     handleIdVF :: forall a. IdVF a -> Char
     handleIdVF (IdVF e) = e.id'char e.v
-  id'keyImpl = runExists handleIdVF
+  id'keyImpl = Z.runExists handleIdVF
     where
     handleIdVF :: forall a. IdVF a -> String
     handleIdVF (IdVF e) = e.id'keyImpl e.v
-  id'bytesImpl = runExists handleIdVF
+  id'bytesImpl = Z.runExists handleIdVF
     where
     handleIdVF :: forall a. IdVF a -> Array Z.Byte
     handleIdVF (IdVF e) = e.id'bytesImpl e.v
@@ -189,6 +202,23 @@ idented'id (Idented (id Z./\ _)) = id
 
 ---------------------------------------------------------------------
 
-class Identable'Functor f where
-  identable'map
-    :: forall a b. Identable a => Identable b => (a -> b) -> f a -> f b
+class IdentP :: Type -> Constraint
+class IdentP t where
+  identP'els :: t -> Array IdV
+
+instance (Identable t) => IdentP (t Z./\ IdentP'End) where
+  identP'els (i Z./\ _) = [ id'via i ]
+else instance (Identable tl, IdentP tr) => IdentP (tl Z./\ tr) where
+  identP'els (tl Z./\ tr) = [ id'via tl ] <> identP'els tr
+else instance Identable t => IdentP t where
+  identP'els i = [ id'via i ]
+
+class IdentP'Head identP head where
+  identP'head :: identP -> head
+
+instance IdentP'Head (head Z./\ rest) head where
+  identP'head = Z.fst
+else instance IdentP'Head head head where
+  identP'head = identity
+
+newtype IdentP'End = IdentP'End (Z.Proxy Void)
